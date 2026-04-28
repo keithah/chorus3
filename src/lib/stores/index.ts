@@ -20,9 +20,24 @@ export {
   ConnectionStore,
   connectionStore,
   createConnectionStore,
+  type ConnectionConnectHost,
   type ConnectionErrorSnapshot,
   type ConnectionErrorSource,
   type ConnectionStatus,
   type ConnectionStoreOptions,
   type ConnectionStoreSnapshot
 } from './connection.svelte';
+
+export {
+  HostConnectionStore,
+  createHostConnectionStore,
+  hostConnectionStore,
+  type ActiveHostSummary,
+  type HostConnectionConnectionStore,
+  type HostConnectionErrorSnapshot,
+  type HostConnectionErrorSource,
+  type HostConnectionStoreOptions,
+  type HostConnectionStoreSnapshot,
+  type HostTestSnapshot,
+  type HostTestStatus
+} from './hostConnection.svelte';

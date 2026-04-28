@@ -51,6 +51,12 @@ export interface ConnectionStoreOptions {
   createWebSocketClient?: (host: KodiWebSocketHost) => KodiWebSocketClient;
 }
 
+export type ConnectionConnectHost = KodiHttpHost & {
+  id?: string;
+  label?: string;
+  useWebSocket?: boolean;
+};
+
 export class ConnectionStore {
   status = $state<ConnectionStatus>('idle');
   lastError = $state<ConnectionErrorSnapshot | null>(null);
@@ -93,8 +99,9 @@ export class ConnectionStore {
     };
   }
 
-  async connect(host: KodiHttpHost & KodiWebSocketHost): Promise<void> {
+  async connect(host: ConnectionConnectHost): Promise<void> {
     const sessionId = this.#startSession();
+    const shouldUseWebSocket = host.useWebSocket !== false;
     this.status = 'checking';
     this.lastError = null;
     this.kodiVersion = null;
@@ -104,11 +111,13 @@ export class ConnectionStore {
     this.webSocketDegraded = false;
 
     let endpoint: KodiEndpointDescription;
-    let webSocketEndpoint: KodiWebSocketEndpointDescription;
+    let webSocketEndpoint: KodiWebSocketEndpointDescription | null = null;
 
     try {
       endpoint = describeKodiEndpoint(host);
-      webSocketEndpoint = describeKodiWebSocketEndpoint(toWebSocketHost(host));
+      webSocketEndpoint = shouldUseWebSocket
+        ? describeKodiWebSocketEndpoint(toWebSocketHost(host))
+        : null;
     } catch (error) {
       if (!this.#isActive(sessionId)) {
         return;
@@ -135,7 +144,10 @@ export class ConnectionStore {
       this.#applyHttpSuccess(result);
       this.status = 'connected';
       this.lastError = null;
-      this.#startWebSocket(sessionId, toWebSocketHost(host));
+
+      if (shouldUseWebSocket) {
+        this.#startWebSocket(sessionId, toWebSocketHost(host));
+      }
     } catch (error) {
       if (!this.#isActive(sessionId)) {
         return;
@@ -270,12 +282,10 @@ export class ConnectionStore {
   }
 }
 
-function toWebSocketHost(host: KodiHttpHost & KodiWebSocketHost): KodiWebSocketHost {
+function toWebSocketHost(host: ConnectionConnectHost): KodiWebSocketHost {
   return {
     host: host.host,
-    ...(host.port === undefined ? {} : { port: host.port }),
-    ...(host.useTls === undefined ? {} : { useTls: host.useTls }),
-    ...(host.path === undefined ? {} : { path: host.path })
+    ...(host.useTls === undefined ? {} : { useTls: host.useTls })
   };
 }
 

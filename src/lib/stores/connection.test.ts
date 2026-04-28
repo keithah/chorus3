@@ -374,6 +374,76 @@ describe('connection store', () => {
     });
   });
 
+  it('skips WebSocket startup while preserving HTTP diagnostics when disabled by saved host config', async () => {
+    const { options, webSocketClients } = makeOptions();
+    const store = createConnectionStore(options);
+
+    await store.connect({
+      id: 'den',
+      label: 'Den Kodi',
+      host: 'den.local',
+      useTls: false,
+      useWebSocket: false
+    });
+
+    expect(snapshot(store)).toMatchObject({
+      status: 'connected',
+      kodiVersion: { major: 21, minor: 1 },
+      applicationName: 'Kodi',
+      webSocketDegraded: false,
+      webSocketEndpoint: null,
+      lastError: null
+    });
+    expect(webSocketClients).toHaveLength(0);
+  });
+
+  it('does not forward HTTP port, credentials, timeout, or path metadata to WebSocket setup', async () => {
+    const { options, webSocketHosts } = makeOptions();
+    const store = createConnectionStore(options);
+
+    await store.connect({
+      host: 'kodi.local',
+      port: 8080,
+      username: 'admin',
+      password: 'secret',
+      timeoutMs: 1000,
+      path: '/custom-jsonrpc',
+      useTls: false
+    });
+
+    expect(snapshot(store).endpoint).toMatchObject({ path: '/custom-jsonrpc', port: 8080 });
+    expect(webSocketHosts).toEqual([{ host: 'kodi.local', useTls: false }]);
+    expect(snapshot(store).webSocketEndpoint).toEqual({
+      protocol: 'ws:',
+      host: 'kodi.local',
+      port: 9090,
+      path: '/jsonrpc',
+      hasCredentials: false
+    });
+    expect(JSON.stringify(snapshot(store))).not.toContain('secret');
+  });
+
+  it('destroys the old WebSocket client immediately when switching active hosts', async () => {
+    const firstHttp = deferred<KodiHttpConnectionTestResult>();
+    const secondHttp = deferred<KodiHttpConnectionTestResult>();
+    const { options, httpResults, webSocketClients } = makeOptions();
+    httpResults.splice(0, httpResults.length, firstHttp.promise, secondHttp.promise);
+    const store = createConnectionStore(options);
+
+    const firstConnect = store.connect({ host: 'first.local' });
+    firstHttp.resolve(healthyResult);
+    await firstConnect;
+
+    expect(webSocketClients).toHaveLength(1);
+    const firstWebSocket = webSocketClients[0];
+
+    const secondConnect = store.connect({ host: 'second.local' });
+
+    expect(firstWebSocket?.destroyCalls).toBe(1);
+    secondHttp.resolve(healthyResult);
+    await secondConnect;
+  });
+
   it('ignores stale HTTP completions and stale WebSocket events after host switches', async () => {
     const firstHttp = deferred<KodiHttpConnectionTestResult>();
     const secondHttp = deferred<KodiHttpConnectionTestResult>();
