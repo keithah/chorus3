@@ -55,6 +55,22 @@ export {
 } from './notifications';
 
 export {
+  createKodiJsonRpcWebSocketClient,
+  type KodiWebSocketClient,
+  type KodiWebSocketClientError,
+  type KodiWebSocketClientErrorCode,
+  type KodiWebSocketClientEvent,
+  type KodiWebSocketClientListener,
+  type KodiWebSocketClientOptions,
+  type KodiWebSocketImplementation,
+  type KodiWebSocketLike,
+  type KodiWebSocketSendFailure,
+  type KodiWebSocketSendResult,
+  type KodiWebSocketSendSuccess,
+  type KodiWebSocketUnsubscribe
+} from './webSocket';
+
+export {
   getActivePlayers,
   getApplicationProperties,
   getAudioLibraryAlbums,
