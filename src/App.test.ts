@@ -2,7 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import App from './App.svelte';
-import { connectionStore } from './lib/stores/connection.svelte';
+import { connectionStore } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
 let mountedComponent: Record<string, unknown> | undefined;
