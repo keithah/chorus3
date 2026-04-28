@@ -3,7 +3,7 @@
     title: string;
     status: string;
     description: string;
-    tone?: 'neutral' | 'success' | 'warning';
+    tone?: 'neutral' | 'success' | 'warning' | 'danger';
   }
 
   let { title, status, description, tone = 'neutral' }: Props = $props();
@@ -95,5 +95,9 @@
 
   .status-card-warning {
     --status-color: var(--color-warning);
+  }
+
+  .status-card-danger {
+    --status-color: var(--color-danger, var(--color-warning));
   }
 </style>

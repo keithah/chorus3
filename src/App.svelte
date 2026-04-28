@@ -2,6 +2,81 @@
   import AppShell from '$components/AppShell.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
+  import { connectionStore, type ConnectionStoreSnapshot } from '$lib/stores';
+
+  function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
+    if (version === null) {
+      return null;
+    }
+
+    if (typeof version === 'string') {
+      return version.trim() || null;
+    }
+
+    const parts = [version.major, version.minor, version.patch].filter(
+      (part) => part !== undefined && part !== null
+    );
+
+    return parts.length > 0 ? parts.join('.') : null;
+  }
+
+  function connectionTone(
+    snapshot: ConnectionStoreSnapshot
+  ): 'neutral' | 'success' | 'warning' | 'danger' {
+    if (snapshot.status === 'failed') {
+      return 'danger';
+    }
+
+    if (snapshot.webSocketDegraded || snapshot.status === 'degraded') {
+      return 'warning';
+    }
+
+    if (snapshot.status === 'connected') {
+      return 'success';
+    }
+
+    return 'neutral';
+  }
+
+  function connectionStatusText(snapshot: ConnectionStoreSnapshot): string {
+    if (snapshot.status === 'idle') {
+      return 'no host';
+    }
+
+    if (snapshot.webSocketDegraded || snapshot.status === 'degraded') {
+      return 'degraded';
+    }
+
+    return snapshot.status;
+  }
+
+  function connectionDescription(snapshot: ConnectionStoreSnapshot): string {
+    const version = formatKodiVersion(snapshot.kodiVersion);
+    const versionText = version ? ` Kodi ${version}.` : '';
+    const lastConnectedText = snapshot.lastConnectedAt
+      ? ` Last connected ${snapshot.lastConnectedAt}.`
+      : '';
+
+    if (snapshot.status === 'idle') {
+      return 'Configure a Kodi host in the upcoming host settings slice. HTTP and WebSocket checks are idle.';
+    }
+
+    if (snapshot.status === 'checking') {
+      return 'Checking Kodi HTTP diagnostics before opening the notification WebSocket.';
+    }
+
+    if (snapshot.webSocketDegraded || snapshot.status === 'degraded') {
+      return `WebSocket degraded after HTTP diagnostics succeeded; retry attempt ${snapshot.reconnectAttempt}.${versionText}${lastConnectedText}`;
+    }
+
+    if (snapshot.status === 'failed') {
+      return snapshot.lastError
+        ? `Kodi connection failed (${snapshot.lastError.source}/${snapshot.lastError.code}): ${snapshot.lastError.message}`
+        : 'Kodi connection failed with no additional diagnostics.';
+    }
+
+    return `Kodi HTTP and WebSocket diagnostics are connected.${versionText}${lastConnectedText}`;
+  }
 </script>
 
 <AppShell>
@@ -22,17 +97,17 @@
       <p class="section-kicker">Runtime surface</p>
       <h2 id="mission-title">No Kodi host configured yet</h2>
       <p>
-        This static shell intentionally renders useful placeholder diagnostics before any Kodi
-        client, host store, or credential flow exists.
+        This shell now reads the shared connection store so HTTP health and WebSocket notification
+        degradation can be inspected separately before host settings arrive.
       </p>
     </section>
 
-    <section class="status-grid" aria-label="Kodi readiness placeholders">
+    <section class="status-grid" aria-label="Kodi readiness status">
       <StatusCard
         title="Connection"
-        status="standby"
-        tone="warning"
-        description="No Kodi host configured yet. S03 will replace this placeholder with live connection state."
+        status={connectionStatusText(connectionStore.snapshot)}
+        tone={connectionTone(connectionStore.snapshot)}
+        description={connectionDescription(connectionStore.snapshot)}
       />
       <StatusCard
         title="Library sync"
