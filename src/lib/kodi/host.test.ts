@@ -4,11 +4,16 @@ import {
   DEFAULT_KODI_HTTP_PATH,
   DEFAULT_KODI_HTTP_PORT,
   DEFAULT_KODI_TIMEOUT_MS,
+  DEFAULT_KODI_WEBSOCKET_PATH,
+  DEFAULT_KODI_WEBSOCKET_PORT,
   buildBasicAuthHeader,
   buildKodiJsonRpcHttpUrl,
+  buildKodiJsonRpcWebSocketUrl,
   buildKodiRequestHeaders,
   describeKodiEndpoint,
-  normalizeKodiHttpHost
+  describeKodiWebSocketEndpoint,
+  normalizeKodiHttpHost,
+  normalizeKodiWebSocketHost
 } from './host';
 
 describe('Kodi HTTP host primitives', () => {
@@ -114,5 +119,107 @@ describe('Kodi HTTP host primitives', () => {
       expect(error).toBeInstanceOf(Error);
       expect(String(error)).not.toContain('super-secret-password');
     }
+  });
+});
+
+describe('Kodi WebSocket host primitives', () => {
+  it('normalizes the default WebSocket endpoint', () => {
+    const host = normalizeKodiWebSocketHost({ host: ' living-room-kodi.local ' });
+
+    expect(DEFAULT_KODI_WEBSOCKET_PORT).toBe(9090);
+    expect(DEFAULT_KODI_WEBSOCKET_PATH).toBe('/jsonrpc');
+    expect(host).toEqual({
+      host: 'living-room-kodi.local',
+      port: DEFAULT_KODI_WEBSOCKET_PORT,
+      useTls: false,
+      path: DEFAULT_KODI_WEBSOCKET_PATH
+    });
+    expect(buildKodiJsonRpcWebSocketUrl(host).toString()).toBe(
+      'ws://living-room-kodi.local:9090/jsonrpc'
+    );
+  });
+
+  it('builds TLS WebSocket endpoints with explicit ports and no URL userinfo', () => {
+    const host = normalizeKodiWebSocketHost({
+      host: 'kodi.example.test',
+      port: 9443,
+      useTls: true
+    });
+
+    const url = buildKodiJsonRpcWebSocketUrl(host);
+
+    expect(url.toString()).toBe('wss://kodi.example.test:9443/jsonrpc');
+    expect(url.username).toBe('');
+    expect(url.password).toBe('');
+  });
+
+  it.each([
+    ['jsonrpc', '/jsonrpc'],
+    ['/jsonrpc', '/jsonrpc'],
+    ['//jsonrpc', '/jsonrpc'],
+    ['/kodi/jsonrpc/', '/kodi/jsonrpc']
+  ])('normalizes WebSocket path %s', (path, expectedPath) => {
+    const host = normalizeKodiWebSocketHost({ host: 'kodi.local', path });
+
+    expect(buildKodiJsonRpcWebSocketUrl(host).toString()).toBe(
+      `ws://kodi.local:9090${expectedPath}`
+    );
+  });
+
+  it('accepts ws and wss URL input with path and port', () => {
+    expect(normalizeKodiWebSocketHost({ host: 'ws://kodi.local:19090/events' })).toEqual({
+      host: 'kodi.local',
+      port: 19090,
+      useTls: false,
+      path: '/events'
+    });
+    expect(
+      buildKodiJsonRpcWebSocketUrl({ host: 'wss://kodi.example.test:9443/kodi/jsonrpc' }).toString()
+    ).toBe('wss://kodi.example.test:9443/kodi/jsonrpc');
+  });
+
+  it('rejects invalid WebSocket ports and query paths with deterministic non-secret messages', () => {
+    expect(() => normalizeKodiWebSocketHost({ host: 'kodi.local', port: 70000 })).toThrow(
+      'Kodi WebSocket port must be an integer between 1 and 65535.'
+    );
+    expect(() =>
+      normalizeKodiWebSocketHost({ host: 'kodi.local', path: '/jsonrpc?token=secret' })
+    ).toThrow('Kodi WebSocket path must not include a query string.');
+  });
+
+  it('rejects WebSocket URL userinfo and config passwords without leaking secret values', () => {
+    expect(() =>
+      normalizeKodiWebSocketHost({ host: 'ws://admin:secret-token@kodi.local/jsonrpc' })
+    ).toThrow('Kodi WebSocket URL must not include credentials.');
+    expect(() =>
+      normalizeKodiWebSocketHost({ host: 'kodi.local', password: 'secret-token' })
+    ).toThrow('Kodi WebSocket credentials are not supported in endpoint URLs.');
+
+    for (const action of [
+      () => normalizeKodiWebSocketHost({ host: 'ws://admin:secret-token@kodi.local/jsonrpc' }),
+      () => normalizeKodiWebSocketHost({ host: 'kodi.local', password: 'secret-token' })
+    ]) {
+      try {
+        action();
+      } catch (error) {
+        expect(String(error)).not.toContain('secret-token');
+      }
+    }
+  });
+
+  it('describes WebSocket endpoints without credentials', () => {
+    const endpoint = describeKodiWebSocketEndpoint({
+      host: 'wss://kodi.example.test:9443/kodi/jsonrpc'
+    });
+
+    expect(endpoint).toEqual({
+      protocol: 'wss:',
+      host: 'kodi.example.test',
+      port: 9443,
+      path: '/kodi/jsonrpc',
+      hasCredentials: false
+    });
+    expect(JSON.stringify(endpoint)).not.toContain('Authorization');
+    expect(JSON.stringify(endpoint)).not.toContain('@');
   });
 });

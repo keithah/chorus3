@@ -2,14 +2,22 @@ export {
   DEFAULT_KODI_HTTP_PATH,
   DEFAULT_KODI_HTTP_PORT,
   DEFAULT_KODI_TIMEOUT_MS,
+  DEFAULT_KODI_WEBSOCKET_PATH,
+  DEFAULT_KODI_WEBSOCKET_PORT,
   buildBasicAuthHeader,
   buildKodiJsonRpcHttpUrl,
+  buildKodiJsonRpcWebSocketUrl,
   buildKodiRequestHeaders,
   describeKodiEndpoint,
+  describeKodiWebSocketEndpoint,
   normalizeKodiHttpHost,
+  normalizeKodiWebSocketHost,
   type KodiEndpointDescription,
   type KodiHttpHost,
-  type NormalizedKodiHttpHost
+  type KodiWebSocketEndpointDescription,
+  type KodiWebSocketHost,
+  type NormalizedKodiHttpHost,
+  type NormalizedKodiWebSocketHost
 } from './host';
 
 export {
@@ -29,6 +37,22 @@ export {
   type KodiHttpClientOptions,
   type KodiJsonRpcHttpClient
 } from './jsonRpc';
+
+export {
+  parseKodiNotificationMessage,
+  type JsonRpcNotificationEnvelope,
+  type JsonRpcRequestEnvelope,
+  type JsonRpcResponseEnvelope,
+  type KodiKnownNotificationMethod,
+  type KodiNotification,
+  type KodiNotificationParams,
+  type KodiNotificationParseResult,
+  type KnownKodiNotification,
+  type MalformedKodiNotification,
+  type MalformedKodiNotificationCode,
+  type MalformedKodiNotificationDetails,
+  type UnknownKodiNotification
+} from './notifications';
 
 export {
   getActivePlayers,

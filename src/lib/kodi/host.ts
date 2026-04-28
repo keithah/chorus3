@@ -1,5 +1,7 @@
 export const DEFAULT_KODI_HTTP_PORT = 8080;
 export const DEFAULT_KODI_HTTP_PATH = '/jsonrpc';
+export const DEFAULT_KODI_WEBSOCKET_PORT = 9090;
+export const DEFAULT_KODI_WEBSOCKET_PATH = '/jsonrpc';
 export const DEFAULT_KODI_TIMEOUT_MS = 5000;
 
 export interface KodiHttpHost {
@@ -31,6 +33,30 @@ export interface KodiEndpointDescription {
   hasCredentials: boolean;
 }
 
+export interface KodiWebSocketHost {
+  host: string;
+  port?: number;
+  useTls?: boolean;
+  username?: string;
+  password?: string;
+  path?: string;
+}
+
+export interface NormalizedKodiWebSocketHost {
+  host: string;
+  port: number;
+  useTls: boolean;
+  path: string;
+}
+
+export interface KodiWebSocketEndpointDescription {
+  protocol: 'ws:' | 'wss:';
+  host: string;
+  port: number;
+  path: string;
+  hasCredentials: false;
+}
+
 function parseHostUrl(host: string): URL | null {
   try {
     return new URL(host);
@@ -39,7 +65,7 @@ function parseHostUrl(host: string): URL | null {
   }
 }
 
-function normalizePath(path: string | undefined): string {
+function normalizeHttpPath(path: string | undefined): string {
   const rawPath = path?.trim() || DEFAULT_KODI_HTTP_PATH;
   const [pathname = '', query] = rawPath.split('?', 2);
   const normalizedPathname = `/${pathname.replace(/^\/+/, '').replace(/\/+$/, '')}`;
@@ -48,7 +74,18 @@ function normalizePath(path: string | undefined): string {
   return query === undefined ? safePathname : `${safePathname}?${query}`;
 }
 
-function normalizePort(port: number | string | undefined, useTls: boolean): number {
+function normalizeWebSocketPath(path: string | undefined): string {
+  const rawPath = path?.trim() || DEFAULT_KODI_WEBSOCKET_PATH;
+
+  if (rawPath.includes('?')) {
+    throw new Error('Kodi WebSocket path must not include a query string.');
+  }
+
+  const normalizedPathname = `/${rawPath.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+  return normalizedPathname === '/' ? DEFAULT_KODI_WEBSOCKET_PATH : normalizedPathname;
+}
+
+function normalizeHttpPort(port: number | string | undefined, useTls: boolean): number {
   if (port === undefined || port === '') {
     return DEFAULT_KODI_HTTP_PORT;
   }
@@ -60,6 +97,20 @@ function normalizePort(port: number | string | undefined, useTls: boolean): numb
   }
 
   return normalizedPort || (useTls ? 443 : DEFAULT_KODI_HTTP_PORT);
+}
+
+function normalizeWebSocketPort(port: number | string | undefined): number {
+  if (port === undefined || port === '') {
+    return DEFAULT_KODI_WEBSOCKET_PORT;
+  }
+
+  const normalizedPort = typeof port === 'number' ? port : Number(port);
+
+  if (!Number.isInteger(normalizedPort) || normalizedPort < 1 || normalizedPort > 65535) {
+    throw new Error('Kodi WebSocket port must be an integer between 1 and 65535.');
+  }
+
+  return normalizedPort;
 }
 
 function appendOptionalCredentials(
@@ -90,11 +141,11 @@ export function normalizeKodiHttpHost(hostConfig: KodiHttpHost): NormalizedKodiH
     throw new Error('Kodi HTTP host is required.');
   }
 
-  const port = normalizePort(
+  const port = normalizeHttpPort(
     hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : undefined),
     useTls
   );
-  const path = normalizePath(
+  const path = normalizeHttpPath(
     hostConfig.path ?? (hasUrlProtocol ? `${parsedUrl.pathname}${parsedUrl.search}` : undefined)
   );
   const timeoutMs = hostConfig.timeoutMs ?? DEFAULT_KODI_TIMEOUT_MS;
@@ -116,6 +167,47 @@ export function normalizeKodiHttpHost(hostConfig: KodiHttpHost): NormalizedKodiH
   );
 }
 
+export function normalizeKodiWebSocketHost(
+  hostConfig: KodiWebSocketHost
+): NormalizedKodiWebSocketHost {
+  const trimmedHost = hostConfig.host.trim();
+
+  if (!trimmedHost) {
+    throw new Error('Kodi WebSocket host is required.');
+  }
+
+  if (hostConfig.username || hostConfig.password) {
+    throw new Error('Kodi WebSocket credentials are not supported in endpoint URLs.');
+  }
+
+  const parsedUrl = parseHostUrl(trimmedHost);
+  const hasUrlProtocol = parsedUrl?.protocol === 'ws:' || parsedUrl?.protocol === 'wss:';
+
+  if (parsedUrl && !hasUrlProtocol) {
+    throw new Error('Kodi WebSocket host URL must use ws: or wss:.');
+  }
+
+  if (hasUrlProtocol && (parsedUrl.username || parsedUrl.password)) {
+    throw new Error('Kodi WebSocket URL must not include credentials.');
+  }
+
+  const useTls = hostConfig.useTls ?? (hasUrlProtocol ? parsedUrl.protocol === 'wss:' : false);
+  const host = hasUrlProtocol ? parsedUrl.hostname : trimmedHost.replace(/^\/+|\/+$/g, '');
+
+  if (!host) {
+    throw new Error('Kodi WebSocket host is required.');
+  }
+
+  return {
+    host,
+    port: normalizeWebSocketPort(hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : undefined)),
+    useTls,
+    path: normalizeWebSocketPath(
+      hostConfig.path ?? (hasUrlProtocol ? parsedUrl.pathname : undefined)
+    )
+  };
+}
+
 export function buildKodiJsonRpcHttpUrl(hostConfig: KodiHttpHost): URL {
   const host = normalizeKodiHttpHost(hostConfig);
   const url = new URL(`${host.useTls ? 'https' : 'http'}://${host.host}`);
@@ -125,6 +217,16 @@ export function buildKodiJsonRpcHttpUrl(hostConfig: KodiHttpHost): URL {
 
   const query = host.path.includes('?') ? host.path.slice(host.path.indexOf('?') + 1) : '';
   url.search = query;
+
+  return url;
+}
+
+export function buildKodiJsonRpcWebSocketUrl(hostConfig: KodiWebSocketHost): URL {
+  const host = normalizeKodiWebSocketHost(hostConfig);
+  const url = new URL(`${host.useTls ? 'wss' : 'ws'}://${host.host}`);
+
+  url.port = String(host.port);
+  url.pathname = host.path || DEFAULT_KODI_WEBSOCKET_PATH;
 
   return url;
 }
@@ -181,5 +283,19 @@ export function describeKodiEndpoint(hostConfig: KodiHttpHost): KodiEndpointDesc
     path: host.path,
     timeoutMs: host.timeoutMs,
     hasCredentials: Boolean(host.username && host.password)
+  };
+}
+
+export function describeKodiWebSocketEndpoint(
+  hostConfig: KodiWebSocketHost
+): KodiWebSocketEndpointDescription {
+  const host = normalizeKodiWebSocketHost(hostConfig);
+
+  return {
+    protocol: host.useTls ? 'wss:' : 'ws:',
+    host: host.host,
+    port: host.port,
+    path: host.path,
+    hasCredentials: false
   };
 }
