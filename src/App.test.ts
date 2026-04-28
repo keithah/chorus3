@@ -2,11 +2,13 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import type { PlayerControlsDispatch } from './lib/components/PlayerControls.svelte';
 import {
   configStore,
   connectionStore,
   createConfigStore,
   hostConnectionStore,
+  type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
@@ -14,7 +16,7 @@ import { DEFAULT_THEME } from './lib/theme/theme';
 let mountedComponent: Record<string, unknown> | undefined;
 
 type FetchMock = Mock<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>;
-type AppProps = { playerSnapshot?: PlayerStoreSnapshot };
+type AppProps = { playerSnapshot?: PlayerStoreSnapshot; playerDispatch?: PlayerControlsDispatch };
 
 function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
   return {
@@ -33,6 +35,115 @@ function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): Pla
     lastError: null,
     ...overrides
   };
+}
+
+function createDispatchSnapshot(
+  overrides: Partial<PlayerDispatchSnapshot> = {}
+): PlayerDispatchSnapshot {
+  return {
+    mode: 'kodi',
+    commandStatus: 'idle',
+    lastCommand: null,
+    lastError: null,
+    lastCompletedAt: null,
+    ...overrides
+  };
+}
+
+function createPlayerDispatch(
+  snapshot: PlayerDispatchSnapshot = createDispatchSnapshot()
+): PlayerControlsDispatch {
+  return {
+    snapshot,
+    playPause: vi.fn(),
+    stop: vi.fn(),
+    previous: vi.fn(),
+    next: vi.fn(),
+    seekPercentage: vi.fn(),
+    seekRelativeSeconds: vi.fn(),
+    setVolume: vi.fn(),
+    toggleMute: vi.fn(),
+    setShuffle: vi.fn(),
+    setRepeat: vi.fn(),
+    setSubtitle: vi.fn(),
+    setAudioStream: vi.fn()
+  };
+}
+
+function getButton(target: HTMLElement, name: string): HTMLButtonElement {
+  const button = Array.from(target.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent?.trim() === name
+  );
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
+
+function getInput(target: HTMLElement, selector: string): HTMLInputElement {
+  const input = target.querySelector<HTMLInputElement>(selector);
+  expect(input).toBeInstanceOf(HTMLInputElement);
+  return input as HTMLInputElement;
+}
+
+function getSelect(target: HTMLElement, selector: string): HTMLSelectElement {
+  const select = target.querySelector<HTMLSelectElement>(selector);
+  expect(select).toBeInstanceOf(HTMLSelectElement);
+  return select as HTMLSelectElement;
+}
+
+function getNowPlayingPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.now-playing-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function changeInputValue(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function changeSelectValue(select: HTMLSelectElement, value: string): void {
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function activeVideoSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
+  return createPlayerSnapshot({
+    refreshStatus: 'ready',
+    playbackStatus: 'active',
+    lastRefreshReason: 'command:playPause',
+    lastUpdatedAt: '2026-04-28T12:00:00.000Z',
+    activePlayers: [{ playerid: 1, type: 'video' }],
+    primaryPlayer: { playerid: 1, type: 'video' },
+    item: {
+      label: 'Sintel',
+      title: 'Sintel',
+      showtitle: 'Open Movie Project',
+      season: 1,
+      episode: 2,
+      file: 'smb://admin:p@ssword@nas.local/private/Sintel.mkv'
+    },
+    properties: {
+      type: 'video',
+      percentage: 42.4,
+      shuffled: false,
+      repeat: 'off',
+      subtitleenabled: true,
+      currentsubtitle: { index: 2, name: 'English SDH', language: 'eng' },
+      subtitles: [
+        { index: 2, name: 'English SDH', language: 'eng' },
+        { index: 3, name: 'Deutsch', language: 'deu' }
+      ],
+      currentaudiostream: { index: 1, name: 'Director commentary', language: 'eng', channels: 2 },
+      audiostreams: [
+        { index: 0, name: 'Main mix', language: 'eng', channels: 6, codec: 'aac' },
+        { index: 1, name: 'Director commentary', language: 'eng', channels: 2, codec: 'aac' }
+      ]
+    },
+    application: { volume: 55, muted: false },
+    queue: { playlistid: 1, position: 7 },
+    time: { currentSeconds: 75, totalSeconds: 300 },
+    ...overrides
+  });
 }
 
 function renderApp(props: AppProps = {}) {
@@ -157,48 +268,24 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
-  it('renders no-player player state without controls', () => {
-    const target = renderApp({ playerSnapshot: createPlayerSnapshot() });
+  it('renders default no-player Now Playing controls as disabled without dispatching', () => {
+    const dispatch = createPlayerDispatch();
+    const target = renderApp({ playerSnapshot: createPlayerSnapshot(), playerDispatch: dispatch });
 
-    expect(target.textContent).toContain('Player state');
-    expect(target.textContent).toContain('none');
-    expect(target.textContent).toContain('No active Kodi player detected.');
-    expect(target.textContent).toContain('Volume unavailable');
-    expect(target.textContent).toContain('Queue unavailable');
-    const buttonText = Array.from(target.querySelectorAll('button'))
-      .map((button) => button.textContent ?? '')
-      .join(' ');
-    expect(buttonText).not.toContain('Play');
-    expect(buttonText).not.toContain('Seek');
+    expect(target.textContent).toContain('Now playing');
+    expect(target.textContent).toContain('Unknown title');
+    expect(target.textContent).toContain('No active Kodi player is available.');
+    expect(target.textContent).toContain(
+      'No active Kodi player is available. Controls are disabled until playback starts.'
+    );
+    expect(getButton(target, 'Play or pause').disabled).toBe(true);
+    expect(getButton(target, 'Next').disabled).toBe(true);
+    expect(getInput(target, '#now-playing-seek').disabled).toBe(true);
+    expect(getSelect(target, '#now-playing-audio').disabled).toBe(true);
+    expect(dispatch.playPause).not.toHaveBeenCalled();
   });
 
-  it('renders active player item, progress, volume, and queue identity', () => {
-    const target = renderApp({
-      playerSnapshot: createPlayerSnapshot({
-        refreshStatus: 'ready',
-        playbackStatus: 'active',
-        activePlayers: [{ playerid: 1, type: 'video' }],
-        primaryPlayer: { playerid: 1, type: 'video' },
-        item: { label: 'Sintel', title: 'Sintel' },
-        properties: { percentage: 42.4 },
-        application: { volume: 55, muted: false },
-        queue: { playlistid: 1, position: 7 },
-        time: { currentSeconds: 75, totalSeconds: 300 }
-      })
-    });
-
-    expect(target.textContent).toContain('Player state');
-    expect(target.textContent).toContain('active');
-    expect(target.textContent).toContain('Sintel');
-    expect(target.textContent).toContain('1:15 / 5:00');
-    expect(target.textContent).toContain('42%');
-    expect(target.textContent).toContain('Volume 55%');
-    expect(target.textContent).toContain('Queue playlist 1 position 7');
-    expect(target.textContent).not.toContain('prepared');
-    expect(target.textContent).not.toContain('download');
-  });
-
-  it('renders multiple-player state as read-only S01 proof', () => {
+  it('renders multiple-player Now Playing controls as disabled with explanatory copy', () => {
     const target = renderApp({
       playerSnapshot: createPlayerSnapshot({
         refreshStatus: 'ready',
@@ -209,49 +296,95 @@ describe('App shell', () => {
         ],
         primaryPlayer: { playerid: 1, type: 'video' },
         item: { label: 'Concert Film' }
-      })
+      }),
+      playerDispatch: createPlayerDispatch()
     });
 
-    expect(target.textContent).toContain('multiple');
-    expect(target.textContent).toContain('Multiple Kodi players detected: video #1, audio #2.');
-    expect(target.textContent).toContain('Controls are not available in S01.');
-    const buttonText = Array.from(target.querySelectorAll('button'))
-      .map((button) => button.textContent ?? '')
-      .join(' ');
-    expect(buttonText).not.toContain('Pause');
-    expect(buttonText).not.toContain('Next');
+    expect(target.textContent).toContain('Concert Film');
+    expect(target.textContent).toContain(
+      'Multiple Kodi players are active. Choose one player before sending controls.'
+    );
+    expect(target.textContent).toContain(
+      'Multiple Kodi players are active. Controls are disabled until there is one active player.'
+    );
+    expect(getButton(target, 'Play or pause').disabled).toBe(true);
+    expect(getButton(target, 'Next').disabled).toBe(true);
   });
 
-  it('renders loading and malformed player fields as neutral unavailable copy', () => {
+  it('renders active video metadata, progress, volume, queue context, streams, and no raw file paths', () => {
     const target = renderApp({
-      playerSnapshot: createPlayerSnapshot({
-        refreshStatus: 'loading',
-        playbackStatus: 'active',
-        activePlayers: [{ playerid: 0, type: 'unknown' }],
-        primaryPlayer: { playerid: 0, type: 'unknown' },
-        item: {},
-        application: { volume: null, muted: null },
-        queue: { playlistid: null, position: null },
-        time: { currentSeconds: null, totalSeconds: null }
-      })
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch: createPlayerDispatch()
     });
 
-    expect(target.textContent).toContain('loading');
-    expect(target.textContent).toContain('Refreshing player state.');
-    expect(target.textContent).toContain('Now playing unavailable');
-    expect(target.textContent).toContain('Time unavailable');
-    expect(target.textContent).toContain('Volume unavailable');
-    expect(target.textContent).toContain('Queue unavailable');
+    expect(target.textContent).toContain('Now playing');
+    expect(target.textContent).toContain('Sintel');
+    expect(target.textContent).toContain('Open Movie Project');
+    expect(target.textContent).toContain('Season 1, episode 2');
+    expect(target.textContent).toContain('01:15');
+    expect(target.textContent).toContain('05:00');
+    expect(target.textContent).toContain('42%');
+    expect(target.textContent).toContain('Volume 55');
+    expect(target.textContent).toContain('Muted: no');
+    expect(target.textContent).toContain('Playlist 1 · position 7');
+    expect(target.textContent).toContain(
+      'Player state ready. Last updated 2026-04-28T12:00:00.000Z.'
+    );
+    expect(target.textContent).toContain('English SDH · eng');
+    expect(target.textContent).toContain('Director commentary · eng · 2ch');
+    expect(getInput(target, '#now-playing-seek').value).toBe('42');
+    expect(getInput(target, '#now-playing-volume').value).toBe('55');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('admin:p@ssword');
+    expect(target.textContent).not.toContain('private/Sintel.mkv');
   });
 
-  it('renders safe player errors without secret-like details or raw endpoints', () => {
+  it('routes playback, seek, volume, shuffle, repeat, subtitle, and audio controls through injected dispatch', async () => {
+    const dispatch = createPlayerDispatch();
+    const target = renderApp({ playerSnapshot: activeVideoSnapshot(), playerDispatch: dispatch });
+
+    getButton(target, 'Play or pause').click();
+    getButton(target, 'Next').click();
+    changeInputValue(getInput(target, '#now-playing-seek'), '64');
+    changeInputValue(getInput(target, '#now-playing-volume'), '71');
+    getButton(target, 'Toggle mute').click();
+    changeSelectValue(getSelect(target, '#now-playing-shuffle'), 'true');
+    changeSelectValue(getSelect(target, '#now-playing-repeat'), 'all');
+    changeSelectValue(getSelect(target, '#now-playing-subtitle'), '3');
+    changeSelectValue(getSelect(target, '#now-playing-audio'), '0');
+    await tick();
+
+    expect(dispatch.playPause).toHaveBeenCalledTimes(1);
+    expect(dispatch.next).toHaveBeenCalledTimes(1);
+    expect(dispatch.seekPercentage).toHaveBeenCalledWith(64);
+    expect(dispatch.setVolume).toHaveBeenCalledWith(71);
+    expect(dispatch.toggleMute).toHaveBeenCalledTimes(1);
+    expect(dispatch.setShuffle).toHaveBeenCalledWith(true);
+    expect(dispatch.setRepeat).toHaveBeenCalledWith('all');
+    expect(dispatch.setSubtitle).toHaveBeenCalledWith(3);
+    expect(dispatch.setAudioStream).toHaveBeenCalledWith(0);
+  });
+
+  it('renders running controls disabled to constrain rapid command bursts', () => {
     const target = renderApp({
-      playerSnapshot: createPlayerSnapshot({
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch: createPlayerDispatch(
+        createDispatchSnapshot({ commandStatus: 'running', lastCommand: 'seekPercentage' })
+      )
+    });
+
+    expect(target.textContent).toContain('Running seek percentage.');
+    expect(target.textContent).toContain(
+      'A Kodi command is running. Controls are disabled until it finishes.'
+    );
+    expect(getButton(target, 'Play or pause').disabled).toBe(true);
+    expect(getInput(target, '#now-playing-volume').disabled).toBe(true);
+  });
+
+  it('renders dispatch and refresh errors without secret-like details or raw endpoints', () => {
+    const target = renderApp({
+      playerSnapshot: activeVideoSnapshot({
         refreshStatus: 'error',
-        playbackStatus: 'active',
-        activePlayers: [{ playerid: 0, type: 'video' }],
-        primaryPlayer: { playerid: 0, type: 'video' },
-        item: { title: 'Prior Item' },
         lastError: {
           source: 'http',
           code: 'auth',
@@ -265,18 +398,72 @@ describe('App shell', () => {
             hasCredentials: true
           }
         }
-      })
+      }),
+      playerDispatch: createPlayerDispatch(
+        createDispatchSnapshot({
+          commandStatus: 'error',
+          lastCommand: 'playPause',
+          lastError: {
+            source: 'http',
+            code: 'auth',
+            message:
+              'Authorization: Basic admin:p@ssword failed for http://admin:p@ssword@kodi.local:8080/jsonrpc via localStorage.',
+            endpoint: {
+              protocol: 'http:',
+              host: 'kodi.local',
+              port: 8080,
+              path: '/jsonrpc',
+              timeoutMs: 5000,
+              hasCredentials: true
+            }
+          }
+        })
+      )
     });
 
-    expect(target.textContent).toContain('error');
-    expect(target.textContent).toContain('Player refresh error (http/auth)');
-    expect(target.textContent).toContain(
-      'Kodi rejected configured credentials while calling Player.GetItem.'
-    );
-    expect(target.textContent).toContain('Prior Item');
-    expect(target.textContent).not.toContain('super-secret');
-    expect(target.textContent).not.toContain('admin:secret');
-    expect(target.textContent).not.toContain('http://kodi.local:8080/jsonrpc');
+    const panelText = getNowPlayingPanelText(target);
+
+    expect(panelText).toContain('credentials [redacted]');
+    expect(panelText).toContain('[redacted-url]');
+    expect(panelText).toContain('browser storage');
+    expect(panelText).toContain('Sintel');
+    expect(panelText).not.toContain('p@ssword');
+    expect(panelText).not.toContain('admin:p@ssword');
+    expect(panelText).not.toContain('http://kodi.local:8080/jsonrpc');
+    expect(panelText).not.toContain('localStorage');
+  });
+
+  it('renders active audio snapshots with control affordances and missing stream indexes safely', () => {
+    const target = renderApp({
+      playerSnapshot: activeVideoSnapshot({
+        activePlayers: [{ playerid: 0, type: 'audio' }],
+        primaryPlayer: { playerid: 0, type: 'audio' },
+        item: {
+          label: 'Arrival',
+          artist: ['Max Richter'],
+          album: 'Sleep',
+          file: '/music/private/arrival.flac'
+        },
+        properties: {
+          type: 'audio',
+          percentage: 5,
+          shuffled: true,
+          repeat: 'all',
+          subtitleenabled: false,
+          audiostreams: [{ name: 'Stereo', language: 'eng', channels: 2 }]
+        }
+      }),
+      playerDispatch: createPlayerDispatch()
+    });
+
+    expect(target.textContent).toContain('Arrival');
+    expect(target.textContent).toContain('Max Richter');
+    expect(target.textContent).toContain('Sleep');
+    expect(target.textContent).toContain('Subtitles off');
+    expect(target.textContent).toContain('Stereo · eng · 2ch');
+    expect(getButton(target, 'Play or pause').disabled).toBe(false);
+    expect(getSelect(target, '#now-playing-audio').disabled).toBe(false);
+    expect(target.textContent).not.toContain('/music/private/arrival.flac');
   });
 
   it('renders the shell with store-backed idle Kodi connection diagnostics and host controls', () => {

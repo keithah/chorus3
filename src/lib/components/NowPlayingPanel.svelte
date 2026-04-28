@@ -35,6 +35,7 @@
         : 'unknown'
   );
   const repeat = $derived(textOrFallback(snapshot.properties?.repeat, 'unknown'));
+  const queueSummary = $derived(formatQueueSummary(snapshot));
   const subtitleSummary = $derived(
     formatSubtitleSummary(
       snapshot.properties?.currentsubtitle,
@@ -165,6 +166,14 @@
     return streamLabel('Audio stream', stream, 0);
   }
 
+  function formatQueueSummary(value: PlayerStoreSnapshot): string {
+    if (value.queue.playlistid === null || value.queue.position === null) {
+      return 'Queue unknown';
+    }
+
+    return `Playlist ${value.queue.playlistid} · position ${value.queue.position}`;
+  }
+
   function formatSubtitleSummary(
     stream: PlayerSubtitleStream | undefined,
     enabled: unknown
@@ -290,6 +299,10 @@
     <div>
       <dt>Repeat</dt>
       <dd>{repeat}</dd>
+    </div>
+    <div>
+      <dt>Queue</dt>
+      <dd>{queueSummary}</dd>
     </div>
     <div>
       <dt>Subtitle</dt>
