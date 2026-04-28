@@ -239,7 +239,7 @@ export class PlayerDispatch {
     await this.#runCommand({
       command: input.command,
       validate: input.validate,
-      resolvePlayerid: false,
+      resolvePlayerid: true,
       execute: (client) => input.execute(client)
     });
   }
@@ -298,7 +298,7 @@ export class PlayerDispatch {
     }
 
     if (commandError) {
-      this.#failCommand(commandError, { preserveCompletionTime: true });
+      this.#failCommand(commandError);
       return;
     }
 
@@ -319,15 +319,12 @@ export class PlayerDispatch {
     };
   }
 
-  #failCommand(
-    error: PlayerDispatchSafeErrorSnapshot,
-    options: { preserveCompletionTime?: boolean } = {}
-  ): void {
+  #failCommand(error: PlayerDispatchSafeErrorSnapshot): void {
     this.#snapshot = {
       ...this.#snapshot,
       commandStatus: 'error',
       lastError: cloneError(error),
-      lastCompletedAt: options.preserveCompletionTime ? this.#now() : this.#snapshot.lastCompletedAt
+      lastCompletedAt: this.#now()
     };
   }
 
@@ -453,8 +450,9 @@ function createSafeError(error: unknown): PlayerDispatchSafeErrorSnapshot {
 function sanitizeErrorMessage(message: string): string {
   return message
     .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'Authorization: [redacted]')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'Basic [redacted]')
+    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
+    .replace(/authorization/gi, 'credentials')
+    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
     .replace(/username or password/gi, 'credentials')
     .replace(/admin:p@ssword/gi, '[redacted-credentials]')
     .replace(/p@ssword/gi, '[redacted-password]')

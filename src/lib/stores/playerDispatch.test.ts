@@ -226,9 +226,14 @@ describe('player dispatch', () => {
 
     expect(client.calls).toEqual([]);
     expect(playerStore.refreshReasons).toEqual([]);
-    expect(dispatch.snapshot.lastError).toMatchObject({
-      source: 'player',
-      code: 'player/no-active-player'
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'stop',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'player',
+        code: 'player/no-active-player'
+      }
     });
 
     playerStore.snapshot = createSnapshot({
@@ -244,15 +249,44 @@ describe('player dispatch', () => {
 
     expect(client.calls).toEqual([]);
     expect(playerStore.refreshReasons).toEqual([]);
-    expect(dispatch.snapshot.lastError).toMatchObject({
-      source: 'player',
-      code: 'player/multiple-active-players'
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'next',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'player',
+        code: 'player/multiple-active-players'
+      }
+    });
+  });
+
+  it('blocks volume and mute commands when there is no safe single active player', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot();
+
+    await dispatch.setVolume(50);
+    await dispatch.toggleMute();
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'toggleMute',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'player',
+        code: 'player/no-active-player'
+      }
     });
   });
 
   it('reports missing active-host client state without calling Kodi or refresh', async () => {
     const playerStore = new FakePlayerStore();
-    const dispatch = createPlayerDispatch({ playerStore, createClient: () => null });
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
 
     await dispatch.playPause();
 
@@ -260,6 +294,7 @@ describe('player dispatch', () => {
     expect(dispatch.snapshot).toMatchObject({
       commandStatus: 'error',
       lastCommand: 'playPause',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
       lastError: {
         source: 'config',
         code: 'config/no-active-host'
@@ -275,9 +310,14 @@ describe('player dispatch', () => {
 
     expect(client.calls).toEqual([]);
     expect(playerStore.refreshReasons).toEqual([]);
-    expect(dispatch.snapshot.lastError).toMatchObject({
-      source: 'mode',
-      code: 'mode/unsupported-local'
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playPause',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'mode',
+        code: 'mode/unsupported-local'
+      }
     });
   });
 
@@ -297,7 +337,12 @@ describe('player dispatch', () => {
     expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/invalid-audio-stream' });
 
     await dispatch.setSubtitle('bad' as never);
-    expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/invalid-subtitle' });
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'setSubtitle',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: { code: 'input/invalid-subtitle' }
+    });
 
     expect(client.calls).toEqual([]);
     expect(playerStore.refreshReasons).toEqual([]);
@@ -330,10 +375,36 @@ describe('player dispatch', () => {
     expect(dispatch.snapshot).toMatchObject({
       commandStatus: 'error',
       lastCommand: 'stop',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
       lastError: {
         source: 'http',
         code: 'auth',
         message: 'Kodi rejected the configured credentials while calling Player.Stop.'
+      }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('sanitizes generic command failures without leaking credential-like text', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    client.enqueue(
+      'Player.Stop',
+      new Error(
+        'failed with Authorization: Basic token for http://admin:p@ssword@kodi.local/jsonrpc from localStorage'
+      )
+    );
+
+    await dispatch.stop();
+
+    expect(client.calls).toEqual([{ method: 'Player.Stop', params: { playerid: 7 } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:stop']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'stop',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'command',
+        code: 'command/failed'
       }
     });
     expectSecretSafe(dispatch.snapshot);
