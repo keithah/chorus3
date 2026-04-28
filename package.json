@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:kodi": "npm run smoke:kodi:http && npm run smoke:kodi:ws",
     "smoke:kodi:http": "node scripts/smoke-kodi-http.mjs",
     "smoke:kodi:ws": "node scripts/smoke-kodi-ws.mjs",
     "verify:no-tailwind": "node scripts/verify-no-tailwind.mjs",
