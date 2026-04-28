@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type {
+  PlayerGoToTarget,
+  PlayerRepeatValue,
+  PlayerSeekValue,
+  PlayerShuffleValue
+} from './methods';
+
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
   getActivePlayers,
@@ -15,10 +22,31 @@ import {
   getVideoLibraryEpisodes,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
+  goToPlayerItem,
   pingKodi,
+  playPausePlayer,
   prepareFileDownload,
+  seekPlayer,
+  setApplicationMute,
+  setApplicationVolume,
+  setPlayerAudioStream,
+  setPlayerRepeat,
+  setPlayerShuffle,
+  setPlayerSubtitle,
+  stopPlayer,
   testKodiHttpConnection
 } from './methods';
+
+type ExpectTrue<T extends true> = T;
+type IsNotAssignable<TValue, TTarget> = [TValue] extends [TTarget] ? false : true;
+
+export type KodiCommandWrapperTypeAssertions = [
+  ExpectTrue<IsNotAssignable<number, PlayerSeekValue>>,
+  ExpectTrue<IsNotAssignable<string, PlayerSeekValue>>,
+  ExpectTrue<IsNotAssignable<'invalid-repeat', PlayerRepeatValue>>,
+  ExpectTrue<IsNotAssignable<'invalid-shuffle', PlayerShuffleValue>>,
+  ExpectTrue<IsNotAssignable<'last', PlayerGoToTarget>>
+];
 
 type RecordedCall = {
   method: string;
@@ -151,6 +179,117 @@ describe('Kodi curated method wrappers', () => {
     };
 
     await expect(getPlayerItem(client, 1, ['title'])).rejects.toBe(error);
+  });
+
+  it('toggles player playback with the exact player id', async () => {
+    const client = createFakeClient([{ speed: 0 }]);
+
+    await expect(playPausePlayer(client, 1)).resolves.toEqual({ speed: 0 });
+
+    expect(client.calls).toEqual([{ method: 'Player.PlayPause', params: { playerid: 1 } }]);
+  });
+
+  it('stops player playback with the exact player id', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(stopPlayer(client, 1)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([{ method: 'Player.Stop', params: { playerid: 1 } }]);
+  });
+
+  it('goes to a player item preserving the requested target', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(goToPlayerItem(client, 1, 'next')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([{ method: 'Player.GoTo', params: { playerid: 1, to: 'next' } }]);
+  });
+
+  it('seeks player playback preserving percentage object values', async () => {
+    const client = createFakeClient([{ percentage: 42.5 }]);
+
+    await expect(seekPlayer(client, 1, { percentage: 42.5 })).resolves.toEqual({
+      percentage: 42.5
+    });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Seek', params: { playerid: 1, value: { percentage: 42.5 } } }
+    ]);
+  });
+
+  it('seeks player playback preserving relative seconds object values', async () => {
+    const client = createFakeClient([{ percentage: 55 }]);
+
+    await expect(seekPlayer(client, 1, { seconds: -30 })).resolves.toEqual({ percentage: 55 });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Seek', params: { playerid: 1, value: { seconds: -30 } } }
+    ]);
+  });
+
+  it('sets application volume preserving the requested volume', async () => {
+    const client = createFakeClient([67]);
+
+    await expect(setApplicationVolume(client, 67)).resolves.toBe(67);
+
+    expect(client.calls).toEqual([{ method: 'Application.SetVolume', params: { volume: 67 } }]);
+  });
+
+  it('sets application mute preserving the requested mute value', async () => {
+    const client = createFakeClient([true]);
+
+    await expect(setApplicationMute(client, true)).resolves.toBe(true);
+
+    expect(client.calls).toEqual([{ method: 'Application.SetMute', params: { mute: true } }]);
+  });
+
+  it('sets player shuffle preserving the requested value', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(setPlayerShuffle(client, 1, 'toggle')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.SetShuffle', params: { playerid: 1, shuffle: 'toggle' } }
+    ]);
+  });
+
+  it('sets player repeat preserving the requested value', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(setPlayerRepeat(client, 1, 'cycle')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.SetRepeat', params: { playerid: 1, repeat: 'cycle' } }
+    ]);
+  });
+
+  it('sets player audio stream preserving the requested stream selector', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(setPlayerAudioStream(client, 1, 2)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.SetAudioStream', params: { playerid: 1, stream: 2 } }
+    ]);
+  });
+
+  it('sets player subtitle preserving the requested subtitle selector', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(setPlayerSubtitle(client, 1, 'off')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.SetSubtitle', params: { playerid: 1, subtitle: 'off' } }
+    ]);
+  });
+
+  it('propagates rejected command wrapper transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(stopPlayer(client, 1)).rejects.toBe(error);
   });
 
   it('gets file sources for the requested media type', async () => {

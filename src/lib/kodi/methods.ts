@@ -238,6 +238,88 @@ export interface PlayerItemResult {
   [key: string]: unknown;
 }
 
+export type PlayerCommandResult = 'OK';
+
+export type PlayerPlayPauseParams = {
+  playerid: number;
+};
+
+export type PlayerPlayPauseResult = Partial<{
+  speed: number;
+}> &
+  Record<string, unknown>;
+
+export type PlayerStopParams = {
+  playerid: number;
+};
+
+export type PlayerGoToTarget = 'previous' | 'next' | number;
+
+export type PlayerGoToParams = {
+  playerid: number;
+  to: PlayerGoToTarget;
+};
+
+export type PlayerSeekStep = 'smallforward' | 'smallbackward' | 'bigforward' | 'bigbackward';
+
+export type PlayerSeekValue =
+  | { percentage: number }
+  | { time: KodiTime }
+  | { step: PlayerSeekStep }
+  | { seconds: number };
+
+export type PlayerSeekParams = {
+  playerid: number;
+  value: PlayerSeekValue;
+};
+
+export type PlayerSeekResult = Partial<{
+  percentage: number;
+  time: KodiTime;
+  totaltime: KodiTime;
+}> &
+  Record<string, unknown>;
+
+export type ApplicationVolumeValue = number;
+
+export type ApplicationSetVolumeParams = {
+  volume: ApplicationVolumeValue;
+};
+
+export type ApplicationMuteValue = boolean | 'toggle';
+
+export type ApplicationSetMuteParams = {
+  mute: ApplicationMuteValue;
+};
+
+export type PlayerShuffleValue = boolean | 'toggle';
+
+export type PlayerSetShuffleParams = {
+  playerid: number;
+  shuffle: PlayerShuffleValue;
+};
+
+export type PlayerRepeatValue = 'off' | 'one' | 'all' | 'cycle';
+
+export type PlayerSetRepeatParams = {
+  playerid: number;
+  repeat: PlayerRepeatValue;
+};
+
+export type PlayerAudioStreamValue = number | 'previous' | 'next';
+
+export type PlayerSetAudioStreamParams = {
+  playerid: number;
+  stream: PlayerAudioStreamValue;
+};
+
+export type PlayerSubtitleValue = number | 'previous' | 'next' | 'off' | 'on';
+
+export type PlayerSetSubtitleParams = {
+  playerid: number;
+  subtitle: PlayerSubtitleValue;
+};
+
 export type FileMediaType = 'files' | 'music' | 'pictures' | 'programs' | 'video';
 
 export interface FileSource {
@@ -601,6 +683,142 @@ export function getPlayerItem(
     client,
     'Player.GetItem',
     { playerid, properties },
+    options
+  );
+}
+
+export function playPausePlayer(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  options?: KodiHttpCallOptions
+): Promise<PlayerPlayPauseResult> {
+  return callKodi<PlayerPlayPauseResult, PlayerPlayPauseParams>(
+    client,
+    'Player.PlayPause',
+    { playerid },
+    options
+  );
+}
+
+export function stopPlayer(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerStopParams>(
+    client,
+    'Player.Stop',
+    { playerid },
+    options
+  );
+}
+
+export function goToPlayerItem(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  to: PlayerGoToTarget,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerGoToParams>(
+    client,
+    'Player.GoTo',
+    { playerid, to },
+    options
+  );
+}
+
+export function seekPlayer(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  value: PlayerSeekValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerSeekResult> {
+  return callKodi<PlayerSeekResult, PlayerSeekParams>(
+    client,
+    'Player.Seek',
+    { playerid, value },
+    options
+  );
+}
+
+export function setApplicationVolume(
+  client: KodiJsonRpcHttpClient,
+  volume: ApplicationVolumeValue,
+  options?: KodiHttpCallOptions
+): Promise<number> {
+  return callKodi<number, ApplicationSetVolumeParams>(
+    client,
+    'Application.SetVolume',
+    { volume },
+    options
+  );
+}
+
+export function setApplicationMute(
+  client: KodiJsonRpcHttpClient,
+  mute: ApplicationMuteValue,
+  options?: KodiHttpCallOptions
+): Promise<boolean> {
+  return callKodi<boolean, ApplicationSetMuteParams>(
+    client,
+    'Application.SetMute',
+    { mute },
+    options
+  );
+}
+
+export function setPlayerShuffle(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  shuffle: PlayerShuffleValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerSetShuffleParams>(
+    client,
+    'Player.SetShuffle',
+    { playerid, shuffle },
+    options
+  );
+}
+
+export function setPlayerRepeat(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  repeat: PlayerRepeatValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerSetRepeatParams>(
+    client,
+    'Player.SetRepeat',
+    { playerid, repeat },
+    options
+  );
+}
+
+export function setPlayerAudioStream(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  stream: PlayerAudioStreamValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerSetAudioStreamParams>(
+    client,
+    'Player.SetAudioStream',
+    { playerid, stream },
+    options
+  );
+}
+
+export function setPlayerSubtitle(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  subtitle: PlayerSubtitleValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerSetSubtitleParams>(
+    client,
+    'Player.SetSubtitle',
+    { playerid, subtitle },
     options
   );
 }
