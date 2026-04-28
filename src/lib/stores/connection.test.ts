@@ -9,8 +9,10 @@ import {
 import type {
   KodiHttpHost,
   KodiJsonRpcHttpClient,
+  KodiNotification,
   KodiWebSocketClient,
   KodiWebSocketClientEvent,
+  KodiWebSocketEndpointDescription,
   KodiWebSocketHost,
   KodiWebSocketUnsubscribe
 } from '$lib/kodi';
@@ -114,6 +116,27 @@ function snapshot(store: { snapshot: ConnectionStoreSnapshot }): ConnectionStore
   return store.snapshot;
 }
 
+function webSocketEndpoint(host = 'kodi.local'): KodiWebSocketEndpointDescription {
+  return {
+    protocol: 'ws:' as const,
+    host,
+    port: 9090,
+    path: '/jsonrpc',
+    hasCredentials: false
+  };
+}
+
+function notificationEvent(
+  method = 'Player.OnPlay',
+  host = 'kodi.local'
+): Extract<KodiWebSocketClientEvent, { type: 'notification' }> {
+  return {
+    type: 'notification',
+    endpoint: webSocketEndpoint(host),
+    notification: { jsonrpc: '2.0', method, params: { speed: 1 } } as KodiNotification
+  };
+}
+
 describe('connection store', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -168,6 +191,95 @@ describe('connection store', () => {
     expect(webSocketClients[0]?.connectCalls).toBe(1);
     expect(JSON.stringify(snapshot(store))).not.toContain('secret');
     expect(JSON.stringify(snapshot(store))).not.toContain('admin:secret');
+  });
+
+  it('fans out current-session WebSocket notifications to subscribed listeners', async () => {
+    const { options, webSocketClients } = makeOptions();
+    const store = createConnectionStore(options);
+    const listener = vi.fn();
+
+    store.subscribeToNotifications(listener);
+    await store.connect({ host: 'kodi.local' });
+    webSocketClients[0]?.emit(notificationEvent('Player.OnPlay'));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({
+      jsonrpc: '2.0',
+      method: 'Player.OnPlay',
+      params: { speed: 1 }
+    });
+  });
+
+  it('does not deliver stale WebSocket notifications after switching active hosts', async () => {
+    const { options, httpResults, webSocketClients } = makeOptions();
+    const thirdHttp = deferred<KodiHttpConnectionTestResult>();
+    httpResults.push(thirdHttp.promise);
+    const store = createConnectionStore(options);
+    const listener = vi.fn();
+
+    store.subscribeToNotifications(listener);
+    await store.connect({ host: 'first.local' });
+    const staleWebSocketClient = webSocketClients[0];
+
+    const secondConnect = store.connect({ host: 'second.local' });
+    staleWebSocketClient?.emit(notificationEvent('Player.OnPause', 'first.local'));
+    await flushPromises();
+
+    expect(listener).not.toHaveBeenCalled();
+    thirdHttp.resolve(healthyResult);
+    await secondConnect;
+    webSocketClients[1]?.emit(notificationEvent('Player.OnPlay', 'second.local'));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ method: 'Player.OnPlay' }));
+  });
+
+  it('contains throwing notification listeners without mutating connection diagnostics or blocking other listeners', async () => {
+    const { options, webSocketClients } = makeOptions();
+    const store = createConnectionStore(options);
+    const throwingListener = vi.fn(() => {
+      throw new Error('subscriber failed');
+    });
+    const healthyListener = vi.fn();
+
+    store.subscribeToNotifications(throwingListener);
+    store.subscribeToNotifications(healthyListener);
+    await store.connect({ host: 'kodi.local' });
+    const before = snapshot(store);
+
+    expect(() => webSocketClients[0]?.emit(notificationEvent('Player.OnSeek'))).not.toThrow();
+
+    expect(throwingListener).toHaveBeenCalledTimes(1);
+    expect(healthyListener).toHaveBeenCalledTimes(1);
+    expect(snapshot(store)).toEqual(before);
+  });
+
+  it('stops delivering notifications after unsubscribe and treats repeated unsubscribe as harmless', async () => {
+    const { options, webSocketClients } = makeOptions();
+    const store = createConnectionStore(options);
+    const listener = vi.fn();
+
+    const unsubscribe = store.subscribeToNotifications(listener);
+    await store.connect({ host: 'kodi.local' });
+    unsubscribe();
+    unsubscribe();
+    webSocketClients[0]?.emit(notificationEvent('Player.OnPlay'));
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('clears notification listeners on destroy to prevent delivery across store lifetime cleanup', async () => {
+    const { options, webSocketClients } = makeOptions();
+    const store = createConnectionStore(options);
+    const listener = vi.fn();
+
+    store.subscribeToNotifications(listener);
+    await store.connect({ host: 'kodi.local' });
+    store.destroy();
+    await store.connect({ host: 'kodi.local' });
+    webSocketClients[1]?.emit(notificationEvent('Player.OnPlay'));
+
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it('records WebSocket open time without treating the initial open as a reconnect', async () => {

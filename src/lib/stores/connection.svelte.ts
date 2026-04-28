@@ -10,6 +10,7 @@ import {
   type KodiHttpConnectionTestResult,
   type KodiHttpHost,
   type KodiJsonRpcHttpClient,
+  type KodiNotification,
   type KodiWebSocketClient,
   type KodiWebSocketClientError,
   type KodiWebSocketClientEvent,
@@ -57,6 +58,9 @@ export type ConnectionConnectHost = KodiHttpHost & {
   useWebSocket?: boolean;
 };
 
+export type ConnectionNotificationListener = (notification: KodiNotification) => void;
+export type ConnectionNotificationUnsubscribe = () => void;
+
 export class ConnectionStore {
   status = $state<ConnectionStatus>('idle');
   lastError = $state<ConnectionErrorSnapshot | null>(null);
@@ -78,6 +82,7 @@ export class ConnectionStore {
   #sessionId = 0;
   #webSocketClient: KodiWebSocketClient | null = null;
   #unsubscribeWebSocket: KodiWebSocketUnsubscribe | null = null;
+  readonly #notificationListeners = new Set<ConnectionNotificationListener>();
 
   constructor(options: ConnectionStoreOptions = {}) {
     this.#createHttpClient = options.createHttpClient ?? createKodiJsonRpcHttpClient;
@@ -169,7 +174,18 @@ export class ConnectionStore {
   destroy(): void {
     this.#sessionId += 1;
     this.#clearWebSocket('destroy');
+    this.#notificationListeners.clear();
     this.#resetAllState();
+  }
+
+  subscribeToNotifications(
+    listener: ConnectionNotificationListener
+  ): ConnectionNotificationUnsubscribe {
+    this.#notificationListeners.add(listener);
+
+    return () => {
+      this.#notificationListeners.delete(listener);
+    };
   }
 
   #startSession(): number {
@@ -208,7 +224,9 @@ export class ConnectionStore {
   #handleWebSocketEvent(event: KodiWebSocketClientEvent): void {
     switch (event.type) {
       case 'connecting':
+        return;
       case 'notification':
+        this.#fanOutNotification(event.notification);
         return;
       case 'open':
         this.status = 'connected';
@@ -232,6 +250,16 @@ export class ConnectionStore {
         return;
       default:
         return;
+    }
+  }
+
+  #fanOutNotification(notification: KodiNotification): void {
+    for (const listener of [...this.#notificationListeners]) {
+      try {
+        listener(notification);
+      } catch {
+        // Subscriber failures are isolated from connection lifecycle diagnostics.
+      }
     }
   }
 
