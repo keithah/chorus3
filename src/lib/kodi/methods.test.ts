@@ -4,11 +4,13 @@ import type {
   PlayerGoToTarget,
   PlayerRepeatValue,
   PlayerSeekValue,
-  PlayerShuffleValue
+  PlayerShuffleValue,
+  PlaylistItemPropertyName
 } from './methods';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
+  clearPlaylist,
   getActivePlayers,
   getApplicationProperties,
   getAudioLibraryAlbums,
@@ -18,6 +20,7 @@ import {
   getJsonRpcVersion,
   getPlayerItem,
   getPlayerProperties,
+  getPlaylistItems,
   getSystemProperties,
   getVideoLibraryEpisodes,
   getVideoLibraryMovies,
@@ -26,6 +29,7 @@ import {
   pingKodi,
   playPausePlayer,
   prepareFileDownload,
+  removePlaylistItem,
   seekPlayer,
   setApplicationMute,
   setApplicationVolume,
@@ -34,6 +38,7 @@ import {
   setPlayerShuffle,
   setPlayerSubtitle,
   stopPlayer,
+  swapPlaylistItems,
   testKodiHttpConnection
 } from './methods';
 
@@ -45,7 +50,8 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<string, PlayerSeekValue>>,
   ExpectTrue<IsNotAssignable<'invalid-repeat', PlayerRepeatValue>>,
   ExpectTrue<IsNotAssignable<'invalid-shuffle', PlayerShuffleValue>>,
-  ExpectTrue<IsNotAssignable<'last', PlayerGoToTarget>>
+  ExpectTrue<IsNotAssignable<'last', PlayerGoToTarget>>,
+  ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>
 ];
 
 type RecordedCall = {
@@ -179,6 +185,81 @@ describe('Kodi curated method wrappers', () => {
     };
 
     await expect(getPlayerItem(client, 1, ['title'])).rejects.toBe(error);
+  });
+
+  it('gets playlist items preserving requested params including empty properties and limits', async () => {
+    const client = createFakeClient([
+      {
+        items: [
+          { id: 11, label: 'Track One', type: 'song' },
+          { id: 12, label: 'Track Two', type: 'song' }
+        ],
+        limits: { start: 0, end: 2, total: 2 }
+      }
+    ]);
+    const params = { playlistid: 0, properties: [], limits: { start: 0, end: 25 } } as const;
+
+    await expect(getPlaylistItems(client, params)).resolves.toEqual({
+      items: [
+        { id: 11, label: 'Track One', type: 'song' },
+        { id: 12, label: 'Track Two', type: 'song' }
+      ],
+      limits: { start: 0, end: 2, total: 2 }
+    });
+
+    expect(client.calls).toEqual([{ method: 'Playlist.GetItems', params }]);
+  });
+
+  it('gets playlist items preserving optional sort params', async () => {
+    const client = createFakeClient([{ items: [{ label: 'Track One' }] }]);
+    const params = {
+      playlistid: 1,
+      properties: ['title', 'artist'],
+      sort: { method: 'label', order: 'ascending' }
+    } as const;
+
+    await expect(getPlaylistItems(client, params)).resolves.toEqual({
+      items: [{ label: 'Track One' }]
+    });
+
+    expect(client.calls).toEqual([{ method: 'Playlist.GetItems', params }]);
+  });
+
+  it('removes a playlist item preserving playlist id and position', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(removePlaylistItem(client, 0, 3)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Remove', params: { playlistid: 0, position: 3 } }
+    ]);
+  });
+
+  it('clears a playlist preserving playlist id', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(clearPlaylist(client, 1)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([{ method: 'Playlist.Clear', params: { playlistid: 1 } }]);
+  });
+
+  it('swaps playlist items using Playlist.Swap semantics', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(swapPlaylistItems(client, 0, 2, 5)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Swap', params: { playlistid: 0, position1: 2, position2: 5 } }
+    ]);
+  });
+
+  it('propagates playlist command transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(removePlaylistItem(client, 0, 3)).rejects.toBe(error);
   });
 
   it('toggles player playback with the exact player id', async () => {

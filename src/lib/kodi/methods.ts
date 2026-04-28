@@ -238,6 +238,38 @@ export interface PlayerItemResult {
   [key: string]: unknown;
 }
 
+export type PlaylistItemPropertyName = PlayerItemPropertyName;
+
+export type PlaylistItem = PlayerItem;
+
+export type PlaylistGetItemsParams = {
+  playlistid: number;
+  properties?: readonly PlaylistItemPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+  sort?: unknown;
+};
+
+export interface PlaylistItemsResult {
+  items?: PlaylistItem[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export type PlaylistRemoveParams = {
+  playlistid: number;
+  position: number;
+};
+
+export type PlaylistClearParams = {
+  playlistid: number;
+};
+
+export type PlaylistSwapParams = {
+  playlistid: number;
+  position1: number;
+  position2: number;
+};
+
 export type PlayerCommandResult = 'OK';
 
 export type PlayerPlayPauseParams = {
@@ -683,6 +715,61 @@ export function getPlayerItem(
     client,
     'Player.GetItem',
     { playerid, properties },
+    options
+  );
+}
+
+export function getPlaylistItems(
+  client: KodiJsonRpcHttpClient,
+  params: PlaylistGetItemsParams,
+  options?: KodiHttpCallOptions
+): Promise<PlaylistItemsResult> {
+  return callKodi<PlaylistItemsResult, PlaylistGetItemsParams>(
+    client,
+    'Playlist.GetItems',
+    params,
+    options
+  );
+}
+
+export function removePlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  playlistid: number,
+  position: number,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistRemoveParams>(
+    client,
+    'Playlist.Remove',
+    { playlistid, position },
+    options
+  );
+}
+
+export function clearPlaylist(
+  client: KodiJsonRpcHttpClient,
+  playlistid: number,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistClearParams>(
+    client,
+    'Playlist.Clear',
+    { playlistid },
+    options
+  );
+}
+
+export function swapPlaylistItems(
+  client: KodiJsonRpcHttpClient,
+  playlistid: number,
+  position1: number,
+  position2: number,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistSwapParams>(
+    client,
+    'Playlist.Swap',
+    { playlistid, position1, position2 },
     options
   );
 }
