@@ -48,6 +48,22 @@ export {
 } from './player.svelte';
 
 export {
+  QueueStore,
+  createQueueStore,
+  queueStore,
+  type QueueErrorSource,
+  type QueueItemSnapshot,
+  type QueueLimitsSnapshot,
+  type QueueRefreshReason,
+  type QueueRefreshStatus,
+  type QueueSafeErrorSnapshot,
+  type QueueStoreNotificationSource,
+  type QueueStoreOptions,
+  type QueueStorePlayerStore,
+  type QueueStoreSnapshot
+} from './queue.svelte';
+
+export {
   createActiveKodiJsonRpcHttpClient,
   savedKodiHostToKodiHttpHost,
   type ActiveKodiClientOptions
