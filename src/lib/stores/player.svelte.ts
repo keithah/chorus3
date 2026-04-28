@@ -20,6 +20,7 @@ import {
   isQueueRefreshNotification
 } from '$lib/kodi/notifications';
 import { connectionStore as defaultConnectionStore } from './connection.svelte';
+import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 
 export type PlayerRefreshStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type PlayerPlaybackStatus = 'none' | 'active' | 'multiple';
@@ -28,6 +29,7 @@ export type PlayerRefreshReason =
   | 'manual'
   | 'poll'
   | `notification:${string}`
+  | `command:${string}`
   | `error:${string}`;
 export type PlayerErrorSource = 'http' | 'client' | 'unknown';
 
@@ -470,4 +472,4 @@ export function createPlayerStore(options: PlayerStoreOptions = {}): PlayerStore
   return new PlayerStore(options);
 }
 
-export const playerStore = createPlayerStore();
+export const playerStore = createPlayerStore({ createClient: createActiveKodiJsonRpcHttpClient });

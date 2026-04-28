@@ -48,6 +48,26 @@ export {
 } from './player.svelte';
 
 export {
+  createActiveKodiJsonRpcHttpClient,
+  savedKodiHostToKodiHttpHost,
+  type ActiveKodiClientOptions
+} from './kodiClient';
+
+export {
+  PlayerDispatch,
+  createPlayerDispatch,
+  playerDispatch,
+  type PlayerCommandName,
+  type PlayerCommandStatus,
+  type PlayerDispatchErrorSource,
+  type PlayerDispatchMode,
+  type PlayerDispatchOptions,
+  type PlayerDispatchPlayerStore,
+  type PlayerDispatchSafeErrorSnapshot,
+  type PlayerDispatchSnapshot
+} from './playerDispatch.svelte';
+
+export {
   HostConnectionStore,
   createHostConnectionStore,
   hostConnectionStore,
