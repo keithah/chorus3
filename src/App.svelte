@@ -13,14 +13,15 @@
     min-height: 100vh;
     display: grid;
     place-content: center;
-    gap: 0.75rem;
-    padding: 2rem;
+    gap: var(--space-sm);
+    padding: var(--space-xl);
+    color: var(--color-text);
     text-align: center;
   }
 
   .eyebrow {
     margin: 0;
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.08em;

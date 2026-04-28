@@ -1,6 +1,12 @@
 import './app.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
+
+applyTheme(resolveInitialTheme(window.localStorage), {
+  document,
+  storage: window.localStorage
+});
 
 const target = document.getElementById('app');
 
