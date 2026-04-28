@@ -4,7 +4,20 @@
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
-  import { configStore, connectionStore, type ConnectionStoreSnapshot } from '$lib/stores';
+  import {
+    configStore,
+    connectionStore,
+    playerStore,
+    type ConnectionStoreSnapshot,
+    type PlayerStoreSnapshot
+  } from '$lib/stores';
+
+  interface Props {
+    playerSnapshot?: PlayerStoreSnapshot;
+  }
+
+  let { playerSnapshot }: Props = $props();
+  const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -83,6 +96,122 @@
 
     return `${transportText}${versionText}${lastConnectedText}`;
   }
+
+  function playerTone(snapshot: PlayerStoreSnapshot): 'neutral' | 'success' | 'warning' | 'danger' {
+    if (snapshot.refreshStatus === 'error') {
+      return 'danger';
+    }
+
+    if (snapshot.refreshStatus === 'loading' || snapshot.playbackStatus === 'multiple') {
+      return 'warning';
+    }
+
+    if (snapshot.playbackStatus === 'active') {
+      return 'success';
+    }
+
+    return 'neutral';
+  }
+
+  function playerStatusText(snapshot: PlayerStoreSnapshot): string {
+    if (snapshot.refreshStatus === 'loading' || snapshot.refreshStatus === 'error') {
+      return snapshot.refreshStatus;
+    }
+
+    return snapshot.playbackStatus;
+  }
+
+  function playerDescription(snapshot: PlayerStoreSnapshot): string {
+    return [
+      playerStateSummary(snapshot),
+      playerItemSummary(snapshot),
+      playerTimeSummary(snapshot),
+      playerVolumeSummary(snapshot),
+      playerQueueSummary(snapshot)
+    ].join(' ');
+  }
+
+  function playerStateSummary(snapshot: PlayerStoreSnapshot): string {
+    if (snapshot.refreshStatus === 'error' && snapshot.lastError) {
+      return `Player refresh error (${snapshot.lastError.source}/${snapshot.lastError.code}): ${snapshot.lastError.message}.`;
+    }
+
+    if (snapshot.refreshStatus === 'loading') {
+      return 'Refreshing player state.';
+    }
+
+    if (snapshot.playbackStatus === 'multiple') {
+      const players = snapshot.activePlayers
+        .map((player) => `${player.type} #${player.playerid}`)
+        .join(', ');
+      const playerText = players || 'multiple active players';
+      return `Multiple Kodi players detected: ${playerText}. Controls are not available in S01.`;
+    }
+
+    if (snapshot.playbackStatus === 'none') {
+      return 'No active Kodi player detected.';
+    }
+
+    return 'Kodi player is active.';
+  }
+
+  function playerItemSummary(snapshot: PlayerStoreSnapshot): string {
+    const title = firstNonEmptyString(snapshot.item?.label, snapshot.item?.title);
+    return title ? `Now playing ${title}.` : 'Now playing unavailable.';
+  }
+
+  function playerTimeSummary(snapshot: PlayerStoreSnapshot): string {
+    const percentage =
+      typeof snapshot.properties?.percentage === 'number' &&
+      Number.isFinite(snapshot.properties.percentage)
+        ? Math.round(snapshot.properties.percentage)
+        : null;
+
+    if (snapshot.time.currentSeconds !== null && snapshot.time.totalSeconds !== null) {
+      const percentText = percentage !== null ? ` (${percentage}%).` : '.';
+      return `${formatDuration(snapshot.time.currentSeconds)} / ${formatDuration(snapshot.time.totalSeconds)}${percentText}`;
+    }
+
+    if (percentage !== null) {
+      return `Progress ${percentage}%.`;
+    }
+
+    return 'Time unavailable.';
+  }
+
+  function playerVolumeSummary(snapshot: PlayerStoreSnapshot): string {
+    if (snapshot.application.volume === null) {
+      return 'Volume unavailable.';
+    }
+
+    const mutedText = snapshot.application.muted === true ? ' muted' : '';
+    return `Volume ${snapshot.application.volume}%${mutedText}.`;
+  }
+
+  function playerQueueSummary(snapshot: PlayerStoreSnapshot): string {
+    if (snapshot.queue.playlistid === null || snapshot.queue.position === null) {
+      return 'Queue unavailable.';
+    }
+
+    return `Queue playlist ${snapshot.queue.playlistid} position ${snapshot.queue.position}.`;
+  }
+
+  function formatDuration(totalSeconds: number): string {
+    const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  function firstNonEmptyString(...values: unknown[]): string | null {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+
+    return null;
+  }
 </script>
 
 <AppShell>
@@ -121,6 +250,12 @@
         status={connectionStatusText(connectionStore.snapshot)}
         tone={connectionTone(connectionStore.snapshot)}
         description={connectionDescription(connectionStore.snapshot)}
+      />
+      <StatusCard
+        title="Player state"
+        status={playerStatusText(currentPlayerSnapshot)}
+        tone={playerTone(currentPlayerSnapshot)}
+        description={playerDescription(currentPlayerSnapshot)}
       />
       <StatusCard
         title="Library sync"
@@ -224,7 +359,7 @@
 
   .status-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-md);
   }
 

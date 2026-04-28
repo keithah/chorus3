@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient, type KodiNotification } from '$lib/kodi';
-import { createPlayerStore, type PlayerStoreNotificationSource } from './player.svelte';
+import { createPlayerStore, type PlayerStoreNotificationSource } from './index';
 
 type Deferred<T> = {
   promise: Promise<T>;

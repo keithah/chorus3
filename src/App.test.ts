@@ -2,14 +2,40 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
-import { configStore, connectionStore, createConfigStore, hostConnectionStore } from './lib/stores';
+import {
+  configStore,
+  connectionStore,
+  createConfigStore,
+  hostConnectionStore,
+  type PlayerStoreSnapshot
+} from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
 let mountedComponent: Record<string, unknown> | undefined;
 
 type FetchMock = Mock<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>;
+type AppProps = { playerSnapshot?: PlayerStoreSnapshot };
 
-function renderApp() {
+function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
+  return {
+    refreshStatus: 'idle',
+    playbackStatus: 'none',
+    lastRefreshReason: 'init',
+    lastQueueRefreshReason: null,
+    lastUpdatedAt: null,
+    activePlayers: [],
+    primaryPlayer: null,
+    item: null,
+    properties: null,
+    application: { volume: null, muted: null },
+    queue: { playlistid: null, position: null },
+    time: { currentSeconds: null, totalSeconds: null },
+    lastError: null,
+    ...overrides
+  };
+}
+
+function renderApp(props: AppProps = {}) {
   document.body.innerHTML = '<div id="app-test-root"></div>';
   document.documentElement.dataset.theme = DEFAULT_THEME;
   const target = document.getElementById('app-test-root');
@@ -18,7 +44,7 @@ function renderApp() {
     throw new Error('Missing test root');
   }
 
-  mountedComponent = mount(App, { target }) as Record<string, unknown>;
+  mountedComponent = mount(App, { target, props }) as Record<string, unknown>;
 
   return target;
 }
@@ -131,6 +157,128 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
+  it('renders no-player player state without controls', () => {
+    const target = renderApp({ playerSnapshot: createPlayerSnapshot() });
+
+    expect(target.textContent).toContain('Player state');
+    expect(target.textContent).toContain('none');
+    expect(target.textContent).toContain('No active Kodi player detected.');
+    expect(target.textContent).toContain('Volume unavailable');
+    expect(target.textContent).toContain('Queue unavailable');
+    const buttonText = Array.from(target.querySelectorAll('button'))
+      .map((button) => button.textContent ?? '')
+      .join(' ');
+    expect(buttonText).not.toContain('Play');
+    expect(buttonText).not.toContain('Seek');
+  });
+
+  it('renders active player item, progress, volume, and queue identity', () => {
+    const target = renderApp({
+      playerSnapshot: createPlayerSnapshot({
+        refreshStatus: 'ready',
+        playbackStatus: 'active',
+        activePlayers: [{ playerid: 1, type: 'video' }],
+        primaryPlayer: { playerid: 1, type: 'video' },
+        item: { label: 'Sintel', title: 'Sintel' },
+        properties: { percentage: 42.4 },
+        application: { volume: 55, muted: false },
+        queue: { playlistid: 1, position: 7 },
+        time: { currentSeconds: 75, totalSeconds: 300 }
+      })
+    });
+
+    expect(target.textContent).toContain('Player state');
+    expect(target.textContent).toContain('active');
+    expect(target.textContent).toContain('Sintel');
+    expect(target.textContent).toContain('1:15 / 5:00');
+    expect(target.textContent).toContain('42%');
+    expect(target.textContent).toContain('Volume 55%');
+    expect(target.textContent).toContain('Queue playlist 1 position 7');
+    expect(target.textContent).not.toContain('prepared');
+    expect(target.textContent).not.toContain('download');
+  });
+
+  it('renders multiple-player state as read-only S01 proof', () => {
+    const target = renderApp({
+      playerSnapshot: createPlayerSnapshot({
+        refreshStatus: 'ready',
+        playbackStatus: 'multiple',
+        activePlayers: [
+          { playerid: 1, type: 'video' },
+          { playerid: 2, type: 'audio' }
+        ],
+        primaryPlayer: { playerid: 1, type: 'video' },
+        item: { label: 'Concert Film' }
+      })
+    });
+
+    expect(target.textContent).toContain('multiple');
+    expect(target.textContent).toContain('Multiple Kodi players detected: video #1, audio #2.');
+    expect(target.textContent).toContain('Controls are not available in S01.');
+    const buttonText = Array.from(target.querySelectorAll('button'))
+      .map((button) => button.textContent ?? '')
+      .join(' ');
+    expect(buttonText).not.toContain('Pause');
+    expect(buttonText).not.toContain('Next');
+  });
+
+  it('renders loading and malformed player fields as neutral unavailable copy', () => {
+    const target = renderApp({
+      playerSnapshot: createPlayerSnapshot({
+        refreshStatus: 'loading',
+        playbackStatus: 'active',
+        activePlayers: [{ playerid: 0, type: 'unknown' }],
+        primaryPlayer: { playerid: 0, type: 'unknown' },
+        item: {},
+        application: { volume: null, muted: null },
+        queue: { playlistid: null, position: null },
+        time: { currentSeconds: null, totalSeconds: null }
+      })
+    });
+
+    expect(target.textContent).toContain('loading');
+    expect(target.textContent).toContain('Refreshing player state.');
+    expect(target.textContent).toContain('Now playing unavailable');
+    expect(target.textContent).toContain('Time unavailable');
+    expect(target.textContent).toContain('Volume unavailable');
+    expect(target.textContent).toContain('Queue unavailable');
+  });
+
+  it('renders safe player errors without secret-like details or raw endpoints', () => {
+    const target = renderApp({
+      playerSnapshot: createPlayerSnapshot({
+        refreshStatus: 'error',
+        playbackStatus: 'active',
+        activePlayers: [{ playerid: 0, type: 'video' }],
+        primaryPlayer: { playerid: 0, type: 'video' },
+        item: { title: 'Prior Item' },
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message: 'Kodi rejected configured credentials while calling Player.GetItem.',
+          endpoint: {
+            protocol: 'http:',
+            host: 'kodi.local',
+            port: 8080,
+            path: '/jsonrpc',
+            timeoutMs: 5000,
+            hasCredentials: true
+          }
+        }
+      })
+    });
+
+    expect(target.textContent).toContain('error');
+    expect(target.textContent).toContain('Player refresh error (http/auth)');
+    expect(target.textContent).toContain(
+      'Kodi rejected configured credentials while calling Player.GetItem.'
+    );
+    expect(target.textContent).toContain('Prior Item');
+    expect(target.textContent).not.toContain('super-secret');
+    expect(target.textContent).not.toContain('admin:secret');
+    expect(target.textContent).not.toContain('http://kodi.local:8080/jsonrpc');
+  });
+
   it('renders the shell with store-backed idle Kodi connection diagnostics and host controls', () => {
     const target = renderApp();
 
