@@ -28,11 +28,7 @@ export type ApplicationPropertiesResult = Partial<{
 }> &
   Record<string, unknown>;
 
-export type SystemPropertyName =
-  | 'canhibernate'
-  | 'canreboot'
-  | 'canshutdown'
-  | 'cansuspend';
+export type SystemPropertyName = 'canhibernate' | 'canreboot' | 'canshutdown' | 'cansuspend';
 
 export type SystemPropertiesResult = Partial<Record<SystemPropertyName, boolean>> &
   Record<string, unknown>;

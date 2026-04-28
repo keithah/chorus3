@@ -24,7 +24,9 @@ type RecordedCall = {
   params?: unknown;
 };
 
-function createFakeClient(results: unknown[] = []): KodiJsonRpcHttpClient & { calls: RecordedCall[] } {
+function createFakeClient(
+  results: unknown[] = []
+): KodiJsonRpcHttpClient & { calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
 
   return {
@@ -137,7 +139,9 @@ describe('Kodi curated method wrappers', () => {
   });
 
   it('gets audio library artists preserving requested params', async () => {
-    const client = createFakeClient([{ artists: [{ artistid: 7, label: 'Bowie' }], limits: { total: 1 } }]);
+    const client = createFakeClient([
+      { artists: [{ artistid: 7, label: 'Bowie' }], limits: { total: 1 } }
+    ]);
     const params = { properties: ['thumbnail'], limits: { start: 0, end: 25 } } as const;
 
     await expect(getAudioLibraryArtists(client, params)).resolves.toEqual({
