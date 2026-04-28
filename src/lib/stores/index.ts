@@ -29,6 +29,25 @@ export {
 } from './connection.svelte';
 
 export {
+  PlayerStore,
+  createPlayerStore,
+  playerStore,
+  type NormalizedActivePlayer,
+  type PlayerApplicationSnapshot,
+  type PlayerErrorSource,
+  type PlayerPlaybackStatus,
+  type PlayerQueueSnapshot,
+  type PlayerRefreshReason,
+  type PlayerRefreshStatus,
+  type PlayerSafeErrorSnapshot,
+  type PlayerStoreNotificationSource,
+  type PlayerStoreOptions,
+  type PlayerStoreSnapshot,
+  type PlayerStoreTimers,
+  type PlayerTimeSnapshot
+} from './player.svelte';
+
+export {
   HostConnectionStore,
   createHostConnectionStore,
   hostConnectionStore,
