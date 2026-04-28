@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { KodiHttpClientError, type KodiHttpConnectionTestResult } from '$lib/kodi';
-import { createConfigStore, type ConfigStore, type SavedKodiHostInput } from './config.svelte';
 import {
+  createConfigStore,
   createHostConnectionStore,
-  type HostConnectionStoreSnapshot
-} from './hostConnection.svelte';
+  type ConfigStore,
+  type HostConnectionStoreSnapshot,
+  type SavedKodiHostInput
+} from '$lib/stores';
 import type { KodiHttpHost, KodiJsonRpcHttpClient } from '$lib/kodi';
 
 interface Deferred<T> {

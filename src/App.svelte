@@ -1,8 +1,10 @@
 <script lang="ts">
   import AppShell from '$components/AppShell.svelte';
+  import HostSettings from '$components/HostSettings.svelte';
+  import HostSwitcher from '$components/HostSwitcher.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
-  import { connectionStore, type ConnectionStoreSnapshot } from '$lib/stores';
+  import { configStore, connectionStore, type ConnectionStoreSnapshot } from '$lib/stores';
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -58,7 +60,7 @@
       : '';
 
     if (snapshot.status === 'idle') {
-      return 'Configure a Kodi host in the upcoming host settings slice. HTTP and WebSocket checks are idle.';
+      return 'Add a trusted Kodi host to begin HTTP diagnostics. HTTP and WebSocket checks are idle.';
     }
 
     if (snapshot.status === 'checking') {
@@ -75,32 +77,43 @@
         : 'Kodi connection failed with no additional diagnostics.';
     }
 
-    return `Kodi HTTP and WebSocket diagnostics are connected.${versionText}${lastConnectedText}`;
+    const transportText = snapshot.webSocketEndpoint
+      ? 'Kodi HTTP and WebSocket diagnostics are connected.'
+      : 'Kodi HTTP diagnostics are connected.';
+
+    return `${transportText}${versionText}${lastConnectedText}`;
   }
 </script>
 
 <AppShell>
   <header class="hero" aria-labelledby="app-title">
     <div class="hero-copy">
-      <p class="eyebrow">Foundation shell</p>
+      <p class="eyebrow">Multi-host console</p>
       <h1 id="app-title">chorus3</h1>
       <p class="lede">
-        A token-driven media console foundation for Kodi control surfaces, ready for the connection
-        client work that follows this slice.
+        Save trusted Kodi endpoints, test HTTP diagnostics, switch the active host, and watch
+        connection status update without reloading the app.
       </p>
     </div>
     <ThemeToggle />
   </header>
 
-  <main class="dashboard" aria-label="Foundation status">
+  <main class="dashboard" aria-label="Kodi host configuration and status">
     <section class="mission surface" aria-labelledby="mission-title">
       <p class="section-kicker">Runtime surface</p>
-      <h2 id="mission-title">No Kodi host configured yet</h2>
+      <h2 id="mission-title">
+        {configStore.snapshot.activeHost?.label ?? 'No Kodi host configured yet'}
+      </h2>
       <p>
-        This shell now reads the shared connection store so HTTP health and WebSocket notification
-        degradation can be inspected separately before host settings arrive.
+        Host settings are persisted locally for trusted devices, while connection diagnostics stay
+        secret-safe and visible in the status cards below.
       </p>
     </section>
+
+    <div class="host-grid">
+      <HostSettings />
+      <HostSwitcher />
+    </div>
 
     <section class="status-grid" aria-label="Kodi readiness status">
       <StatusCard
@@ -202,6 +215,13 @@
     line-height: 1.7;
   }
 
+  .host-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(20rem, 0.88fr);
+    gap: var(--space-md);
+    align-items: start;
+  }
+
   .status-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -213,6 +233,7 @@
       grid-template-columns: 1fr;
     }
 
+    .host-grid,
     .status-grid {
       grid-template-columns: 1fr;
     }
