@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  isPlayerStateRefreshNotification,
+  isQueueRefreshNotification,
   parseKodiNotificationMessage,
   type KodiNotification,
   type MalformedKodiNotification
@@ -16,6 +18,51 @@ function expectMalformed(raw: string): MalformedKodiNotification {
 
   return result.error;
 }
+
+function notification(method: string): KodiNotification {
+  return { jsonrpc: '2.0', method };
+}
+
+describe('Kodi notification classifiers', () => {
+  it.each([
+    'Player.OnPlay',
+    'Player.OnPause',
+    'Player.OnResume',
+    'Player.OnStop',
+    'Player.OnSeek',
+    'Player.OnSpeedChanged',
+    'Player.OnAVChange',
+    'Player.OnPropertyChanged',
+    'Application.OnVolumeChanged'
+  ])('classifies %s as requiring player state refresh', (method) => {
+    expect(isPlayerStateRefreshNotification(notification(method))).toBe(true);
+    expect(isPlayerStateRefreshNotification(method)).toBe(true);
+  });
+
+  it.each(['Playlist.OnAdd', 'Playlist.OnClear', 'Playlist.OnRemove'])(
+    'classifies %s as requiring queue refresh',
+    (method) => {
+      expect(isQueueRefreshNotification(notification(method))).toBe(true);
+      expect(isQueueRefreshNotification(method)).toBe(true);
+    }
+  );
+
+  it('does not classify unrelated library notifications as player or queue refreshes', () => {
+    const method = 'VideoLibrary.OnUpdate';
+
+    expect(isPlayerStateRefreshNotification(notification(method))).toBe(false);
+    expect(isQueueRefreshNotification(notification(method))).toBe(false);
+    expect(isPlayerStateRefreshNotification(method)).toBe(false);
+    expect(isQueueRefreshNotification(method)).toBe(false);
+  });
+
+  it('returns false for unknown notification methods', () => {
+    const method = 'GUI.OnScreensaverActivated';
+
+    expect(isPlayerStateRefreshNotification(notification(method))).toBe(false);
+    expect(isQueueRefreshNotification(notification(method))).toBe(false);
+  });
+});
 
 describe('parseKodiNotificationMessage', () => {
   it('parses known JSON-RPC notifications without an id', () => {

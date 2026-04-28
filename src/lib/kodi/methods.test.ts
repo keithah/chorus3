@@ -9,6 +9,7 @@ import {
   getAudioLibrarySongs,
   getFileSources,
   getJsonRpcVersion,
+  getPlayerItem,
   getPlayerProperties,
   getSystemProperties,
   getVideoLibraryEpisodes,
@@ -113,6 +114,43 @@ describe('Kodi curated method wrappers', () => {
         params: { playerid: 1, properties: ['speed', 'percentage'] }
       }
     ]);
+  });
+
+  it('gets the current player item with numeric playerid and requested properties', async () => {
+    const client = createFakeClient([{ item: { id: 9, label: 'Episode 1', type: 'episode' } }]);
+
+    await expect(getPlayerItem(client, 1, ['title', 'file', 'thumbnail'])).resolves.toEqual({
+      item: { id: 9, label: 'Episode 1', type: 'episode' }
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Player.GetItem',
+        params: { playerid: 1, properties: ['title', 'file', 'thumbnail'] }
+      }
+    ]);
+  });
+
+  it('preserves empty player item property arrays', async () => {
+    const client = createFakeClient([{ item: { label: 'Unknown' } }]);
+
+    await expect(getPlayerItem(client, 0, [])).resolves.toEqual({ item: { label: 'Unknown' } });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Player.GetItem',
+        params: { playerid: 0, properties: [] }
+      }
+    ]);
+  });
+
+  it('propagates player item transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(getPlayerItem(client, 1, ['title'])).rejects.toBe(error);
   });
 
   it('gets file sources for the requested media type', async () => {

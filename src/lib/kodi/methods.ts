@@ -40,6 +40,41 @@ export interface ActivePlayer {
   type: PlayerType | string;
 }
 
+export interface KodiTime {
+  hours?: number;
+  milliseconds?: number;
+  minutes?: number;
+  seconds?: number;
+  [key: string]: unknown;
+}
+
+export interface PlayerAudioStream {
+  bitrate?: number;
+  channels?: number;
+  codec?: string;
+  index?: number;
+  language?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface PlayerSubtitleStream {
+  index?: number;
+  language?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface PlayerVideoStream {
+  codec?: string;
+  height?: number;
+  index?: number;
+  language?: string;
+  name?: string;
+  width?: number;
+  [key: string]: unknown;
+}
+
 export type PlayerPropertyName =
   | 'audiostreams'
   | 'cachepercentage'
@@ -73,6 +108,7 @@ export type PlayerPropertiesParams = KodiPropertiesRequest<PlayerPropertyName> &
 };
 
 export type PlayerPropertiesResult = Partial<{
+  audiostreams: PlayerAudioStream[];
   cachepercentage: number;
   canchangespeed: boolean;
   canmove: boolean;
@@ -81,6 +117,9 @@ export type PlayerPropertiesResult = Partial<{
   canseek: boolean;
   canshuffle: boolean;
   canzoom: boolean;
+  currentaudiostream: PlayerAudioStream;
+  currentsubtitle: PlayerSubtitleStream;
+  currentvideostream: PlayerVideoStream;
   live: boolean;
   partymode: boolean;
   percentage: number;
@@ -90,9 +129,114 @@ export type PlayerPropertiesResult = Partial<{
   shuffled: boolean;
   speed: number;
   subtitleenabled: boolean;
+  subtitles: PlayerSubtitleStream[];
+  time: KodiTime;
+  totaltime: KodiTime;
   type: PlayerType | string;
+  videostreams: PlayerVideoStream[];
 }> &
   Record<string, unknown>;
+
+export type PlayerItemPropertyName =
+  | 'album'
+  | 'albumartist'
+  | 'artist'
+  | 'cast'
+  | 'channel'
+  | 'channeltype'
+  | 'dateadded'
+  | 'description'
+  | 'director'
+  | 'duration'
+  | 'episode'
+  | 'fanart'
+  | 'file'
+  | 'genre'
+  | 'id'
+  | 'imdbnumber'
+  | 'label'
+  | 'lastplayed'
+  | 'lyrics'
+  | 'movieid'
+  | 'mpaa'
+  | 'originaltitle'
+  | 'plot'
+  | 'plotoutline'
+  | 'playcount'
+  | 'premiered'
+  | 'rating'
+  | 'runtime'
+  | 'season'
+  | 'showtitle'
+  | 'streamdetails'
+  | 'studio'
+  | 'tagline'
+  | 'thumbnail'
+  | 'title'
+  | 'track'
+  | 'tvshowid'
+  | 'type'
+  | 'uniqueid'
+  | 'userrating'
+  | 'votes'
+  | 'writer'
+  | 'year';
+
+export type PlayerItemParams = KodiPropertiesRequest<PlayerItemPropertyName> & {
+  playerid: number;
+};
+
+export type PlayerItem = Partial<{
+  album: string;
+  albumartist: string[];
+  artist: string[];
+  cast: unknown[];
+  channel: string;
+  channeltype: string;
+  dateadded: string;
+  description: string;
+  director: string[];
+  duration: number;
+  episode: number;
+  fanart: string;
+  file: string;
+  genre: string[];
+  id: number;
+  imdbnumber: string;
+  label: string;
+  lastplayed: string;
+  lyrics: string;
+  movieid: number;
+  mpaa: string;
+  originaltitle: string;
+  plot: string;
+  plotoutline: string;
+  playcount: number;
+  premiered: string;
+  rating: number;
+  runtime: number;
+  season: number;
+  showtitle: string;
+  streamdetails: unknown;
+  studio: string[];
+  tagline: string;
+  thumbnail: string;
+  title: string;
+  track: number;
+  tvshowid: number;
+  type: string;
+  uniqueid: Record<string, unknown>;
+  userrating: number;
+  votes: string;
+  writer: string[];
+  year: number;
+}> &
+  Record<string, unknown>;
+
+export interface PlayerItemResult {
+  item?: PlayerItem;
+  [key: string]: unknown;
+}
 
 export type FileMediaType = 'files' | 'music' | 'pictures' | 'programs' | 'video';
 
@@ -442,6 +586,20 @@ export function getPlayerProperties(
   return callKodi<PlayerPropertiesResult, PlayerPropertiesParams>(
     client,
     'Player.GetProperties',
+    { playerid, properties },
+    options
+  );
+}
+
+export function getPlayerItem(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  properties: readonly PlayerItemPropertyName[],
+  options?: KodiHttpCallOptions
+): Promise<PlayerItemResult> {
+  return callKodi<PlayerItemResult, PlayerItemParams>(
+    client,
+    'Player.GetItem',
     { playerid, properties },
     options
   );

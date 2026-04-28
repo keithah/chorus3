@@ -112,6 +112,54 @@ function valueType(value: unknown): string {
   return typeof value;
 }
 
+const PLAYER_STATE_REFRESH_NOTIFICATION_METHODS = [
+  'Application.OnVolumeChanged',
+  'Player.OnAVChange',
+  'Player.OnPause',
+  'Player.OnPlay',
+  'Player.OnPropertyChanged',
+  'Player.OnResume',
+  'Player.OnSeek',
+  'Player.OnSpeedChanged',
+  'Player.OnStop'
+] as const satisfies readonly KodiKnownNotificationMethod[];
+
+const QUEUE_REFRESH_NOTIFICATION_METHODS = [
+  'Playlist.OnAdd',
+  'Playlist.OnClear',
+  'Playlist.OnRemove'
+] as const satisfies readonly KodiKnownNotificationMethod[];
+
+export type PlayerStateRefreshNotificationMethod =
+  (typeof PLAYER_STATE_REFRESH_NOTIFICATION_METHODS)[number];
+export type QueueRefreshNotificationMethod = (typeof QUEUE_REFRESH_NOTIFICATION_METHODS)[number];
+
+function notificationMethod(notificationOrMethod: KodiNotification | string): string {
+  return typeof notificationOrMethod === 'string'
+    ? notificationOrMethod
+    : notificationOrMethod.method;
+}
+
+export function isPlayerStateRefreshNotification(
+  notificationOrMethod: KodiNotification | string
+): notificationOrMethod is
+  | Extract<KodiNotification, { method: PlayerStateRefreshNotificationMethod }>
+  | PlayerStateRefreshNotificationMethod {
+  return PLAYER_STATE_REFRESH_NOTIFICATION_METHODS.includes(
+    notificationMethod(notificationOrMethod) as PlayerStateRefreshNotificationMethod
+  );
+}
+
+export function isQueueRefreshNotification(
+  notificationOrMethod: KodiNotification | string
+): notificationOrMethod is
+  | Extract<KodiNotification, { method: QueueRefreshNotificationMethod }>
+  | QueueRefreshNotificationMethod {
+  return QUEUE_REFRESH_NOTIFICATION_METHODS.includes(
+    notificationMethod(notificationOrMethod) as QueueRefreshNotificationMethod
+  );
+}
+
 export function parseKodiNotificationMessage(raw: string): KodiNotificationParseResult {
   if (raw.trim() === '') {
     return malformed('empty', 'Kodi WebSocket notification message is empty.');
