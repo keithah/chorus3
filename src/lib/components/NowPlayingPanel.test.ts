@@ -44,7 +44,7 @@ describe('NowPlayingPanel', () => {
     expect(slider('Volume').disabled).toBe(true);
   });
 
-  it('renders active metadata without exposing raw media file paths', () => {
+  it('renders active Kodi-mode metadata and live status without exposing raw media file paths', () => {
     renderPanel({ snapshot: createActiveMovieSnapshot() });
 
     expect(screenText()).toContain('The Movie Title');
@@ -55,6 +55,9 @@ describe('NowPlayingPanel', () => {
     expect(screenText()).toContain('50%');
     expect(screenText()).toContain('Volume 75');
     expect(screenText()).toContain('Muted: no');
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain(
+      'Playing on Kodi.'
+    );
     expect(screenText()).not.toContain('/mnt/private/movie.mkv');
   });
 
@@ -121,6 +124,69 @@ describe('NowPlayingPanel', () => {
     click(button('Resume on Kodi'));
 
     expect(dispatch.resumeOnKodi).toHaveBeenCalledTimes(1);
+  });
+
+  it('enables only local-safe transport controls in Local mode when the local snapshot is active', () => {
+    renderPanel({
+      snapshot: createActiveMovieSnapshot(),
+      dispatch: createDispatch({ mode: 'local' }),
+      localPlayerSnapshot: {
+        status: 'playing',
+        mediaKind: 'video',
+        item: { label: 'Local Movie', type: 'movie' },
+        currentSeconds: 45,
+        durationSeconds: 300,
+        volume: 66,
+        muted: false,
+        lastError: null,
+        kodiPausedForLocal: true,
+        resumeAvailable: true,
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z'
+      }
+    });
+
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain(
+      'Playing locally in the browser.'
+    );
+    expect(button('Play or pause').disabled).toBe(false);
+    expect(button('Stop').disabled).toBe(false);
+    expect(slider('Seek position').disabled).toBe(false);
+    expect(slider('Volume').disabled).toBe(false);
+    expect(button('Previous').disabled).toBe(true);
+    expect(button('Next').disabled).toBe(true);
+    expect(select('Shuffle').disabled).toBe(true);
+    expect(select('Repeat mode').disabled).toBe(true);
+    expect(select('Audio stream').disabled).toBe(true);
+    expect(select('Subtitle stream').disabled).toBe(true);
+  });
+
+  it('keeps local transport controls disabled in Local mode until a local snapshot is active', () => {
+    renderPanel({
+      snapshot: createActiveMovieSnapshot(),
+      dispatch: createDispatch({ mode: 'local' }),
+      localPlayerSnapshot: {
+        status: 'idle',
+        mediaKind: 'unknown',
+        item: null,
+        currentSeconds: 0,
+        durationSeconds: null,
+        volume: 100,
+        muted: false,
+        lastError: null,
+        kodiPausedForLocal: true,
+        resumeAvailable: true,
+        lastUpdatedAt: null
+      }
+    });
+
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain(
+      'Local playback ready.'
+    );
+    expect(button('Play or pause').disabled).toBe(true);
+    expect(button('Stop').disabled).toBe(true);
+    expect(slider('Seek position').disabled).toBe(true);
+    expect(slider('Volume').disabled).toBe(true);
+    expect(button('Resume on Kodi').disabled).toBe(false);
   });
 
   it('shows local playback errors in the live region without leaking URLs', () => {

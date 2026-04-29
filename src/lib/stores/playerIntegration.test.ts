@@ -6,7 +6,11 @@ import { createLocalScrobbleStore } from './localScrobble.svelte';
 import type { LocalPlayerStoreSnapshot } from './localPlayer.svelte';
 import { createPlayerDispatch, type PlayerDispatchPlayerStore } from './playerDispatch.svelte';
 import type { PlayerStoreSnapshot } from './player.svelte';
-import { createQueueDispatch, type QueueDispatchPlayerStore, type QueueDispatchQueueStore } from './queue.svelte';
+import {
+  createQueueDispatch,
+  type QueueDispatchPlayerStore,
+  type QueueDispatchQueueStore
+} from './queue.svelte';
 
 type CallRecord = { method: string; params?: unknown };
 
@@ -41,7 +45,11 @@ class FakePlayerStore implements PlayerDispatchPlayerStore, QueueDispatchPlayerS
   snapshot: PlayerStoreSnapshot = createPlayerSnapshot();
   readonly refreshReasons: string[] = [];
 
-  async refresh(reason: Parameters<PlayerDispatchPlayerStore['refresh']>[0]): Promise<void> {
+  async refresh(
+    reason:
+      | Parameters<PlayerDispatchPlayerStore['refresh']>[0]
+      | Parameters<QueueDispatchPlayerStore['refresh']>[0]
+  ): Promise<void> {
     this.refreshReasons.push(reason);
   }
 }
@@ -152,7 +160,10 @@ describe('integrated player loop store contracts', () => {
   it('starts local playback, scrobbles progress, and mutates queue through shared safe boundaries', async () => {
     const client = new FakeKodiClient();
     client.enqueue('Player.PlayPause', { speed: 0 });
-    client.enqueue('Files.PrepareDownload', { details: { path: '/vfs/special.flac' }, mode: 'redirect' });
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/special.flac' },
+      mode: 'redirect'
+    });
     client.enqueue('AudioLibrary.SetSongDetails', 'OK');
     client.enqueue('Playlist.Remove', 'OK');
 
@@ -199,7 +210,10 @@ describe('integrated player loop store contracts', () => {
       lastAction: 'audio-scrobble',
       writeCounts: { audioScrobbles: 1 }
     });
-    expect(queueDispatch.snapshot).toMatchObject({ commandStatus: 'success', lastCommand: 'removeAt' });
+    expect(queueDispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'removeAt'
+    });
 
     expectSecretSafe(playerDispatch.snapshot);
     expectSecretSafe(localScrobbleStore.snapshot);

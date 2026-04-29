@@ -155,9 +155,11 @@
       return 'No active Kodi player is available.';
     }
 
-    return value.lastUpdatedAt
+    const readyText = value.lastUpdatedAt
       ? `Player state ready. Last updated ${value.lastUpdatedAt}.`
       : 'Player state ready.';
+
+    return `Playing on Kodi. ${readyText}`;
   }
 
   function formatCommandName(command: string | null): string {

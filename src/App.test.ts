@@ -682,6 +682,75 @@ describe('App shell', () => {
     expect(panel?.textContent).toContain('Test Track');
   });
 
+  it('renders integrated Kodi mode, queue actions, and Local mode affordances safely', async () => {
+    const playerDispatch = createPlayerDispatch(
+      createDispatchSnapshot({ mode: 'local', lastCommand: 'startLocalPlayback' })
+    );
+    const queueDispatchSnapshot: QueueDispatchSnapshot = {
+      commandStatus: 'idle',
+      lastCommand: null,
+      lastError: null,
+      lastCompletedAt: null
+    };
+    const queueDispatch: QueuePanelDispatch = {
+      snapshot: queueDispatchSnapshot,
+      removeAt: vi.fn(),
+      clear: vi.fn(),
+      swap: vi.fn()
+    };
+    const target = renderApp({
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch,
+      localPlayerSnapshot: {
+        status: 'playing',
+        mediaKind: 'video',
+        item: { label: 'Sintel local', type: 'movie' },
+        currentSeconds: 45,
+        durationSeconds: 300,
+        volume: 80,
+        muted: false,
+        lastError: null,
+        kodiPausedForLocal: true,
+        resumeAvailable: true,
+        lastUpdatedAt: '2026-04-28T12:01:00.000Z'
+      },
+      queueSnapshot: {
+        refreshStatus: 'ready',
+        playlistid: 1,
+        activePosition: 7,
+        items: [
+          { position: 7, label: 'Sintel' },
+          { position: 8, label: 'Big Buck Bunny' }
+        ],
+        limits: { start: 0, end: 2, total: 2 },
+        lastRefreshReason: 'manual',
+        lastUpdatedAt: '2026-04-28T12:00:00.000Z',
+        lastError: null
+      },
+      queueDispatch
+    });
+
+    expect(getNowPlayingPanelText(target)).toContain('Playing locally in the browser.');
+    expect(getButton(target, 'Resume on Kodi').disabled).toBe(false);
+    expect(getButton(target, 'Play or pause').disabled).toBe(false);
+    expect(getButton(target, 'Previous').disabled).toBe(true);
+    expect(getSelect(target, '#now-playing-audio').disabled).toBe(true);
+
+    getButton(target, 'Resume on Kodi').click();
+    target.querySelector<HTMLButtonElement>('button[aria-label="Remove Big Buck Bunny"]')?.click();
+    target.querySelector<HTMLButtonElement>('button[aria-label="Move Big Buck Bunny up"]')?.click();
+    getButton(target, 'Clear queue').click();
+    await tick();
+
+    expect(playerDispatch.resumeOnKodi).toHaveBeenCalledTimes(1);
+    expect(queueDispatch.removeAt).toHaveBeenCalledWith(8);
+    expect(queueDispatch.swap).toHaveBeenCalledWith(7, 8);
+    expect(queueDispatch.clear).toHaveBeenCalledTimes(1);
+    expect(target.textContent).not.toContain('admin:p@ssword');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('private/Sintel.mkv');
+  });
+
   it('disables all QueuePanel controls when command is running', () => {
     const queueSnapshot: QueueStoreSnapshot = {
       refreshStatus: 'ready',
