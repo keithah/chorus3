@@ -5,6 +5,7 @@ import { createConfigStore } from './config.svelte';
 import { createActiveKodiJsonRpcHttpClient, savedKodiHostToKodiHttpHost } from './kodiClient';
 import { createPlayerDispatch, type PlayerDispatchPlayerStore } from './playerDispatch.svelte';
 import type { PlayerStoreSnapshot } from './player.svelte';
+import type { SavedKodiHost } from './config.svelte';
 
 type CallRecord = {
   method: string;
@@ -42,7 +43,8 @@ class FakePlayerStore implements PlayerDispatchPlayerStore {
   snapshot: PlayerStoreSnapshot = createSnapshot({
     activePlayers: [{ playerid: 7, type: 'video' }],
     primaryPlayer: { playerid: 7, type: 'video' },
-    playbackStatus: 'active'
+    playbackStatus: 'active',
+    item: { file: 'smb://nas/music/special.mp3', label: 'Special', type: 'song', id: 9 }
   });
   readonly refreshReasons: string[] = [];
   refreshError: unknown = null;
@@ -54,6 +56,66 @@ class FakePlayerStore implements PlayerDispatchPlayerStore {
       throw this.refreshError;
     }
   }
+}
+
+class FakeLocalPlayerStore {
+  snapshot = {
+    status: 'idle',
+    mediaKind: 'unknown',
+    item: null,
+    currentSeconds: 0,
+    durationSeconds: 120,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: false,
+    resumeAvailable: false,
+    lastUpdatedAt: null
+  } as const;
+
+  readonly calls: Array<{ method: string; args?: unknown }> = [];
+  loadError: unknown = null;
+
+  async loadAndPlay(args: unknown): Promise<void> {
+    this.calls.push({ method: 'loadAndPlay', args });
+    if (this.loadError) {
+      throw this.loadError;
+    }
+  }
+
+  async togglePlayPause(): Promise<void> {
+    this.calls.push({ method: 'togglePlayPause' });
+  }
+
+  stop(): void {
+    this.calls.push({ method: 'stop' });
+  }
+
+  seekToSeconds(seconds: number): void {
+    this.calls.push({ method: 'seekToSeconds', args: seconds });
+  }
+
+  setVolume(volume: number): void {
+    this.calls.push({ method: 'setVolume', args: volume });
+  }
+
+  setMuted(muted: boolean): void {
+    this.calls.push({ method: 'setMuted', args: muted });
+  }
+}
+
+function createActiveHost(overrides: Partial<SavedKodiHost> = {}): SavedKodiHost {
+  return {
+    id: 'living-room',
+    label: 'Living Room',
+    host: 'kodi.local',
+    port: 8080,
+    username: 'admin',
+    password: 'p@ssword',
+    useTls: false,
+    useWebSocket: true,
+    ...overrides
+  };
 }
 
 function createSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
@@ -78,13 +140,20 @@ function createSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerSto
 function createHarness() {
   const client = new FakeKodiClient();
   const playerStore = new FakePlayerStore();
+  const localPlayerStore = new FakeLocalPlayerStore();
+  const configStore = { activeHost: createActiveHost() } as unknown as {
+    activeHost: SavedKodiHost | null;
+  };
+
   const dispatch = createPlayerDispatch({
     playerStore,
+    localPlayerStore: localPlayerStore as never,
+    configStore: configStore as never,
     createClient: () => client,
     now: () => '2026-01-02T00:00:00.000Z'
   });
 
-  return { client, dispatch, playerStore };
+  return { client, dispatch, playerStore, localPlayerStore, configStore };
 }
 
 function expectSecretSafe(value: unknown): void {
@@ -218,6 +287,158 @@ describe('player dispatch', () => {
     ]);
   });
 
+  it('routes supported commands through LocalPlayerStore when mode is local', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+
+    await dispatch.playPause();
+    await dispatch.stop();
+    await dispatch.seekRelativeSeconds(15);
+    await dispatch.setVolume(42);
+    await dispatch.toggleMute();
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls.map((call) => call.method)).toEqual([
+      'togglePlayPause',
+      'stop',
+      'seekToSeconds',
+      'setVolume',
+      'setMuted'
+    ]);
+  });
+
+  it('starts local playback by pausing Kodi first, then preparing a stream URL, then loading local media', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+
+    client.enqueue('Player.PlayPause', { speed: 0 });
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/special.mp3' },
+      mode: 'redirect'
+    });
+
+    await dispatch.startLocalPlayback();
+
+    expect(client.calls).toEqual([
+      { method: 'Player.PlayPause', params: { playerid: 7 } },
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/special.mp3' } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:startLocalPlayback']);
+
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'success',
+      lastCommand: 'startLocalPlayback'
+    });
+
+    expect(localPlayerStore.calls[0]?.method).toBe('loadAndPlay');
+    const serializedArgs = JSON.stringify(localPlayerStore.calls[0]?.args);
+    expect(serializedArgs).toContain('http://kodi.local:8080/vfs/special.mp3');
+    expect(serializedArgs).not.toContain('smb://nas/music/special.mp3');
+  });
+
+  it('does not start local playback when Kodi pause fails', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    client.enqueue(
+      'Player.PlayPause',
+      new KodiHttpClientError({
+        code: 'auth',
+        method: 'Player.PlayPause',
+        endpoint: {
+          protocol: 'http:',
+          host: 'kodi.local',
+          port: 8080,
+          path: '/jsonrpc',
+          timeoutMs: 5000,
+          hasCredentials: true
+        },
+        status: 401,
+        statusText: 'Unauthorized'
+      })
+    );
+
+    await dispatch.startLocalPlayback();
+
+    expect(client.calls).toEqual([{ method: 'Player.PlayPause', params: { playerid: 7 } }]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'startLocalPlayback',
+      lastError: { source: 'http', code: 'auth' }
+    });
+  });
+
+  it('does not start local playback when stream preparation fails', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    client.enqueue('Player.PlayPause', { speed: 0 });
+    client.enqueue(
+      'Files.PrepareDownload',
+      new KodiHttpClientError({
+        code: 'network',
+        method: 'Files.PrepareDownload',
+        endpoint: {
+          protocol: 'http:',
+          host: 'kodi.local',
+          port: 8080,
+          path: '/jsonrpc',
+          timeoutMs: 5000,
+          hasCredentials: true
+        }
+      })
+    );
+
+    await dispatch.startLocalPlayback();
+
+    expect(client.calls.map((call) => call.method)).toEqual([
+      'Player.PlayPause',
+      'Files.PrepareDownload'
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:startLocalPlayback']);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'startLocalPlayback',
+      lastError: { source: 'http', code: 'network' }
+    });
+  });
+
+  it('records a failed local media start attempt while leaving Kodi paused', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    client.enqueue('Player.PlayPause', { speed: 0 });
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/special.mp3' },
+      mode: 'redirect'
+    });
+    localPlayerStore.loadError = new Error('NotAllowedError: play rejected');
+
+    await dispatch.startLocalPlayback();
+
+    expect(playerStore.refreshReasons).toEqual(['command:startLocalPlayback']);
+    expect(localPlayerStore.calls[0]?.method).toBe('loadAndPlay');
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'startLocalPlayback',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+  });
+
+  it('resumes playback on Kodi and switches mode back to kodi', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    dispatch.setMode('local');
+    client.enqueue('Player.PlayPause', { speed: 1 });
+
+    await dispatch.resumeOnKodi();
+
+    expect(client.calls).toEqual([{ method: 'Player.PlayPause', params: { playerid: 7 } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:resumeOnKodi']);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'resumeOnKodi'
+    });
+  });
+
   it('blocks no-player and multiple-player states before calling Kodi', async () => {
     const { client, dispatch, playerStore } = createHarness();
     playerStore.snapshot = createSnapshot();
@@ -302,17 +523,17 @@ describe('player dispatch', () => {
     });
   });
 
-  it('rejects unsupported local mode safely', async () => {
+  it('rejects Kodi-only commands when running in Local mode', async () => {
     const { client, dispatch, playerStore } = createHarness();
     dispatch.setMode('local');
 
-    await dispatch.playPause();
+    await dispatch.setShuffle(true);
 
     expect(client.calls).toEqual([]);
     expect(playerStore.refreshReasons).toEqual([]);
     expect(dispatch.snapshot).toMatchObject({
       commandStatus: 'error',
-      lastCommand: 'playPause',
+      lastCommand: 'setShuffle',
       lastCompletedAt: '2026-01-02T00:00:00.000Z',
       lastError: {
         source: 'mode',

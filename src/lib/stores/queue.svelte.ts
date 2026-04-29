@@ -1,7 +1,10 @@
 import {
   KodiHttpClientError,
+  clearPlaylist,
   getPlaylistItems,
   isKodiHttpClientError,
+  removePlaylistItem,
+  swapPlaylistItems,
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
   type KodiNotification,
@@ -11,6 +14,41 @@ import { isQueueRefreshNotification } from '$lib/kodi/notifications';
 import { connectionStore as defaultConnectionStore } from './connection.svelte';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
+
+export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
+export type QueueCommandName = 'removeAt' | 'clear' | 'swap';
+export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
+
+export interface QueueDispatchSafeErrorSnapshot {
+  source: QueueDispatchErrorSource;
+  code: string;
+  message: string;
+  endpoint?: KodiEndpointDescription;
+}
+
+export interface QueueDispatchSnapshot {
+  commandStatus: QueueCommandStatus;
+  lastCommand: QueueCommandName | null;
+  lastError: QueueDispatchSafeErrorSnapshot | null;
+  lastCompletedAt: string | null;
+}
+
+export interface QueueDispatchQueueStore {
+  readonly snapshot: Pick<QueueStoreSnapshot, 'playlistid' | 'items'>;
+  refresh(reason: `command:${QueueCommandName}`): Promise<void> | void;
+}
+
+export interface QueueDispatchPlayerStore {
+  refresh(reason: `command:${QueueCommandName}`): Promise<void> | void;
+}
+
+export interface QueueDispatchOptions {
+  queueStore?: QueueDispatchQueueStore;
+  playerStore?: QueueDispatchPlayerStore;
+  client?: KodiJsonRpcHttpClient;
+  createClient?: () => KodiJsonRpcHttpClient | null;
+  now?: () => string;
+}
 
 export type QueueRefreshStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type QueueRefreshReason =
@@ -87,6 +125,13 @@ const DEFAULT_SNAPSHOT: QueueStoreSnapshot = {
   lastRefreshReason: 'init',
   lastUpdatedAt: null,
   lastError: null
+};
+
+const DEFAULT_DISPATCH_SNAPSHOT: QueueDispatchSnapshot = {
+  commandStatus: 'idle',
+  lastCommand: null,
+  lastError: null,
+  lastCompletedAt: null
 };
 
 const DEFAULT_PLAYLIST_PROPERTIES = [
@@ -339,13 +384,276 @@ function createSafeError(error: unknown): QueueSafeErrorSnapshot {
 
 function sanitizeErrorMessage(message: string): string {
   return message
+    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
+    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
+    .replace(/authorization/gi, 'credentials')
+    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
     .replace(/username or password/gi, 'credentials')
-    .replace(/Authorization:\s*Basic\s+[^\s]+/gi, 'Authorization credentials')
-    .replace(/Basic\s+[^\s]+/gi, 'Basic credentials')
     .replace(/https?:\/\/[^\s/@:]+:[^\s/@]+@/gi, 'http://credentials@')
     .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
     .replace(/localStorage/gi, 'browser storage')
     .replace(/password/gi, 'credentials');
+}
+
+export class QueueDispatch {
+  #snapshot = $state<QueueDispatchSnapshot>({ ...DEFAULT_DISPATCH_SNAPSHOT });
+
+  readonly #queueStore: QueueDispatchQueueStore;
+  readonly #playerStore: QueueDispatchPlayerStore;
+  readonly #client: KodiJsonRpcHttpClient | null;
+  readonly #createClient: () => KodiJsonRpcHttpClient | null;
+  readonly #now: () => string;
+
+  constructor(options: QueueDispatchOptions = {}) {
+    this.#queueStore = options.queueStore ?? queueStore;
+    this.#playerStore = options.playerStore ?? defaultPlayerStore;
+    this.#client = options.client ?? null;
+    this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
+    this.#now = options.now ?? (() => new Date().toISOString());
+  }
+
+  get snapshot(): QueueDispatchSnapshot {
+    return cloneDispatchSnapshot(this.#snapshot);
+  }
+
+  removeAt(position: number): Promise<void> {
+    return this.#runCommand({
+      command: 'removeAt',
+      validate: (state) => validateQueuePosition(position, state.itemCount),
+      execute: (client, state) => removePlaylistItem(client, state.playlistid, position)
+    });
+  }
+
+  clear(): Promise<void> {
+    return this.#runCommand({
+      command: 'clear',
+      execute: (client, state) => clearPlaylist(client, state.playlistid)
+    });
+  }
+
+  swap(position1: number, position2: number): Promise<void> {
+    return this.#runCommand({
+      command: 'swap',
+      validate: (state) => {
+        const firstError = validateQueuePosition(position1, state.itemCount);
+        if (firstError) {
+          return firstError;
+        }
+
+        const secondError = validateQueuePosition(position2, state.itemCount);
+        if (secondError) {
+          return secondError;
+        }
+
+        return position1 === position2
+          ? createQueueInputError(
+              'input/identical-positions',
+              'Choose two different queue positions to reorder.'
+            )
+          : null;
+      },
+      execute: (client, state) => swapPlaylistItems(client, state.playlistid, position1, position2)
+    });
+  }
+
+  async #runCommand(input: {
+    command: QueueCommandName;
+    validate?: (state: {
+      playlistid: number;
+      itemCount: number;
+    }) => QueueDispatchSafeErrorSnapshot | null;
+    execute: (
+      client: KodiJsonRpcHttpClient,
+      state: { playlistid: number; itemCount: number }
+    ) => Promise<unknown>;
+  }): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        input.command,
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand(input.command);
+
+    const state = this.#resolveQueueState();
+    if (!state.ok) {
+      this.#failCommand(input.command, state.error);
+      return;
+    }
+
+    const validationError = input.validate?.(state.value) ?? null;
+    if (validationError) {
+      this.#failCommand(input.command, validationError);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand(input.command, clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await input.execute(clientResult.client, state.value);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand(input.command);
+
+    if (commandError) {
+      this.#failCommand(input.command, commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: input.command,
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #refreshAfterCommand(command: QueueCommandName): Promise<void> {
+    try {
+      await this.#queueStore.refresh(`command:${command}`);
+    } catch {
+      // QueueStore owns refresh failure diagnostics; preserve command status here.
+    }
+
+    try {
+      await this.#playerStore.refresh(`command:${command}`);
+    } catch {
+      // PlayerStore owns refresh failure diagnostics; preserve command status here.
+    }
+  }
+
+  #startCommand(command: QueueCommandName): void {
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'running',
+      lastCommand: command,
+      lastError: null
+    };
+  }
+
+  #failCommand(command: QueueCommandName, error: QueueDispatchSafeErrorSnapshot): void {
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'error',
+      lastCommand: command,
+      lastError: cloneDispatchError(error),
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  #resolveQueueState():
+    | { ok: true; value: { playlistid: number; itemCount: number } }
+    | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+    const snapshot = this.#queueStore.snapshot;
+
+    if (typeof snapshot.playlistid !== 'number' || !Number.isFinite(snapshot.playlistid)) {
+      return {
+        ok: false,
+        error: {
+          source: 'queue',
+          code: 'queue/no-active-playlist',
+          message: 'No active Kodi playlist is available for this queue action.'
+        }
+      };
+    }
+
+    return {
+      ok: true,
+      value: {
+        playlistid: snapshot.playlistid,
+        itemCount: Array.isArray(snapshot.items) ? snapshot.items.length : 0
+      }
+    };
+  }
+
+  #resolveClient():
+    | { ok: true; client: KodiJsonRpcHttpClient }
+    | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+    try {
+      const client = this.#client ?? this.#createClient();
+      if (!client) {
+        return {
+          ok: false,
+          error: {
+            source: 'config',
+            code: 'config/no-active-host',
+            message: 'Choose an active Kodi host before editing the queue.'
+          }
+        };
+      }
+
+      return { ok: true, client };
+    } catch (error) {
+      return { ok: false, error: createDispatchSafeError(error) };
+    }
+  }
+}
+
+function validateQueuePosition(
+  position: number,
+  itemCount: number
+): QueueDispatchSafeErrorSnapshot | null {
+  return Number.isInteger(position) && position >= 0 && position < itemCount
+    ? null
+    : createQueueInputError(
+        'input/invalid-position',
+        'Choose a valid queue position from the current playlist.'
+      );
+}
+
+function createQueueInputError(code: string, message: string): QueueDispatchSafeErrorSnapshot {
+  return { source: 'input', code, message };
+}
+
+function createQueueCommandError(code: string, message: string): QueueDispatchSafeErrorSnapshot {
+  return { source: 'command', code, message };
+}
+
+function createDispatchSafeError(error: unknown): QueueDispatchSafeErrorSnapshot {
+  if (isKodiHttpClientError(error) || error instanceof KodiHttpClientError) {
+    return {
+      source: 'http',
+      code: error.code,
+      message: sanitizeErrorMessage(error.message),
+      endpoint: error.endpoint
+    };
+  }
+
+  return {
+    source: 'command',
+    code: 'command/failed',
+    message: sanitizeErrorMessage(
+      error instanceof Error ? error.message : 'Kodi queue command failed.'
+    )
+  };
+}
+
+function cloneDispatchSnapshot(snapshot: QueueDispatchSnapshot): QueueDispatchSnapshot {
+  return {
+    ...snapshot,
+    lastError: snapshot.lastError ? cloneDispatchError(snapshot.lastError) : null
+  };
+}
+
+function cloneDispatchError(error: QueueDispatchSafeErrorSnapshot): QueueDispatchSafeErrorSnapshot {
+  return {
+    ...error,
+    ...(error.endpoint ? { endpoint: { ...error.endpoint } } : {})
+  };
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -404,4 +712,13 @@ export function createQueueStore(options: QueueStoreOptions = {}): QueueStore {
   return new QueueStore(options);
 }
 
+export function createQueueDispatch(options: QueueDispatchOptions = {}): QueueDispatch {
+  return new QueueDispatch(options);
+}
+
 export const queueStore = createQueueStore({ createClient: createActiveKodiJsonRpcHttpClient });
+export const queueDispatch = createQueueDispatch({
+  createClient: createActiveKodiJsonRpcHttpClient,
+  playerStore: defaultPlayerStore,
+  queueStore
+});

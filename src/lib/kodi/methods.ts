@@ -272,6 +272,33 @@ export type PlaylistSwapParams = {
 
 export type PlayerCommandResult = 'OK';
 
+export type KodiLibraryWriteResult = 'OK';
+
+export type AudioLibrarySetSongDetailsParams = {
+  songid: number;
+  playcount?: number;
+  lastplayed?: string;
+};
+
+export type VideoResumePosition = {
+  position: number;
+  total: number;
+};
+
+export type VideoLibrarySetMovieDetailsParams = {
+  movieid: number;
+  playcount?: number;
+  lastplayed?: string;
+  resume?: VideoResumePosition;
+};
+
+export type VideoLibrarySetEpisodeDetailsParams = {
+  episodeid: number;
+  playcount?: number;
+  lastplayed?: string;
+  resume?: VideoResumePosition;
+};
+
 export type PlayerPlayPauseParams = {
   playerid: number;
 };
@@ -770,6 +797,45 @@ export function swapPlaylistItems(
     client,
     'Playlist.Swap',
     { playlistid, position1, position2 },
+    options
+  );
+}
+
+export function setSongDetails(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibrarySetSongDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, AudioLibrarySetSongDetailsParams>(
+    client,
+    'AudioLibrary.SetSongDetails',
+    params,
+    options
+  );
+}
+
+export function setMovieDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySetMovieDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibrarySetMovieDetailsParams>(
+    client,
+    'VideoLibrary.SetMovieDetails',
+    params,
+    options
+  );
+}
+
+export function setEpisodeDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySetEpisodeDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibrarySetEpisodeDetailsParams>(
+    client,
+    'VideoLibrary.SetEpisodeDetails',
+    params,
     options
   );
 }

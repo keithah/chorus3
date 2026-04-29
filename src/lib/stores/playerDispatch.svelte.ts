@@ -19,6 +19,13 @@ import {
   type PlayerShuffleValue,
   type PlayerSubtitleValue
 } from '$lib/kodi';
+import { configStore as defaultConfigStore, type ConfigStore } from './config.svelte';
+import {
+  localPlayerStore as defaultLocalPlayerStore,
+  prepareLocalStreamUrl,
+  type LocalMediaKind,
+  type LocalPlayerStore
+} from './localPlayer.svelte';
 import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 
@@ -37,7 +44,9 @@ export type PlayerCommandName =
   | 'setShuffle'
   | 'setRepeat'
   | 'setAudioStream'
-  | 'setSubtitle';
+  | 'setSubtitle'
+  | 'startLocalPlayback'
+  | 'resumeOnKodi';
 export type PlayerDispatchErrorSource = 'config' | 'player' | 'mode' | 'input' | 'http' | 'command';
 
 export interface PlayerDispatchSafeErrorSnapshot {
@@ -63,6 +72,8 @@ export interface PlayerDispatchPlayerStore {
 export interface PlayerDispatchOptions {
   mode?: PlayerDispatchMode;
   playerStore?: PlayerDispatchPlayerStore;
+  localPlayerStore?: LocalPlayerStore;
+  configStore?: ConfigStore;
   client?: KodiJsonRpcHttpClient;
   createClient?: () => KodiJsonRpcHttpClient | null;
   now?: () => string;
@@ -96,6 +107,8 @@ export class PlayerDispatch {
   #snapshot = $state<PlayerDispatchSnapshot>({ ...DEFAULT_SNAPSHOT });
 
   readonly #playerStore: PlayerDispatchPlayerStore;
+  readonly #localPlayerStore: LocalPlayerStore;
+  readonly #configStore: ConfigStore;
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: () => KodiJsonRpcHttpClient | null;
   readonly #now: () => string;
@@ -103,6 +116,8 @@ export class PlayerDispatch {
   constructor(options: PlayerDispatchOptions = {}) {
     this.#snapshot = { ...DEFAULT_SNAPSHOT, mode: options.mode ?? 'kodi' };
     this.#playerStore = options.playerStore ?? defaultPlayerStore;
+    this.#localPlayerStore = options.localPlayerStore ?? defaultLocalPlayerStore;
+    this.#configStore = options.configStore ?? defaultConfigStore;
     this.#client = options.client ?? null;
     this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
     this.#now = options.now ?? (() => new Date().toISOString());
@@ -120,6 +135,15 @@ export class PlayerDispatch {
   }
 
   playPause(): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'playPause',
+        execute: async () => {
+          await this.#localPlayerStore.togglePlayPause();
+        }
+      });
+    }
+
     return this.#runPlayerCommand({
       command: 'playPause',
       execute: (client, playerid) => playPausePlayer(client, playerid)
@@ -127,6 +151,15 @@ export class PlayerDispatch {
   }
 
   stop(): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'stop',
+        execute: async () => {
+          this.#localPlayerStore.stop();
+        }
+      });
+    }
+
     return this.#runPlayerCommand({
       command: 'stop',
       execute: (client, playerid) => stopPlayer(client, playerid)
@@ -134,6 +167,10 @@ export class PlayerDispatch {
   }
 
   previous(): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('previous');
+    }
+
     return this.#runPlayerCommand({
       command: 'previous',
       execute: (client, playerid) => goToPlayerItem(client, playerid, 'previous')
@@ -141,6 +178,10 @@ export class PlayerDispatch {
   }
 
   next(): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('next');
+    }
+
     return this.#runPlayerCommand({
       command: 'next',
       execute: (client, playerid) => goToPlayerItem(client, playerid, 'next')
@@ -148,6 +189,25 @@ export class PlayerDispatch {
   }
 
   seekPercentage(percentage: number): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'seekPercentage',
+        validate: () => validateBoundedNumber(percentage, 0, 100, 'input/invalid-seek-percentage'),
+        execute: async () => {
+          const durationSeconds = this.#localPlayerStore.snapshot.durationSeconds;
+          if (durationSeconds === null) {
+            throw createInputError(
+              'input/missing-duration',
+              'Local playback must have a known duration before seeking by percentage.'
+            );
+          }
+
+          const target = (durationSeconds * percentage) / 100;
+          this.#localPlayerStore.seekToSeconds(target);
+        }
+      });
+    }
+
     return this.#runPlayerCommand({
       command: 'seekPercentage',
       validate: () => validateBoundedNumber(percentage, 0, 100, 'input/invalid-seek-percentage'),
@@ -156,6 +216,17 @@ export class PlayerDispatch {
   }
 
   seekRelativeSeconds(seconds: number): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'seekRelativeSeconds',
+        validate: () => validateFiniteNumber(seconds, 'input/invalid-seek-seconds'),
+        execute: async () => {
+          const current = this.#localPlayerStore.snapshot.currentSeconds;
+          this.#localPlayerStore.seekToSeconds(Math.max(0, current + seconds));
+        }
+      });
+    }
+
     return this.#runPlayerCommand({
       command: 'seekRelativeSeconds',
       validate: () => validateFiniteNumber(seconds, 'input/invalid-seek-seconds'),
@@ -164,6 +235,29 @@ export class PlayerDispatch {
   }
 
   seekStep(step: PlayerSeekStep): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'seekStep',
+        validate: () =>
+          VALID_SEEK_STEPS.has(step)
+            ? null
+            : createInputError('input/invalid-seek-step', 'Choose a supported seek step.'),
+        execute: async () => {
+          const delta =
+            step === 'smallforward'
+              ? 10
+              : step === 'smallbackward'
+                ? -10
+                : step === 'bigforward'
+                  ? 30
+                  : -30;
+
+          const current = this.#localPlayerStore.snapshot.currentSeconds;
+          this.#localPlayerStore.seekToSeconds(Math.max(0, current + delta));
+        }
+      });
+    }
+
     return this.#runPlayerCommand({
       command: 'seekStep',
       validate: () =>
@@ -175,6 +269,16 @@ export class PlayerDispatch {
   }
 
   setVolume(volume: number): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'setVolume',
+        validate: () => validateFiniteNumber(volume, 'input/invalid-volume'),
+        execute: async () => {
+          this.#localPlayerStore.setVolume(volume);
+        }
+      });
+    }
+
     const clampedVolume = Number.isFinite(volume)
       ? Math.min(100, Math.max(0, Math.round(volume)))
       : volume;
@@ -187,6 +291,16 @@ export class PlayerDispatch {
   }
 
   toggleMute(): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalCommand({
+        command: 'toggleMute',
+        execute: async () => {
+          const snapshot = this.#localPlayerStore.snapshot;
+          this.#localPlayerStore.setMuted(!snapshot.muted);
+        }
+      });
+    }
+
     return this.#runApplicationCommand({
       command: 'toggleMute',
       execute: (client) => setApplicationMute(client, 'toggle')
@@ -194,6 +308,10 @@ export class PlayerDispatch {
   }
 
   setShuffle(shuffle: PlayerShuffleValue): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('setShuffle');
+    }
+
     return this.#runPlayerCommand({
       command: 'setShuffle',
       validate: () =>
@@ -205,6 +323,10 @@ export class PlayerDispatch {
   }
 
   setRepeat(repeat: PlayerRepeatValue): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('setRepeat');
+    }
+
     return this.#runPlayerCommand({
       command: 'setRepeat',
       validate: () =>
@@ -216,6 +338,10 @@ export class PlayerDispatch {
   }
 
   setAudioStream(stream: PlayerAudioStreamValue): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('setAudioStream');
+    }
+
     return this.#runPlayerCommand({
       command: 'setAudioStream',
       validate: () => validateAudioStream(stream),
@@ -224,11 +350,23 @@ export class PlayerDispatch {
   }
 
   setSubtitle(subtitle: PlayerSubtitleValue): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('setSubtitle');
+    }
+
     return this.#runPlayerCommand({
       command: 'setSubtitle',
       validate: () => validateSubtitle(subtitle),
       execute: (client, playerid) => setPlayerSubtitle(client, playerid, subtitle)
     });
+  }
+
+  startLocalPlayback(): Promise<void> {
+    return this.#runStartLocalPlayback();
+  }
+
+  resumeOnKodi(): Promise<void> {
+    return this.#runResumeOnKodi();
   }
 
   async #runApplicationCommand(
@@ -254,12 +392,6 @@ export class PlayerDispatch {
     const validationError = input.validate?.() ?? null;
     if (validationError) {
       this.#failCommand(validationError);
-      return;
-    }
-
-    const modeError = this.#validateMode();
-    if (modeError) {
-      this.#failCommand(modeError);
       return;
     }
 
@@ -328,15 +460,173 @@ export class PlayerDispatch {
     };
   }
 
-  #validateMode(): PlayerDispatchSafeErrorSnapshot | null {
-    if (this.#snapshot.mode === 'kodi') {
-      return null;
-    }
-
-    return {
+  #rejectUnsupportedLocal(command: PlayerCommandName): Promise<void> {
+    this.#startCommand(command);
+    this.#failCommand({
       source: 'mode',
       code: 'mode/unsupported-local',
-      message: 'Local playback controls are not available yet.'
+      message: 'This playback control is only available when controlling Kodi.'
+    });
+
+    return Promise.resolve();
+  }
+
+  async #runLocalCommand(input: {
+    command: PlayerCommandName;
+    validate?: () => PlayerDispatchSafeErrorSnapshot | null;
+    execute: () => Promise<void>;
+  }): Promise<void> {
+    this.#startCommand(input.command);
+
+    const validationError = input.validate?.() ?? null;
+    if (validationError) {
+      this.#failCommand(validationError);
+      return;
+    }
+
+    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await input.execute();
+    } catch (error) {
+      commandError = createSafeError(error);
+    }
+
+    if (commandError) {
+      this.#failCommand(commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runStartLocalPlayback(): Promise<void> {
+    this.#startCommand('startLocalPlayback');
+
+    const playerid = this.#resolveSinglePlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    const snapshot = this.#playerStore.snapshot;
+    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+
+    if (!file) {
+      this.#failCommand({
+        source: 'input',
+        code: 'input/missing-file',
+        message: 'Choose a playable item before starting local playback.'
+      });
+      return;
+    }
+
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    const speed = typeof snapshot.properties?.speed === 'number' ? snapshot.properties.speed : null;
+    const shouldPauseKodi = speed === null ? true : speed !== 0;
+
+    if (shouldPauseKodi) {
+      try {
+        await playPausePlayer(client, playerid);
+      } catch (error) {
+        this.#failCommand(createSafeError(error));
+        return;
+      }
+    }
+
+    try {
+      await this.#playerStore.refresh('command:startLocalPlayback');
+    } catch {
+      // PlayerStore owns refresh failure diagnostics.
+    }
+
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    const mediaKind = inferMediaKind(snapshot.primaryPlayer?.type);
+
+    try {
+      await this.#localPlayerStore.loadAndPlay({
+        source: streamUrl,
+        item: extractLocalItemIdentity(snapshot.item),
+        mediaKind,
+        kodiWasPaused: shouldPauseKodi
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runResumeOnKodi(): Promise<void> {
+    this.#startCommand('resumeOnKodi');
+
+    const playerid = this.#resolveSinglePlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before resuming playback on Kodi.'
+        )
+      );
+      return;
+    }
+
+    try {
+      await playPausePlayer(client, playerid);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#playerStore.refresh('command:resumeOnKodi');
+    } catch {
+      // PlayerStore owns refresh failure diagnostics.
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
     };
   }
 
@@ -440,10 +730,73 @@ function createSafeError(error: unknown): PlayerDispatchSafeErrorSnapshot {
     };
   }
 
+  if (error instanceof Error && isErrorWithCode(error)) {
+    const source: PlayerDispatchErrorSource = error.code.startsWith('input/')
+      ? 'input'
+      : error.code.startsWith('config/')
+        ? 'config'
+        : 'command';
+
+    return {
+      source,
+      code: error.code,
+      message: sanitizeErrorMessage(error.message)
+    };
+  }
+
   return {
     source: 'command',
     code: 'command/failed',
     message: sanitizeErrorMessage(error instanceof Error ? error.message : 'Kodi command failed.')
+  };
+}
+
+function isErrorWithCode(error: Error): error is Error & { code: string } {
+  return (
+    Object.prototype.hasOwnProperty.call(error, 'code') &&
+    typeof (error as { code?: unknown }).code === 'string'
+  );
+}
+
+function inferMediaKind(playerType: unknown): LocalMediaKind {
+  return playerType === 'audio' ? 'audio' : playerType === 'video' ? 'video' : 'unknown';
+}
+
+function extractLocalItemIdentity(item: PlayerStoreSnapshot['item']): {
+  id?: number;
+  label?: string;
+  title?: string;
+  type?: string;
+  songid?: number;
+  movieid?: number;
+  episodeid?: number;
+} {
+  if (!item || typeof item !== 'object') {
+    return { label: 'Unknown item', type: 'unknown' };
+  }
+
+  const candidate = item as Record<string, unknown>;
+
+  return {
+    ...(typeof candidate.id === 'number' && Number.isFinite(candidate.id) ? { id: candidate.id } : {}),
+    ...(typeof candidate.label === 'string' && candidate.label.length > 0
+      ? { label: candidate.label }
+      : { label: 'Unknown item' }),
+    ...(typeof candidate.title === 'string' && candidate.title.length > 0
+      ? { title: candidate.title }
+      : {}),
+    ...(typeof candidate.type === 'string' && candidate.type.length > 0
+      ? { type: candidate.type }
+      : { type: 'unknown' }),
+    ...(typeof candidate.songid === 'number' && Number.isFinite(candidate.songid)
+      ? { songid: candidate.songid }
+      : {}),
+    ...(typeof candidate.movieid === 'number' && Number.isFinite(candidate.movieid)
+      ? { movieid: candidate.movieid }
+      : {}),
+    ...(typeof candidate.episodeid === 'number' && Number.isFinite(candidate.episodeid)
+      ? { episodeid: candidate.episodeid }
+      : {})
   };
 }
 
@@ -454,6 +807,8 @@ function sanitizeErrorMessage(message: string): string {
     .replace(/authorization/gi, 'credentials')
     .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
     .replace(/username or password/gi, 'credentials')
+    .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
+    .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-file')
     .replace(/admin:p@ssword/gi, '[redacted-credentials]')
     .replace(/p@ssword/gi, '[redacted-password]')
     .replace(/localStorage/gi, 'browser storage');

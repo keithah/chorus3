@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient, type KodiNotification } from '$lib/kodi';
 import {
+  createQueueDispatch,
   createQueueStore,
+  type PlayerStoreSnapshot,
+  type QueueDispatchPlayerStore,
+  type QueueDispatchQueueStore,
   type QueueStoreNotificationSource,
-  type QueueStorePlayerStore
-} from './queue.svelte';
-import type { PlayerStoreSnapshot } from './player.svelte';
+  type QueueStorePlayerStore,
+  type QueueStoreSnapshot
+} from './index';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -87,10 +91,34 @@ class FakeNotificationSource implements QueueStoreNotificationSource {
   }
 }
 
-class FakePlayerStore implements QueueStorePlayerStore {
+class FakePlayerStore implements QueueStorePlayerStore, QueueDispatchPlayerStore {
   snapshot: PlayerStoreSnapshot = createPlayerSnapshot({
     queue: { playlistid: 7, position: 1 }
   });
+  readonly refreshReasons: string[] = [];
+  refreshError: unknown = null;
+
+  async refresh(reason: Parameters<QueueDispatchPlayerStore['refresh']>[0]): Promise<void> {
+    this.refreshReasons.push(reason);
+
+    if (this.refreshError) {
+      throw this.refreshError;
+    }
+  }
+}
+
+class FakeQueueDispatchStore implements QueueDispatchQueueStore {
+  snapshot: QueueStoreSnapshot = createQueueSnapshot();
+  readonly refreshReasons: string[] = [];
+  refreshError: unknown = null;
+
+  async refresh(reason: Parameters<QueueDispatchQueueStore['refresh']>[0]): Promise<void> {
+    this.refreshReasons.push(reason);
+
+    if (this.refreshError) {
+      throw this.refreshError;
+    }
+  }
 }
 
 function isDeferred(value: unknown): value is Deferred<unknown> {
@@ -121,6 +149,24 @@ function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): Pla
   };
 }
 
+function createQueueSnapshot(overrides: Partial<QueueStoreSnapshot> = {}): QueueStoreSnapshot {
+  return {
+    refreshStatus: 'ready',
+    playlistid: 7,
+    activePosition: 1,
+    items: [
+      { position: 0, label: 'First item' },
+      { position: 1, label: 'Second item' },
+      { position: 2, label: 'Third item' }
+    ],
+    limits: { start: 0, end: 3, total: 3 },
+    lastRefreshReason: 'manual',
+    lastUpdatedAt: '2026-01-01T00:00:00.000Z',
+    lastError: null,
+    ...overrides
+  };
+}
+
 function createHarness() {
   const client = new FakeKodiClient();
   const notifications = new FakeNotificationSource();
@@ -144,6 +190,20 @@ function createHarness() {
   };
 }
 
+function createDispatchHarness() {
+  const client = new FakeKodiClient();
+  const playerStore = new FakePlayerStore();
+  const queueStore = new FakeQueueDispatchStore();
+  const dispatch = createQueueDispatch({
+    playerStore,
+    queueStore,
+    createClient: () => client,
+    now: () => '2026-01-02T00:00:00.000Z'
+  });
+
+  return { client, dispatch, playerStore, queueStore };
+}
+
 function expectSecretSafe(value: unknown): void {
   const serialized = JSON.stringify(value);
 
@@ -155,6 +215,195 @@ function expectSecretSafe(value: unknown): void {
   expect(serialized).not.toContain('localStorage');
   expect(serialized).not.toContain('smb://secret');
 }
+
+describe('queue dispatch', () => {
+  it('starts with inspectable idle command state', () => {
+    const { dispatch } = createDispatchHarness();
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'idle',
+      lastCommand: null,
+      lastError: null,
+      lastCompletedAt: null
+    });
+  });
+
+  it('removes, clears, and swaps queue items with exact Kodi params and authoritative refetches', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue('Playlist.Remove', 'OK');
+    client.enqueue('Playlist.Clear', 'OK');
+    client.enqueue('Playlist.Swap', 'OK');
+
+    await dispatch.removeAt(2);
+    await dispatch.clear();
+    await dispatch.swap(0, 2);
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Remove', params: { playlistid: 7, position: 2 } },
+      { method: 'Playlist.Clear', params: { playlistid: 7 } },
+      { method: 'Playlist.Swap', params: { playlistid: 7, position1: 0, position2: 2 } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual([
+      'command:removeAt',
+      'command:clear',
+      'command:swap'
+    ]);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:removeAt',
+      'command:clear',
+      'command:swap'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'swap',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('blocks invalid positions, identical swaps, and missing active playlists before calling Kodi', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+
+    await dispatch.removeAt(-1);
+    expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/invalid-position' });
+
+    await dispatch.removeAt(Number.NaN);
+    expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/invalid-position' });
+
+    await dispatch.swap(0, 0);
+    expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/identical-positions' });
+
+    await dispatch.swap(0, 99);
+    expect(dispatch.snapshot.lastError).toMatchObject({ code: 'input/invalid-position' });
+
+    queueStore.snapshot = createQueueSnapshot({ playlistid: null, activePosition: null });
+    playerStore.snapshot = createPlayerSnapshot({ queue: { playlistid: null, position: null } });
+    await dispatch.clear();
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'clear',
+      lastError: { code: 'queue/no-active-playlist' }
+    });
+  });
+
+  it('serializes queue commands while one is already running', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const pending = deferred<unknown>();
+    client.enqueue('Playlist.Remove', pending);
+
+    const firstCall = dispatch.removeAt(1);
+    await flushPromises();
+    await dispatch.clear();
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'clear',
+      lastError: { code: 'command/already-running' }
+    });
+
+    pending.resolve('OK');
+    await firstCall;
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Remove', params: { playlistid: 7, position: 1 } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:removeAt']);
+    expect(playerStore.refreshReasons).toEqual(['command:removeAt']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'removeAt',
+      lastError: null
+    });
+  });
+
+  it('sanitizes command failures and still refetches queue and player state after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Remove',
+      new KodiHttpClientError({
+        code: 'auth',
+        method: 'Playlist.Remove',
+        endpoint: {
+          protocol: 'http:',
+          host: 'kodi.local',
+          port: 8080,
+          path: '/jsonrpc',
+          timeoutMs: 5000,
+          hasCredentials: true
+        },
+        status: 401,
+        statusText: 'Unauthorized'
+      })
+    );
+
+    await dispatch.removeAt(2);
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Remove', params: { playlistid: 7, position: 2 } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:removeAt']);
+    expect(playerStore.refreshReasons).toEqual(['command:removeAt']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'removeAt',
+      lastError: {
+        source: 'http',
+        code: 'auth',
+        message: 'Kodi rejected the configured credentials while calling Playlist.Remove.'
+      }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('preserves command failure state when queue rollback refetch also fails', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Clear',
+      new Error(
+        'failed with Authorization: Basic token for http://admin:p@ssword@kodi.local/jsonrpc from localStorage'
+      )
+    );
+    queueStore.refreshError = new Error('queue refresh failed');
+
+    await dispatch.clear();
+
+    expect(client.calls).toEqual([{ method: 'Playlist.Clear', params: { playlistid: 7 } }]);
+    expect(queueStore.refreshReasons).toEqual(['command:clear']);
+    expect(playerStore.refreshReasons).toEqual(['command:clear']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'clear',
+      lastError: {
+        source: 'command',
+        code: 'command/failed'
+      }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('keeps successful command status inspectable when player refresh fails after Kodi and queue refresh succeed', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue('Playlist.Swap', 'OK');
+    playerStore.refreshError = new Error('player refresh failed with admin:p@ssword');
+
+    await dispatch.swap(0, 2);
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Swap', params: { playlistid: 7, position1: 0, position2: 2 } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:swap']);
+    expect(playerStore.refreshReasons).toEqual(['command:swap']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'swap',
+      lastError: null
+    });
+  });
+});
 
 describe('queue store', () => {
   it('starts idle with inspectable safe defaults', () => {

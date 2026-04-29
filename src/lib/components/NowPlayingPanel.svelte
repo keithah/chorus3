@@ -1,14 +1,32 @@
 <script lang="ts">
   import type { PlayerAudioStream, PlayerSubtitleStream } from '$lib/kodi';
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
+  import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
   import PlayerControls, { type PlayerControlsDispatch } from './PlayerControls.svelte';
 
   interface Props {
     snapshot: PlayerStoreSnapshot;
     dispatch: PlayerControlsDispatch;
+    localPlayerSnapshot?: LocalPlayerStoreSnapshot;
   }
 
-  let { snapshot, dispatch }: Props = $props();
+  let { snapshot, dispatch, localPlayerSnapshot }: Props = $props();
+
+  const DEFAULT_LOCAL_SNAPSHOT: LocalPlayerStoreSnapshot = {
+    status: 'idle',
+    mediaKind: 'unknown',
+    item: null,
+    currentSeconds: 0,
+    durationSeconds: null,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: false,
+    resumeAvailable: false,
+    lastUpdatedAt: null
+  };
+
+  const currentLocalSnapshot = $derived(localPlayerSnapshot ?? DEFAULT_LOCAL_SNAPSHOT);
 
   const title = $derived(mediaTitle(snapshot));
   const creator = $derived(mediaCreator(snapshot));
@@ -43,7 +61,7 @@
     )
   );
   const audioSummary = $derived(formatAudioSummary(snapshot.properties?.currentaudiostream));
-  const statusText = $derived(formatStatus(snapshot, dispatch));
+  const statusText = $derived(formatStatus(snapshot, currentLocalSnapshot, dispatch));
 
   function mediaTitle(value: PlayerStoreSnapshot): string {
     return firstText(
@@ -87,13 +105,38 @@
     return null;
   }
 
-  function formatStatus(value: PlayerStoreSnapshot, controls: PlayerControlsDispatch): string {
+  function formatStatus(
+    value: PlayerStoreSnapshot,
+    localSnapshot: LocalPlayerStoreSnapshot,
+    controls: PlayerControlsDispatch
+  ): string {
     if (controls.snapshot.commandStatus === 'running') {
       return `Running ${formatCommandName(controls.snapshot.lastCommand)}.`;
     }
 
     if (controls.snapshot.commandStatus === 'error' && controls.snapshot.lastError) {
       return sanitizeUiText(controls.snapshot.lastError.message);
+    }
+
+    if (controls.snapshot.mode === 'local') {
+      if (localSnapshot.lastError) {
+        return sanitizeUiText(localSnapshot.lastError.message);
+      }
+
+      switch (localSnapshot.status) {
+        case 'playing':
+          return 'Playing locally in the browser.';
+        case 'paused':
+          return 'Local playback paused.';
+        case 'loading':
+          return 'Starting local playback...';
+        case 'ended':
+          return 'Local playback finished.';
+        case 'error':
+          return 'Local playback encountered an error.';
+        default:
+          return 'Local playback ready.';
+      }
     }
 
     if (value.refreshStatus === 'loading') {
@@ -267,6 +310,32 @@
 
   <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
 
+  <div class="mode-controls" aria-label="Playback destination">
+    {#if dispatch.snapshot.mode === 'local' && currentLocalSnapshot.resumeAvailable}
+      <button
+        type="button"
+        class="mode-button"
+        aria-label="Resume on Kodi"
+        disabled={dispatch.snapshot.commandStatus === 'running'}
+        onclick={() => dispatch.resumeOnKodi()}
+      >
+        Resume on Kodi
+      </button>
+    {:else}
+      <button
+        type="button"
+        class="mode-button"
+        aria-label="Play locally"
+        disabled={dispatch.snapshot.commandStatus === 'running' ||
+          snapshot.playbackStatus !== 'active' ||
+          snapshot.activePlayers.length !== 1}
+        onclick={() => dispatch.startLocalPlayback()}
+      >
+        Play locally
+      </button>
+    {/if}
+  </div>
+
   <dl class="metadata-grid" aria-label="Current player metadata">
     <div>
       <dt>Type</dt>
@@ -314,7 +383,7 @@
     </div>
   </dl>
 
-  <PlayerControls {snapshot} {dispatch} />
+  <PlayerControls {snapshot} {dispatch} localPlayerSnapshot={currentLocalSnapshot} />
 </section>
 
 <style>
@@ -365,6 +434,43 @@
     background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
     border-radius: var(--radius-md);
     box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+
+  .mode-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .mode-button {
+    min-height: 2.5rem;
+    padding: var(--space-xs) var(--space-md);
+    font: inherit;
+    color: var(--color-text);
+    font-weight: 800;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface-raised));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      opacity 140ms ease;
+  }
+
+  .mode-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
+  }
+
+  .mode-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .mode-button:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-ring);
   }
 
   .metadata-grid {

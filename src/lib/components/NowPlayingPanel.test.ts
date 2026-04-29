@@ -20,6 +20,8 @@ type FakeDispatch = {
   setRepeat: ReturnType<typeof vi.fn>;
   setSubtitle: ReturnType<typeof vi.fn>;
   setAudioStream: ReturnType<typeof vi.fn>;
+  startLocalPlayback: ReturnType<typeof vi.fn>;
+  resumeOnKodi: ReturnType<typeof vi.fn>;
 };
 
 let mounted: MountedComponent | null = null;
@@ -85,6 +87,64 @@ describe('NowPlayingPanel', () => {
         true
       );
     }
+  });
+
+  it('renders a Play locally button and dispatches startLocalPlayback', () => {
+    const dispatch = createDispatch();
+    renderPanel({ snapshot: createActiveMovieSnapshot(), dispatch });
+
+    click(button('Play locally'));
+
+    expect(dispatch.startLocalPlayback).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Resume on Kodi when local playback can resume', () => {
+    const dispatch = createDispatch({ mode: 'local' });
+    renderPanel({
+      snapshot: createActiveMovieSnapshot(),
+      dispatch,
+      localPlayerSnapshot: {
+        status: 'paused',
+        mediaKind: 'audio',
+        item: { label: 'Song', type: 'song' },
+        currentSeconds: 10,
+        durationSeconds: 100,
+        volume: 100,
+        muted: false,
+        lastError: null,
+        kodiPausedForLocal: true,
+        resumeAvailable: true,
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z'
+      }
+    });
+
+    click(button('Resume on Kodi'));
+
+    expect(dispatch.resumeOnKodi).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows local playback errors in the live region without leaking URLs', () => {
+    renderPanel({
+      snapshot: createActiveMovieSnapshot(),
+      dispatch: createDispatch({ mode: 'local' }),
+      localPlayerSnapshot: {
+        status: 'error',
+        mediaKind: 'video',
+        item: { label: 'Video', type: 'movie' },
+        currentSeconds: 0,
+        durationSeconds: null,
+        volume: 100,
+        muted: false,
+        lastError: { code: 'media/error', message: 'failed for http://admin:p@ssword@kodi.local' },
+        kodiPausedForLocal: false,
+        resumeAvailable: false,
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z'
+      }
+    });
+
+    const status = document.querySelector('[aria-live="polite"]');
+    expect(status?.textContent).toContain('failed');
+    expect(status?.textContent).not.toContain('admin:p@ssword');
   });
 
   it('shows sanitized command errors in a polite live region', () => {
@@ -204,12 +264,17 @@ describe('NowPlayingPanel', () => {
   });
 });
 
-function renderPanel(input: { snapshot: PlayerStoreSnapshot; dispatch?: FakeDispatch }): void {
+function renderPanel(input: {
+  snapshot: PlayerStoreSnapshot;
+  dispatch?: FakeDispatch;
+  localPlayerSnapshot?: import('$lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
+}): void {
   mounted = mount(NowPlayingPanel, {
     target: document.body,
     props: {
       snapshot: input.snapshot,
-      dispatch: input.dispatch ?? createDispatch()
+      dispatch: input.dispatch ?? createDispatch(),
+      localPlayerSnapshot: input.localPlayerSnapshot
     }
   });
 }
@@ -235,7 +300,9 @@ function createDispatch(overrides: Partial<PlayerDispatchSnapshot> = {}): FakeDi
     setShuffle: vi.fn().mockResolvedValue(undefined),
     setRepeat: vi.fn().mockResolvedValue(undefined),
     setSubtitle: vi.fn().mockResolvedValue(undefined),
-    setAudioStream: vi.fn().mockResolvedValue(undefined)
+    setAudioStream: vi.fn().mockResolvedValue(undefined),
+    startLocalPlayback: vi.fn().mockResolvedValue(undefined),
+    resumeOnKodi: vi.fn().mockResolvedValue(undefined)
   };
 }
 

@@ -3,20 +3,29 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 
 import App from './App.svelte';
 import type { PlayerControlsDispatch } from './lib/components/PlayerControls.svelte';
+import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
   configStore,
   connectionStore,
   createConfigStore,
   hostConnectionStore,
   type PlayerDispatchSnapshot,
-  type PlayerStoreSnapshot
+  type PlayerStoreSnapshot,
+  type QueueDispatchSnapshot,
+  type QueueStoreSnapshot
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
 let mountedComponent: Record<string, unknown> | undefined;
 
 type FetchMock = Mock<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>;
-type AppProps = { playerSnapshot?: PlayerStoreSnapshot; playerDispatch?: PlayerControlsDispatch };
+type AppProps = {
+  playerSnapshot?: PlayerStoreSnapshot;
+  playerDispatch?: PlayerControlsDispatch;
+  localPlayerSnapshot?: import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
+  queueSnapshot?: QueueStoreSnapshot;
+  queueDispatch?: QueuePanelDispatch;
+};
 
 function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
   return {
@@ -66,7 +75,9 @@ function createPlayerDispatch(
     setShuffle: vi.fn(),
     setRepeat: vi.fn(),
     setSubtitle: vi.fn(),
-    setAudioStream: vi.fn()
+    setAudioStream: vi.fn(),
+    startLocalPlayback: vi.fn(),
+    resumeOnKodi: vi.fn()
   };
 }
 
@@ -631,6 +642,77 @@ describe('App shell', () => {
     expect(target.textContent).toContain('Last connected 2026-04-28T07:00:00.000Z');
     expect(target.textContent).toContain('Kodi 21.1');
     expect(target.textContent).not.toContain('admin:secret');
+  });
+
+  it('renders QueuePanel with no-active copy when no queue snapshot is provided', () => {
+    const target = renderApp();
+    const panel = target.querySelector('.queue-panel');
+
+    expect(panel).toBeInstanceOf(HTMLElement);
+    expect(panel?.textContent).toContain('No active Kodi playlist');
+  });
+
+  it('passes injected queue snapshot and dispatch to QueuePanel', () => {
+    const queueSnapshot: QueueStoreSnapshot = {
+      refreshStatus: 'ready',
+      playlistid: 5,
+      activePosition: 0,
+      items: [{ position: 0, label: 'Test Track' }],
+      limits: { start: 0, end: 1, total: 1 },
+      lastRefreshReason: 'manual',
+      lastUpdatedAt: '2026-04-28T00:00:00.000Z',
+      lastError: null
+    };
+    const queueDispatchSnapshot: QueueDispatchSnapshot = {
+      commandStatus: 'idle',
+      lastCommand: null,
+      lastError: null,
+      lastCompletedAt: null
+    };
+    const queueDispatch: QueuePanelDispatch = {
+      snapshot: queueDispatchSnapshot,
+      removeAt: vi.fn(),
+      clear: vi.fn(),
+      swap: vi.fn()
+    };
+
+    const target = renderApp({ queueSnapshot, queueDispatch });
+    const panel = target.querySelector('.queue-panel');
+
+    expect(panel?.textContent).toContain('Test Track');
+  });
+
+  it('disables all QueuePanel controls when command is running', () => {
+    const queueSnapshot: QueueStoreSnapshot = {
+      refreshStatus: 'ready',
+      playlistid: 5,
+      activePosition: null,
+      items: [{ position: 0, label: 'Track X' }],
+      limits: { start: 0, end: 1, total: 1 },
+      lastRefreshReason: 'manual',
+      lastUpdatedAt: '2026-04-28T00:00:00.000Z',
+      lastError: null
+    };
+    const queueDispatch: QueuePanelDispatch = {
+      snapshot: {
+        commandStatus: 'running',
+        lastCommand: 'clear',
+        lastError: null,
+        lastCompletedAt: null
+      },
+      removeAt: vi.fn(),
+      clear: vi.fn(),
+      swap: vi.fn()
+    };
+
+    const target = renderApp({ queueSnapshot, queueDispatch });
+    const panel = target.querySelector('.queue-panel');
+    const buttons = Array.from(panel?.querySelectorAll('button') ?? []);
+
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const btn of buttons) {
+      expect(btn.disabled).toBe(true);
+    }
   });
 
   it('toggles the typed root theme and updates accessible button text', async () => {

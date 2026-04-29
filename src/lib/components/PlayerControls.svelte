@@ -22,6 +22,9 @@
     setRepeat(repeat: PlayerRepeatValue): Promise<void> | void;
     setSubtitle(subtitle: PlayerSubtitleValue): Promise<void> | void;
     setAudioStream(stream: PlayerAudioStreamValue): Promise<void> | void;
+
+    startLocalPlayback(): Promise<void> | void;
+    resumeOnKodi(): Promise<void> | void;
   }
 </script>
 
@@ -31,14 +34,38 @@
   interface Props {
     snapshot: PlayerStoreSnapshot;
     dispatch: PlayerControlsDispatch;
+    localPlayerSnapshot?: import('$lib/stores').LocalPlayerStoreSnapshot;
   }
 
-  let { snapshot, dispatch }: Props = $props();
+  let { snapshot, dispatch, localPlayerSnapshot }: Props = $props();
 
-  const canControl = $derived(isSingleActivePlayer(snapshot));
+  const DEFAULT_LOCAL_SNAPSHOT: import('$lib/stores').LocalPlayerStoreSnapshot = {
+    status: 'idle',
+    mediaKind: 'unknown',
+    item: null,
+    currentSeconds: 0,
+    durationSeconds: null,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: false,
+    resumeAvailable: false,
+    lastUpdatedAt: null
+  };
+
+  const currentLocalSnapshot = $derived(localPlayerSnapshot ?? DEFAULT_LOCAL_SNAPSHOT);
+
+  const canControlKodi = $derived(isSingleActivePlayer(snapshot));
+  const canControlLocal = $derived(currentLocalSnapshot.status !== 'idle');
   const isRunning = $derived(dispatch.snapshot.commandStatus === 'running');
-  const disabled = $derived(!canControl || isRunning);
-  const disabledReason = $derived(getDisabledReason(snapshot, isRunning));
+
+  const kodiDisabled = $derived(!canControlKodi || isRunning || dispatch.snapshot.mode === 'local');
+  const localDisabled = $derived(
+    !canControlLocal || isRunning || dispatch.snapshot.mode !== 'local'
+  );
+
+  const disabledReason = $derived(getDisabledReason(snapshot, isRunning, dispatch.snapshot.mode));
+
   const seekPercentage = $derived(readPercentage(snapshot.properties?.percentage));
   const volume = $derived(readVolume(snapshot.application.volume));
   const shuffleValue = $derived(String(snapshot.properties?.shuffled === true));
@@ -117,9 +144,17 @@
     );
   }
 
-  function getDisabledReason(value: PlayerStoreSnapshot, running: boolean): string | null {
+  function getDisabledReason(
+    value: PlayerStoreSnapshot,
+    running: boolean,
+    mode: PlayerDispatchSnapshot['mode']
+  ): string | null {
     if (running) {
       return 'A Kodi command is running. Controls are disabled until it finishes.';
+    }
+
+    if (mode === 'local') {
+      return null;
     }
 
     if (value.activePlayers.length > 1 || value.playbackStatus === 'multiple') {
@@ -178,10 +213,30 @@
   {/if}
 
   <div class="control-group transport" aria-label="Transport controls">
-    <button type="button" {disabled} onclick={() => dispatch.previous()}>Previous</button>
-    <button type="button" {disabled} onclick={() => dispatch.playPause()}>Play or pause</button>
-    <button type="button" {disabled} onclick={() => dispatch.stop()}>Stop</button>
-    <button type="button" {disabled} onclick={() => dispatch.next()}>Next</button>
+    <button
+      type="button"
+      disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+      onclick={() => dispatch.previous()}>Previous</button
+    >
+    <button
+      type="button"
+      disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+      onclick={() => dispatch.playPause()}
+    >
+      Play or pause
+    </button>
+    <button
+      type="button"
+      disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+      onclick={() => dispatch.stop()}
+    >
+      Stop
+    </button>
+    <button
+      type="button"
+      disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+      onclick={() => dispatch.next()}>Next</button
+    >
   </div>
 
   <div class="control-grid">
@@ -194,16 +249,24 @@
         max="100"
         step="1"
         value={seekPercentage}
-        {disabled}
+        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
         oninput={handleSeek}
       />
       <div class="relative-seek cluster" aria-label="Relative seek controls">
-        <button type="button" {disabled} onclick={() => dispatch.seekRelativeSeconds(-30)}
-          >Seek back 30 seconds</button
+        <button
+          type="button"
+          disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+          onclick={() => dispatch.seekRelativeSeconds(-30)}
         >
-        <button type="button" {disabled} onclick={() => dispatch.seekRelativeSeconds(30)}
-          >Seek forward 30 seconds</button
+          Seek back 30 seconds
+        </button>
+        <button
+          type="button"
+          disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+          onclick={() => dispatch.seekRelativeSeconds(30)}
         >
+          Seek forward 30 seconds
+        </button>
       </div>
     </div>
 
@@ -216,15 +279,26 @@
         max="100"
         step="1"
         value={volume}
-        {disabled}
+        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
         oninput={handleVolume}
       />
-      <button type="button" {disabled} onclick={() => dispatch.toggleMute()}>Toggle mute</button>
+      <button
+        type="button"
+        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+        onclick={() => dispatch.toggleMute()}
+      >
+        Toggle mute
+      </button>
     </div>
 
     <div class="field">
       <label for="now-playing-shuffle">Shuffle</label>
-      <select id="now-playing-shuffle" {disabled} value={shuffleValue} onchange={handleShuffle}>
+      <select
+        id="now-playing-shuffle"
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        value={shuffleValue}
+        onchange={handleShuffle}
+      >
         <option value="false">Shuffle off</option>
         <option value="true">Shuffle on</option>
       </select>
@@ -232,7 +306,12 @@
 
     <div class="field">
       <label for="now-playing-repeat">Repeat mode</label>
-      <select id="now-playing-repeat" {disabled} value={repeatValue} onchange={handleRepeat}>
+      <select
+        id="now-playing-repeat"
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        value={repeatValue}
+        onchange={handleRepeat}
+      >
         <option value="off">Repeat off</option>
         <option value="one">Repeat one</option>
         <option value="all">Repeat all</option>
@@ -242,7 +321,12 @@
 
     <div class="field">
       <label for="now-playing-subtitle">Subtitle stream</label>
-      <select id="now-playing-subtitle" {disabled} value={subtitleValue} onchange={handleSubtitle}>
+      <select
+        id="now-playing-subtitle"
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        value={subtitleValue}
+        onchange={handleSubtitle}
+      >
         <option value="off">Subtitles off</option>
         {#each subtitles as subtitle, index}
           <option
@@ -258,7 +342,12 @@
 
     <div class="field">
       <label for="now-playing-audio">Audio stream</label>
-      <select id="now-playing-audio" {disabled} value={audioValue} onchange={handleAudioStream}>
+      <select
+        id="now-playing-audio"
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        value={audioValue}
+        onchange={handleAudioStream}
+      >
         {#if audioStreams.length === 0}
           <option value="">No audio streams reported</option>
         {:else}

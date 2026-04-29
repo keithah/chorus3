@@ -4,24 +4,41 @@
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
+  import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import {
     configStore,
     connectionStore,
+    localPlayerStore,
     playerDispatch as defaultPlayerDispatch,
     playerStore,
+    queueDispatch as defaultQueueDispatch,
+    queueStore,
     type ConnectionStoreSnapshot,
-    type PlayerStoreSnapshot
+    type LocalPlayerStoreSnapshot,
+    type PlayerStoreSnapshot,
+    type QueueStoreSnapshot
   } from '$lib/stores';
 
   interface Props {
     playerSnapshot?: PlayerStoreSnapshot;
     playerDispatch?: PlayerControlsDispatch;
+    localPlayerSnapshot?: LocalPlayerStoreSnapshot;
+    queueSnapshot?: QueueStoreSnapshot;
+    queueDispatch?: QueuePanelDispatch;
   }
 
-  let { playerSnapshot, playerDispatch = defaultPlayerDispatch }: Props = $props();
+  let {
+    playerSnapshot,
+    playerDispatch = defaultPlayerDispatch,
+    localPlayerSnapshot,
+    queueSnapshot,
+    queueDispatch = defaultQueueDispatch
+  }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
+  const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
+  const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -152,7 +169,12 @@
       />
     </section>
 
-    <NowPlayingPanel snapshot={currentPlayerSnapshot} dispatch={playerDispatch} />
+    <NowPlayingPanel
+      snapshot={currentPlayerSnapshot}
+      dispatch={playerDispatch}
+      localPlayerSnapshot={currentLocalSnapshot}
+    />
+    <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
   </main>
 </AppShell>
 

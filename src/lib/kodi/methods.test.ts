@@ -33,10 +33,13 @@ import {
   seekPlayer,
   setApplicationMute,
   setApplicationVolume,
+  setEpisodeDetails,
+  setMovieDetails,
   setPlayerAudioStream,
   setPlayerRepeat,
   setPlayerShuffle,
   setPlayerSubtitle,
+  setSongDetails,
   stopPlayer,
   swapPlaylistItems,
   testKodiHttpConnection
@@ -394,6 +397,77 @@ describe('Kodi curated method wrappers', () => {
     expect(client.calls).toEqual([
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/special.mp3' } }
     ]);
+  });
+
+  it('sets audio library song details with narrow scrobble fields', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setSongDetails(client, {
+        songid: 42,
+        playcount: 3,
+        lastplayed: '2026-04-29 20:00:00'
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'AudioLibrary.SetSongDetails',
+        params: { songid: 42, playcount: 3, lastplayed: '2026-04-29 20:00:00' }
+      }
+    ]);
+  });
+
+  it('sets video library movie details with resume progress', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setMovieDetails(client, {
+        movieid: 7,
+        playcount: 1,
+        lastplayed: '2026-04-29 20:30:00',
+        resume: { position: 123.5, total: 600 }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.SetMovieDetails',
+        params: {
+          movieid: 7,
+          playcount: 1,
+          lastplayed: '2026-04-29 20:30:00',
+          resume: { position: 123.5, total: 600 }
+        }
+      }
+    ]);
+  });
+
+  it('sets video library episode details with resume progress', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setEpisodeDetails(client, {
+        episodeid: 11,
+        resume: { position: 55, total: 300 }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.SetEpisodeDetails',
+        params: { episodeid: 11, resume: { position: 55, total: 300 } }
+      }
+    ]);
+  });
+
+  it('preserves rejected library write transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(setSongDetails(client, { songid: 42, playcount: 1 })).rejects.toBe(error);
   });
 
   it('gets audio library artists preserving requested params', async () => {

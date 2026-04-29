@@ -51,6 +51,17 @@ export {
   QueueStore,
   createQueueStore,
   queueStore,
+  QueueDispatch,
+  createQueueDispatch,
+  queueDispatch,
+  type QueueCommandName,
+  type QueueCommandStatus,
+  type QueueDispatchErrorSource,
+  type QueueDispatchOptions,
+  type QueueDispatchPlayerStore,
+  type QueueDispatchQueueStore,
+  type QueueDispatchSafeErrorSnapshot,
+  type QueueDispatchSnapshot,
   type QueueErrorSource,
   type QueueItemSnapshot,
   type QueueLimitsSnapshot,
@@ -82,6 +93,47 @@ export {
   type PlayerDispatchSafeErrorSnapshot,
   type PlayerDispatchSnapshot
 } from './playerDispatch.svelte';
+
+export {
+  LocalPlayerStore,
+  createLocalPlayerStore,
+  localPlayerStore,
+  prepareLocalStreamUrl,
+  type LocalMediaKind,
+  type LocalPlaybackStatus,
+  type LocalPlayerErrorSnapshot,
+  type LocalPlayerItemSnapshot,
+  type LocalPlayerStoreOptions,
+  type LocalPlayerStoreSnapshot,
+  type MediaElementAdapter,
+  type PrepareLocalStreamUrlOptions
+} from './localPlayer.svelte';
+
+export {
+  LocalScrobbleStore,
+  createLocalScrobbleStore,
+  evaluateLocalPlaybackProgress,
+  evaluateLocalScrobblePolicy,
+  extractLocalLibraryItemId,
+  localScrobbleStore,
+  type EvaluateLocalPlaybackProgressOptions,
+  type LocalLibraryItemId,
+  type LocalLibraryItemKind,
+  type LocalPlaybackProgressEvaluator,
+  type LocalScrobbleAction,
+  type LocalScrobbleErrorSource,
+  type LocalScrobbleEvaluationReason,
+  type LocalScrobbleLocalPlayerSource,
+  type LocalScrobbleNoopReason,
+  type LocalScrobblePolicyDecision,
+  type LocalScrobbleResumePosition,
+  type LocalScrobbleSafeErrorSnapshot,
+  type LocalScrobbleStatus,
+  type LocalScrobbleStoreOptions,
+  type LocalScrobbleStoreSnapshot,
+  type LocalScrobbleWriteCountsSnapshot,
+  type LocalScrobbleWriteMethods
+} from './localScrobble.svelte';
 
 export {
   HostConnectionStore,
