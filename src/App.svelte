@@ -3,6 +3,7 @@
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
+  import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
@@ -12,12 +13,14 @@
     configStore,
     connectionStore,
     localPlayerStore,
+    musicLibraryStore,
     playerDispatch as defaultPlayerDispatch,
     playerStore,
     queueDispatch as defaultQueueDispatch,
     queueStore,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot
   } from '$lib/stores';
@@ -28,6 +31,7 @@
     localPlayerSnapshot?: LocalPlayerStoreSnapshot;
     queueSnapshot?: QueueStoreSnapshot;
     queueDispatch?: QueuePanelDispatch;
+    musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
   }
 
   let {
@@ -35,11 +39,13 @@
     playerDispatch = defaultPlayerDispatch,
     localPlayerSnapshot,
     queueSnapshot,
-    queueDispatch = defaultQueueDispatch
+    queueDispatch = defaultQueueDispatch,
+    musicLibrarySnapshot
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
+  const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -158,17 +164,14 @@
         description={connectionDescription(connectionStore.snapshot)}
       />
       <StatusCard
-        title="Library sync"
-        status="waiting"
-        description="Media-library signals are paused until a real Kodi endpoint is configured by later slices."
-      />
-      <StatusCard
         title="Theme contract"
         status="active"
         tone="success"
         description="The toggle updates the root data-theme attribute and keeps colors flowing through project tokens."
       />
     </section>
+
+    <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} />
 
     <LocalMediaRuntime />
     <NowPlayingPanel

@@ -78,7 +78,9 @@
   }
 
   function formatTotal(limits: MusicLibraryLimitsSnapshot | undefined, fallback: number): number {
-    return typeof limits?.total === 'number' && Number.isFinite(limits.total) ? limits.total : fallback;
+    return typeof limits?.total === 'number' && Number.isFinite(limits.total)
+      ? limits.total
+      : fallback;
   }
 
   function sectionEmptyCopy(kind: ListKind): string {
@@ -214,9 +216,7 @@
   <div class="panel-heading">
     <p class="section-kicker">Music Library</p>
     <h2 id="music-library-title">Music Library</h2>
-    <p class="summary-line">
-      Read-only snapshots from Kodi artists, albums, songs, and genres.
-    </p>
+    <p class="summary-line">Read-only snapshots from Kodi artists, albums, songs, and genres.</p>
   </div>
 
   <div class="toolbar">
@@ -296,7 +296,13 @@
             <li>
               <span class="item-title">{safeSongLabel(song)}</span>
               <span class="item-meta">
-                {[joinText(song.artist), textOrNull(song.album), formatDuration(song.duration), formatTrack(song.track), formatPlaycount(song.playcount)]
+                {[
+                  joinText(song.artist),
+                  textOrNull(song.album),
+                  formatDuration(song.duration),
+                  formatTrack(song.track),
+                  formatPlaycount(song.playcount)
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </span>

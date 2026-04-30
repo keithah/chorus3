@@ -480,9 +480,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function createMusicLibraryStore(
-  options: MusicLibraryStoreOptions = {}
-): MusicLibraryStore {
+export function createMusicLibraryStore(options: MusicLibraryStoreOptions = {}): MusicLibraryStore {
   return new MusicLibraryStore(options);
 }
 

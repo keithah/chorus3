@@ -50,7 +50,13 @@ function populatedSnapshot(
       { artistid: 2, label: 'Unknown artist' }
     ],
     albums: [
-      { albumid: 10, label: 'Pastel Blues', title: 'Pastel Blues', artist: ['Nina Simone'], year: 1965 },
+      {
+        albumid: 10,
+        label: 'Pastel Blues',
+        title: 'Pastel Blues',
+        artist: ['Nina Simone'],
+        year: 1965
+      },
       { albumid: 11, label: 'Unknown album' }
     ],
     songs: [

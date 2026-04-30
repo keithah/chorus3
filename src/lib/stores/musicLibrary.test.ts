@@ -69,7 +69,9 @@ function isDeferred(value: unknown): value is Deferred<unknown> {
   );
 }
 
-function createHarness(options: { client?: FakeKodiClient; createClient?: () => KodiJsonRpcHttpClient | null } = {}) {
+function createHarness(
+  options: { client?: FakeKodiClient; createClient?: () => KodiJsonRpcHttpClient | null } = {}
+) {
   const client = options.client ?? new FakeKodiClient();
   let nowMs = 1_000;
   const store = createMusicLibraryStore({
@@ -97,7 +99,14 @@ function enqueueSuccessfulLibrary(client: FakeKodiClient): void {
   });
   client.enqueue('AudioLibrary.GetAlbums', {
     albums: [
-      { albumid: 10, label: 'Tri Repetae', title: 'Tri Repetae', artist: ['Autechre'], year: 1995, thumbnail: 'album.jpg' },
+      {
+        albumid: 10,
+        label: 'Tri Repetae',
+        title: 'Tri Repetae',
+        artist: ['Autechre'],
+        year: 1995,
+        thumbnail: 'album.jpg'
+      },
       { albumid: 11, label: '', title: '', artist: 'invalid', year: Number.POSITIVE_INFINITY }
     ],
     limits: { start: 0, end: 25, total: 2 }
@@ -131,7 +140,10 @@ function enqueueSuccessfulLibrary(client: FakeKodiClient): void {
 }
 
 function enqueueEmptyLibrary(client: FakeKodiClient): void {
-  client.enqueue('AudioLibrary.GetArtists', { artists: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('AudioLibrary.GetArtists', {
+    artists: [],
+    limits: { start: 0, end: 0, total: 0 }
+  });
   client.enqueue('AudioLibrary.GetAlbums', { albums: [], limits: { start: 0, end: 0, total: 0 } });
   client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
   client.enqueue('AudioLibrary.GetGenres', { genres: [], limits: { start: 0, end: 0, total: 0 } });
@@ -188,12 +200,24 @@ describe('music library store', () => {
       },
       {
         method: 'AudioLibrary.GetAlbums',
-        params: { properties: ['title', 'artist', 'year', 'thumbnail'], limits: { start: 0, end: 25 } }
+        params: {
+          properties: ['title', 'artist', 'year', 'thumbnail'],
+          limits: { start: 0, end: 25 }
+        }
       },
       {
         method: 'AudioLibrary.GetSongs',
         params: {
-          properties: ['title', 'artist', 'album', 'duration', 'track', 'thumbnail', 'playcount', 'lastplayed'],
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'duration',
+            'track',
+            'thumbnail',
+            'playcount',
+            'lastplayed'
+          ],
           limits: { start: 0, end: 25 }
         }
       },
@@ -223,7 +247,14 @@ describe('music library store', () => {
         { artistid: 2, label: 'Unknown artist', genre: ['Ambient'] }
       ],
       albums: [
-        { albumid: 10, label: 'Tri Repetae', title: 'Tri Repetae', artist: ['Autechre'], year: 1995, thumbnail: 'album.jpg' },
+        {
+          albumid: 10,
+          label: 'Tri Repetae',
+          title: 'Tri Repetae',
+          artist: ['Autechre'],
+          year: 1995,
+          thumbnail: 'album.jpg'
+        },
         { albumid: 11, label: 'Unknown album' }
       ],
       songs: [
@@ -259,7 +290,9 @@ describe('music library store', () => {
     const { client, store } = createHarness();
     client.enqueue('AudioLibrary.GetArtists', { artists: null });
     client.enqueue('AudioLibrary.GetAlbums', { albums: { bad: true } });
-    client.enqueue('AudioLibrary.GetSongs', { songs: ['bad', 123, null, { songid: 5, label: '' }] });
+    client.enqueue('AudioLibrary.GetSongs', {
+      songs: ['bad', 123, null, { songid: 5, label: '' }]
+    });
     client.enqueue('AudioLibrary.GetGenres', { genres: undefined });
 
     await store.refresh('manual');
@@ -288,7 +321,9 @@ describe('music library store', () => {
     expect(empty.store.snapshot.isEmpty).toBe(true);
 
     const nonEmpty = createHarness();
-    nonEmpty.client.enqueue('AudioLibrary.GetArtists', { artists: [{ artistid: 1, label: 'Autechre' }] });
+    nonEmpty.client.enqueue('AudioLibrary.GetArtists', {
+      artists: [{ artistid: 1, label: 'Autechre' }]
+    });
     nonEmpty.client.enqueue('AudioLibrary.GetAlbums', { albums: [] });
     nonEmpty.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
     nonEmpty.client.enqueue('AudioLibrary.GetGenres', { genres: [] });
@@ -421,7 +456,12 @@ describe('music library store', () => {
     snapshot.songs[0].artist!.push('Mutated song artist');
     snapshot.limits.artists.total = 999;
 
-    expect(store.snapshot.artists[0]).toEqual({ artistid: 1, label: 'Autechre', thumbnail: 'artist.jpg', genre: ['Electronic'] });
+    expect(store.snapshot.artists[0]).toEqual({
+      artistid: 1,
+      label: 'Autechre',
+      thumbnail: 'artist.jpg',
+      genre: ['Electronic']
+    });
     expect(store.snapshot.albums[0].artist).toEqual(['Autechre']);
     expect(store.snapshot.songs[0].artist).toEqual(['Autechre']);
     expect(store.snapshot.limits.artists.total).toBe(2);

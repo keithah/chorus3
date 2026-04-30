@@ -10,6 +10,7 @@ import {
   createConfigStore,
   hostConnectionStore,
   localPlayerStore,
+  type MusicLibraryStoreSnapshot,
   type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot,
   type QueueDispatchSnapshot,
@@ -26,7 +27,31 @@ type AppProps = {
   localPlayerSnapshot?: import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
   queueSnapshot?: QueueStoreSnapshot;
   queueDispatch?: QueuePanelDispatch;
+  musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
 };
+
+function createMusicLibrarySnapshot(
+  overrides: Partial<MusicLibraryStoreSnapshot> = {}
+): MusicLibraryStoreSnapshot {
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'manual',
+    lastUpdatedAt: '2026-04-29T12:00:00.000Z',
+    artists: [],
+    albums: [],
+    songs: [],
+    genres: [],
+    limits: {
+      artists: { start: 0, end: 0, total: 0 },
+      albums: { start: 0, end: 0, total: 0 },
+      songs: { start: 0, end: 0, total: 0 },
+      genres: { start: 0, end: 0, total: 0 }
+    },
+    isEmpty: true,
+    lastError: null,
+    ...overrides
+  };
+}
 
 function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): PlayerStoreSnapshot {
   return {
@@ -104,6 +129,12 @@ function getSelect(target: HTMLElement, selector: string): HTMLSelectElement {
 
 function getNowPlayingPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.now-playing-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getMusicLibraryPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.music-library-panel');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
 }
@@ -480,6 +511,117 @@ describe('App shell', () => {
     expect(target.textContent).not.toContain('/music/private/arrival.flac');
   });
 
+  it('renders injected Music Library artist, album, song, and genre snapshots', () => {
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'Nina Simone', genre: ['Soul', 'Jazz'] }],
+        albums: [
+          {
+            albumid: 2,
+            label: 'Pastel Blues',
+            title: 'Pastel Blues',
+            artist: ['Nina Simone'],
+            year: 1965
+          }
+        ],
+        songs: [
+          {
+            songid: 3,
+            label: 'Sinnerman',
+            title: 'Sinnerman',
+            artist: ['Nina Simone'],
+            album: 'Pastel Blues',
+            duration: 622,
+            track: 8,
+            playcount: 2
+          }
+        ],
+        genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 },
+          genres: { start: 0, end: 1, total: 1 }
+        }
+      })
+    });
+
+    expect(target.textContent).toContain('Music Library');
+    expect(target.textContent).toContain(
+      'Read-only snapshots from Kodi artists, albums, songs, and genres.'
+    );
+    expect(target.textContent).toContain('Nina Simone');
+    expect(target.textContent).toContain('Pastel Blues');
+    expect(target.textContent).toContain('Sinnerman');
+    expect(target.textContent).toContain('Soul');
+    expect(target.textContent).toContain('10:22');
+    expect(target.textContent).toContain('Played 2 times');
+    expect(target.textContent).not.toContain('Library sync');
+    expect(target.textContent).not.toContain('paused until a real Kodi endpoint');
+  });
+
+  it('renders injected Music Library error snapshots without secret-like details', () => {
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        refreshStatus: 'error',
+        lastRefreshReason: 'error:http/auth',
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'smb://nas.local/private/artist' }],
+        albums: [{ albumid: 2, label: 'http://admin:p@ssword@kodi.local/private/album' }],
+        songs: [
+          {
+            songid: 3,
+            label: 'Safe Song',
+            title: 'Safe Song',
+            artist: ['admin:p@ssword'],
+            album: 'http://kodi.local/private/album',
+            duration: 90
+          }
+        ],
+        genres: [{ genreid: 4, label: 'Authorization: Basic abc123' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 },
+          genres: { start: 0, end: 1, total: 1 }
+        },
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@kodi.local/jsonrpc with raw response body from localStorage.',
+          endpoint: {
+            protocol: 'http:',
+            host: 'kodi.local',
+            port: 8080,
+            path: '/jsonrpc',
+            timeoutMs: 5000,
+            hasCredentials: true
+          }
+        }
+      })
+    });
+
+    const musicPanelText = getMusicLibraryPanelText(target);
+
+    expect(musicPanelText).toContain('credentials [redacted]');
+    expect(musicPanelText).toContain('[redacted-url]');
+    expect(musicPanelText).toContain('response body [redacted]');
+    expect(musicPanelText).toContain('browser storage');
+    expect(musicPanelText).toContain('Safe Song');
+    expect(musicPanelText).toContain('Unknown artist');
+    expect(musicPanelText).toContain('Unknown album');
+    expect(musicPanelText).not.toContain('smb://');
+    expect(musicPanelText).not.toContain('admin:p@ssword');
+    expect(musicPanelText).not.toContain('p@ssword');
+    expect(musicPanelText).not.toContain('Authorization');
+    expect(musicPanelText).not.toContain('Basic abc123');
+    expect(musicPanelText).not.toContain('localStorage');
+    expect(musicPanelText).not.toContain('raw response body');
+    expect(musicPanelText).not.toContain('http://kodi.local');
+  });
+
   it('renders the shell with store-backed idle Kodi connection diagnostics and host controls', () => {
     const target = renderApp();
 
@@ -492,7 +634,9 @@ describe('App shell', () => {
     expect(target.textContent).toContain('HTTP and WebSocket checks are idle');
     expect(target.textContent).not.toContain('S03 will replace this placeholder');
     expect(target.textContent).not.toContain('upcoming host settings slice');
-    expect(target.textContent).toContain('Library sync');
+    expect(target.textContent).not.toContain('Library sync');
+    expect(target.textContent).toContain('Music Library');
+    expect(target.textContent).toContain('Music library is empty.');
     expect(target.textContent).toContain('Kodi host settings');
     expect(target.textContent).toContain('Only save credentials on a trusted device');
   });
