@@ -92,6 +92,23 @@ export {
 } from './musicLibrary.svelte';
 
 export {
+  MusicLibraryClientError,
+  cloneMusicLibraryAlbumSnapshots,
+  cloneMusicLibraryArtistSnapshots,
+  cloneMusicLibraryGenreSnapshots,
+  cloneMusicLibraryLimits,
+  cloneMusicLibrarySafeError,
+  cloneMusicLibrarySnapshot,
+  cloneMusicLibrarySongSnapshots,
+  createMusicLibrarySafeError,
+  normalizeMusicAlbums,
+  normalizeMusicArtists,
+  normalizeMusicGenres,
+  normalizeMusicLimits,
+  normalizeMusicSongs
+} from './musicLibraryNormalization';
+
+export {
   createActiveKodiJsonRpcHttpClient,
   savedKodiHostToKodiHttpHost,
   type ActiveKodiClientOptions
