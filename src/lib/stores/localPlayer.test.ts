@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
+import { createLocalScrobbleStore, type LocalScrobbleWriteMethods } from './localScrobble.svelte';
 import { createLocalPlayerStore, prepareLocalStreamUrl } from './localPlayer.svelte';
 import type { MediaElementAdapter } from './localPlayer.svelte';
 import type { SavedKodiHost } from './config.svelte';
@@ -96,9 +97,31 @@ function expectSecretSafe(value: unknown): void {
   expect(serialized).not.toContain('Authorization');
   expect(serialized).not.toContain('Basic ');
   expect(serialized).not.toContain('http://admin:p@ssword@kodi.local');
+  expect(serialized).not.toContain('smb://');
+  expect(serialized).not.toContain('localStorage');
+  expect(serialized).not.toContain('sessionStorage');
+}
+
+async function flushPromises(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await Promise.resolve();
 }
 
 describe('local player store', () => {
+  class FakeKodiClient implements KodiJsonRpcHttpClient {
+    async call<TResult>(): Promise<TResult> {
+      return 'OK' as TResult;
+    }
+  }
+
+  function createWriteMethods(): LocalScrobbleWriteMethods {
+    return {
+      setSongDetails: vi.fn().mockResolvedValue('OK'),
+      setMovieDetails: vi.fn().mockResolvedValue('OK'),
+      setEpisodeDetails: vi.fn().mockResolvedValue('OK')
+    };
+  }
+
   it('starts idle with clone-safe snapshot defaults', () => {
     const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
 
@@ -169,6 +192,180 @@ describe('local player store', () => {
     adapter.emit('durationchange');
 
     expect(store.snapshot.durationSeconds).toBe(100);
+  });
+
+  it('drives audio scrobble writes from media timeupdate threshold events only after Kodi success', async () => {
+    const adapter = new FakeMediaAdapter({ duration: 500 });
+    const writeMethods = createWriteMethods();
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    const scrobbleStore = createLocalScrobbleStore({
+      localPlayerStore: store,
+      createClient: () => new FakeKodiClient(),
+      now: () => '2026-04-29T20:30:15.000Z',
+      writeMethods
+    });
+    store.setPlaybackProgressEvaluator(scrobbleStore);
+    store.attach(adapter);
+
+    await store.loadAndPlay({
+      source: 'http://example.test/stream',
+      item: { id: 9, songid: 9, label: 'Track', type: 'song' },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+    adapter.emit('canplay');
+
+    adapter.currentTime = 239;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setSongDetails).not.toHaveBeenCalled();
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'skipped',
+      lastEvaluationReason: 'local:timeupdate',
+      lastPolicyReason: 'threshold/not-crossed'
+    });
+
+    adapter.currentTime = 300;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setSongDetails).toHaveBeenCalledTimes(1);
+    expect(writeMethods.setSongDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+      songid: 9,
+      playcount: 1,
+      lastplayed: '2026-04-29 20:30:15'
+    });
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'success',
+      lastEvaluationReason: 'local:timeupdate',
+      lastAction: 'audio-scrobble',
+      lastPolicyReason: 'audio-scrobble',
+      writeCounts: { audioScrobbles: 1 }
+    });
+
+    adapter.currentTime = 360;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setSongDetails).toHaveBeenCalledTimes(1);
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'skipped',
+      lastPolicyReason: 'write/duplicate',
+      writeCounts: { audioScrobbles: 1 }
+    });
+  });
+
+  it('keeps media playback recoverable and diagnostics sanitized when event-driven scrobble writes fail', async () => {
+    const adapter = new FakeMediaAdapter({ duration: 500 });
+    const writeMethods = createWriteMethods();
+    vi.mocked(writeMethods.setSongDetails).mockRejectedValueOnce(
+      new Error(
+        'write failed for Authorization: Basic token at http://admin:p@ssword@kodi.local/jsonrpc smb://nas/private/song.flac from localStorage'
+      )
+    );
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    const scrobbleStore = createLocalScrobbleStore({
+      localPlayerStore: store,
+      createClient: () => new FakeKodiClient(),
+      now: () => '2026-04-29T20:30:15.000Z',
+      writeMethods
+    });
+    store.setPlaybackProgressEvaluator(scrobbleStore);
+    store.attach(adapter);
+
+    await store.loadAndPlay({
+      source: 'http://example.test/stream',
+      item: { id: 9, songid: 9, label: 'Track', type: 'song' },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+    adapter.emit('canplay');
+
+    adapter.currentTime = 300;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(store.snapshot).toMatchObject({ status: 'playing', currentSeconds: 300 });
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'error',
+      lastError: { source: 'write', code: 'write/failed' },
+      writeCounts: { audioScrobbles: 0 }
+    });
+    expectSecretSafe(scrobbleStore.snapshot);
+
+    adapter.currentTime = 301;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setSongDetails).toHaveBeenCalledTimes(2);
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'success',
+      lastAction: 'audio-scrobble',
+      writeCounts: { audioScrobbles: 1 }
+    });
+  });
+
+  it('drives video resume and watched writes from media progress and ended events', async () => {
+    const adapter = new FakeMediaAdapter({ duration: 600 });
+    const writeMethods = createWriteMethods();
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    const scrobbleStore = createLocalScrobbleStore({
+      localPlayerStore: store,
+      createClient: () => new FakeKodiClient(),
+      now: () => '2026-04-29T20:30:15.000Z',
+      writeMethods
+    });
+    store.setPlaybackProgressEvaluator(scrobbleStore);
+    store.attach(adapter);
+
+    await store.loadAndPlay({
+      source: 'http://example.test/stream',
+      item: { id: 7, movieid: 7, label: 'Movie', type: 'movie' },
+      mediaKind: 'video',
+      kodiWasPaused: false
+    });
+    adapter.emit('canplay');
+
+    adapter.currentTime = 29;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setMovieDetails).not.toHaveBeenCalled();
+    expect(scrobbleStore.snapshot.lastPolicyReason).toBe('threshold/not-crossed');
+
+    adapter.currentTime = 120;
+    adapter.emit('timeupdate');
+    await flushPromises();
+
+    expect(writeMethods.setMovieDetails).toHaveBeenCalledTimes(1);
+    expect(writeMethods.setMovieDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+      movieid: 7,
+      resume: { position: 120, total: 600 }
+    });
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'success',
+      lastAction: 'video-resume',
+      writeCounts: { videoResumes: 1, videoWatched: 0 }
+    });
+
+    adapter.currentTime = 600;
+    adapter.ended = true;
+    adapter.emit('ended');
+    await flushPromises();
+
+    expect(writeMethods.setMovieDetails).toHaveBeenCalledTimes(2);
+    expect(writeMethods.setMovieDetails).toHaveBeenLastCalledWith(expect.any(FakeKodiClient), {
+      movieid: 7,
+      playcount: 1,
+      lastplayed: '2026-04-29 20:30:15'
+    });
+    expect(scrobbleStore.snapshot).toMatchObject({
+      status: 'success',
+      lastEvaluationReason: 'local:ended',
+      lastAction: 'video-watched',
+      writeCounts: { videoResumes: 1, videoWatched: 1 }
+    });
   });
 
   it('reports play() rejection as a safe error and leaves resume available', async () => {

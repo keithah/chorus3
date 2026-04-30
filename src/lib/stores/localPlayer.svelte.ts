@@ -55,8 +55,15 @@ export interface MediaElementAdapter {
   removeEventListener(type: string, listener: () => void): void;
 }
 
+export type LocalPlaybackProgressReason = `local:${string}`;
+
+export interface LocalPlayerProgressEvaluator {
+  evaluateAndWrite(reason: LocalPlaybackProgressReason): Promise<void> | void;
+}
+
 export interface LocalPlayerStoreOptions {
   now?: () => string;
+  playbackProgressEvaluator?: LocalPlayerProgressEvaluator | null;
 }
 
 export type PrepareLocalStreamUrlOptions = {
@@ -93,13 +100,19 @@ export class LocalPlayerStore {
 
   #adapter: MediaElementAdapter | null = null;
   #detachListeners: (() => void) | null = null;
+  #playbackProgressEvaluator: LocalPlayerProgressEvaluator | null;
 
   constructor(options: LocalPlayerStoreOptions = {}) {
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#playbackProgressEvaluator = options.playbackProgressEvaluator ?? null;
   }
 
   get snapshot(): LocalPlayerStoreSnapshot {
     return cloneSnapshot(this.#snapshot);
+  }
+
+  setPlaybackProgressEvaluator(evaluator: LocalPlayerProgressEvaluator | null): void {
+    this.#playbackProgressEvaluator = evaluator;
   }
 
   attach(adapter: MediaElementAdapter): void {
@@ -149,6 +162,7 @@ export class LocalPlayerStore {
         currentSeconds: normalizeSeconds(adapter.currentTime),
         lastUpdatedAt: this.#now()
       };
+      this.#evaluatePlaybackProgress('local:timeupdate');
     };
 
     const onDurationChange = () => {
@@ -173,8 +187,10 @@ export class LocalPlayerStore {
       this.#snapshot = {
         ...this.#snapshot,
         status: 'ended',
+        currentSeconds: normalizeSeconds(adapter.currentTime),
         lastUpdatedAt: this.#now()
       };
+      this.#evaluatePlaybackProgress('local:ended');
     };
 
     const onError = () => {
@@ -409,6 +425,16 @@ export class LocalPlayerStore {
       muted: Boolean(muted),
       lastUpdatedAt: this.#now()
     };
+  }
+
+  #evaluatePlaybackProgress(reason: LocalPlaybackProgressReason): void {
+    try {
+      void Promise.resolve(this.#playbackProgressEvaluator?.evaluateAndWrite(reason)).catch(() => {
+        // Playback progress diagnostics are owned by the evaluator. Media events must remain safe.
+      });
+    } catch {
+      // Playback progress diagnostics are owned by the evaluator. Media events must remain safe.
+    }
   }
 }
 

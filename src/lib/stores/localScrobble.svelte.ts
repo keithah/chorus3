@@ -554,6 +554,7 @@ export function createLocalScrobbleStore(
 }
 
 export const localScrobbleStore = createLocalScrobbleStore();
+defaultLocalPlayerStore.setPlaybackProgressEvaluator(localScrobbleStore);
 
 export async function evaluateLocalPlaybackProgress(
   options: EvaluateLocalPlaybackProgressOptions = {}
