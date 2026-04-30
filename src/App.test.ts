@@ -1,4 +1,4 @@
-import { mount, tick, unmount } from 'svelte';
+import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
@@ -168,6 +168,7 @@ function renderApp(props: AppProps = {}) {
   }
 
   mountedComponent = mount(App, { target, props }) as Record<string, unknown>;
+  flushSync();
 
   return target;
 }
@@ -695,7 +696,10 @@ describe('App shell', () => {
       'audio[data-local-media-adapter], video[data-local-media-adapter]'
     );
     expect(mediaElement).toBeInstanceOf(HTMLMediaElement);
-    expect(mediaElement?.dataset.localMediaAdapter).toBe('attached');
+    if (!mediaElement) {
+      throw new Error('Expected App to render a local media runtime element.');
+    }
+    expect(mediaElement.dataset.localMediaAdapter).toBe('attached');
 
     const rawStreamUrl = 'http://admin:p@ssword@kodi.local:8080/vfs/private/song.mp3';
     await localPlayerStore.loadAndPlay({

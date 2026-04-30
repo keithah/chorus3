@@ -2,6 +2,7 @@
   import AppShell from '$components/AppShell.svelte';
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
+  import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
@@ -169,6 +170,7 @@
       />
     </section>
 
+    <LocalMediaRuntime />
     <NowPlayingPanel
       snapshot={currentPlayerSnapshot}
       dispatch={playerDispatch}

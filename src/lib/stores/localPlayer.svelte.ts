@@ -112,6 +112,27 @@ export class LocalPlayerStore {
       muted: Boolean(adapter.muted)
     };
 
+    const onPlay = () => {
+      this.#snapshot = {
+        ...this.#snapshot,
+        status: 'playing',
+        lastError: null,
+        lastUpdatedAt: this.#now()
+      };
+    };
+
+    const onPause = () => {
+      this.#snapshot = {
+        ...this.#snapshot,
+        status:
+          this.#snapshot.status === 'playing' || this.#snapshot.status === 'loading'
+            ? 'paused'
+            : this.#snapshot.status,
+        currentSeconds: normalizeSeconds(adapter.currentTime),
+        lastUpdatedAt: this.#now()
+      };
+    };
+
     const onCanPlay = () => {
       this.#snapshot = {
         ...this.#snapshot,
@@ -134,6 +155,7 @@ export class LocalPlayerStore {
       this.#snapshot = {
         ...this.#snapshot,
         durationSeconds: normalizeDuration(adapter.duration),
+        currentSeconds: normalizeSeconds(adapter.currentTime),
         lastUpdatedAt: this.#now()
       };
     };
@@ -167,17 +189,25 @@ export class LocalPlayerStore {
       };
     };
 
+    adapter.addEventListener('play', onPlay);
+    adapter.addEventListener('pause', onPause);
     adapter.addEventListener('canplay', onCanPlay);
+    adapter.addEventListener('loadedmetadata', onDurationChange);
     adapter.addEventListener('timeupdate', onTimeUpdate);
     adapter.addEventListener('durationchange', onDurationChange);
+    adapter.addEventListener('seeked', onTimeUpdate);
     adapter.addEventListener('volumechange', onVolumeChange);
     adapter.addEventListener('ended', onEnded);
     adapter.addEventListener('error', onError);
 
     this.#detachListeners = () => {
+      adapter.removeEventListener('play', onPlay);
+      adapter.removeEventListener('pause', onPause);
       adapter.removeEventListener('canplay', onCanPlay);
+      adapter.removeEventListener('loadedmetadata', onDurationChange);
       adapter.removeEventListener('timeupdate', onTimeUpdate);
       adapter.removeEventListener('durationchange', onDurationChange);
+      adapter.removeEventListener('seeked', onTimeUpdate);
       adapter.removeEventListener('volumechange', onVolumeChange);
       adapter.removeEventListener('ended', onEnded);
       adapter.removeEventListener('error', onError);
@@ -223,7 +253,7 @@ export class LocalPlayerStore {
       lastUpdatedAt: this.#now()
     };
 
-    adapter.src = input.source;
+    adapter.src = sanitizeMediaSource(input.source);
     adapter.load();
 
     try {
@@ -439,7 +469,19 @@ function sanitizeErrorMessage(message: string): string {
     .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
     .replace(/username or password/gi, 'credentials')
     .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]');
+    .replace(/p@ssword/gi, '[redacted-password]')
+    .replace(/localStorage|sessionStorage/gi, 'browser storage');
+}
+
+function sanitizeMediaSource(source: string): string {
+  try {
+    const url = new URL(source);
+    url.username = '';
+    url.password = '';
+    return url.toString();
+  } catch {
+    return source;
+  }
 }
 
 class LocalStreamPrepareError extends Error {
