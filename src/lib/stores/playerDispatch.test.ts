@@ -209,6 +209,144 @@ describe('player dispatch', () => {
     });
   });
 
+
+
+  it('opens song, album, and artist music items through Player.Open without requiring an active player', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Player.Open', 'OK');
+
+    await dispatch.playMusicItem({ kind: 'song', songid: 42 });
+    await dispatch.playMusicItem({ kind: 'album', albumid: 7 });
+    await dispatch.playMusicItem({ kind: 'artist', artistid: 3 });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { songid: 42 } } },
+      { method: 'Player.Open', params: { item: { albumid: 7 } } },
+      { method: 'Player.Open', params: { item: { artistid: 3 } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:playMusicItem',
+      'command:playMusicItem',
+      'command:playMusicItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'playMusicItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects malformed music playback items before calling Kodi', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    const invalidItems = [
+      { kind: 'song', songid: Number.NaN },
+      { kind: 'song', songid: Number.POSITIVE_INFINITY },
+      { kind: 'song', songid: 0 },
+      { kind: 'album', albumid: -1 },
+      { kind: 'artist', artistid: 1.5 },
+      { kind: 'song', songid: 42, albumid: 7 },
+      {},
+      { kind: 'genre', genreid: 9 },
+      { kind: 'song', songid: 42, file: 'smb://nas/music/leak.flac' }
+    ];
+
+    for (const item of invalidItems) {
+      await dispatch.playMusicItem(item as never);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'playMusicItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-music-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active-host client state for music playback without Kodi calls or refresh', async () => {
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await dispatch.playMusicItem({ kind: 'song', songid: 42 });
+
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playMusicItem',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'config',
+        code: 'config/no-active-host'
+      }
+    });
+  });
+
+  it('sanitizes music playback command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    client.enqueue(
+      'Player.Open',
+      new KodiHttpClientError({
+        code: 'auth',
+        method: 'Player.Open',
+        endpoint: {
+          protocol: 'http:',
+          host: 'kodi.local',
+          port: 8080,
+          path: '/jsonrpc',
+          timeoutMs: 5000,
+          hasCredentials: true
+        },
+        status: 401,
+        statusText: 'Unauthorized'
+      })
+    );
+
+    await dispatch.playMusicItem({ kind: 'song', songid: 42 });
+
+    expect(client.calls).toEqual([{ method: 'Player.Open', params: { item: { songid: 42 } } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playMusicItem',
+      lastCompletedAt: '2026-01-02T00:00:00.000Z',
+      lastError: {
+        source: 'http',
+        code: 'auth',
+        message: 'Kodi rejected the configured credentials while calling Player.Open.'
+      }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('keeps music playback success inspectable when the follow-up refresh fails', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    client.enqueue('Player.Open', 'OK');
+    playerStore.refreshError = new Error(
+      'refresh failed with admin:p@ssword Authorization: Basic token smb://nas/music/leak.flac localStorage raw-body'
+    );
+
+    await dispatch.playMusicItem({ kind: 'album', albumid: 7 });
+
+    expect(client.calls).toEqual([{ method: 'Player.Open', params: { item: { albumid: 7 } } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'playMusicItem',
+      lastError: null
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
   it('calls play/pause through the wrapper and refreshes authoritative player state', async () => {
     const { client, dispatch, playerStore } = createHarness();
     client.enqueue('Player.PlayPause', { speed: 0 });

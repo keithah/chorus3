@@ -221,6 +221,51 @@ describe('integrated player loop store contracts', () => {
     expectSecretSafe(queueDispatch.snapshot);
   });
 
+
+
+  it('opens music through PlayerDispatch while detaching Local playback without leaking the local file', async () => {
+    const client = new FakeKodiClient();
+    client.enqueue('Player.Open', 'OK');
+
+    const playerStore = new FakePlayerStore();
+    playerStore.snapshot = createPlayerSnapshot({ activePlayers: [], primaryPlayer: null });
+    const localPlayerStore = new FakeLocalPlayerStore();
+    localPlayerStore.snapshot = createLocalSnapshot({
+      status: 'playing',
+      mediaKind: 'audio',
+      item: {
+        type: 'song',
+        songid: 42,
+        label: 'Special Track',
+        file: 'smb://nas/music/special.flac'
+      } as unknown as LocalPlayerStoreSnapshot['item'], 
+      currentSeconds: 120,
+      durationSeconds: 500,
+      resumeAvailable: true
+    });
+    const playerDispatch = createPlayerDispatch({
+      mode: 'local',
+      playerStore,
+      localPlayerStore: localPlayerStore as never,
+      configStore: { activeHost: createActiveHost() } as never,
+      createClient: () => client,
+      now: () => '2026-04-29T20:10:00.000Z'
+    });
+
+    await playerDispatch.playMusicItem({ kind: 'song', songid: 42 });
+
+    expect(localPlayerStore.stop).toHaveBeenCalledTimes(1);
+    expect(client.calls).toEqual([{ method: 'Player.Open', params: { item: { songid: 42 } } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem']);
+    expect(playerDispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'playMusicItem',
+      lastError: null
+    });
+    expectSecretSafe(playerDispatch.snapshot);
+  });
+
   it('keeps failure snapshots safe across local preparation, scrobble, and queue commands', async () => {
     const client = new FakeKodiClient();
     client.enqueue('Player.PlayPause', { speed: 0 });

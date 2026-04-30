@@ -135,6 +135,7 @@ export {
   playerDispatch,
   type PlayerCommandName,
   type PlayerCommandStatus,
+  type MusicPlaybackItem,
   type PlayerDispatchErrorSource,
   type PlayerDispatchMode,
   type PlayerDispatchOptions,

@@ -2,6 +2,7 @@ import {
   KodiHttpClientError,
   goToPlayerItem,
   isKodiHttpClientError,
+  openPlayerItem,
   playPausePlayer,
   seekPlayer,
   setApplicationMute,
@@ -13,6 +14,7 @@ import {
   stopPlayer,
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
+  type KodiMusicLibraryItem,
   type PlayerAudioStreamValue,
   type PlayerRepeatValue,
   type PlayerSeekStep,
@@ -45,8 +47,14 @@ export type PlayerCommandName =
   | 'setRepeat'
   | 'setAudioStream'
   | 'setSubtitle'
+  | 'playMusicItem'
   | 'startLocalPlayback'
   | 'resumeOnKodi';
+export type MusicPlaybackItem =
+  | { kind: 'song'; songid: number }
+  | { kind: 'album'; albumid: number }
+  | { kind: 'artist'; artistid: number };
+
 export type PlayerDispatchErrorSource = 'config' | 'player' | 'mode' | 'input' | 'http' | 'command';
 
 export interface PlayerDispatchSafeErrorSnapshot {
@@ -83,6 +91,7 @@ type CommandRunInput = {
   command: PlayerCommandName;
   validate?: () => PlayerDispatchSafeErrorSnapshot | null;
   execute: (client: KodiJsonRpcHttpClient, playerid: number) => Promise<unknown>;
+  afterCommandSuccess?: () => Promise<void> | void;
 };
 
 const DEFAULT_SNAPSHOT: PlayerDispatchSnapshot = {
@@ -361,6 +370,26 @@ export class PlayerDispatch {
     });
   }
 
+  playMusicItem(item: MusicPlaybackItem): Promise<void> {
+    const musicItem = toKodiMusicLibraryItem(item) as KodiMusicLibraryItem;
+
+    return this.#runCommand({
+      command: 'playMusicItem',
+      validate: () => validateMusicPlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerItem(client, musicItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
+    });
+  }
+
   startLocalPlayback(): Promise<void> {
     return this.#runStartLocalPlayback();
   }
@@ -419,6 +448,7 @@ export class PlayerDispatch {
 
     try {
       await input.execute(client, playerid);
+      await input.afterCommandSuccess?.();
     } catch (error) {
       commandError = createSafeError(error);
     }
@@ -710,6 +740,56 @@ function validateSubtitle(subtitle: PlayerSubtitleValue): PlayerDispatchSafeErro
   return VALID_SUBTITLE_LITERALS.has(subtitle)
     ? null
     : createInputError('input/invalid-subtitle', 'Choose a valid subtitle stream.');
+}
+
+function validateMusicPlaybackItem(item: MusicPlaybackItem): PlayerDispatchSafeErrorSnapshot | null {
+  const musicItem = toKodiMusicLibraryItem(item);
+
+  if (!musicItem) {
+    return createInputError(
+      'input/invalid-music-item',
+      'Choose a song, album, or artist with a valid library id.'
+    );
+  }
+
+  return null;
+}
+
+function toKodiMusicLibraryItem(item: MusicPlaybackItem): KodiMusicLibraryItem | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+
+  if (candidate.kind === 'song' && keys.length === 2 && keys[0] === 'kind' && keys[1] === 'songid') {
+    return isPositiveInteger(candidate.songid) ? { songid: candidate.songid } : null;
+  }
+
+  if (
+    candidate.kind === 'album' &&
+    keys.length === 2 &&
+    keys[0] === 'albumid' &&
+    keys[1] === 'kind'
+  ) {
+    return isPositiveInteger(candidate.albumid) ? { albumid: candidate.albumid } : null;
+  }
+
+  if (
+    candidate.kind === 'artist' &&
+    keys.length === 2 &&
+    keys[0] === 'artistid' &&
+    keys[1] === 'kind'
+  ) {
+    return isPositiveInteger(candidate.artistid) ? { artistid: candidate.artistid } : null;
+  }
+
+  return null;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
 function createInputError(code: string, message: string): PlayerDispatchSafeErrorSnapshot {
