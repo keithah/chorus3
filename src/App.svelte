@@ -3,6 +3,9 @@
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
+  import MusicBrowsePanel, {
+    type MusicBrowsePanelDispatch
+  } from '$components/MusicBrowsePanel.svelte';
   import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
@@ -13,6 +16,7 @@
     configStore,
     connectionStore,
     localPlayerStore,
+    musicBrowseStore,
     musicLibraryStore,
     playerDispatch as defaultPlayerDispatch,
     playerStore,
@@ -20,6 +24,7 @@
     queueStore,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot
@@ -32,7 +37,16 @@
     queueSnapshot?: QueueStoreSnapshot;
     queueDispatch?: QueuePanelDispatch;
     musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
+    musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
+    musicBrowseDispatch?: MusicBrowsePanelDispatch;
   }
+
+  const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
+    browseArtist: (artist) => musicBrowseStore.browseArtist(artist),
+    browseAlbum: (album) => musicBrowseStore.browseAlbum(album),
+    browseGenre: (genre) => musicBrowseStore.browseGenre(genre),
+    clearSelection: () => musicBrowseStore.clearSelection()
+  };
 
   let {
     playerSnapshot,
@@ -40,12 +54,15 @@
     localPlayerSnapshot,
     queueSnapshot,
     queueDispatch = defaultQueueDispatch,
-    musicLibrarySnapshot
+    musicLibrarySnapshot,
+    musicBrowseSnapshot,
+    musicBrowseDispatch = defaultMusicBrowseDispatch
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
   const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
+  const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -172,6 +189,11 @@
     </section>
 
     <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} />
+    <MusicBrowsePanel
+      librarySnapshot={currentMusicLibrarySnapshot}
+      browseSnapshot={currentMusicBrowseSnapshot}
+      dispatch={musicBrowseDispatch}
+    />
 
     <LocalMediaRuntime />
     <NowPlayingPanel

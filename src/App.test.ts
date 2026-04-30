@@ -2,6 +2,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import type { MusicBrowsePanelDispatch } from './lib/components/MusicBrowsePanel.svelte';
 import type { PlayerControlsDispatch } from './lib/components/PlayerControls.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
@@ -10,6 +11,7 @@ import {
   createConfigStore,
   hostConnectionStore,
   localPlayerStore,
+  type MusicBrowseStoreSnapshot,
   type MusicLibraryStoreSnapshot,
   type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot,
@@ -28,6 +30,8 @@ type AppProps = {
   queueSnapshot?: QueueStoreSnapshot;
   queueDispatch?: QueuePanelDispatch;
   musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
+  musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
+  musicBrowseDispatch?: MusicBrowsePanelDispatch;
 };
 
 function createMusicLibrarySnapshot(
@@ -49,6 +53,38 @@ function createMusicLibrarySnapshot(
     },
     isEmpty: true,
     lastError: null,
+    ...overrides
+  };
+}
+
+function createMusicBrowseSnapshot(
+  overrides: Partial<MusicBrowseStoreSnapshot> = {}
+): MusicBrowseStoreSnapshot {
+  return {
+    refreshStatus: 'idle',
+    lastRefreshReason: 'init',
+    lastUpdatedAt: null,
+    selection: null,
+    albums: [],
+    songs: [],
+    limits: {
+      albums: { start: 0, end: 0, total: 0 },
+      songs: { start: 0, end: 0, total: 0 }
+    },
+    isEmpty: true,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createMusicBrowseDispatch(
+  overrides: Partial<MusicBrowsePanelDispatch> = {}
+): MusicBrowsePanelDispatch {
+  return {
+    browseArtist: vi.fn(),
+    browseAlbum: vi.fn(),
+    browseGenre: vi.fn(),
+    clearSelection: vi.fn(),
     ...overrides
   };
 }
@@ -137,6 +173,22 @@ function getMusicLibraryPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.music-library-panel');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
+}
+
+function getMusicBrowsePanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.music-browse-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getMusicBrowsePanelText(target: HTMLElement): string {
+  return getMusicBrowsePanel(target).textContent ?? '';
+}
+
+function getButtonByAria(target: HTMLElement, ariaLabel: string): HTMLButtonElement {
+  const button = target.querySelector<HTMLButtonElement>(`button[aria-label="${ariaLabel}"]`);
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
 }
 
 function changeInputValue(input: HTMLInputElement, value: string): void {
@@ -620,6 +672,197 @@ describe('App shell', () => {
     expect(musicPanelText).not.toContain('localStorage');
     expect(musicPanelText).not.toContain('raw response body');
     expect(musicPanelText).not.toContain('http://kodi.local');
+  });
+
+  it('renders injected Music Browse artist, album, genre, and song identity details without playback actions', () => {
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'Nina Simone', genre: ['Soul', 'Jazz'] }],
+        albums: [
+          {
+            albumid: 2,
+            label: 'Pastel Blues',
+            title: 'Pastel Blues',
+            artist: ['Nina Simone'],
+            year: 1965
+          }
+        ],
+        songs: [],
+        genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 1, total: 1 }
+        }
+      }),
+      musicBrowseSnapshot: createMusicBrowseSnapshot({
+        refreshStatus: 'ready',
+        lastRefreshReason: 'artist:1',
+        lastUpdatedAt: '2026-04-29T13:00:00.000Z',
+        selection: { kind: 'artist', id: 1, label: 'Nina Simone' },
+        albums: [
+          {
+            albumid: 2,
+            label: 'Pastel Blues',
+            title: 'Pastel Blues',
+            artist: ['Nina Simone'],
+            year: 1965
+          }
+        ],
+        songs: [
+          {
+            songid: 3,
+            label: 'Sinnerman',
+            title: 'Sinnerman',
+            artist: ['Nina Simone'],
+            album: 'Pastel Blues',
+            duration: 622,
+            track: 8,
+            playcount: 2
+          }
+        ],
+        limits: {
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false
+      })
+    });
+
+    const browsePanel = getMusicBrowsePanel(target);
+    const browseText = browsePanel.textContent ?? '';
+
+    expect(browseText).toContain('Browse Music');
+    expect(browseText).toContain('Nina Simone');
+    expect(browseText).toContain('Pastel Blues');
+    expect(browseText).toContain('Soul');
+    expect(browseText).toContain('Artist: Nina Simone');
+    expect(browseText).toContain('Songs for Nina Simone');
+    expect(browseText).toContain('Sinnerman');
+    expect(browseText).toContain('Song ID 3');
+    expect(browsePanel.querySelector('[data-songid="3"]')?.textContent).toContain('Song ID 3');
+    expect(browsePanel.querySelector('button[aria-label="Play Sinnerman"]')).toBeNull();
+    expect(browsePanel.querySelector('button[aria-label="Queue Sinnerman"]')).toBeNull();
+    expect(browseText).not.toContain('Play or pause');
+    expect(browseText).not.toContain('Clear queue');
+  });
+
+  it('renders injected Music Browse error snapshots without secret-like details', () => {
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'smb://nas.local/private/artist' }],
+        albums: [{ albumid: 2, label: 'http://admin:p@ssword@kodi.local/private/album' }],
+        genres: [{ genreid: 4, label: 'Authorization: Basic abc123' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 1, total: 1 }
+        }
+      }),
+      musicBrowseSnapshot: createMusicBrowseSnapshot({
+        refreshStatus: 'error',
+        lastRefreshReason: 'error:http/auth',
+        lastUpdatedAt: '2026-04-29T13:00:00.000Z',
+        selection: { kind: 'genre', id: 4, label: 'smb://nas.local/private/genre' },
+        albums: [{ albumid: 2, label: 'Safe Album', title: 'Safe Album' }],
+        songs: [{ songid: 3, label: 'Safe Song', title: 'Safe Song' }],
+        limits: {
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false,
+        lastError: {
+          source: 'http',
+          code: 'http/auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@kodi.local/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac.'
+        }
+      })
+    });
+
+    const browseText = getMusicBrowsePanelText(target);
+
+    expect(browseText).toContain('credentials [redacted]');
+    expect(browseText).toContain('[redacted-url]');
+    expect(browseText).toContain('response body [redacted]');
+    expect(browseText).toContain('browser storage');
+    expect(browseText).toContain('Safe Album');
+    expect(browseText).toContain('Safe Song');
+    expect(browseText).toContain('Unknown artist');
+    expect(browseText).toContain('Unknown album');
+    expect(browseText).toContain('Unknown genre');
+    expect(browseText).not.toContain('smb://');
+    expect(browseText).not.toContain('admin:p@ssword');
+    expect(browseText).not.toContain('p@ssword');
+    expect(browseText).not.toContain('Authorization');
+    expect(browseText).not.toContain('Basic abc123');
+    expect(browseText).not.toContain('localStorage');
+    expect(browseText).not.toContain('raw response body');
+    expect(browseText).not.toContain('http://kodi.local');
+  });
+
+  it('routes Music Browse artist, album, genre, and clear controls through injected dispatch once', async () => {
+    const musicBrowseDispatch = createMusicBrowseDispatch();
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'Nina Simone', genre: ['Soul'] }],
+        albums: [{ albumid: 2, label: 'Pastel Blues', title: 'Pastel Blues' }],
+        genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 1, total: 1 }
+        }
+      }),
+      musicBrowseSnapshot: createMusicBrowseSnapshot({
+        refreshStatus: 'ready',
+        lastRefreshReason: 'album:2',
+        selection: { kind: 'album', id: 2, label: 'Pastel Blues' },
+        songs: [{ songid: 3, label: 'Sinnerman', title: 'Sinnerman' }],
+        limits: {
+          albums: { start: 0, end: 0, total: 0 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false
+      }),
+      musicBrowseDispatch
+    });
+
+    getButtonByAria(target, 'Browse artist Nina Simone').click();
+    getButtonByAria(target, 'Browse album Pastel Blues').click();
+    getButtonByAria(target, 'Browse genre Soul').click();
+    getButtonByAria(target, 'Clear music browse selection').click();
+    await tick();
+
+    expect(musicBrowseDispatch.browseArtist).toHaveBeenCalledTimes(1);
+    expect(musicBrowseDispatch.browseArtist).toHaveBeenCalledWith({
+      artistid: 1,
+      label: 'Nina Simone'
+    });
+    expect(musicBrowseDispatch.browseAlbum).toHaveBeenCalledTimes(1);
+    expect(musicBrowseDispatch.browseAlbum).toHaveBeenCalledWith({
+      albumid: 2,
+      label: 'Pastel Blues'
+    });
+    expect(musicBrowseDispatch.browseGenre).toHaveBeenCalledTimes(1);
+    expect(musicBrowseDispatch.browseGenre).toHaveBeenCalledWith({ genreid: 4, label: 'Soul' });
+    expect(musicBrowseDispatch.clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders default Music Browse idle prompt without a configured Kodi host', () => {
+    const target = renderApp();
+    const browseText = getMusicBrowsePanelText(target);
+
+    expect(browseText).toContain('Browse Music');
+    expect(browseText).toContain('Choose an artist, album, or genre to browse.');
+    expect(browseText).toContain('No browse selection yet.');
+    expect(target.textContent).toContain('No Kodi host configured yet');
   });
 
   it('renders the shell with store-backed idle Kodi connection diagnostics and host controls', () => {

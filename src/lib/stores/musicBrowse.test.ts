@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
-import {
-  createMusicBrowseStore,
-  type MusicBrowseSelection,
-  type MusicBrowseStoreSnapshot
-} from './index';
+import { createMusicBrowseStore, type MusicBrowseStoreSnapshot } from './index';
 
 type CallRecord = {
   method: string;
@@ -90,18 +86,6 @@ function createHarness(
       nowMs = value;
     }
   };
-}
-
-function artistSelection(overrides: Partial<MusicBrowseSelection> = {}): MusicBrowseSelection {
-  return { kind: 'artist', id: 7, label: 'Autechre', ...overrides } as MusicBrowseSelection;
-}
-
-function albumSelection(overrides: Partial<MusicBrowseSelection> = {}): MusicBrowseSelection {
-  return { kind: 'album', id: 11, label: 'Tri Repetae', ...overrides } as MusicBrowseSelection;
-}
-
-function genreSelection(overrides: Partial<MusicBrowseSelection> = {}): MusicBrowseSelection {
-  return { kind: 'genre', id: 3, label: 'Electronic', ...overrides } as MusicBrowseSelection;
 }
 
 function enqueueAlbumsAndSongs(client: FakeKodiClient): void {
@@ -307,7 +291,10 @@ describe('music browse store', () => {
 
   it('browses a genre with exact bounded Kodi filters and reports empty detail state', async () => {
     const { client, store } = createHarness();
-    client.enqueue('AudioLibrary.GetAlbums', { albums: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetAlbums', {
+      albums: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
     client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
 
     await store.browseGenre({ genreid: 3, label: 'Electronic' });

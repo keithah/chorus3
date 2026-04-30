@@ -75,7 +75,9 @@ function createBrowseSnapshot(
   };
 }
 
-function createDispatch(overrides: Partial<MusicBrowsePanelDispatch> = {}): MusicBrowsePanelDispatch {
+function createDispatch(
+  overrides: Partial<MusicBrowsePanelDispatch> = {}
+): MusicBrowsePanelDispatch {
   return {
     browseArtist: vi.fn(),
     browseAlbum: vi.fn(),
@@ -85,11 +87,13 @@ function createDispatch(overrides: Partial<MusicBrowsePanelDispatch> = {}): Musi
   };
 }
 
-function renderPanel(props: {
-  librarySnapshot?: MusicLibraryStoreSnapshot;
-  browseSnapshot?: MusicBrowseStoreSnapshot;
-  dispatch?: MusicBrowsePanelDispatch;
-} = {}): MusicBrowsePanelDispatch {
+function renderPanel(
+  props: {
+    librarySnapshot?: MusicLibraryStoreSnapshot;
+    browseSnapshot?: MusicBrowseStoreSnapshot;
+    dispatch?: MusicBrowsePanelDispatch;
+  } = {}
+): MusicBrowsePanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(MusicBrowsePanel, {
     target: document.body,

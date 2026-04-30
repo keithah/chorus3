@@ -129,10 +129,9 @@ describe('music library normalization helpers', () => {
 
     expect(normalizeMusicLimits(null, [{ songid: 5 }])).toEqual({ start: 0, end: 1, total: 1 });
     expect(
-      normalizeMusicLimits(
-        { start: Number.NaN, end: Number.POSITIVE_INFINITY, total: 'many' },
-        [{ songid: 5 }]
-      )
+      normalizeMusicLimits({ start: Number.NaN, end: Number.POSITIVE_INFINITY, total: 'many' }, [
+        { songid: 5 }
+      ])
     ).toEqual({ start: 0, end: 1, total: 1 });
     expect(normalizeMusicLimits({ start: 5, end: 10, total: 50 }, [])).toEqual({
       start: 5,
@@ -145,7 +144,11 @@ describe('music library normalization helpers', () => {
     const hostileMessage =
       'GET http://admin:p@ssword@kodi.local/jsonrpc failed with Authorization: Basic abc123, smb://secret/music, localStorage, password, raw response body';
 
-    expect(createMusicLibrarySafeError(new MusicLibraryClientError('client/no-active-host', hostileMessage))).toMatchObject({
+    expect(
+      createMusicLibrarySafeError(
+        new MusicLibraryClientError('client/no-active-host', hostileMessage)
+      )
+    ).toMatchObject({
       source: 'client',
       code: 'client/no-active-host',
       message: expect.stringContaining('credentials [redacted]')

@@ -305,7 +305,9 @@
   <div class="panel-heading">
     <p class="section-kicker">Music Browse</p>
     <h2 id="music-browse-title">Browse Music</h2>
-    <p class="summary-line">Select an artist, album, or genre to inspect read-only Kodi-shaped music details.</p>
+    <p class="summary-line">
+      Select an artist, album, or genre to inspect read-only Kodi-shaped music details.
+    </p>
   </div>
 
   <div class="browse-grid" aria-label="Music browse choices">
@@ -431,13 +433,17 @@
       {/if}
 
       {#if browseSnapshot.isEmpty && !isLoading}
-        <p class="state-copy">No albums or songs found for {safeSelectionLabel(browseSnapshot.selection)}.</p>
+        <p class="state-copy">
+          No albums or songs found for {safeSelectionLabel(browseSnapshot.selection)}.
+        </p>
       {/if}
 
       <div class="detail-grid">
         <section class="result-section" aria-labelledby="music-browse-detail-albums-title">
           <div class="section-heading">
-            <h4 id="music-browse-detail-albums-title">Albums for {safeSelectionLabel(browseSnapshot.selection)}</h4>
+            <h4 id="music-browse-detail-albums-title">
+              Albums for {safeSelectionLabel(browseSnapshot.selection)}
+            </h4>
             <p>{detailCountSummary('albums', browseSnapshot.albums.length)}</p>
           </div>
           {#if browseSnapshot.albums.length === 0}
@@ -458,7 +464,9 @@
 
         <section class="result-section" aria-labelledby="music-browse-detail-songs-title">
           <div class="section-heading">
-            <h4 id="music-browse-detail-songs-title">Songs for {safeSelectionLabel(browseSnapshot.selection)}</h4>
+            <h4 id="music-browse-detail-songs-title">
+              Songs for {safeSelectionLabel(browseSnapshot.selection)}
+            </h4>
             <p>{detailCountSummary('songs', browseSnapshot.songs.length)}</p>
           </div>
           {#if browseSnapshot.songs.length === 0}
@@ -680,7 +688,8 @@
     color: var(--color-text);
     background: color-mix(in srgb, var(--color-danger, #c2410c) 12%, var(--color-surface-raised));
     border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-danger, #c2410c) 36%, var(--color-border));
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--color-danger, #c2410c) 36%, var(--color-border));
   }
 
   .result-card {
