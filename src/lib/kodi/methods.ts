@@ -272,6 +272,24 @@ export type PlaylistSwapParams = {
 
 export type PlayerCommandResult = 'OK';
 
+export type KodiMusicLibraryItem =
+  | { songid: number; albumid?: never; artistid?: never; playlistid?: never; file?: never }
+  | { albumid: number; songid?: never; artistid?: never; playlistid?: never; file?: never }
+  | { artistid: number; songid?: never; albumid?: never; playlistid?: never; file?: never };
+
+export type PlayerOpenItem =
+  | KodiMusicLibraryItem
+  | { playlistid: number; songid?: never; albumid?: never; artistid?: never; file?: never };
+
+export type PlayerOpenParams = {
+  item: PlayerOpenItem;
+};
+
+export type PlaylistAddParams = {
+  playlistid: number;
+  item: KodiMusicLibraryItem;
+};
+
 export type KodiLibraryWriteResult = 'OK';
 
 export type AudioLibrarySetSongDetailsParams = {
@@ -770,6 +788,43 @@ export function getPlaylistItems(
     params,
     options
   );
+}
+
+export function openPlayer(
+  client: KodiJsonRpcHttpClient,
+  params: PlayerOpenParams,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerOpenParams>(client, 'Player.Open', params, options);
+}
+
+export function openPlayerItem(
+  client: KodiJsonRpcHttpClient,
+  item: PlayerOpenItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return openPlayer(client, { item }, options);
+}
+
+export function addPlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  params: PlaylistAddParams,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistAddParams>(
+    client,
+    'Playlist.Add',
+    params,
+    options
+  );
+}
+
+export function addMusicPlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiMusicLibraryItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return addPlaylistItem(client, { playlistid: 0, item }, options);
 }
 
 export function removePlaylistItem(

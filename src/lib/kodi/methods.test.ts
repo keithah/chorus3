@@ -1,15 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+  KodiMusicLibraryItem,
   PlayerGoToTarget,
+  PlayerOpenItem,
+  PlayerOpenParams,
   PlayerRepeatValue,
   PlayerSeekValue,
   PlayerShuffleValue,
+  PlaylistAddParams,
   PlaylistItemPropertyName
 } from './methods';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
+  addMusicPlaylistItem,
+  addPlaylistItem,
   clearPlaylist,
   getActivePlayers,
   getApplicationProperties,
@@ -27,6 +33,8 @@ import {
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
   goToPlayerItem,
+  openPlayer,
+  openPlayerItem,
   pingKodi,
   playPausePlayer,
   prepareFileDownload,
@@ -55,7 +63,13 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<'invalid-repeat', PlayerRepeatValue>>,
   ExpectTrue<IsNotAssignable<'invalid-shuffle', PlayerShuffleValue>>,
   ExpectTrue<IsNotAssignable<'last', PlayerGoToTarget>>,
-  ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>
+  ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>,
+  ExpectTrue<IsNotAssignable<number, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<string, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<{ file: string }, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<{ episodeid: number }, PlayerOpenItem>>,
+  ExpectTrue<IsNotAssignable<{ item: { file: string } }, PlayerOpenParams>>,
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>
 ];
 
 type RecordedCall = {
@@ -227,6 +241,81 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'Playlist.GetItems', params }]);
+  });
+
+  it('opens player items preserving song, album, artist, and playlist library ids', async () => {
+    const client = createFakeClient(['OK', 'OK', 'OK', 'OK']);
+
+    await expect(openPlayer(client, { item: { songid: 42 } })).resolves.toBe('OK');
+    await expect(openPlayerItem(client, { albumid: 7 })).resolves.toBe('OK');
+    await expect(openPlayerItem(client, { artistid: 3 })).resolves.toBe('OK');
+    await expect(openPlayerItem(client, { playlistid: 0 })).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { songid: 42 } } },
+      { method: 'Player.Open', params: { item: { albumid: 7 } } },
+      { method: 'Player.Open', params: { item: { artistid: 3 } } },
+      { method: 'Player.Open', params: { item: { playlistid: 0 } } }
+    ]);
+  });
+
+  it('adds music playlist items preserving audio playlist id and library item ids', async () => {
+    const client = createFakeClient(['OK', 'OK', 'OK']);
+
+    await expect(addPlaylistItem(client, { playlistid: 0, item: { songid: 42 } })).resolves.toBe(
+      'OK'
+    );
+    await expect(addMusicPlaylistItem(client, { albumid: 7 })).resolves.toBe('OK');
+    await expect(addMusicPlaylistItem(client, { artistid: 3 })).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { albumid: 7 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { artistid: 3 } } }
+    ]);
+  });
+
+  it('propagates player open transport errors unchanged', async () => {
+    const error = new KodiHttpClientError({
+      code: 'network',
+      endpoint: {
+        protocol: 'http:',
+        host: 'kodi.local',
+        port: 8080,
+        path: '/jsonrpc',
+        timeoutMs: 25,
+        hasCredentials: false
+      },
+      method: 'Player.Open'
+    });
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(openPlayer(client, { item: { songid: 42 } })).rejects.toBe(error);
+  });
+
+  it('propagates playlist add transport errors unchanged', async () => {
+    const error = new KodiHttpClientError({
+      code: 'timeout',
+      endpoint: {
+        protocol: 'http:',
+        host: 'kodi.local',
+        port: 8080,
+        path: '/jsonrpc',
+        timeoutMs: 25,
+        hasCredentials: false
+      },
+      method: 'Playlist.Add',
+      timeoutMs: 25
+    });
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(addPlaylistItem(client, { playlistid: 0, item: { songid: 42 } })).rejects.toBe(
+      error
+    );
   });
 
   it('removes a playlist item preserving playlist id and position', async () => {

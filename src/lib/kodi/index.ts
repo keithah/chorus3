@@ -71,6 +71,8 @@ export {
 } from './webSocket';
 
 export {
+  addMusicPlaylistItem,
+  addPlaylistItem,
   clearPlaylist,
   getActivePlayers,
   getApplicationProperties,
@@ -88,6 +90,8 @@ export {
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
   goToPlayerItem,
+  openPlayer,
+  openPlayerItem,
   pingKodi,
   playPausePlayer,
   prepareFileDownload,
@@ -137,6 +141,7 @@ export {
   type KodiLibraryWriteResult,
   type KodiLimits,
   type KodiListParams,
+  type KodiMusicLibraryItem,
   type KodiPropertiesRequest,
   type KodiTime,
   type KodiVersion,
@@ -150,6 +155,8 @@ export {
   type PlayerItemParams,
   type PlayerItemPropertyName,
   type PlayerItemResult,
+  type PlayerOpenItem,
+  type PlayerOpenParams,
   type PlayerPlayPauseParams,
   type PlayerPlayPauseResult,
   type PlayerPropertiesParams,
@@ -170,6 +177,7 @@ export {
   type PlayerSubtitleValue,
   type PlayerType,
   type PlayerVideoStream,
+  type PlaylistAddParams,
   type PlaylistClearParams,
   type PlaylistGetItemsParams,
   type PlaylistItem,
