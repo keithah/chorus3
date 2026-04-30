@@ -41,6 +41,8 @@ describe('player-loop smoke env parsing', () => {
       skipped: true,
       lines: [
         'Kodi player-loop smoke skipped: set KODI_HTTP_URL or KODI_HOST/KODI_PORT to probe player diagnostics.',
+        'Local media runtime proof: App renders a browser HTMLMediaElement adapter wired to localPlayerStore; covered by src/App.test.ts.',
+        'Local media event proof: threshold scrobble/resume/watched decisions are driven from browser media events; covered by src/lib/stores/localPlayer.test.ts.',
         'Optional variables: KODI_USERNAME, KODI_PASSWORD, KODI_USE_TLS, KODI_PATH, KODI_TIMEOUT_MS, KODI_SMOKE_LOCAL_PATH, KODI_SMOKE_ENABLE_WRITES.'
       ]
     });
@@ -161,6 +163,12 @@ describe('player-loop smoke runner', () => {
       'Player 1: speed 1, 42.5%, repeat off, shuffled false.'
     );
     expect(result.lines.join('\n')).toContain('Player 1 item: song#7 Safe Title.');
+    expect(result.lines.join('\n')).toContain(
+      'Local media runtime proof: App renders a browser HTMLMediaElement adapter wired to localPlayerStore; covered by src/App.test.ts.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      'Local media event proof: threshold scrobble/resume/watched decisions are driven from browser media events; covered by src/lib/stores/localPlayer.test.ts.'
+    );
     expect(result.lines.join('\n')).toContain(
       'Local prep: skipped (set KODI_SMOKE_LOCAL_PATH to opt in).'
     );

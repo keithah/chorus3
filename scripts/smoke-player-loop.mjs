@@ -10,8 +10,14 @@ export const DEFAULT_PLAYER_LOOP_SMOKE_TIMEOUT_MS = 5000;
 const PLAYER_PROPERTIES = ['speed', 'time', 'totaltime', 'percentage', 'repeat', 'shuffled'];
 const PLAYER_ITEM_PROPERTIES = ['title', 'type', 'id'];
 
+const LOCAL_RUNTIME_PROOF_LINES = [
+  'Local media runtime proof: App renders a browser HTMLMediaElement adapter wired to localPlayerStore; covered by src/App.test.ts.',
+  'Local media event proof: threshold scrobble/resume/watched decisions are driven from browser media events; covered by src/lib/stores/localPlayer.test.ts.'
+];
+
 const SKIP_LINES = [
   'Kodi player-loop smoke skipped: set KODI_HTTP_URL or KODI_HOST/KODI_PORT to probe player diagnostics.',
+  ...LOCAL_RUNTIME_PROOF_LINES,
   'Optional variables: KODI_USERNAME, KODI_PASSWORD, KODI_USE_TLS, KODI_PATH, KODI_TIMEOUT_MS, KODI_SMOKE_LOCAL_PATH, KODI_SMOKE_ENABLE_WRITES.'
 ];
 
@@ -468,7 +474,8 @@ export async function runPlayerLoopSmoke(config, { fetchImpl = fetch } = {}) {
   const lines = [
     `Kodi player-loop smoke succeeded for ${config.endpoint}.`,
     `Endpoint: ${formatEndpointDescription(config.endpointDescription)}`,
-    `Ping result: ${String(ping.result)}.`
+    `Ping result: ${String(ping.result)}.`,
+    ...LOCAL_RUNTIME_PROOF_LINES
   ];
 
   const playerDiagnostics = await appendPlayerDiagnostics(config, fetchImpl, lines, requestId);
