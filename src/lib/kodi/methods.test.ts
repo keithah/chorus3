@@ -15,6 +15,7 @@ import {
   getApplicationProperties,
   getAudioLibraryAlbums,
   getAudioLibraryArtists,
+  getAudioLibraryGenres,
   getAudioLibrarySongs,
   getFileSources,
   getJsonRpcVersion,
@@ -504,6 +505,27 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'AudioLibrary.GetSongs', params }]);
+  });
+
+  it('gets audio library genres preserving requested params', async () => {
+    const client = createFakeClient([
+      {
+        genres: [{ genreid: 4, label: 'Ambient' }],
+        limits: { start: 0, end: 1, total: 1 }
+      }
+    ]);
+    const params = {
+      properties: ['title'],
+      limits: { start: 0, end: 25 },
+      sort: { method: 'label' }
+    } as const;
+
+    await expect(getAudioLibraryGenres(client, params)).resolves.toEqual({
+      genres: [{ genreid: 4, label: 'Ambient' }],
+      limits: { start: 0, end: 1, total: 1 }
+    });
+
+    expect(client.calls).toEqual([{ method: 'AudioLibrary.GetGenres', params }]);
   });
 
   it('gets video library movies preserving requested params', async () => {

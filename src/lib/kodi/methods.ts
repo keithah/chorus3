@@ -495,6 +495,8 @@ export type AudioLibrarySongPropertyName =
   | 'votes'
   | 'year';
 
+export type AudioLibraryGenrePropertyName = 'thumbnail' | 'title';
+
 export type VideoLibraryMoviePropertyName =
   | 'art'
   | 'cast'
@@ -601,6 +603,10 @@ export interface AudioLibrarySong extends LibraryItem {
   songid: number;
 }
 
+export interface AudioLibraryGenre extends LibraryItem {
+  genreid: number;
+}
+
 export interface VideoLibraryMovie extends LibraryItem {
   movieid: number;
 }
@@ -631,6 +637,12 @@ export interface AudioLibrarySongsResult {
   [key: string]: unknown;
 }
 
+export interface AudioLibraryGenresResult {
+  genres?: AudioLibraryGenre[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
 export interface VideoLibraryMoviesResult {
   movies?: VideoLibraryMovie[];
   limits?: KodiLimits;
@@ -652,6 +664,7 @@ export interface VideoLibraryEpisodesResult {
 export type AudioLibraryArtistsParams = KodiListParams<AudioLibraryArtistPropertyName>;
 export type AudioLibraryAlbumsParams = KodiListParams<AudioLibraryAlbumPropertyName>;
 export type AudioLibrarySongsParams = KodiListParams<AudioLibrarySongPropertyName>;
+export type AudioLibraryGenresParams = KodiListParams<AudioLibraryGenrePropertyName>;
 export type VideoLibraryMoviesParams = KodiListParams<VideoLibraryMoviePropertyName>;
 export type VideoLibraryTvShowsParams = KodiListParams<VideoLibraryTvShowPropertyName>;
 export type VideoLibraryEpisodesParams = KodiListParams<VideoLibraryEpisodePropertyName>;
@@ -1036,6 +1049,19 @@ export function getAudioLibrarySongs(
   return callKodi<AudioLibrarySongsResult, AudioLibrarySongsParams>(
     client,
     'AudioLibrary.GetSongs',
+    params,
+    options
+  );
+}
+
+export function getAudioLibraryGenres(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibraryGenresParams = {},
+  options?: KodiHttpCallOptions
+): Promise<AudioLibraryGenresResult> {
+  return callKodi<AudioLibraryGenresResult, AudioLibraryGenresParams>(
+    client,
+    'AudioLibrary.GetGenres',
     params,
     options
   );
