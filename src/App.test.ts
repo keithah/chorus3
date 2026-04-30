@@ -9,6 +9,7 @@ import {
   connectionStore,
   createConfigStore,
   hostConnectionStore,
+  localPlayerStore,
   type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot,
   type QueueDispatchSnapshot,
@@ -270,6 +271,7 @@ afterEach(() => {
   }
 
   hostConnectionStore.destroy();
+  localPlayerStore.stop();
   configStore.reset();
   connectionStore.destroy();
   document.body.innerHTML = '';
@@ -680,6 +682,79 @@ describe('App shell', () => {
     const panel = target.querySelector('.queue-panel');
 
     expect(panel?.textContent).toContain('Test Track');
+  });
+
+  it('attaches the local player store to a real HTMLMediaElement and reports safe runtime diagnostics', async () => {
+    const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+
+    renderApp();
+
+    const mediaElement = document.querySelector<HTMLMediaElement>(
+      'audio[data-local-media-adapter], video[data-local-media-adapter]'
+    );
+    expect(mediaElement).toBeInstanceOf(HTMLMediaElement);
+    expect(mediaElement?.dataset.localMediaAdapter).toBe('attached');
+
+    const rawStreamUrl = 'http://admin:p@ssword@kodi.local:8080/vfs/private/song.mp3';
+    await localPlayerStore.loadAndPlay({
+      source: rawStreamUrl,
+      item: { id: 42, label: 'Private Song', type: 'song', songid: 42 },
+      mediaKind: 'audio',
+      kodiWasPaused: true
+    });
+    await tick();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(mediaElement?.src).not.toContain('admin:p@ssword');
+
+    Object.defineProperty(mediaElement, 'duration', { configurable: true, value: 600 });
+    mediaElement.currentTime = 301;
+    mediaElement.dispatchEvent(new Event('canplay'));
+    mediaElement.dispatchEvent(new Event('timeupdate'));
+    await tick();
+
+    expect(localPlayerStore.snapshot).toMatchObject({
+      status: 'playing',
+      mediaKind: 'audio',
+      currentSeconds: 301,
+      durationSeconds: 600,
+      resumeAvailable: true
+    });
+
+    localPlayerStore.seekToSeconds(333);
+    expect(mediaElement?.currentTime).toBe(333);
+
+    localPlayerStore.setVolume(67);
+    mediaElement?.dispatchEvent(new Event('volumechange'));
+    expect(localPlayerStore.snapshot.volume).toBe(67);
+
+    localPlayerStore.pause();
+    expect(pause).toHaveBeenCalledTimes(1);
+    expect(localPlayerStore.snapshot.status).toBe('paused');
+
+    play.mockRejectedValueOnce(
+      new Error(
+        'NotAllowedError for http://admin:p@ssword@kodi.local:8080/vfs/private/song.mp3 with Authorization: Basic abc123 from localStorage'
+      )
+    );
+    await localPlayerStore.loadAndPlay({
+      source: rawStreamUrl,
+      item: { id: 42, label: 'Private Song', type: 'song', songid: 42 },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+    await tick();
+
+    const serializedSnapshot = JSON.stringify(localPlayerStore.snapshot);
+    expect(localPlayerStore.snapshot.lastError?.code).toBe('media/play-rejected');
+    expect(serializedSnapshot).not.toContain(rawStreamUrl);
+    expect(serializedSnapshot).not.toContain('admin:p@ssword');
+    expect(serializedSnapshot).not.toContain('Authorization');
+    expect(serializedSnapshot).not.toContain('Basic abc123');
+    expect(serializedSnapshot).not.toContain('localStorage');
   });
 
   it('renders integrated Kodi mode, queue actions, and Local mode affordances safely', async () => {
