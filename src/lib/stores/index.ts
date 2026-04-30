@@ -75,6 +75,23 @@ export {
 } from './queue.svelte';
 
 export {
+  MusicLibraryStore,
+  createMusicLibraryStore,
+  musicLibraryStore,
+  type MusicLibraryAlbumSnapshot,
+  type MusicLibraryArtistSnapshot,
+  type MusicLibraryErrorSource,
+  type MusicLibraryGenreSnapshot,
+  type MusicLibraryLimitsSnapshot,
+  type MusicLibraryRefreshReason,
+  type MusicLibraryRefreshStatus,
+  type MusicLibrarySafeErrorSnapshot,
+  type MusicLibrarySongSnapshot,
+  type MusicLibraryStoreOptions,
+  type MusicLibraryStoreSnapshot
+} from './musicLibrary.svelte';
+
+export {
   createActiveKodiJsonRpcHttpClient,
   savedKodiHostToKodiHttpHost,
   type ActiveKodiClientOptions
