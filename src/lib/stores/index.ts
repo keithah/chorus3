@@ -92,6 +92,21 @@ export {
 } from './musicLibrary.svelte';
 
 export {
+  MusicBrowseStore,
+  createMusicBrowseStore,
+  musicBrowseStore,
+  type MusicBrowseAlbumPick,
+  type MusicBrowseArtistPick,
+  type MusicBrowseGenrePick,
+  type MusicBrowseRefreshReason,
+  type MusicBrowseRefreshStatus,
+  type MusicBrowseSafeErrorSnapshot,
+  type MusicBrowseSelection,
+  type MusicBrowseStoreOptions,
+  type MusicBrowseStoreSnapshot
+} from './musicBrowse.svelte';
+
+export {
   MusicLibraryClientError,
   cloneMusicLibraryAlbumSnapshots,
   cloneMusicLibraryArtistSnapshots,
