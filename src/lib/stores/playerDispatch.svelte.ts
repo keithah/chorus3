@@ -778,7 +778,9 @@ function extractLocalItemIdentity(item: PlayerStoreSnapshot['item']): {
   const candidate = item as Record<string, unknown>;
 
   return {
-    ...(typeof candidate.id === 'number' && Number.isFinite(candidate.id) ? { id: candidate.id } : {}),
+    ...(typeof candidate.id === 'number' && Number.isFinite(candidate.id)
+      ? { id: candidate.id }
+      : {}),
     ...(typeof candidate.label === 'string' && candidate.label.length > 0
       ? { label: candidate.label }
       : { label: 'Unknown item' }),
