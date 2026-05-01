@@ -11,6 +11,10 @@ import type {
   MediaSearchActionDispatch,
   MediaSearchPanelDispatch
 } from './lib/components/MediaSearchPanel.svelte';
+import type {
+  MediaFilesActionDispatch,
+  MediaFilesPanelDispatch
+} from './lib/components/MediaFilesPanel.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
   configStore,
@@ -19,6 +23,10 @@ import {
   hostConnectionStore,
   localPlayerStore,
   type MusicBrowseStoreSnapshot,
+  type MediaDirectoryEntrySnapshot,
+  type MediaFilesBreadcrumbSnapshot,
+  type MediaFilesStoreSnapshot,
+  type MediaFileSourceSnapshot,
   type MediaSearchStoreSnapshot,
   type MusicLibraryStoreSnapshot,
   type PlayerDispatchSnapshot,
@@ -44,6 +52,9 @@ type AppProps = {
   mediaSearchSnapshot?: MediaSearchStoreSnapshot;
   mediaSearchDispatch?: MediaSearchPanelDispatch;
   mediaSearchActionDispatch?: MediaSearchActionDispatch;
+  mediaFilesSnapshot?: MediaFilesStoreSnapshot;
+  mediaFilesDispatch?: MediaFilesPanelDispatch;
+  mediaFilesActionDispatch?: MediaFilesActionDispatch;
 };
 
 function createMusicLibrarySnapshot(
@@ -153,6 +164,85 @@ function createMediaSearchActionDispatch(
     queueMusicItem: vi.fn(),
     ...overrides
   };
+}
+
+function createMediaFilesSnapshot(
+  overrides: Partial<MediaFilesStoreSnapshot> = {}
+): MediaFilesStoreSnapshot {
+  const sources: MediaFileSourceSnapshot[] = [{ id: 'source:1', label: 'Albums' }];
+  const entries: MediaDirectoryEntrySnapshot[] = [
+    {
+      id: 'entry:1',
+      kind: 'directory',
+      label: 'Nina Simone',
+      capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+    },
+    {
+      id: 'entry:2',
+      kind: 'file',
+      label: 'Sinnerman.flac',
+      mediaKind: 'audio',
+      extension: 'flac',
+      capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+    },
+    {
+      id: 'entry:3',
+      kind: 'file',
+      label: 'cover.jpg',
+      mediaKind: 'unsupported',
+      extension: 'jpg',
+      capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+    }
+  ];
+  const breadcrumbs: MediaFilesBreadcrumbSnapshot[] = [
+    { id: 'source:1', label: 'Albums' },
+    { id: 'entry:1', label: 'Nina Simone' }
+  ];
+
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'directory:entry:1',
+    lastUpdatedAt: '2026-04-30T14:00:00.000Z',
+    media: 'music',
+    sources,
+    entries,
+    breadcrumbs,
+    isEmpty: false,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createMediaFilesDispatch(
+  overrides: Partial<MediaFilesPanelDispatch> = {}
+): MediaFilesPanelDispatch {
+  return {
+    refresh: vi.fn(),
+    openSource: vi.fn(),
+    openEntry: vi.fn(),
+    openBreadcrumb: vi.fn(),
+    ...overrides
+  };
+}
+
+function createMediaFilesActionDispatch(
+  overrides: Partial<MediaFilesActionDispatch> = {}
+): MediaFilesActionDispatch {
+  return {
+    playFileItem: vi.fn(),
+    queueFileItem: vi.fn(),
+    ...overrides
+  };
+}
+
+function getMediaFilesPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.media-files-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getMediaFilesPanelText(target: HTMLElement): string {
+  return getMediaFilesPanel(target).textContent ?? '';
 }
 
 function getMediaSearchPanel(target: HTMLElement): HTMLElement {
@@ -1218,6 +1308,144 @@ describe('App shell', () => {
     expect(searchText).not.toContain('localStorage');
     expect(searchText).not.toContain('raw response body');
     expect(searchText).not.toContain('smb://');
+  });
+
+  it('renders injected Media Files sources, folders, files, unsupported state, and hostile text safely', () => {
+    const target = renderApp({
+      mediaFilesSnapshot: createMediaFilesSnapshot({
+        sources: [{ id: 'source:1', label: 'smb://nas.local/private/music' }],
+        entries: [
+          {
+            id: 'entry:1',
+            kind: 'directory',
+            label: 'http://admin:p@ssword@example.test/private/folder',
+            capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+          },
+          {
+            id: 'entry:2',
+            kind: 'file',
+            label: 'Safe Song.flac',
+            mediaKind: 'audio',
+            extension: 'flac',
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+          },
+          {
+            id: 'entry:3',
+            kind: 'file',
+            label: 'Authorization: Basic abc123',
+            mediaKind: 'unsupported',
+            extension: 'jpg',
+            capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          }
+        ],
+        breadcrumbs: [{ id: 'source:1', label: 'localStorage' }],
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac'
+        }
+      }),
+      mediaFilesDispatch: createMediaFilesDispatch(),
+      mediaFilesActionDispatch: createMediaFilesActionDispatch()
+    });
+
+    const panel = getMediaFilesPanel(target);
+    const filesText = panel.textContent ?? '';
+
+    expect(filesText).toContain('Media Files');
+    expect(filesText).toContain('Music sources');
+    expect(filesText).toContain('Source 1');
+    expect(filesText).toContain('Folder 1');
+    expect(filesText).toContain('Safe Song.flac');
+    expect(filesText).toContain('Unsupported file');
+    expect(filesText).toContain('Unsupported');
+    const unsupportedButton = Array.from(panel.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Unsupported'
+    );
+    expect(unsupportedButton).toBeInstanceOf(HTMLButtonElement);
+    expect(unsupportedButton?.disabled).toBe(true);
+    expect(filesText).not.toContain('smb://');
+    expect(filesText).not.toContain('admin:p@ssword');
+    expect(filesText).not.toContain('Authorization');
+    expect(filesText).not.toContain('Basic abc123');
+    expect(filesText).not.toContain('localStorage');
+    expect(filesText).not.toContain('raw response body');
+  });
+
+  it('routes Media Files refresh, source, folder, breadcrumb, play, and queue through injected dispatches', async () => {
+    const mediaFilesDispatch = createMediaFilesDispatch();
+    const mediaFilesActionDispatch = createMediaFilesActionDispatch();
+    const target = renderApp({
+      mediaFilesSnapshot: createMediaFilesSnapshot(),
+      mediaFilesDispatch,
+      mediaFilesActionDispatch
+    });
+
+    getButtonByAria(target, 'Refresh media file sources').click();
+    await tick();
+    getButtonByAria(target, 'Open source Albums').click();
+    await tick();
+    getButtonByAria(target, 'Open folder Nina Simone').click();
+    await tick();
+    getButtonByAria(target, 'Open breadcrumb Albums').click();
+    await tick();
+    getButtonByAria(target, 'Open breadcrumb Nina Simone').click();
+    await tick();
+    getButtonByAria(target, 'Play file Sinnerman.flac').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue file Sinnerman.flac').click();
+    await tick();
+
+    expect(mediaFilesDispatch.refresh).toHaveBeenCalledTimes(1);
+    expect(mediaFilesDispatch.openSource).toHaveBeenCalledWith('source:1');
+    expect(mediaFilesDispatch.openEntry).toHaveBeenCalledWith('entry:1');
+    expect(mediaFilesDispatch.openBreadcrumb).toHaveBeenNthCalledWith(1, 'source:1');
+    expect(mediaFilesDispatch.openBreadcrumb).toHaveBeenNthCalledWith(2, 'entry:1');
+    expect(mediaFilesActionDispatch.playFileItem).toHaveBeenCalledWith({
+      id: 'entry:2',
+      label: 'Sinnerman.flac',
+      media: 'music'
+    });
+    expect(mediaFilesActionDispatch.queueFileItem).toHaveBeenCalledWith({
+      id: 'entry:2',
+      label: 'Sinnerman.flac',
+      media: 'music'
+    });
+  });
+
+  it('renders injected Media Files action rejection through sanitized panel status', async () => {
+    const mediaFilesActionDispatch = createMediaFilesActionDispatch({
+      playFileItem: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac'
+        );
+      })
+    });
+    const target = renderApp({
+      mediaFilesSnapshot: createMediaFilesSnapshot(),
+      mediaFilesDispatch: createMediaFilesDispatch(),
+      mediaFilesActionDispatch
+    });
+
+    getButtonByAria(target, 'Play file Sinnerman.flac').click();
+    await tick();
+    await tick();
+
+    const filesText = getMediaFilesPanelText(target);
+    expect(mediaFilesActionDispatch.playFileItem).toHaveBeenCalledTimes(1);
+    expect(filesText).toContain('Could not play file Sinnerman.flac');
+    expect(filesText).toContain('credentials [redacted]');
+    expect(filesText).toContain('[redacted-url]');
+    expect(filesText).toContain('response body [redacted]');
+    expect(filesText).toContain('browser storage');
+    expect(filesText).not.toContain('admin:p@ssword');
+    expect(filesText).not.toContain('Authorization');
+    expect(filesText).not.toContain('Basic abc123');
+    expect(filesText).not.toContain('localStorage');
+    expect(filesText).not.toContain('raw response body');
+    expect(filesText).not.toContain('smb://');
   });
 
   it('renders default Music Browse idle prompt without a configured Kodi host', () => {

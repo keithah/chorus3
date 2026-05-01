@@ -3,6 +3,11 @@
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
+  import MediaFilesPanel, {
+    type MediaFilesActionDispatch,
+    type MediaFilesActionItem,
+    type MediaFilesPanelDispatch
+  } from '$components/MediaFilesPanel.svelte';
   import MediaSearchPanel, {
     type MediaSearchActionDispatch,
     type MediaSearchActionItem,
@@ -22,6 +27,7 @@
     configStore,
     connectionStore,
     localPlayerStore,
+    mediaFilesStore,
     mediaSearchStore,
     musicBrowseStore,
     musicLibraryStore,
@@ -31,6 +37,7 @@
     queueStore,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type MediaFilesStoreSnapshot,
     type MediaSearchStoreSnapshot,
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
@@ -51,6 +58,9 @@
     mediaSearchSnapshot?: MediaSearchStoreSnapshot;
     mediaSearchDispatch?: MediaSearchPanelDispatch;
     mediaSearchActionDispatch?: MediaSearchActionDispatch;
+    mediaFilesSnapshot?: MediaFilesStoreSnapshot;
+    mediaFilesDispatch?: MediaFilesPanelDispatch;
+    mediaFilesActionDispatch?: MediaFilesActionDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -75,6 +85,18 @@
     queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(toMusicQueueItem(item))
   };
 
+  const defaultMediaFilesDispatch: MediaFilesPanelDispatch = {
+    refresh: () => mediaFilesStore.refreshSources(),
+    openSource: (id) => mediaFilesStore.openSource(id),
+    openEntry: (id) => mediaFilesStore.openDirectory(id),
+    openBreadcrumb: (id) => openMediaFilesBreadcrumb(id)
+  };
+
+  const defaultMediaFilesActionDispatch: MediaFilesActionDispatch = {
+    playFileItem: (item) => defaultPlayerDispatch.playFileItem(toFilePlaybackItem(item)),
+    queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item))
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -87,7 +109,10 @@
     musicActionDispatch = defaultMusicActionDispatch,
     mediaSearchSnapshot,
     mediaSearchDispatch = defaultMediaSearchDispatch,
-    mediaSearchActionDispatch = defaultMediaSearchActionDispatch
+    mediaSearchActionDispatch = defaultMediaSearchActionDispatch,
+    mediaFilesSnapshot,
+    mediaFilesDispatch = defaultMediaFilesDispatch,
+    mediaFilesActionDispatch = defaultMediaFilesActionDispatch
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
@@ -95,6 +120,29 @@
   const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
   const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
   const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
+  const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
+
+  function openMediaFilesBreadcrumb(id: string): Promise<void> {
+    if (id.startsWith('source:')) {
+      return mediaFilesStore.openSource(id);
+    }
+
+    return mediaFilesStore.openDirectory(id);
+  }
+
+  function toFilePlaybackItem(item: MediaFilesActionItem): { file: string; mediaKind: 'audio' } {
+    const resolved = mediaFilesStore.getPlayableEntry(item.id);
+
+    if (!resolved.ok) {
+      throw new Error(resolved.error.message);
+    }
+
+    return { file: resolved.entry.file, mediaKind: 'audio' };
+  }
+
+  function toFileQueueItem(item: MediaFilesActionItem): { file: string; mediaKind: 'audio' } {
+    return toFilePlaybackItem(item);
+  }
 
   function toMusicPlaybackItem(
     item: MediaSearchActionItem
@@ -257,6 +305,11 @@
       snapshot={currentMediaSearchSnapshot}
       dispatch={mediaSearchDispatch}
       actionDispatch={mediaSearchActionDispatch}
+    />
+    <MediaFilesPanel
+      snapshot={currentMediaFilesSnapshot}
+      dispatch={mediaFilesDispatch}
+      actionDispatch={mediaFilesActionDispatch}
     />
 
     <LocalMediaRuntime />
