@@ -4,6 +4,7 @@
     resumeEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
     queueEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
     streamEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
+    markEpisodeWatched?: (item: { episodeid: number; watched: boolean }) => Promise<void> | void;
   }
 </script>
 
@@ -21,7 +22,7 @@
     actionDispatch?: VideoEpisodeActionDispatch;
   }
 
-  type ActionKind = 'play' | 'resume' | 'queue' | 'stream';
+  type ActionKind = 'play' | 'resume' | 'queue' | 'stream' | 'mark-watched' | 'mark-unwatched';
   type ActionStatus =
     | { kind: 'idle'; message: string }
     | { kind: 'pending'; action: ActionKind; message: string }
@@ -32,7 +33,8 @@
     playEpisodeItem: async () => undefined,
     resumeEpisodeItem: async () => undefined,
     queueEpisodeItem: async () => undefined,
-    streamEpisodeItem: async () => undefined
+    streamEpisodeItem: async () => undefined,
+    markEpisodeWatched: async () => undefined
   };
 
   let { snapshot, route, actionDispatch = noopActionDispatch }: Props = $props();
@@ -104,27 +106,35 @@
     }
     const label = safeEpisodeLabel(episode);
     const commandLabel = actionLabel(action);
-    actionStatus = { kind: 'pending', action, message: `${commandLabel.present} ${label}…` };
+    actionStatus = { kind: 'pending', action, message: actionPendingMessage(action, label) };
     try {
       if (action === 'play') await actionDispatch.playEpisodeItem({ episodeid: routeEpisodeId });
       else if (action === 'resume')
         await actionDispatch.resumeEpisodeItem({ episodeid: routeEpisodeId });
       else if (action === 'queue')
         await actionDispatch.queueEpisodeItem({ episodeid: routeEpisodeId });
-      else await actionDispatch.streamEpisodeItem({ episodeid: routeEpisodeId });
+      else if (action === 'stream')
+        await actionDispatch.streamEpisodeItem({ episodeid: routeEpisodeId });
+      else
+        await actionDispatch.markEpisodeWatched?.({
+          episodeid: routeEpisodeId,
+          watched: action === 'mark-watched'
+        });
       actionStatus = {
         kind: 'success',
         action,
         message:
           action === 'play'
             ? `Playing ${label} started.`
-            : `${commandLabel.past} ${label}${action === 'stream' ? ' requested' : ''}.`
+            : action === 'mark-watched' || action === 'mark-unwatched'
+              ? `Marked ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}.`
+              : `${commandLabel.past} ${label}${action === 'stream' ? ' requested' : ''}.`
       };
     } catch (error) {
       actionStatus = {
         kind: 'error',
         action,
-        message: `Could not ${commandLabel.verb} ${label}. ${sanitizeUiText(errorMessage(error))}`
+        message: `${actionErrorPrefix(action, label)}. ${sanitizeUiText(errorMessage(error))}`
       };
     }
   }
@@ -133,7 +143,24 @@
     if (action === 'play') return { verb: 'play', present: 'Playing', past: 'Playing' };
     if (action === 'resume') return { verb: 'resume', present: 'Resuming', past: 'Resumed' };
     if (action === 'queue') return { verb: 'queue', present: 'Queueing', past: 'Queued' };
-    return { verb: 'stream', present: 'Streaming', past: 'Streaming' };
+    if (action === 'stream') return { verb: 'stream', present: 'Streaming', past: 'Streaming' };
+    return { verb: 'mark', present: 'Marking', past: 'Marked' };
+  }
+
+  function actionPendingMessage(action: ActionKind, label: string): string {
+    if (action === 'mark-watched' || action === 'mark-unwatched') {
+      return `Marking ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}…`;
+    }
+
+    return `${actionLabel(action).present} ${label}…`;
+  }
+
+  function actionErrorPrefix(action: ActionKind, label: string): string {
+    if (action === 'mark-watched' || action === 'mark-unwatched') {
+      return `Could not mark ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}`;
+    }
+
+    return `Could not ${actionLabel(action).verb} ${label}`;
   }
 
   function fallbackTitle(value: VideoRoute): string {
@@ -316,10 +343,14 @@
         disabled={actionDisabled}
         onclick={() => void runAction('stream')}>Stream</button
       >
+      <button
+        type="button"
+        aria-label={`Mark episode ${title} ${isWatched(episode) ? 'unwatched' : 'watched'}`}
+        disabled={actionDisabled}
+        onclick={() => void runAction(isWatched(episode) ? 'mark-unwatched' : 'mark-watched')}
+        >{isWatched(episode) ? 'Mark unwatched' : 'Mark watched'}</button
+      >
     </div>
-    <p class="state-copy">
-      Watched toggles are owned by S05 and are not available in this view yet.
-    </p>
     <dl class="detail-list">
       {#if routeIdentity()}<div>
           <dt>Route identity</dt>

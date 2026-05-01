@@ -170,7 +170,7 @@ describe('VideoMovieDetailShell', () => {
     expect(text).not.toContain(
       'Playback, resume, queue, streaming, and watched-write actions arrive in S02.'
     );
-    expect(document.querySelectorAll('button')).toHaveLength(3);
+    expect(document.querySelectorAll('button')).toHaveLength(4);
     expect(document.querySelector('a[href="/video/movies"]')?.textContent).toContain(
       'Back to movies'
     );
@@ -190,7 +190,7 @@ describe('VideoMovieDetailShell', () => {
     expect(text).toContain('Resume available');
     expect(text).toContain('2 versions available');
     expect(text).not.toContain('Read-only route shell');
-    expect(document.querySelectorAll('button')).toHaveLength(3);
+    expect(document.querySelectorAll('button')).toHaveLength(4);
     expect(
       Array.from(document.querySelectorAll('a')).map((link) => link.textContent?.trim())
     ).toEqual(['Back to movies', 'Stream in browser']);
@@ -338,6 +338,93 @@ describe('VideoMovieDetailShell', () => {
     expect(actionDispatch.resumeMovieItem).toHaveBeenCalledWith({ movieid: 84 });
     expect(actionDispatch.queueMovieItem).toHaveBeenCalledWith({ movieid: 84 });
     expect(screenText()).toContain('Queued Arrival.');
+  });
+
+  it('routes watched and unwatched movie buttons through injected dispatch with finite movie IDs', async () => {
+    const actionDispatch = createMovieActionDispatch({
+      markMovieWatched: vi.fn(async () => undefined)
+    });
+
+    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 42 }, { actionDispatch });
+    getButtonByAria('Mark movie Alien unwatched').click();
+    await tick();
+    await tick();
+
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 42, watched: false });
+    expect(screenText()).toContain('Marked Alien unwatched.');
+
+    document.body.innerHTML = '';
+    if (mounted) {
+      unmount(mounted);
+      mounted = null;
+    }
+
+    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 84 }, { actionDispatch });
+    getButtonByAria('Mark movie Arrival watched').click();
+    await tick();
+    await tick();
+
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 84, watched: true });
+    expect(screenText()).toContain('Marked Arrival watched.');
+  });
+
+  it('disables watched movie controls while a watched write is pending', async () => {
+    let resolveWrite: () => void = () => {
+      throw new Error('Watched write promise resolver was not assigned.');
+    };
+    const actionDispatch = createMovieActionDispatch({
+      markMovieWatched: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveWrite = resolve;
+          })
+      )
+    });
+    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 84 }, { actionDispatch });
+
+    getButtonByAria('Mark movie Arrival watched').click();
+    await tick();
+
+    expect(getButtonByAria('Play movie Arrival').disabled).toBe(true);
+    expect(getButtonByAria('Resume movie Arrival').disabled).toBe(true);
+    expect(getButtonByAria('Queue movie Arrival').disabled).toBe(true);
+    expect(getButtonByAria('Mark movie Arrival watched').disabled).toBe(true);
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(
+      'Marking Arrival watched…'
+    );
+
+    resolveWrite();
+    await tick();
+    await tick();
+
+    expect(getButtonByAria('Mark movie Arrival watched').disabled).toBe(false);
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(
+      'Marked Arrival watched.'
+    );
+  });
+
+  it('renders rejected watched movie errors through sanitized accessible status copy', async () => {
+    const actionDispatch = createMovieActionDispatch({
+      markMovieWatched: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for https://admin:p@ssword@example.test/jsonrpc with raw response body from sessionStorage and C:\\media\\movie.mkv and SENTINEL_SECRET'
+        );
+      })
+    });
+    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 84 }, { actionDispatch });
+
+    getButtonByAria('Mark movie Arrival watched').click();
+    await tick();
+    await tick();
+
+    const text = screenText();
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 84, watched: true });
+    expect(text).toContain('Could not mark Arrival watched.');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('[redacted-url]');
+    expect(text).toContain('response body [redacted]');
+    expect(text).toContain('browser storage');
+    expectSecretSafe(text);
   });
 
   it('disables action controls while a movie action is pending', async () => {

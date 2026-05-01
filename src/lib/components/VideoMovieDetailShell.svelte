@@ -30,7 +30,7 @@
     actionDispatch?: VideoMovieActionDispatch;
   }
 
-  type ActionKind = 'play' | 'resume' | 'queue';
+  type ActionKind = 'play' | 'resume' | 'queue' | 'mark-watched' | 'mark-unwatched';
   type ActionStatus =
     | { kind: 'idle'; message: string }
     | { kind: 'pending'; action: ActionKind; message: string }
@@ -40,7 +40,8 @@
   const noopActionDispatch: VideoMovieActionDispatch = {
     playMovieItem: async () => undefined,
     resumeMovieItem: async () => undefined,
-    queueMovieItem: async () => undefined
+    queueMovieItem: async () => undefined,
+    markMovieWatched: async () => undefined
   };
 
   let { snapshot, route, detailSnapshot, actionDispatch = noopActionDispatch }: Props = $props();
@@ -299,7 +300,7 @@
     actionStatus = {
       kind: 'pending',
       action,
-      message: `${commandLabel.present} ${label}…`
+      message: actionPendingMessage(action, label)
     };
 
     try {
@@ -307,20 +308,30 @@
         await actionDispatch.playMovieItem({ movieid });
       } else if (action === 'resume') {
         await actionDispatch.resumeMovieItem({ movieid });
-      } else {
+      } else if (action === 'queue') {
         await actionDispatch.queueMovieItem({ movieid });
+      } else {
+        await actionDispatch.markMovieWatched?.({
+          movieid,
+          watched: action === 'mark-watched'
+        });
       }
 
       actionStatus = {
         kind: 'success',
         action,
-        message: action === 'play' ? `Playing ${label} started.` : `${commandLabel.past} ${label}.`
+        message:
+          action === 'play'
+            ? `Playing ${label} started.`
+            : action === 'mark-watched' || action === 'mark-unwatched'
+              ? `Marked ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}.`
+              : `${commandLabel.past} ${label}.`
       };
     } catch (error) {
       actionStatus = {
         kind: 'error',
         action,
-        message: `Could not ${commandLabel.verb} ${label}. ${sanitizeUiText(errorMessage(error))}`
+        message: `${actionErrorPrefix(action, label)}. ${sanitizeUiText(errorMessage(error))}`
       };
     }
   }
@@ -334,7 +345,31 @@
       return { verb: 'resume', present: 'Resuming', past: 'Resumed' };
     }
 
-    return { verb: 'queue', present: 'Queueing', past: 'Queued' };
+    if (action === 'queue') {
+      return { verb: 'queue', present: 'Queueing', past: 'Queued' };
+    }
+
+    return {
+      verb: 'mark',
+      present: `Marking${action === 'mark-watched' ? '' : ''}`,
+      past: 'Marked'
+    };
+  }
+
+  function actionErrorPrefix(action: ActionKind, label: string): string {
+    if (action === 'mark-watched' || action === 'mark-unwatched') {
+      return `Could not mark ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}`;
+    }
+
+    return `Could not ${actionLabel(action).verb} ${label}`;
+  }
+
+  function actionPendingMessage(action: ActionKind, label: string): string {
+    if (action === 'mark-watched' || action === 'mark-unwatched') {
+      return `Marking ${label} ${action === 'mark-watched' ? 'watched' : 'unwatched'}…`;
+    }
+
+    return `${actionLabel(action).present} ${label}…`;
   }
 
   function errorMessage(error: unknown): string {
@@ -367,6 +402,7 @@
       .replace(/sentinel_secret/gi, '[redacted-secret]')
       .replace(/admin:p@ssword/gi, '[redacted-credentials]')
       .replace(/p@ssword/gi, '[redacted-password]')
+      .replace(/\b[a-z]:\\[^\s]+/gi, '[path]')
       .replace(/username or password/gi, 'credentials')
       .replace(/localStorage|sessionStorage/gi, 'browser storage');
   }
@@ -430,6 +466,14 @@
         onclick={() => void runAction('queue')}
       >
         Queue
+      </button>
+      <button
+        type="button"
+        aria-label={`Mark movie ${title} ${isWatched(movie) ? 'unwatched' : 'watched'}`}
+        disabled={actionDisabled}
+        onclick={() => void runAction(isWatched(movie) ? 'mark-unwatched' : 'mark-watched')}
+      >
+        {isWatched(movie) ? 'Mark unwatched' : 'Mark watched'}
       </button>
       {#if streamHref}
         <a class="stream-link" href={streamHref} aria-label={`Stream ${title} in browser`}>

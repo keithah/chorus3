@@ -105,6 +105,7 @@ function createActionDispatch(
     resumeEpisodeItem: vi.fn(async () => undefined),
     queueEpisodeItem: vi.fn(async () => undefined),
     streamEpisodeItem: vi.fn(async () => undefined),
+    markEpisodeWatched: vi.fn(async () => undefined),
     ...overrides
   };
 }
@@ -165,13 +166,13 @@ describe('VideoEpisodeDetailShell', () => {
     expect(text).toContain('55:00');
     expect(text).toContain('Resume available');
     expect(text).toContain('Mark returns to Lumon.');
-    expect(text).toContain(
-      'Watched toggles are owned by S05 and are not available in this view yet.'
+    expect(getButton('Mark episode Hello, Ms. Cobel watched').textContent).toContain(
+      'Mark watched'
     );
     expect(document.querySelector('[role="status"]')?.textContent).toContain(
       'Episode actions are ready.'
     );
-    expect(document.querySelectorAll('button')).toHaveLength(4);
+    expect(document.querySelectorAll('button')).toHaveLength(5);
     expectSecretSafe(text);
   });
 
@@ -203,6 +204,60 @@ describe('VideoEpisodeDetailShell', () => {
     expect(screenText()).toContain('Streaming Hello, Ms. Cobel requested.');
   });
 
+  it('routes watched and unwatched episode buttons through injected dispatch with finite episode IDs', async () => {
+    const actionDispatch = createActionDispatch();
+
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoEpisodeDetail', tvshowid: 11, season: 2, episodeid: 100 },
+      actionDispatch
+    );
+    getButton('Mark episode Hello, Ms. Cobel watched').click();
+    await tick();
+    await tick();
+
+    expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
+      episodeid: 100,
+      watched: true
+    });
+    expect(screenText()).toContain('Marked Hello, Ms. Cobel watched.');
+
+    document.body.innerHTML = '';
+    if (mounted) {
+      unmount(mounted);
+      mounted = null;
+    }
+
+    renderShell(
+      populatedSnapshot({
+        selectedEpisodeId: 200,
+        episodeDetail: null,
+        episodes: [
+          {
+            episodeid: 200,
+            tvshowid: 11,
+            season: 2,
+            episode: 2,
+            label: 'Goodbye, Mrs. Selvig',
+            playcount: 1,
+            watched: true
+          }
+        ]
+      }),
+      { kind: 'videoEpisodeDetail', tvshowid: 11, season: 2, episodeid: 200 },
+      actionDispatch
+    );
+    getButton('Mark episode Goodbye, Mrs. Selvig unwatched').click();
+    await tick();
+    await tick();
+
+    expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
+      episodeid: 200,
+      watched: false
+    });
+    expect(screenText()).toContain('Marked Goodbye, Mrs. Selvig unwatched.');
+  });
+
   it('disables pending controls and sanitizes action dispatch errors', async () => {
     let resolvePlay: () => void = () => {
       throw new Error('resolver not assigned');
@@ -231,6 +286,7 @@ describe('VideoEpisodeDetailShell', () => {
 
     expect(getButton('Play episode Hello, Ms. Cobel').disabled).toBe(true);
     expect(getButton('Queue episode Hello, Ms. Cobel').disabled).toBe(true);
+    expect(getButton('Mark episode Hello, Ms. Cobel watched').disabled).toBe(true);
     expect(document.querySelector('[role="status"]')?.textContent).toContain(
       'Playing Hello, Ms. Cobel…'
     );
@@ -247,6 +303,37 @@ describe('VideoEpisodeDetailShell', () => {
     expect(text).toContain('credentials [redacted]');
     expect(text).toContain('[redacted-url]');
     expect(text).toContain('response body [redacted]');
+    expectSecretSafe(text);
+  });
+
+  it('renders rejected watched episode errors through sanitized accessible status copy', async () => {
+    const actionDispatch = createActionDispatch({
+      markEpisodeWatched: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for https://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and /mnt/media/private/episode.mkv and SENTINEL_SECRET'
+        );
+      })
+    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoEpisodeDetail', tvshowid: 11, season: 2, episodeid: 100 },
+      actionDispatch
+    );
+
+    getButton('Mark episode Hello, Ms. Cobel watched').click();
+    await tick();
+    await tick();
+
+    const text = screenText();
+    expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
+      episodeid: 100,
+      watched: true
+    });
+    expect(text).toContain('Could not mark Hello, Ms. Cobel watched.');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('[redacted-url]');
+    expect(text).toContain('response body [redacted]');
+    expect(text).toContain('browser storage');
     expectSecretSafe(text);
   });
 
@@ -273,6 +360,9 @@ describe('VideoEpisodeDetailShell', () => {
     const text = screenText();
     expect(text).toContain('Goodbye, Mrs. Selvig');
     expect(text).toContain('Watched');
+    expect(getButton('Mark episode Goodbye, Mrs. Selvig unwatched').textContent).toContain(
+      'Mark unwatched'
+    );
     expect(text).toContain('No resume point available');
     expect(getButton('Resume episode Goodbye, Mrs. Selvig').disabled).toBe(true);
   });
