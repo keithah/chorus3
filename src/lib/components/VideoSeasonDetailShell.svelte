@@ -1,6 +1,34 @@
 <script module lang="ts">
+  import type {
+    VideoWriteFailedItemSnapshot,
+    VideoWriteSafeErrorSnapshot
+  } from '$lib/stores/videoWriteStore.svelte';
+
   export interface VideoSeasonArtworkDispatch {
     refreshSeasonArtwork: (item: { tvshowid: number; season: number }) => Promise<void> | void;
+  }
+
+  export interface VideoSeasonWriteItem {
+    episodeid: number;
+    label: string;
+  }
+
+  export interface VideoSeasonWriteSummary {
+    total: number;
+    succeeded: number;
+    failed: number;
+    failedItems?: readonly VideoWriteFailedItemSnapshot[];
+    lastError?: VideoWriteSafeErrorSnapshot | null;
+  }
+
+  export interface VideoSeasonWriteDispatch {
+    markEpisodesWatched: (
+      items: readonly VideoSeasonWriteItem[],
+      watched: boolean
+    ) => Promise<VideoSeasonWriteSummary> | VideoSeasonWriteSummary;
+    retryFailedVideoWrites: (
+      items: readonly VideoSeasonWriteItem[]
+    ) => Promise<VideoSeasonWriteSummary> | VideoSeasonWriteSummary;
   }
 </script>
 
@@ -17,6 +45,7 @@
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     artworkDispatch?: VideoSeasonArtworkDispatch;
+    writeDispatch?: VideoSeasonWriteDispatch;
   }
 
   type ArtworkStatus =
@@ -25,12 +54,44 @@
     | { kind: 'success'; message: string }
     | { kind: 'error'; message: string };
 
+  type WriteAction = 'mark-watched' | 'mark-unwatched' | 'retry-failed';
+  type WriteStatus =
+    | { kind: 'idle'; message: string }
+    | { kind: 'pending'; action: WriteAction; message: string }
+    | { kind: 'success'; action: WriteAction; message: string }
+    | { kind: 'partial'; action: WriteAction; message: string }
+    | { kind: 'error'; action: WriteAction; message: string };
+
   const noopArtworkDispatch: VideoSeasonArtworkDispatch = {
     refreshSeasonArtwork: async () => undefined
   };
+  const noopWriteDispatch: VideoSeasonWriteDispatch = {
+    markEpisodesWatched: async (items) => ({
+      total: items.length,
+      succeeded: items.length,
+      failed: 0,
+      failedItems: []
+    }),
+    retryFailedVideoWrites: async (items) => ({
+      total: items.length,
+      succeeded: items.length,
+      failed: 0,
+      failedItems: []
+    })
+  };
 
-  let { snapshot, route, artworkDispatch = noopArtworkDispatch }: Props = $props();
+  let {
+    snapshot,
+    route,
+    artworkDispatch = noopArtworkDispatch,
+    writeDispatch = noopWriteDispatch
+  }: Props = $props();
   let artworkStatusOverride = $state<ArtworkStatus | null>(null);
+  let writeStatus = $state<WriteStatus>({
+    kind: 'idle',
+    message: 'Season write actions are ready.'
+  });
+  let retryItems = $state<VideoSeasonWriteItem[]>([]);
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvSeasonDetail' ? safePositiveId(route.tvshowid) : null
@@ -51,6 +112,9 @@
     artworkStatusOverride?.message ?? capabilityText(snapshot.seasonArtworkCapability)
   );
   const pending = $derived(artworkStatusOverride?.kind === 'pending');
+  const writableEpisodes = $derived(buildWritableEpisodes(episodes));
+  const writePending = $derived(writeStatus.kind === 'pending');
+  const writeDisabled = $derived(writePending || writableEpisodes.length === 0);
 
   function findSeason(
     values: readonly VideoSeasonSnapshot[],
@@ -89,6 +153,167 @@
           (safeSeason(left.episode) ?? 0) - (safeSeason(right.episode) ?? 0) ||
           (safePositiveId(left.episodeid) ?? 0) - (safePositiveId(right.episodeid) ?? 0)
       );
+  }
+
+  function buildWritableEpisodes(values: readonly VideoEpisodeSnapshot[]): VideoSeasonWriteItem[] {
+    return values.flatMap((episode) => {
+      const episodeid = safePositiveId(episode.episodeid);
+      if (episodeid === null) return [];
+      return [{ episodeid, label: safeEpisodeLabel(episode) }];
+    });
+  }
+
+  function episodeKey(episode: VideoEpisodeSnapshot, index: number): string {
+    const episodeid = safePositiveId(episode.episodeid);
+    return episodeid === null ? `invalid-${index}` : `episode-${episodeid}`;
+  }
+
+  function failedItemsFromSummary(summary: VideoSeasonWriteSummary): VideoSeasonWriteItem[] {
+    return (Array.isArray(summary.failedItems) ? summary.failedItems : []).flatMap((item) => {
+      const episodeid = safePositiveId(item.id);
+      if (episodeid === null) return [];
+      return [{ episodeid, label: safeFailedLabel(item, episodeid) }];
+    });
+  }
+
+  function safeFailedLabel(item: VideoWriteFailedItemSnapshot, episodeid: number): string {
+    return textOrNull(item.label) ?? `Episode ${episodeid}`;
+  }
+
+  function normalizeSummary(
+    value: VideoSeasonWriteSummary,
+    attemptedTotal: number
+  ):
+    | {
+        ok: true;
+        total: number;
+        succeeded: number;
+        failed: number;
+        failedItems: VideoWriteFailedItemSnapshot[];
+      }
+    | { ok: false; message: string } {
+    const total = finiteNonNegativeInteger(value?.total);
+    const succeeded = finiteNonNegativeInteger(value?.succeeded);
+    const failed = finiteNonNegativeInteger(value?.failed);
+    if (
+      total === null ||
+      succeeded === null ||
+      failed === null ||
+      total > attemptedTotal ||
+      succeeded + failed > total
+    ) {
+      return {
+        ok: false,
+        message: 'Season write failed. The write dispatch returned a malformed summary.'
+      };
+    }
+    const failedItems = Array.isArray(value.failedItems)
+      ? value.failedItems.map((item) => ({ ...item, error: item.error ? { ...item.error } : null }))
+      : [];
+    return { ok: true, total, succeeded, failed, failedItems };
+  }
+
+  function finiteNonNegativeInteger(value: unknown): number | null {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+  }
+
+  function writeSummaryMessage(summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+  }): string {
+    return `${summary.succeeded} of ${summary.total} updated; ${summary.failed} failed`;
+  }
+
+  function failedItemsMessage(items: readonly VideoWriteFailedItemSnapshot[]): string {
+    const visible = items.slice(0, 3).map((item) => {
+      const id = safePositiveId(item.id);
+      const label = id === null ? (textOrNull(item.label) ?? 'Episode') : safeFailedLabel(item, id);
+      const message = item.error?.message ? `: ${sanitizeUiText(item.error.message)}` : '';
+      return `${label}${message}`;
+    });
+    const remaining = items.length - visible.length;
+    return [visible.join('; '), remaining > 0 ? `${remaining} more failed.` : '']
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  async function markSeasonWatched(watched: boolean): Promise<void> {
+    const items = writableEpisodes;
+    const action: WriteAction = watched ? 'mark-watched' : 'mark-unwatched';
+    retryItems = [];
+    if (items.length === 0) {
+      writeStatus = {
+        kind: 'error',
+        action,
+        message: 'No writable episodes in this season snapshot.'
+      };
+      return;
+    }
+    writeStatus = {
+      kind: 'pending',
+      action,
+      message: `Marking ${items.length} ${items.length === 1 ? 'episode' : 'episodes'} ${watched ? 'watched' : 'unwatched'}…`
+    };
+    try {
+      const result = normalizeSummary(
+        await writeDispatch.markEpisodesWatched(items, watched),
+        items.length
+      );
+      if (!result.ok) {
+        writeStatus = { kind: 'error', action, message: result.message };
+        return;
+      }
+      retryItems = failedItemsFromSummary({ ...result, failedItems: result.failedItems });
+      const detail = result.failed > 0 ? failedItemsMessage(result.failedItems) : '';
+      writeStatus = {
+        kind: result.failed === 0 ? 'success' : result.succeeded === 0 ? 'error' : 'partial',
+        action,
+        message: `${writeSummaryMessage(result)}${detail ? `. ${detail}` : ''}`
+      };
+    } catch (error) {
+      retryItems = [];
+      writeStatus = {
+        kind: 'error',
+        action,
+        message: `Could not mark season ${watched ? 'watched' : 'unwatched'}. ${sanitizeUiText(errorMessage(error))}`
+      };
+    }
+  }
+
+  async function retryFailedWrites(): Promise<void> {
+    const items = retryItems;
+    if (items.length === 0) return;
+    writeStatus = {
+      kind: 'pending',
+      action: 'retry-failed',
+      message: `Retrying ${items.length} failed ${items.length === 1 ? 'episode' : 'episodes'}…`
+    };
+    try {
+      const result = normalizeSummary(
+        await writeDispatch.retryFailedVideoWrites(items),
+        items.length
+      );
+      if (!result.ok) {
+        retryItems = [];
+        writeStatus = { kind: 'error', action: 'retry-failed', message: result.message };
+        return;
+      }
+      retryItems = failedItemsFromSummary({ ...result, failedItems: result.failedItems });
+      const detail = result.failed > 0 ? failedItemsMessage(result.failedItems) : '';
+      writeStatus = {
+        kind: result.failed === 0 ? 'success' : result.succeeded === 0 ? 'error' : 'partial',
+        action: 'retry-failed',
+        message: `${writeSummaryMessage(result)}${detail ? `. ${detail}` : ''}`
+      };
+    } catch (error) {
+      retryItems = [];
+      writeStatus = {
+        kind: 'error',
+        action: 'retry-failed',
+        message: `Could not retry failed season writes. ${sanitizeUiText(errorMessage(error))}`
+      };
+    }
   }
 
   function episodeHref(episode: VideoEpisodeSnapshot): string | null {
@@ -259,13 +484,45 @@
         {statusMessage}
       </div>
     </div>
+    <div class="season-write-actions" aria-label="Season watched actions">
+      <button
+        type="button"
+        aria-label="Mark season watched"
+        disabled={writeDisabled}
+        onclick={() => void markSeasonWatched(true)}>Mark season watched</button
+      >
+      <button
+        type="button"
+        aria-label="Mark season unwatched"
+        disabled={writeDisabled}
+        onclick={() => void markSeasonWatched(false)}>Mark season unwatched</button
+      >
+      {#if retryItems.length > 0}
+        <button
+          type="button"
+          aria-label="Retry failed"
+          disabled={writePending}
+          onclick={() => void retryFailedWrites()}>Retry failed</button
+        >
+      {/if}
+      <div
+        class={`write-status ${writeStatus.kind}`}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {writableEpisodes.length === 0
+          ? 'No writable episodes in this season snapshot.'
+          : writeStatus.message}
+      </div>
+    </div>
     <p class="count-summary">{countSummary()}</p>
     <p class="state-copy">{unwatchedText(season)}</p>
     {#if episodes.length === 0}
       <p class="state-copy">No episodes found for this season snapshot.</p>
     {:else}
       <ul class="episode-list" aria-label="Season episodes">
-        {#each episodes as episode (safePositiveId(episode.episodeid))}
+        {#each episodes as episode, index (episodeKey(episode, index))}
           {@const href = episodeHref(episode)}
           <li class="episode-card">
             {#if href}<a class="episode-link episode-title" {href}>{safeEpisodeLabel(episode)}</a
@@ -300,7 +557,8 @@
   .panel-heading,
   .episode-card,
   .empty-state,
-  .artwork-actions {
+  .artwork-actions,
+  .season-write-actions {
     display: grid;
     gap: var(--space-xs);
   }
@@ -328,6 +586,7 @@
   .episode-meta,
   .empty-state,
   .action-status,
+  .write-status,
   .state-copy,
   .count-summary {
     color: var(--color-text-muted);
@@ -373,11 +632,19 @@
   }
   .episode-card,
   .empty-state,
-  .action-status {
+  .action-status,
+  .write-status {
     padding: var(--space-md);
     background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
     border-radius: var(--radius-lg);
     box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+  .write-status.success {
+    color: var(--color-success);
+  }
+  .write-status.partial,
+  .write-status.error {
+    color: var(--color-danger);
   }
   .badge-list {
     display: flex;

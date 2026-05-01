@@ -2,7 +2,9 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import VideoSeasonDetailShell, {
-  type VideoSeasonArtworkDispatch
+  type VideoSeasonArtworkDispatch,
+  type VideoSeasonWriteDispatch,
+  type VideoSeasonWriteSummary
 } from './VideoSeasonDetailShell.svelte';
 import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
@@ -107,11 +109,14 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
 function renderShell(
   snapshot: VideoTvStoreSnapshot,
   route: VideoRoute,
-  artworkDispatch?: VideoSeasonArtworkDispatch
+  props: {
+    artworkDispatch?: VideoSeasonArtworkDispatch;
+    writeDispatch?: VideoSeasonWriteDispatch;
+  } = {}
 ): void {
   mounted = mount(VideoSeasonDetailShell, {
     target: document.body,
-    props: { snapshot, route, artworkDispatch }
+    props: { snapshot, route, ...props }
   });
 }
 
@@ -131,6 +136,46 @@ function expectSecretSafe(value: string): void {
   expect(value).not.toContain('sessionStorage');
   expect(value).not.toContain('/mnt/media');
   expect(value).not.toContain('image://');
+}
+
+function getButton(label: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+    (candidate) =>
+      candidate.getAttribute('aria-label') === label || candidate.textContent?.trim() === label
+  );
+  expect(button, `button ${label}`).toBeInstanceOf(HTMLButtonElement);
+  return button!;
+}
+
+function createSeasonWriteDispatch(
+  overrides: Partial<VideoSeasonWriteDispatch> = {}
+): VideoSeasonWriteDispatch {
+  return {
+    markEpisodesWatched: vi.fn(async () => ({
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      failedItems: []
+    })),
+    retryFailedVideoWrites: vi.fn(async () => ({
+      total: 0,
+      succeeded: 0,
+      failed: 0,
+      failedItems: []
+    })),
+    ...overrides
+  };
+}
+
+function seasonEpisodes(count: number): VideoTvStoreSnapshot['episodes'] {
+  return Array.from({ length: count }, (_, index) => ({
+    episodeid: 1000 + index,
+    tvshowid: 11,
+    season: 2,
+    episode: index + 1,
+    label: `Episode ${String(index + 1).padStart(3, '0')}`,
+    runtime: 1800 + index
+  }));
 }
 
 describe('VideoSeasonDetailShell', () => {
@@ -214,7 +259,7 @@ describe('VideoSeasonDetailShell', () => {
     renderShell(
       populatedSnapshot(),
       { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
-      artworkDispatch
+      { artworkDispatch }
     );
 
     const button = document.querySelector<HTMLButtonElement>(
@@ -250,7 +295,7 @@ describe('VideoSeasonDetailShell', () => {
     renderShell(
       populatedSnapshot(),
       { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
-      artworkDispatch
+      { artworkDispatch }
     );
 
     document
@@ -274,7 +319,7 @@ describe('VideoSeasonDetailShell', () => {
     renderShell(
       populatedSnapshot(),
       { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 999 },
-      artworkDispatch
+      { artworkDispatch }
     );
 
     expect(screenText()).toContain('Season 999 is not present in this snapshot.');
@@ -301,13 +346,246 @@ describe('VideoSeasonDetailShell', () => {
         ]
       }),
       { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
-      artworkDispatch
+      { artworkDispatch }
     );
 
     const text = screenText();
     expect(text).toContain('Unknown episode');
     expect(text).toContain('Safe Episode');
     expect(document.querySelectorAll('a.episode-link')).toHaveLength(1);
+    expectSecretSafe(text);
+  });
+
+  it('routes 103 episode season watched and unwatched batches through injected write dispatch', async () => {
+    const expectedItems = seasonEpisodes(103).map((episode) => ({
+      episodeid: episode.episodeid,
+      label: episode.label
+    }));
+    const writeDispatch = createSeasonWriteDispatch({
+      markEpisodesWatched: vi.fn(async (items, watched) => ({
+        total: items.length,
+        succeeded: items.length,
+        failed: 0,
+        failedItems: [],
+        watched
+      }))
+    });
+    renderShell(
+      populatedSnapshot({
+        seasons: [
+          { tvshowid: 11, season: 2, label: 'Season 2', episodeCount: 103, unwatchedEpisodes: 103 }
+        ],
+        episodes: seasonEpisodes(103),
+        limits: { episodes: { start: 0, end: 103, total: 103 } }
+      }),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    getButton('Mark season watched').click();
+    await tick();
+    await tick();
+
+    expect(writeDispatch.markEpisodesWatched).toHaveBeenCalledWith(expectedItems, true);
+    expect(screenText()).toContain('103 of 103 updated; 0 failed');
+
+    getButton('Mark season unwatched').click();
+    await tick();
+    await tick();
+
+    expect(writeDispatch.markEpisodesWatched).toHaveBeenLastCalledWith(expectedItems, false);
+    expect(screenText()).toContain('103 of 103 updated; 0 failed');
+    expectSecretSafe(screenText());
+  });
+
+  it('disables season write controls during pending batch writes', async () => {
+    let resolveBatch: (value: VideoSeasonWriteSummary) => void = () => {
+      throw new Error('resolver not assigned');
+    };
+    const writeDispatch = createSeasonWriteDispatch({
+      markEpisodesWatched: vi.fn(
+        () =>
+          new Promise<VideoSeasonWriteSummary>((resolve) => {
+            resolveBatch = resolve;
+          })
+      )
+    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    getButton('Mark season watched').click();
+    await tick();
+
+    expect(getButton('Mark season watched').disabled).toBe(true);
+    expect(getButton('Mark season unwatched').disabled).toBe(true);
+    expect(screenText()).toContain('Marking 3 episodes watched…');
+
+    resolveBatch({ total: 3, succeeded: 3, failed: 0, failedItems: [] });
+    await tick();
+    await tick();
+
+    expect(getButton('Mark season watched').disabled).toBe(false);
+    expect(screenText()).toContain('3 of 3 updated; 0 failed');
+  });
+
+  it('renders partial season batch summaries sanitizes failures and retries failed IDs only', async () => {
+    const writeDispatch = createSeasonWriteDispatch({
+      markEpisodesWatched: vi.fn(async () => ({
+        total: 103,
+        succeeded: 97,
+        failed: 6,
+        failedItems: [
+          {
+            kind: 'episode' as const,
+            id: 1007,
+            label: 'smb://nas/private/Episode 008.mkv',
+            error: {
+              source: 'http' as const,
+              code: 'http/failed',
+              message:
+                'Authorization: Basic abc123 failed at http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage SENTINEL_SECRET'
+            }
+          },
+          {
+            kind: 'episode' as const,
+            id: 1012,
+            label: 'Episode 013',
+            error: {
+              source: 'write' as const,
+              code: 'write/failed',
+              message: '/mnt/media/private.mkv failed'
+            }
+          }
+        ]
+      })),
+      retryFailedVideoWrites: vi.fn(async (items) => ({
+        total: items.length,
+        succeeded: items.length,
+        failed: 0,
+        failedItems: []
+      }))
+    });
+    renderShell(
+      populatedSnapshot({
+        seasons: [
+          { tvshowid: 11, season: 2, label: 'Season 2', episodeCount: 103, unwatchedEpisodes: 103 }
+        ],
+        episodes: seasonEpisodes(103),
+        limits: { episodes: { start: 0, end: 103, total: 103 } }
+      }),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    getButton('Mark season watched').click();
+    await tick();
+    await tick();
+
+    const text = screenText();
+    expect(text).toContain('97 of 103 updated; 6 failed');
+    expect(text).toContain('Episode 1007');
+    expect(text).toContain('Episode 013');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('response body [redacted]');
+    expectSecretSafe(text);
+
+    getButton('Retry failed').click();
+    await tick();
+    await tick();
+
+    expect(writeDispatch.retryFailedVideoWrites).toHaveBeenCalledWith([
+      { episodeid: 1007, label: 'Episode 1007' },
+      { episodeid: 1012, label: 'Episode 013' }
+    ]);
+    expect(screenText()).toContain('2 of 2 updated; 0 failed');
+  });
+
+  it('filters unsafe episode IDs and shows no writable episode copy when none remain', async () => {
+    const writeDispatch = createSeasonWriteDispatch();
+    renderShell(
+      populatedSnapshot({
+        episodes: [
+          { episodeid: Number.NaN, tvshowid: 11, season: 2, episode: 1, label: 'Unsafe NaN' },
+          { episodeid: -5, tvshowid: 11, season: 2, episode: 2, label: 'Unsafe negative' },
+          { episodeid: 2 ** 54, tvshowid: 11, season: 2, episode: 3, label: 'Unsafe large' }
+        ],
+        limits: { episodes: { start: 0, end: 3, total: 3 } }
+      }),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    expect(screenText()).toContain('No writable episodes in this season snapshot.');
+    expect(getButton('Mark season watched').disabled).toBe(true);
+    expect(getButton('Mark season unwatched').disabled).toBe(true);
+
+    getButton('Mark season watched').click();
+    await tick();
+
+    expect(writeDispatch.markEpisodesWatched).not.toHaveBeenCalled();
+  });
+
+  it('does not trust malformed season write summaries or expose retry targets', async () => {
+    const writeDispatch = createSeasonWriteDispatch({
+      markEpisodesWatched: vi.fn(async () => ({
+        total: 999,
+        succeeded: 998,
+        failed: 1,
+        failedItems: [
+          {
+            kind: 'episode' as const,
+            id: 100,
+            label: 'Hello, Ms. Cobel',
+            error: { source: 'write' as const, code: 'write/failed', message: 'failed' }
+          }
+        ]
+      }))
+    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    getButton('Mark season watched').click();
+    await tick();
+    await tick();
+
+    expect(screenText()).toContain(
+      'Season write failed. The write dispatch returned a malformed summary.'
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Retry failed"]')
+    ).toBeNull();
+  });
+
+  it('sanitizes thrown season write errors and keeps retry unavailable without failed IDs', async () => {
+    const writeDispatch = createSeasonWriteDispatch({
+      markEpisodesWatched: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc and /mnt/media/private.mkv from sessionStorage'
+        );
+      })
+    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      { writeDispatch }
+    );
+
+    getButton('Mark season unwatched').click();
+    await tick();
+    await tick();
+
+    const text = screenText();
+    expect(text).toContain('Could not mark season unwatched.');
+    expect(text).toContain('credentials [redacted]');
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Retry failed"]')
+    ).toBeNull();
     expectSecretSafe(text);
   });
 });
