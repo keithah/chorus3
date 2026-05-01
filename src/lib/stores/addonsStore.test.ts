@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
-import { createAddonsStore, type AddonsStoreMethods } from './addonsStore.svelte';
+import { createAddonsStore, type AddonsStoreMethods } from './addonsStore.svelte.ts';
 
 type Call = { method: string; args: unknown[] };
 
