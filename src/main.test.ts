@@ -94,6 +94,39 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Road Trip.m3u');
   });
 
+  it('mounts a safe settings placeholder for the direct settings route', async () => {
+    setPathAndSearch('/settings', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).toContain('Settings support is loading for this route.');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('admin:p@ssword');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+    expect(document.body.textContent).not.toContain('localStorage');
+    expect(document.body.textContent).not.toContain('sessionStorage');
+  });
+
+  it('mounts a safe settings unknown route without raw unsafe input', async () => {
+    setPathAndSearch(
+      '/settings/admin:p@ssword/Authorization/Basic/SENTINEL_SECRET/localStorage/sessionStorage',
+      '?m005-browser-proof=1&token=Basic'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Settings route not found');
+    expect(document.body.textContent).toContain('/settings/[redacted]/[redacted]');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('admin:p@ssword');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+    expect(document.body.textContent).not.toContain('localStorage');
+    expect(document.body.textContent).not.toContain('sessionStorage');
+  });
+
   it('mounts populated M004 browser-proof fixtures for direct video grid recent sections and playlists', async () => {
     setPathAndSearch('/video/movies', '?m004-browser-proof=1');
 
@@ -258,20 +291,97 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
   });
 
+  it('exposes M005 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
+    const { resolveEntrypointRoute, shouldUseM005BrowserProofFixtures } = await importMain();
+
+    expect(resolveEntrypointRoute({ pathname: '/settings', search: '?ignored=1' })).toEqual({
+      kind: 'settings'
+    });
+    expect(resolveEntrypointRoute({ pathname: '/settings/', search: '?ignored=1' })).toEqual({
+      kind: 'settings'
+    });
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/settings/Authorization/Basic/admin:p@ssword/SENTINEL_SECRET',
+        search: '?token=Basic'
+      })
+    ).toEqual({
+      kind: 'settingsUnknown',
+      pathLabel: '/settings/[redacted]/[redacted]/[redacted]/[redacted]'
+    });
+    expect(resolveEntrypointRoute({ pathname: '?m005-browser-proof=1', search: '' })).toEqual({
+      kind: 'dashboard'
+    });
+    expect(resolveEntrypointRoute({ pathname: '//settings//', search: '' })).toEqual({
+      kind: 'settings'
+    });
+    expect(
+      resolveEntrypointRoute({
+        get pathname(): string {
+          throw new Error('untrusted location');
+        },
+        search: '?m005-browser-proof=1'
+      }).kind
+    ).toBe('dashboard');
+    expect(
+      shouldUseM005BrowserProofFixtures(
+        { search: '?m005-browser-proof=1' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM005BrowserProofFixtures(
+        { search: '?m005-browser-proof=1' },
+        { DEV: false, MODE: 'test' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM005BrowserProofFixtures(
+        { search: '?m005-browser-proof=0' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(shouldUseM005BrowserProofFixtures(undefined, { DEV: true, MODE: 'development' })).toBe(
+      false
+    );
+    expect(
+      shouldUseM005BrowserProofFixtures(
+        {
+          get search(): string {
+            throw new Error('untrusted location');
+          }
+        },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(
+      shouldUseM005BrowserProofFixtures(
+        { search: '?m005-browser-proof=1' },
+        { DEV: false, MODE: 'production' }
+      )
+    ).toBe(false);
+  });
+
   it('exposes M004 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
     const { resolveEntrypointRoute, shouldUseM004BrowserProofFixtures } = await importMain();
 
     expect(
       resolveEntrypointRoute({ pathname: '/video/movies/4401/stream', search: '?ignored=1' })
     ).toEqual({
-      kind: 'videoMovieStream',
-      movieid: 4401
+      kind: 'video',
+      route: {
+        kind: 'videoMovieStream',
+        movieid: 4401
+      }
     });
     expect(
       resolveEntrypointRoute({ pathname: '/video/movies/4401', search: '?ignored=1' })
     ).toEqual({
-      kind: 'videoMovieDetail',
-      movieid: 4401
+      kind: 'video',
+      route: {
+        kind: 'videoMovieDetail',
+        movieid: 4401
+      }
     });
     expect(
       resolveEntrypointRoute({
@@ -279,10 +389,13 @@ describe('main entrypoint', () => {
         search: '?ignored=1'
       })
     ).toEqual({
-      kind: 'videoEpisodeDetail',
-      tvshowid: 5501,
-      season: 1,
-      episodeid: 6601
+      kind: 'video',
+      route: {
+        kind: 'videoEpisodeDetail',
+        tvshowid: 5501,
+        season: 1,
+        episodeid: 6601
+      }
     });
     expect(resolveEntrypointRoute(undefined)).toEqual({ kind: 'dashboard' });
     expect(

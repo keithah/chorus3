@@ -10,7 +10,8 @@ import {
   type M004BrowserProofAppProps
 } from './lib/testing/m004BrowserProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
-import { parseVideoRoute, type VideoRoute } from './lib/video/videoRouter';
+import { parseAppRoute, type AppRoute } from './lib/app/appRouter';
+import type { VideoRoute } from './lib/video/videoRouter';
 
 export interface EntrypointEnv {
   DEV?: boolean;
@@ -22,12 +23,13 @@ export interface EntrypointLocation {
   search?: unknown;
 }
 
-type AppProps = { route: VideoRoute } & Partial<
-  M003BrowserProofAppProps & M004BrowserProofAppProps
+type AppProps = { route: AppRoute } & Partial<
+  Omit<M003BrowserProofAppProps & M004BrowserProofAppProps, 'route'>
 >;
 
 const canLoadM003BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 const canLoadM004BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const canLoadM005BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 
 export function shouldUseM003BrowserProofFixtures(
   location: EntrypointLocation | null | undefined,
@@ -43,11 +45,18 @@ export function shouldUseM004BrowserProofFixtures(
   return shouldUseBrowserProofFixtures(location, env, 'm004-browser-proof');
 }
 
+export function shouldUseM005BrowserProofFixtures(
+  location: EntrypointLocation | null | undefined,
+  env: EntrypointEnv
+): boolean {
+  return shouldUseBrowserProofFixtures(location, env, 'm005-browser-proof');
+}
+
 export function resolveEntrypointRoute(
   location: EntrypointLocation | null | undefined = globalThis.window?.location
-): VideoRoute {
+): AppRoute {
   try {
-    return parseVideoRoute(location?.pathname, location?.search);
+    return parseAppRoute(location?.pathname, location?.search);
   } catch {
     return { kind: 'dashboard' };
   }
@@ -82,14 +91,23 @@ export function resolveEntrypointAppProps(
   const route = resolveEntrypointRoute(location);
 
   if (shouldUseM004BrowserProofFixtures(location, env) && canLoadM004BrowserProofFixtures) {
-    return createM004BrowserProofAppProps(location);
+    const props = createM004BrowserProofAppProps(location);
+    return { ...props, route: toAppRoute(props.route) };
   }
 
   if (shouldUseM003BrowserProofFixtures(location, env) && canLoadM003BrowserProofFixtures) {
     return { route, ...createM003BrowserProofAppProps() };
   }
 
+  if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
+    return { route };
+  }
+
   return { route };
+}
+
+function toAppRoute(route: VideoRoute): AppRoute {
+  return route.kind === 'dashboard' ? route : { kind: 'video', route };
 }
 
 applyTheme(resolveInitialTheme(window.localStorage), {

@@ -84,6 +84,7 @@
     videoWriteStore,
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
+  import { type AppRoute } from '$lib/app/appRouter';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -114,7 +115,7 @@
     videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     videoMediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
     videoMediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
-    route?: VideoRoute;
+    route?: AppRoute | VideoRoute;
     videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoNavigationDispatch?: VideoNavigationDispatch;
@@ -237,6 +238,8 @@
     }
   };
 
+  const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -269,7 +272,9 @@
     videoSeasonArtworkDispatch = defaultVideoSeasonArtworkDispatch,
     videoSeasonWriteDispatch = defaultVideoSeasonWriteDispatch
   }: Props = $props();
-  const currentRoute = $derived(route);
+  const currentRoute = $derived(toAppRoute(route));
+  const currentVideoRoute = $derived(currentRoute.kind === 'video' ? currentRoute.route : null);
+  const currentRenderableVideoRoute = $derived(currentVideoRoute ?? dashboardVideoRoute);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
@@ -286,14 +291,32 @@
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
-  const isVideoMoviesRoute = $derived(currentRoute.kind === 'videoMovies');
-  const isVideoMovieDetailRoute = $derived(currentRoute.kind === 'videoMovieDetail');
-  const isVideoMovieStreamRoute = $derived(currentRoute.kind === 'videoMovieStream');
-  const isVideoTvShowsRoute = $derived(currentRoute.kind === 'videoTvShows');
-  const isVideoTvShowDetailRoute = $derived(currentRoute.kind === 'videoTvShowDetail');
-  const isVideoTvSeasonDetailRoute = $derived(currentRoute.kind === 'videoTvSeasonDetail');
-  const isVideoEpisodeDetailRoute = $derived(currentRoute.kind === 'videoEpisodeDetail');
-  const isVideoUnknownRoute = $derived(currentRoute.kind === 'videoUnknown');
+  const isSettingsRoute = $derived(currentRoute.kind === 'settings');
+  const isSettingsUnknownRoute = $derived(currentRoute.kind === 'settingsUnknown');
+  const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
+  const isVideoMovieDetailRoute = $derived(currentVideoRoute?.kind === 'videoMovieDetail');
+  const isVideoMovieStreamRoute = $derived(currentVideoRoute?.kind === 'videoMovieStream');
+  const isVideoTvShowsRoute = $derived(currentVideoRoute?.kind === 'videoTvShows');
+  const isVideoTvShowDetailRoute = $derived(currentVideoRoute?.kind === 'videoTvShowDetail');
+  const isVideoTvSeasonDetailRoute = $derived(currentVideoRoute?.kind === 'videoTvSeasonDetail');
+  const isVideoEpisodeDetailRoute = $derived(currentVideoRoute?.kind === 'videoEpisodeDetail');
+  const isVideoUnknownRoute = $derived(currentVideoRoute?.kind === 'videoUnknown');
+
+  function toAppRoute(input: AppRoute | VideoRoute): AppRoute {
+    if (
+      input.kind === 'dashboard' ||
+      input.kind === 'settings' ||
+      input.kind === 'settingsUnknown'
+    ) {
+      return input;
+    }
+
+    if (input.kind === 'video') {
+      return input;
+    }
+
+    return { kind: 'video', route: input };
+  }
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
     if (id.startsWith('source:')) {
@@ -383,15 +406,15 @@
   }
 
   async function refreshAfterSeasonWrite(): Promise<void> {
-    if (currentRoute.kind !== 'videoTvSeasonDetail') {
+    if (currentVideoRoute?.kind !== 'videoTvSeasonDetail') {
       return;
     }
 
     await bestEffortRefresh([
       () =>
         videoTvStore.refreshSeasonEpisodes(
-          currentRoute.tvshowid,
-          currentRoute.season,
+          currentVideoRoute.tvshowid,
+          currentVideoRoute.season,
           'command:videoWrite'
         )
     ]);
@@ -586,6 +609,32 @@
       />
       <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
     </main>
+  {:else if isSettingsRoute}
+    <main class="settings-route" aria-label="Kodi Settings">
+      <section class="settings-placeholder surface" aria-labelledby="settings-placeholder-title">
+        <p class="section-kicker">Kodi Settings</p>
+        <h2 id="settings-placeholder-title">Kodi Settings</h2>
+        <p>Settings support is loading for this route.</p>
+      </section>
+    </main>
+  {:else if isSettingsUnknownRoute}
+    <main class="settings-route" aria-label="Unknown settings route">
+      <section
+        class="settings-route-not-found surface"
+        aria-labelledby="settings-route-not-found-title"
+      >
+        <p class="section-kicker">Kodi Settings</p>
+        <h2 id="settings-route-not-found-title">Settings route not found</h2>
+        <p>
+          The settings route {currentRoute.kind === 'settingsUnknown'
+            ? currentRoute.pathLabel
+            : '/settings/unknown'} is not available in this app shell.
+        </p>
+        <nav class="settings-route-recovery" aria-label="Settings route recovery">
+          <a href="/settings">Settings</a>
+        </nav>
+      </section>
+    </main>
   {:else if isVideoMoviesRoute}
     <main class="video-route" aria-label="Video movies route">
       <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
@@ -600,7 +649,7 @@
     <main class="video-route" aria-label="Video movie detail route">
       <VideoMovieDetailShell
         snapshot={currentVideoLibrarySnapshot}
-        route={currentRoute}
+        route={currentRenderableVideoRoute}
         detailSnapshot={videoMovieDetailSnapshot}
         actionDispatch={videoMovieActionDispatch}
       />
@@ -609,7 +658,7 @@
     <main class="video-stream-route" aria-label="Video movie stream route">
       <VideoMovieStreamShell
         snapshot={currentVideoLibrarySnapshot}
-        route={currentRoute}
+        route={currentRenderableVideoRoute}
         detailSnapshot={videoMovieDetailSnapshot}
         localPlayerSnapshot={currentLocalSnapshot}
         dispatchSnapshot={playerDispatch.snapshot}
@@ -628,13 +677,16 @@
     </main>
   {:else if isVideoTvShowDetailRoute}
     <main class="video-route" aria-label="Video TV show detail route">
-      <VideoTvShowDetailShell snapshot={currentVideoTvSnapshot} route={currentRoute} />
+      <VideoTvShowDetailShell
+        snapshot={currentVideoTvSnapshot}
+        route={currentRenderableVideoRoute}
+      />
     </main>
   {:else if isVideoTvSeasonDetailRoute}
     <main class="video-route" aria-label="Video TV season detail route">
       <VideoSeasonDetailShell
         snapshot={currentVideoTvSnapshot}
-        route={currentRoute}
+        route={currentRenderableVideoRoute}
         artworkDispatch={videoSeasonArtworkDispatch}
         writeDispatch={videoSeasonWriteDispatch}
       />
@@ -643,7 +695,7 @@
     <main class="video-route" aria-label="Video episode detail route">
       <VideoEpisodeDetailShell
         snapshot={currentVideoTvSnapshot}
-        route={currentRoute}
+        route={currentRenderableVideoRoute}
         actionDispatch={videoEpisodeActionDispatch}
       />
     </main>
@@ -653,8 +705,8 @@
         <p class="section-kicker">Video Library</p>
         <h2 id="video-route-not-found-title">Video route not found</h2>
         <p>
-          The video route {currentRoute.kind === 'videoUnknown'
-            ? currentRoute.pathLabel
+          The video route {currentVideoRoute?.kind === 'videoUnknown'
+            ? currentVideoRoute.pathLabel
             : '/video/unknown'} is not available in this app shell.
         </p>
         <nav class="video-route-recovery" aria-label="Video route recovery">
@@ -744,7 +796,8 @@
     line-height: 1.7;
   }
 
-  .video-route-recovery {
+  .video-route-recovery,
+  .settings-route-recovery {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-sm);
