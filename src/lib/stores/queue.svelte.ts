@@ -1,5 +1,6 @@
 import {
   KodiHttpClientError,
+  addFilePlaylistItem,
   addMusicPlaylistItem,
   clearPlaylist,
   getPlaylistItems,
@@ -18,13 +19,15 @@ import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
 
 export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
-export type QueueCommandName = 'removeAt' | 'clear' | 'swap' | 'queueMusicItem';
+export type QueueCommandName = 'removeAt' | 'clear' | 'swap' | 'queueMusicItem' | 'queueFileItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
 
 export type MusicQueueItem =
   | { kind?: 'song'; songid: number; albumid?: never; artistid?: never; file?: never }
   | { kind?: 'album'; albumid: number; songid?: never; artistid?: never; file?: never }
   | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
+
+export type FileQueueItem = { file: string; mediaKind: 'audio' };
 
 export interface QueueDispatchSafeErrorSnapshot {
   source: QueueDispatchErrorSource;
@@ -467,6 +470,10 @@ export class QueueDispatch {
     return this.#runMusicQueueCommand(item);
   }
 
+  queueFileItem(item: FileQueueItem): Promise<void> {
+    return this.#runFileQueueCommand(item);
+  }
+
   async #runMusicQueueCommand(item: MusicQueueItem): Promise<void> {
     if (this.#snapshot.commandStatus === 'running') {
       this.#failCommand(
@@ -512,6 +519,56 @@ export class QueueDispatch {
       ...this.#snapshot,
       commandStatus: 'success',
       lastCommand: 'queueMusicItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runFileQueueCommand(item: FileQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queueFileItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queueFileItem');
+
+    const fileItemResult = normalizeFileQueueItem(item);
+    if (!fileItemResult.ok) {
+      this.#failCommand('queueFileItem', fileItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queueFileItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addFilePlaylistItem(clientResult.client, 0, fileItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queueFileItem');
+
+    if (commandError) {
+      this.#failCommand('queueFileItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queueFileItem',
       lastError: null,
       lastCompletedAt: this.#now()
     };
@@ -708,6 +765,29 @@ function normalizeMusicQueueItem(
   return { ok: true, item: { artistid: idValue } };
 }
 
+function normalizeFileQueueItem(
+  item: unknown
+): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidFileItemError() };
+  }
+
+  const keys = Object.keys(item).sort();
+
+  if (
+    keys.length === 2 &&
+    keys[0] === 'file' &&
+    keys[1] === 'mediaKind' &&
+    typeof item.file === 'string' &&
+    item.file.trim().length > 0 &&
+    item.mediaKind === 'audio'
+  ) {
+    return { ok: true, item: { file: item.file } };
+  }
+
+  return { ok: false, error: createInvalidFileItemError() };
+}
+
 function isPositiveInteger(value: unknown): value is number {
   return Number.isInteger(value) && typeof value === 'number' && value > 0;
 }
@@ -716,6 +796,13 @@ function createInvalidMusicItemError(): QueueDispatchSafeErrorSnapshot {
   return createQueueInputError(
     'input/invalid-music-item',
     'Choose a valid song, album, or artist to add to the queue.'
+  );
+}
+
+function createInvalidFileItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-file-item',
+    'Choose a supported audio file to queue.'
   );
 }
 

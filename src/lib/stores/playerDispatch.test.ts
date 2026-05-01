@@ -12,6 +12,10 @@ type CallRecord = {
   params?: unknown;
 };
 
+type PlayerDispatchWithFiles = ReturnType<typeof createPlayerDispatch> & {
+  playFileItem(item: unknown): Promise<void>;
+};
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -236,6 +240,129 @@ describe('player dispatch', () => {
       lastError: null,
       lastCompletedAt: '2026-01-02T00:00:00.000Z'
     });
+  });
+
+  it('opens audio file items through Player.Open and refreshes with file-specific command state', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+
+    await (dispatch as PlayerDispatchWithFiles).playFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { file: 'smb://nas/music/special.mp3' } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playFileItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'playFileItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('plays audio file items locally through prepared stream URLs without exposing raw file paths in public errors', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/special.mp3' },
+      mode: 'redirect'
+    });
+
+    await (dispatch as PlayerDispatchWithFiles).playFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(client.calls).toEqual([
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/special.mp3' } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls[0]?.method).toBe('loadAndPlay');
+    expect(localPlayerStore.calls[0]?.args).toMatchObject({
+      source: 'http://kodi.local:8080/vfs/special.mp3',
+      mediaKind: 'audio',
+      kodiWasPaused: false,
+      item: { label: 'File item', type: 'file' }
+    });
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'success',
+      lastCommand: 'playFileItem',
+      lastError: null
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('rejects invalid file playback items before calling Kodi or Local playback', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidItems = [
+      { file: '', mediaKind: 'audio' },
+      { file: '   ', mediaKind: 'audio' },
+      { file: 42, mediaKind: 'audio' },
+      { file: 'smb://nas/music/special.mp3', mediaKind: 'video' },
+      { file: 'smb://nas/music/special.mp3', mediaKind: 'unknown' },
+      { kind: 'song', songid: 42, file: 'smb://nas/music/special.mp3', mediaKind: 'audio' }
+    ];
+
+    for (const item of invalidItems) {
+      await (dispatch as PlayerDispatchWithFiles).playFileItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'playFileItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-file-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('sanitizes file playback preparation and local load failures', async () => {
+    const { client, dispatch, localPlayerStore } = createHarness();
+    dispatch.setMode('local');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '' },
+      mode: 'redirect'
+    });
+
+    await (dispatch as PlayerDispatchWithFiles).playFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playFileItem',
+      lastError: { source: 'command', code: 'command/prepare-download-missing-path' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: 'http://admin:p@ssword@kodi.local:8080/vfs/special.mp3' },
+      mode: 'redirect'
+    });
+    localPlayerStore.loadError = new Error(
+      'local load rejected for http://admin:p@ssword@kodi.local/vfs/special.mp3 Authorization: Basic token localStorage'
+    );
+
+    await (dispatch as PlayerDispatchWithFiles).playFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playFileItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
   });
 
   it('rejects malformed music playback items before calling Kodi', async () => {

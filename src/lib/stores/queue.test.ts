@@ -221,11 +221,150 @@ type QueueDispatchWithMusic = QueueDispatch & {
   queueMusicItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithFiles = QueueDispatch & {
+  queueFileItem(item: unknown): Promise<void>;
+};
+
 function asMusicDispatch(dispatch: QueueDispatch): QueueDispatchWithMusic {
   return dispatch as QueueDispatchWithMusic;
 }
 
+function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
+  return dispatch as QueueDispatchWithFiles;
+}
+
 describe('queue dispatch', () => {
+  it('queues audio file items through Playlist.Add with audio playlist id and authoritative refetches', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asFileDispatch(dispatch).queueFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/special.mp3' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueFileItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueFileItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueFileItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects invalid file queue inputs before calling Kodi or refreshing stores', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const invalidInputs = [
+      { file: '', mediaKind: 'audio' },
+      { file: '   ', mediaKind: 'audio' },
+      { file: 42, mediaKind: 'audio' },
+      { file: 'smb://secret/song.flac', mediaKind: 'video' },
+      { file: 'smb://secret/song.flac', mediaKind: 'unknown' },
+      { kind: 'song', songid: 42, file: 'smb://secret/song.flac', mediaKind: 'audio' }
+    ];
+
+    for (const input of invalidInputs) {
+      await asFileDispatch(dispatch).queueFileItem(input);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'queueFileItem',
+        lastError: { source: 'input', code: 'input/invalid-file-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('serializes file queue commands and preserves success when refreshes fail', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const pending = deferred<unknown>();
+    client.enqueue('Playlist.Add', pending);
+    client.enqueue('Playlist.Add', 'OK');
+    queueStore.refreshError = new Error('queue refresh failed with smb://secret/song.flac');
+    playerStore.refreshError = new Error('player refresh failed with Authorization: Basic token');
+    const fileDispatch = asFileDispatch(dispatch);
+
+    const firstCall = fileDispatch.queueFileItem({
+      file: 'smb://nas/music/first.mp3',
+      mediaKind: 'audio'
+    });
+    await flushPromises();
+    await fileDispatch.queueFileItem({ file: 'smb://nas/music/second.mp3', mediaKind: 'audio' });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueFileItem',
+      lastError: { code: 'command/already-running' }
+    });
+
+    pending.resolve('OK');
+    await firstCall;
+    await fileDispatch.queueFileItem({ file: 'smb://nas/music/third.mp3', mediaKind: 'audio' });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/first.mp3' } }
+      },
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/third.mp3' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueFileItem', 'command:queueFileItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueFileItem', 'command:queueFileItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueFileItem',
+      lastError: null
+    });
+  });
+
+  it('sanitizes file queue command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Add',
+      new Error(
+        'add failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://secret/song.flac from localStorage raw body'
+      )
+    );
+
+    await asFileDispatch(dispatch).queueFileItem({
+      file: 'smb://nas/music/special.mp3',
+      mediaKind: 'audio'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/special.mp3' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueFileItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueFileItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueFileItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
   it('queues music songs, albums, and artists through audio Playlist.Add without active playlist state', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     queueStore.snapshot = createQueueSnapshot({

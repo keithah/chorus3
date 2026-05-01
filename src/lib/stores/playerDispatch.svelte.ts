@@ -2,6 +2,7 @@ import {
   KodiHttpClientError,
   goToPlayerItem,
   isKodiHttpClientError,
+  openPlayerFile,
   openPlayerItem,
   playPausePlayer,
   seekPlayer,
@@ -48,12 +49,14 @@ export type PlayerCommandName =
   | 'setAudioStream'
   | 'setSubtitle'
   | 'playMusicItem'
+  | 'playFileItem'
   | 'startLocalPlayback'
   | 'resumeOnKodi';
 export type MusicPlaybackItem =
   | { kind: 'song'; songid: number }
   | { kind: 'album'; albumid: number }
   | { kind: 'artist'; artistid: number };
+export type FilePlaybackItem = { file: string; mediaKind: 'audio' };
 
 export type PlayerDispatchErrorSource = 'config' | 'player' | 'mode' | 'input' | 'http' | 'command';
 
@@ -390,6 +393,21 @@ export class PlayerDispatch {
     });
   }
 
+  playFileItem(item: FilePlaybackItem): Promise<void> {
+    const fileItem = toKodiFilePlaybackItem(item) ?? { file: '' };
+
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalFilePlaybackCommand(item);
+    }
+
+    return this.#runCommand({
+      command: 'playFileItem',
+      validate: () => validateFilePlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerFile(client, fileItem)
+    });
+  }
+
   startLocalPlayback(): Promise<void> {
     return this.#runStartLocalPlayback();
   }
@@ -529,6 +547,60 @@ export class PlayerDispatch {
 
     this.#snapshot = {
       ...this.#snapshot,
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runLocalFilePlaybackCommand(item: FilePlaybackItem): Promise<void> {
+    this.#startCommand('playFileItem');
+
+    const validationError = validateFilePlaybackItem(item);
+    if (validationError) {
+      this.#failCommand(validationError);
+      return;
+    }
+
+    const fileItem = toKodiFilePlaybackItem(item) ?? { file: '' };
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file: fileItem.file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#localPlayerStore.loadAndPlay({
+        source: streamUrl,
+        item: { label: 'File item', type: 'file' },
+        mediaKind: item.mediaKind,
+        kodiWasPaused: false
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
       commandStatus: 'success',
       lastError: null,
       lastCompletedAt: this.#now()
@@ -752,6 +824,34 @@ function validateMusicPlaybackItem(
       'input/invalid-music-item',
       'Choose a song, album, or artist with a valid library id.'
     );
+  }
+
+  return null;
+}
+
+function validateFilePlaybackItem(item: FilePlaybackItem): PlayerDispatchSafeErrorSnapshot | null {
+  return toKodiFilePlaybackItem(item)
+    ? null
+    : createInputError('input/invalid-file-item', 'Choose a supported audio file to play.');
+}
+
+function toKodiFilePlaybackItem(item: FilePlaybackItem): { file: string } | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+
+  if (
+    keys.length === 2 &&
+    keys[0] === 'file' &&
+    keys[1] === 'mediaKind' &&
+    typeof candidate.file === 'string' &&
+    candidate.file.trim().length > 0 &&
+    candidate.mediaKind === 'audio'
+  ) {
+    return { file: candidate.file };
   }
 
   return null;
