@@ -124,11 +124,24 @@ function enqueueSuccessfulLibrary(client: FakeKodiClient): void {
         thumbnail: 'song.jpg',
         playcount: 4,
         lastplayed: '2026-01-01 01:02:03',
+        dateadded: '2025-12-31 23:59:58',
         file: 'smb://secret/music/Dael.flac'
       },
       { songid: 101, label: '', file: 'http://admin:p@ssword@kodi.local/song.mp3' }
     ],
     limits: { start: 0, end: 25, total: 2 }
+  });
+  client.enqueue('AudioLibrary.GetSongs', {
+    songs: [{ songid: 110, label: 'Recently Added', dateadded: '2026-02-01 01:02:03' }],
+    limits: { start: 0, end: 25, total: 1 }
+  });
+  client.enqueue('AudioLibrary.GetSongs', {
+    songs: [{ songid: 111, label: 'Recently Played', lastplayed: '2026-02-02 01:02:03' }],
+    limits: { start: 0, end: 25, total: 1 }
+  });
+  client.enqueue('AudioLibrary.GetSongs', {
+    songs: [{ songid: 112, label: 'Most Played', playcount: 99 }],
+    limits: { start: 0, end: 25, total: 1 }
   });
   client.enqueue('AudioLibrary.GetGenres', {
     genres: [
@@ -145,6 +158,9 @@ function enqueueEmptyLibrary(client: FakeKodiClient): void {
     limits: { start: 0, end: 0, total: 0 }
   });
   client.enqueue('AudioLibrary.GetAlbums', { albums: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
   client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
   client.enqueue('AudioLibrary.GetGenres', { genres: [], limits: { start: 0, end: 0, total: 0 } });
 }
@@ -175,11 +191,17 @@ describe('music library store', () => {
       artists: [],
       albums: [],
       songs: [],
+      recentlyAddedSongs: [],
+      recentlyPlayedSongs: [],
+      mostPlayedSongs: [],
       genres: [],
       limits: {
         artists: { start: 0, end: 0, total: 0 },
         albums: { start: 0, end: 0, total: 0 },
         songs: { start: 0, end: 0, total: 0 },
+        recentlyAddedSongs: { start: 0, end: 0, total: 0 },
+        recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
+        mostPlayedSongs: { start: 0, end: 0, total: 0 },
         genres: { start: 0, end: 0, total: 0 }
       },
       isEmpty: true,
@@ -216,9 +238,64 @@ describe('music library store', () => {
             'track',
             'thumbnail',
             'playcount',
-            'lastplayed'
+            'lastplayed',
+            'dateadded'
           ],
           limits: { start: 0, end: 25 }
+        }
+      },
+      {
+        method: 'AudioLibrary.GetSongs',
+        params: {
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'duration',
+            'track',
+            'thumbnail',
+            'playcount',
+            'lastplayed',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'dateadded', order: 'descending' }
+        }
+      },
+      {
+        method: 'AudioLibrary.GetSongs',
+        params: {
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'duration',
+            'track',
+            'thumbnail',
+            'playcount',
+            'lastplayed',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'lastplayed', order: 'descending' }
+        }
+      },
+      {
+        method: 'AudioLibrary.GetSongs',
+        params: {
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'duration',
+            'track',
+            'thumbnail',
+            'playcount',
+            'lastplayed',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'playcount', order: 'descending' }
         }
       },
       {
@@ -268,10 +345,18 @@ describe('music library store', () => {
           track: 1,
           thumbnail: 'song.jpg',
           playcount: 4,
-          lastplayed: '2026-01-01 01:02:03'
+          lastplayed: '2026-01-01 01:02:03',
+          dateadded: '2025-12-31 23:59:58'
         },
         { songid: 101, label: 'Unknown song' }
       ],
+      recentlyAddedSongs: [
+        { songid: 110, label: 'Recently Added', dateadded: '2026-02-01 01:02:03' }
+      ],
+      recentlyPlayedSongs: [
+        { songid: 111, label: 'Recently Played', lastplayed: '2026-02-02 01:02:03' }
+      ],
+      mostPlayedSongs: [{ songid: 112, label: 'Most Played', playcount: 99 }],
       genres: [
         { genreid: 200, label: 'Electronic', title: 'Electronic', thumbnail: 'genre.jpg' },
         { genreid: 201, label: 'Unknown genre' }
@@ -281,6 +366,9 @@ describe('music library store', () => {
       artists: { start: 0, end: 25, total: 2 },
       albums: { start: 0, end: 25, total: 2 },
       songs: { start: 0, end: 25, total: 2 },
+      recentlyAddedSongs: { start: 0, end: 25, total: 1 },
+      recentlyPlayedSongs: { start: 0, end: 25, total: 1 },
+      mostPlayedSongs: { start: 0, end: 25, total: 1 },
       genres: { start: 0, end: 25, total: 2 }
     });
     expectSecretSafe(store.snapshot);
@@ -293,6 +381,17 @@ describe('music library store', () => {
     client.enqueue('AudioLibrary.GetSongs', {
       songs: ['bad', 123, null, { songid: 5, label: '' }]
     });
+    client.enqueue('AudioLibrary.GetSongs', {
+      songs: [
+        'bad',
+        { songid: Number.NaN, label: 'Dropped recent', file: 'smb://secret/recent.flac' },
+        { songid: 6, label: 'Recent safe', dateadded: '2026-03-01 01:02:03' }
+      ]
+    });
+    client.enqueue('AudioLibrary.GetSongs', { songs: { bad: true } });
+    client.enqueue('AudioLibrary.GetSongs', {
+      songs: [{ songid: 7, label: 'Top safe', playcount: 5 }]
+    });
     client.enqueue('AudioLibrary.GetGenres', { genres: undefined });
 
     await store.refresh('manual');
@@ -302,19 +401,25 @@ describe('music library store', () => {
       artists: [],
       albums: [],
       songs: [{ songid: 5, label: 'Unknown song' }],
+      recentlyAddedSongs: [{ songid: 6, label: 'Recent safe', dateadded: '2026-03-01 01:02:03' }],
+      recentlyPlayedSongs: [],
+      mostPlayedSongs: [{ songid: 7, label: 'Top safe', playcount: 5 }],
       genres: [],
       isEmpty: false,
       limits: {
         artists: { start: 0, end: 0, total: 0 },
         albums: { start: 0, end: 0, total: 0 },
         songs: { start: 0, end: 1, total: 1 },
+        recentlyAddedSongs: { start: 0, end: 1, total: 1 },
+        recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
+        mostPlayedSongs: { start: 0, end: 1, total: 1 },
         genres: { start: 0, end: 0, total: 0 }
       }
     });
     expectSecretSafe(store.snapshot);
   });
 
-  it('sets isEmpty only when all four normalized lists are empty', async () => {
+  it('sets isEmpty only when all normalized standard and discovery lists are empty', async () => {
     const empty = createHarness();
     enqueueEmptyLibrary(empty.client);
     await empty.store.refresh('manual');
@@ -326,9 +431,25 @@ describe('music library store', () => {
     });
     nonEmpty.client.enqueue('AudioLibrary.GetAlbums', { albums: [] });
     nonEmpty.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    nonEmpty.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    nonEmpty.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    nonEmpty.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
     nonEmpty.client.enqueue('AudioLibrary.GetGenres', { genres: [] });
     await nonEmpty.store.refresh('manual');
     expect(nonEmpty.store.snapshot.isEmpty).toBe(false);
+
+    const discoveryOnly = createHarness();
+    discoveryOnly.client.enqueue('AudioLibrary.GetArtists', { artists: [] });
+    discoveryOnly.client.enqueue('AudioLibrary.GetAlbums', { albums: [] });
+    discoveryOnly.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    discoveryOnly.client.enqueue('AudioLibrary.GetSongs', {
+      songs: [{ songid: 10, label: 'Recently Added' }]
+    });
+    discoveryOnly.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    discoveryOnly.client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    discoveryOnly.client.enqueue('AudioLibrary.GetGenres', { genres: [] });
+    await discoveryOnly.store.refresh('manual');
+    expect(discoveryOnly.store.snapshot.isEmpty).toBe(false);
   });
 
   it('preserves previous safe data and exposes sanitized errors when refresh fails', async () => {
@@ -336,6 +457,9 @@ describe('music library store', () => {
     enqueueSuccessfulLibrary(client);
     await store.refresh('manual');
     const previousSongs = store.snapshot.songs;
+    const previousRecentlyAddedSongs = store.snapshot.recentlyAddedSongs;
+    const previousRecentlyPlayedSongs = store.snapshot.recentlyPlayedSongs;
+    const previousMostPlayedSongs = store.snapshot.mostPlayedSongs;
 
     client.enqueue(
       'AudioLibrary.GetArtists',
@@ -352,6 +476,9 @@ describe('music library store', () => {
       lastRefreshReason: 'error:refresh-failed',
       lastUpdatedAt: new Date(3_000).toISOString(),
       songs: previousSongs,
+      recentlyAddedSongs: previousRecentlyAddedSongs,
+      recentlyPlayedSongs: previousRecentlyPlayedSongs,
+      mostPlayedSongs: previousMostPlayedSongs,
       lastError: { source: 'unknown', code: 'refresh-failed' }
     });
     expectSecretSafe(store.snapshot);
@@ -368,6 +495,9 @@ describe('music library store', () => {
       artists: [],
       albums: [],
       songs: [],
+      recentlyAddedSongs: [],
+      recentlyPlayedSongs: [],
+      mostPlayedSongs: [],
       genres: [],
       lastError: {
         source: 'client',
@@ -416,10 +546,16 @@ describe('music library store', () => {
     const slowArtists = deferred<unknown>();
     const slowAlbums = deferred<unknown>();
     const slowSongs = deferred<unknown>();
+    const slowRecentlyAddedSongs = deferred<unknown>();
+    const slowRecentlyPlayedSongs = deferred<unknown>();
+    const slowMostPlayedSongs = deferred<unknown>();
     const slowGenres = deferred<unknown>();
     client.enqueue('AudioLibrary.GetArtists', slowArtists);
     client.enqueue('AudioLibrary.GetAlbums', slowAlbums);
     client.enqueue('AudioLibrary.GetSongs', slowSongs);
+    client.enqueue('AudioLibrary.GetSongs', slowRecentlyAddedSongs);
+    client.enqueue('AudioLibrary.GetSongs', slowRecentlyPlayedSongs);
+    client.enqueue('AudioLibrary.GetSongs', slowMostPlayedSongs);
     client.enqueue('AudioLibrary.GetGenres', slowGenres);
 
     const slowRefresh = store.refresh('manual');
@@ -428,19 +564,26 @@ describe('music library store', () => {
     client.enqueue('AudioLibrary.GetArtists', { artists: [{ artistid: 2, label: 'New artist' }] });
     client.enqueue('AudioLibrary.GetAlbums', { albums: [] });
     client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [{ songid: 20, label: 'New recent' }] });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [] });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [] });
     client.enqueue('AudioLibrary.GetGenres', { genres: [] });
     await store.refresh('poll');
 
     slowArtists.resolve({ artists: [{ artistid: 1, label: 'Old artist' }] });
     slowAlbums.resolve({ albums: [] });
     slowSongs.resolve({ songs: [] });
+    slowRecentlyAddedSongs.resolve({ songs: [{ songid: 10, label: 'Old recent' }] });
+    slowRecentlyPlayedSongs.resolve({ songs: [] });
+    slowMostPlayedSongs.resolve({ songs: [] });
     slowGenres.resolve({ genres: [] });
     await slowRefresh;
 
     expect(store.snapshot).toMatchObject({
       refreshStatus: 'ready',
       lastRefreshReason: 'poll',
-      artists: [{ artistid: 2, label: 'New artist' }]
+      artists: [{ artistid: 2, label: 'New artist' }],
+      recentlyAddedSongs: [{ songid: 20, label: 'New recent' }]
     });
   });
 
@@ -454,7 +597,11 @@ describe('music library store', () => {
     snapshot.artists[0].genre!.push('Mutated genre');
     snapshot.albums[0].artist!.push('Mutated album artist');
     snapshot.songs[0].artist!.push('Mutated song artist');
+    snapshot.recentlyAddedSongs[0].label = 'Mutated recent';
+    snapshot.recentlyPlayedSongs[0].label = 'Mutated played';
+    snapshot.mostPlayedSongs[0].label = 'Mutated top';
     snapshot.limits.artists.total = 999;
+    snapshot.limits.recentlyAddedSongs.total = 999;
 
     expect(store.snapshot.artists[0]).toEqual({
       artistid: 1,
@@ -464,6 +611,10 @@ describe('music library store', () => {
     });
     expect(store.snapshot.albums[0].artist).toEqual(['Autechre']);
     expect(store.snapshot.songs[0].artist).toEqual(['Autechre']);
+    expect(store.snapshot.recentlyAddedSongs[0].label).toBe('Recently Added');
+    expect(store.snapshot.recentlyPlayedSongs[0].label).toBe('Recently Played');
+    expect(store.snapshot.mostPlayedSongs[0].label).toBe('Most Played');
     expect(store.snapshot.limits.artists.total).toBe(2);
+    expect(store.snapshot.limits.recentlyAddedSongs.total).toBe(1);
   });
 });

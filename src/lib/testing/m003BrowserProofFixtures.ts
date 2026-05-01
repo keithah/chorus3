@@ -111,11 +111,17 @@ function createMusicLibrarySnapshot(): MusicLibraryStoreSnapshot {
         playcount: 2
       }
     ],
+    recentlyAddedSongs: [],
+    recentlyPlayedSongs: [],
+    mostPlayedSongs: [],
     genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
     limits: {
       artists: { start: 0, end: 1, total: 1 },
       albums: { start: 0, end: 1, total: 1 },
       songs: { start: 0, end: 1, total: 1 },
+      recentlyAddedSongs: { start: 0, end: 0, total: 0 },
+      recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
+      mostPlayedSongs: { start: 0, end: 0, total: 0 },
       genres: { start: 0, end: 1, total: 1 }
     },
     isEmpty: false,

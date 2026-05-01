@@ -88,6 +88,7 @@ describe('music library normalization helpers', () => {
         thumbnail: 'song.jpg',
         playcount: 4,
         lastplayed: '2026-01-01 01:02:03',
+        dateadded: '2025-12-31 23:59:58',
         file: 'smb://secret/music/Dael.flac'
       },
       { songid: 101, label: '', file: 'http://admin:p@ssword@kodi.local/song.mp3' }
@@ -103,7 +104,8 @@ describe('music library normalization helpers', () => {
         track: 1,
         thumbnail: 'song.jpg',
         playcount: 4,
-        lastplayed: '2026-01-01 01:02:03'
+        lastplayed: '2026-01-01 01:02:03',
+        dateadded: '2025-12-31 23:59:58'
       },
       { songid: 101, label: 'Unknown song' }
     ]);
@@ -191,6 +193,11 @@ describe('music library normalization helpers', () => {
     const artists = [{ artistid: 1, label: 'Autechre', genre: ['Electronic'] }];
     const albums = [{ albumid: 10, label: 'Tri Repetae', artist: ['Autechre'] }];
     const songs = [{ songid: 100, label: 'Dael', artist: ['Autechre'] }];
+    const recentlyAddedSongs = [{ songid: 101, label: 'Recently added', artist: ['Nina Simone'] }];
+    const recentlyPlayedSongs = [
+      { songid: 102, label: 'Recently played', artist: ['Nina Simone'] }
+    ];
+    const mostPlayedSongs = [{ songid: 103, label: 'Most played', artist: ['Nina Simone'] }];
     const genres = [{ genreid: 200, label: 'Electronic' }];
     const limits = { start: 0, end: 1, total: 1 };
     const error = {
@@ -211,6 +218,7 @@ describe('music library normalization helpers', () => {
     const clonedAlbums = cloneMusicLibraryAlbumSnapshots(albums);
     const clonedSongs = cloneMusicLibrarySongSnapshots(songs);
     const clonedGenres = cloneMusicLibraryGenreSnapshots(genres);
+    const clonedDiscoverySongs = cloneMusicLibrarySongSnapshots(recentlyAddedSongs);
     const clonedLimits = cloneMusicLibraryLimits(limits);
     const clonedError = cloneMusicLibrarySafeError(error);
 
@@ -218,6 +226,7 @@ describe('music library normalization helpers', () => {
     clonedAlbums[0].artist!.push('Mutated album artist');
     clonedSongs[0].artist!.push('Mutated song artist');
     clonedGenres[0].label = 'Mutated genre';
+    clonedDiscoverySongs[0].artist!.push('Mutated discovery artist');
     clonedLimits.total = 999;
     clonedError!.endpoint!.host = 'mutated.example';
 
@@ -225,6 +234,7 @@ describe('music library normalization helpers', () => {
     expect(albums[0].artist).toEqual(['Autechre']);
     expect(songs[0].artist).toEqual(['Autechre']);
     expect(genres[0].label).toBe('Electronic');
+    expect(recentlyAddedSongs[0].artist).toEqual(['Nina Simone']);
     expect(limits.total).toBe(1);
     expect(error.endpoint.host).toBe('kodi.local');
 
@@ -235,19 +245,38 @@ describe('music library normalization helpers', () => {
       artists,
       albums,
       songs,
+      recentlyAddedSongs,
+      recentlyPlayedSongs,
+      mostPlayedSongs,
       genres,
-      limits: { artists: limits, albums: limits, songs: limits, genres: limits },
+      limits: {
+        artists: limits,
+        albums: limits,
+        songs: limits,
+        recentlyAddedSongs: limits,
+        recentlyPlayedSongs: limits,
+        mostPlayedSongs: limits,
+        genres: limits
+      },
       isEmpty: false,
       lastError: error
     };
 
     const clonedSnapshot = cloneMusicLibrarySnapshot(snapshot);
     clonedSnapshot.songs[0].artist!.push('Snapshot mutation');
+    clonedSnapshot.recentlyAddedSongs[0].artist!.push('Snapshot discovery mutation');
+    clonedSnapshot.recentlyPlayedSongs[0].artist!.push('Snapshot recently played mutation');
+    clonedSnapshot.mostPlayedSongs[0].artist!.push('Snapshot most played mutation');
     clonedSnapshot.limits.songs.total = 500;
+    clonedSnapshot.limits.recentlyAddedSongs.total = 501;
     clonedSnapshot.lastError!.endpoint!.host = 'snapshot-mutated.example';
 
     expect(snapshot.songs[0].artist).toEqual(['Autechre']);
+    expect(snapshot.recentlyAddedSongs[0].artist).toEqual(['Nina Simone']);
+    expect(snapshot.recentlyPlayedSongs[0].artist).toEqual(['Nina Simone']);
+    expect(snapshot.mostPlayedSongs[0].artist).toEqual(['Nina Simone']);
     expect(snapshot.limits.songs.total).toBe(1);
+    expect(snapshot.limits.recentlyAddedSongs.total).toBe(1);
     expect(snapshot.lastError!.endpoint!.host).toBe('kodi.local');
   });
 });

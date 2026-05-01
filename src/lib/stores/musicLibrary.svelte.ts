@@ -64,7 +64,8 @@ const DEFAULT_SONG_PROPERTIES = [
   'track',
   'thumbnail',
   'playcount',
-  'lastplayed'
+  'lastplayed',
+  'dateadded'
 ] as const satisfies readonly AudioLibrarySongPropertyName[];
 const DEFAULT_GENRE_PROPERTIES = [
   'title',
@@ -78,11 +79,17 @@ const DEFAULT_SNAPSHOT: MusicLibraryStoreSnapshot = {
   artists: [],
   albums: [],
   songs: [],
+  recentlyAddedSongs: [],
+  recentlyPlayedSongs: [],
+  mostPlayedSongs: [],
   genres: [],
   limits: {
     artists: DEFAULT_LIMITS,
     albums: DEFAULT_LIMITS,
     songs: DEFAULT_LIMITS,
+    recentlyAddedSongs: DEFAULT_LIMITS,
+    recentlyPlayedSongs: DEFAULT_LIMITS,
+    mostPlayedSongs: DEFAULT_LIMITS,
     genres: DEFAULT_LIMITS
   },
   isEmpty: true,
@@ -120,7 +127,15 @@ export class MusicLibraryStore {
 
     try {
       const client = this.#resolveClient();
-      const [artistsResult, albumsResult, songsResult, genresResult] = await Promise.all([
+      const [
+        artistsResult,
+        albumsResult,
+        songsResult,
+        recentlyAddedSongsResult,
+        recentlyPlayedSongsResult,
+        mostPlayedSongsResult,
+        genresResult
+      ] = await Promise.all([
         getAudioLibraryArtists(client, {
           properties: DEFAULT_ARTIST_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
@@ -132,6 +147,21 @@ export class MusicLibraryStore {
         getAudioLibrarySongs(client, {
           properties: DEFAULT_SONG_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
+        }),
+        getAudioLibrarySongs(client, {
+          properties: DEFAULT_SONG_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'dateadded', order: 'descending' }
+        }),
+        getAudioLibrarySongs(client, {
+          properties: DEFAULT_SONG_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'lastplayed', order: 'descending' }
+        }),
+        getAudioLibrarySongs(client, {
+          properties: DEFAULT_SONG_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'playcount', order: 'descending' }
         }),
         getAudioLibraryGenres(client, {
           properties: DEFAULT_GENRE_PROPERTIES,
@@ -146,6 +176,9 @@ export class MusicLibraryStore {
       const artists = normalizeMusicArtists(artistsResult.artists);
       const albums = normalizeMusicAlbums(albumsResult.albums);
       const songs = normalizeMusicSongs(songsResult.songs);
+      const recentlyAddedSongs = normalizeMusicSongs(recentlyAddedSongsResult.songs);
+      const recentlyPlayedSongs = normalizeMusicSongs(recentlyPlayedSongsResult.songs);
+      const mostPlayedSongs = normalizeMusicSongs(mostPlayedSongsResult.songs);
       const genres = normalizeMusicGenres(genresResult.genres);
 
       this.#snapshot = {
@@ -155,15 +188,33 @@ export class MusicLibraryStore {
         artists,
         albums,
         songs,
+        recentlyAddedSongs,
+        recentlyPlayedSongs,
+        mostPlayedSongs,
         genres,
         limits: {
           artists: normalizeMusicLimits(artistsResult.limits, artists),
           albums: normalizeMusicLimits(albumsResult.limits, albums),
           songs: normalizeMusicLimits(songsResult.limits, songs),
+          recentlyAddedSongs: normalizeMusicLimits(
+            recentlyAddedSongsResult.limits,
+            recentlyAddedSongs
+          ),
+          recentlyPlayedSongs: normalizeMusicLimits(
+            recentlyPlayedSongsResult.limits,
+            recentlyPlayedSongs
+          ),
+          mostPlayedSongs: normalizeMusicLimits(mostPlayedSongsResult.limits, mostPlayedSongs),
           genres: normalizeMusicLimits(genresResult.limits, genres)
         },
         isEmpty:
-          artists.length === 0 && albums.length === 0 && songs.length === 0 && genres.length === 0,
+          artists.length === 0 &&
+          albums.length === 0 &&
+          songs.length === 0 &&
+          recentlyAddedSongs.length === 0 &&
+          recentlyPlayedSongs.length === 0 &&
+          mostPlayedSongs.length === 0 &&
+          genres.length === 0,
         lastError: null
       };
     } catch (error) {

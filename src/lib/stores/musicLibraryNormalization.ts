@@ -55,6 +55,7 @@ export interface MusicLibrarySongSnapshot {
   thumbnail?: string;
   playcount?: number;
   lastplayed?: string;
+  dateadded?: string;
 }
 
 export interface MusicLibraryGenreSnapshot {
@@ -71,11 +72,17 @@ export interface MusicLibraryStoreSnapshot {
   artists: MusicLibraryArtistSnapshot[];
   albums: MusicLibraryAlbumSnapshot[];
   songs: MusicLibrarySongSnapshot[];
+  recentlyAddedSongs: MusicLibrarySongSnapshot[];
+  recentlyPlayedSongs: MusicLibrarySongSnapshot[];
+  mostPlayedSongs: MusicLibrarySongSnapshot[];
   genres: MusicLibraryGenreSnapshot[];
   limits: {
     artists: MusicLibraryLimitsSnapshot;
     albums: MusicLibraryLimitsSnapshot;
     songs: MusicLibraryLimitsSnapshot;
+    recentlyAddedSongs: MusicLibraryLimitsSnapshot;
+    recentlyPlayedSongs: MusicLibraryLimitsSnapshot;
+    mostPlayedSongs: MusicLibraryLimitsSnapshot;
     genres: MusicLibraryLimitsSnapshot;
   };
   isEmpty: boolean;
@@ -148,7 +155,8 @@ export function normalizeMusicSongs(items: unknown): MusicLibrarySongSnapshot[] 
         ...numberField('track', item.track),
         ...stringField('thumbnail', item.thumbnail),
         ...numberField('playcount', item.playcount),
-        ...stringField('lastplayed', item.lastplayed)
+        ...stringField('lastplayed', item.lastplayed),
+        ...stringField('dateadded', item.dateadded)
       }
     ];
   });
@@ -275,11 +283,17 @@ export function cloneMusicLibrarySnapshot(
     artists: cloneMusicLibraryArtistSnapshots(snapshot.artists),
     albums: cloneMusicLibraryAlbumSnapshots(snapshot.albums),
     songs: cloneMusicLibrarySongSnapshots(snapshot.songs),
+    recentlyAddedSongs: cloneMusicLibrarySongSnapshots(snapshot.recentlyAddedSongs),
+    recentlyPlayedSongs: cloneMusicLibrarySongSnapshots(snapshot.recentlyPlayedSongs),
+    mostPlayedSongs: cloneMusicLibrarySongSnapshots(snapshot.mostPlayedSongs),
     genres: cloneMusicLibraryGenreSnapshots(snapshot.genres),
     limits: {
       artists: cloneMusicLibraryLimits(snapshot.limits.artists),
       albums: cloneMusicLibraryLimits(snapshot.limits.albums),
       songs: cloneMusicLibraryLimits(snapshot.limits.songs),
+      recentlyAddedSongs: cloneMusicLibraryLimits(snapshot.limits.recentlyAddedSongs),
+      recentlyPlayedSongs: cloneMusicLibraryLimits(snapshot.limits.recentlyPlayedSongs),
+      mostPlayedSongs: cloneMusicLibraryLimits(snapshot.limits.mostPlayedSongs),
       genres: cloneMusicLibraryLimits(snapshot.limits.genres)
     },
     lastError: cloneMusicLibrarySafeError(snapshot.lastError)

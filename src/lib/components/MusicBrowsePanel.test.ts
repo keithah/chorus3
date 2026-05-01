@@ -20,8 +20,12 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
+  limits?: Partial<MusicLibraryStoreSnapshot['limits']>;
+};
+
 function createLibrarySnapshot(
-  overrides: Partial<MusicLibraryStoreSnapshot> = {}
+  overrides: MusicLibrarySnapshotOverrides = {}
 ): MusicLibraryStoreSnapshot {
   return {
     refreshStatus: 'ready',
@@ -42,19 +46,26 @@ function createLibrarySnapshot(
       { albumid: 11, label: 'Unknown album' }
     ],
     songs: [],
+    recentlyAddedSongs: [],
+    recentlyPlayedSongs: [],
+    mostPlayedSongs: [],
     genres: [
       { genreid: 30, label: 'Jazz', title: 'Jazz' },
       { genreid: 31, label: 'Unknown genre' }
     ],
+    isEmpty: false,
+    lastError: null,
+    ...overrides,
     limits: {
       artists: { start: 0, end: 2, total: 2 },
       albums: { start: 0, end: 2, total: 2 },
       songs: { start: 0, end: 0, total: 0 },
-      genres: { start: 0, end: 2, total: 2 }
-    },
-    isEmpty: false,
-    lastError: null,
-    ...overrides
+      recentlyAddedSongs: { start: 0, end: 0, total: 0 },
+      recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
+      mostPlayedSongs: { start: 0, end: 0, total: 0 },
+      genres: { start: 0, end: 2, total: 2 },
+      ...overrides.limits
+    }
   };
 }
 
