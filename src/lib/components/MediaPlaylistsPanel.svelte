@@ -269,7 +269,11 @@
 
   function safeEntryLabel(entry: MediaPlaylistEntrySnapshot, index: number): string {
     const fallback =
-      entry.mediaKind === 'audio' ? `Audio entry ${index + 1}` : `Entry ${index + 1}`;
+      entry.mediaKind === 'audio'
+        ? `Audio entry ${index + 1}`
+        : entry.mediaKind === 'video'
+          ? `Video entry ${index + 1}`
+          : `Entry ${index + 1}`;
     return displayText(entry.label, fallback);
   }
 
@@ -283,6 +287,10 @@
 
   function playlistMeta(playlist: MediaPlaylistSnapshot): string {
     if (playlist.kind === 'smart') {
+      if (playlist.media === 'video') {
+        return 'Can open, but video playback and queueing are disabled';
+      }
+
       return 'Can open, play, and queue';
     }
 
@@ -294,7 +302,15 @@
   }
 
   function entryKicker(entry: MediaPlaylistEntrySnapshot): string {
-    return entry.mediaKind === 'audio' ? 'Audio entry' : 'Unsupported entry';
+    if (entry.mediaKind === 'audio') {
+      return 'Audio entry';
+    }
+
+    if (entry.mediaKind === 'video') {
+      return 'Video entry';
+    }
+
+    return 'Unsupported entry';
   }
 
   function entryMeta(entry: MediaPlaylistEntrySnapshot): string {
@@ -302,6 +318,10 @@
       return entry.capabilities.canPlay && entry.capabilities.canQueue
         ? 'Playable item from the opened playlist'
         : 'Audio item without available actions';
+    }
+
+    if (entry.mediaKind === 'video') {
+      return 'Video item is browse-only in this view';
     }
 
     return 'This playlist entry cannot be played or queued from this view';
@@ -325,6 +345,10 @@
     }
 
     return 'Media playlists';
+  }
+
+  function safeMediaTitle(media: string): string {
+    return media === 'video' ? 'Video' : 'Music';
   }
 
   function safeMediaLabel(media: string): string {
@@ -401,8 +425,8 @@
     <p class="section-kicker">Shared Playlists</p>
     <h2 id="media-playlists-title">Media Playlists</h2>
     <p class="summary-line">
-      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and safely play or queue supported
-      playlist IDs.
+      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and {#if snapshot.media === 'video'}inspect
+        browse-only playlist IDs{:else}safely play or queue supported playlist IDs{/if}.
     </p>
   </div>
 
@@ -446,7 +470,7 @@
   <div class="browser-grid">
     <section class="playlists-section" aria-labelledby="media-playlists-list-title">
       <div class="section-heading">
-        <h3 id="media-playlists-list-title">Music playlists</h3>
+        <h3 id="media-playlists-list-title">{safeMediaTitle(snapshot.media)} playlists</h3>
         <p>{snapshot.playlists.length} {plural('playlist', snapshot.playlists.length)}</p>
       </div>
       {#if snapshot.playlists.length === 0}

@@ -70,12 +70,17 @@ function isDeferred(value: unknown): value is Deferred<unknown> {
 }
 
 function createHarness(
-  options: { client?: FakeKodiClient; createClient?: () => KodiJsonRpcHttpClient | null } = {}
+  options: {
+    client?: FakeKodiClient;
+    createClient?: () => KodiJsonRpcHttpClient | null;
+    media?: 'music' | 'video';
+  } = {}
 ) {
   const client = options.client ?? new FakeKodiClient();
   let nowMs = 1_000;
   const store = createMediaPlaylistsStore({
     ...(options.createClient ? { createClient: options.createClient } : { client }),
+    ...(options.media ? { media: options.media } : {}),
     now: () => new Date(nowMs).toISOString()
   });
 
@@ -92,6 +97,7 @@ function expectSecretSafe(value: unknown): void {
   const serialized = JSON.stringify(value);
 
   expect(serialized).not.toContain('special://musicplaylists');
+  expect(serialized).not.toContain('special://videoplaylists');
   expect(serialized).not.toContain('p@ssword');
   expect(serialized).not.toContain('admin:p@ssword');
   expect(serialized).not.toContain('Authorization');
@@ -577,5 +583,213 @@ describe('media playlists store', () => {
       ok: false,
       error: { code: 'client/unknown-playlist' }
     });
+  });
+
+  it('refreshes video smart playlists with video Kodi params, opaque ids, browse-only capabilities, and safe labels', async () => {
+    const { client, setNow, store } = createHarness({ media: 'video' });
+    client.enqueue('Files.GetDirectory', {
+      files: [
+        {
+          file: 'special://videoplaylists/Recently Added.xsp',
+          filetype: 'file',
+          label: 'Recently Added'
+        },
+        { file: 'special://videoplaylists/Trailers.m3u', filetype: 'file', label: 'Trailers' },
+        { file: 'special://videoplaylists/Notes.txt', filetype: 'file', label: 'Notes' },
+        {
+          file: 'special://videoplaylists/Private.xsp',
+          filetype: 'file',
+          label: 'special://videoplaylists/Private.xsp'
+        },
+        { file: '', filetype: 'file', label: 'No path' }
+      ]
+    });
+    setNow(5_000);
+
+    await store.refreshPlaylists();
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Files.GetDirectory',
+        params: {
+          directory: 'special://videoplaylists',
+          media: 'video',
+          properties: ['title', 'file'],
+          sort: { method: 'label', order: 'ascending' }
+        }
+      }
+    ]);
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'ready',
+      lastRefreshReason: 'manual',
+      lastUpdatedAt: new Date(5_000).toISOString(),
+      media: 'video',
+      playlists: [
+        {
+          id: 'playlist:1',
+          label: 'Recently Added',
+          media: 'video',
+          kind: 'smart',
+          extension: 'xsp',
+          capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+        },
+        {
+          id: 'playlist:2',
+          label: 'Trailers',
+          media: 'video',
+          kind: 'basic',
+          extension: 'm3u',
+          capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+        },
+        {
+          id: 'playlist:3',
+          label: 'Private.xsp',
+          media: 'video',
+          kind: 'smart',
+          extension: 'xsp',
+          capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+        }
+      ],
+      entries: [],
+      breadcrumbs: [],
+      isEmpty: false,
+      lastError: null
+    });
+    expect(store.getPlayablePlaylist(playlistId(store.snapshot, 'Recently Added'))).toEqual({
+      ok: false,
+      error: {
+        source: 'client',
+        code: 'client/unsupported-playlist',
+        message: 'The selected playlist cannot be played or queued.'
+      }
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
+  it('opens video smart playlists with browse-only video entries and non-actionable unsupported files', async () => {
+    const { client, setNow, store } = createHarness({ media: 'video' });
+    client.enqueue('Files.GetDirectory', {
+      files: [{ file: 'special://videoplaylists/Movies.xsp', filetype: 'file', label: 'Movies' }]
+    });
+    await store.refreshPlaylists();
+
+    client.enqueue('Files.GetDirectory', {
+      files: [
+        { file: 'smb://secret/video/Movie.mkv', filetype: 'file', label: 'Movie' },
+        { file: 'smb://secret/video/Clip.MP4', filetype: 'file', label: 'Clip' },
+        { file: 'smb://secret/video/Trailer.m4v', filetype: 'file', label: 'Trailer' },
+        { file: 'smb://secret/video/Archive.avi', filetype: 'file', label: 'Archive' },
+        { file: 'smb://secret/video/Phone.mov', filetype: 'file', label: 'Phone' },
+        { file: 'smb://secret/video/Web.webm', filetype: 'file', label: 'Web' },
+        { file: 'smb://secret/video/Song.flac', filetype: 'file', label: 'Song' },
+        { file: 'smb://secret/video/Folder/', filetype: 'directory', label: 'Folder' },
+        { file: '', filetype: 'file', label: 'No path' }
+      ]
+    });
+    setNow(6_000);
+
+    await store.openPlaylist(playlistId(store.snapshot, 'Movies'));
+
+    expect(client.calls[1]).toEqual({
+      method: 'Files.GetDirectory',
+      params: {
+        directory: 'special://videoplaylists/Movies.xsp',
+        media: 'video',
+        properties: ['title', 'artist', 'album', 'duration', 'track', 'thumbnail', 'file'],
+        sort: { method: 'label', order: 'ascending' }
+      }
+    });
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'ready',
+      lastRefreshReason: 'playlist:playlist:1',
+      lastUpdatedAt: new Date(6_000).toISOString(),
+      breadcrumbs: [{ id: 'playlist:1', label: 'Movies' }],
+      entries: [
+        {
+          label: 'Movie',
+          mediaKind: 'video',
+          extension: 'mkv',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Clip',
+          mediaKind: 'video',
+          extension: 'mp4',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Trailer',
+          mediaKind: 'video',
+          extension: 'm4v',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Archive',
+          mediaKind: 'video',
+          extension: 'avi',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Phone',
+          mediaKind: 'video',
+          extension: 'mov',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Web',
+          mediaKind: 'video',
+          extension: 'webm',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Song',
+          mediaKind: 'unsupported',
+          extension: 'flac',
+          capabilities: { canPlay: false, canQueue: false }
+        },
+        {
+          label: 'Folder',
+          mediaKind: 'unsupported',
+          capabilities: { canPlay: false, canQueue: false }
+        }
+      ],
+      isEmpty: false,
+      lastError: null
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
+  it('keeps video playlist errors, unknown ids, empty payloads, and stale responses safe', async () => {
+    const { client, store } = createHarness({ media: 'video' });
+
+    client.enqueue('Files.GetDirectory', { files: [] });
+    await store.refreshPlaylists();
+    expect(store.snapshot).toMatchObject({ media: 'video', playlists: [], isEmpty: true });
+
+    await store.openPlaylist('playlist:missing');
+    expect(store.snapshot.lastError).toMatchObject({ code: 'client/unknown-playlist' });
+
+    client.enqueue('Files.GetDirectory', {
+      files: [{ file: 'special://videoplaylists/Movies.xsp', filetype: 'file', label: 'Movies' }]
+    });
+    await store.refreshPlaylists();
+
+    client.enqueue('Files.GetDirectory', {
+      files: [{ file: 'special://videoplaylists/Movies.xsp', filetype: 'file', label: 'Movies' }]
+    });
+    const slowRefresh = store.refreshPlaylists();
+    client.enqueue(
+      'Files.GetDirectory',
+      new Error('Failed opening special://videoplaylists/Secret.xsp with p@ssword')
+    );
+    await store.openPlaylist(playlistId(store.snapshot, 'Movies'));
+    await slowRefresh;
+
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'error',
+      lastRefreshReason: 'error:refresh-failed',
+      lastError: { code: 'refresh-failed' }
+    });
+    expectSecretSafe(store.snapshot);
   });
 });

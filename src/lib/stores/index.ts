@@ -190,6 +190,7 @@ export {
   MediaPlaylistsStore,
   createMediaPlaylistsStore,
   mediaPlaylistsStore,
+  videoMediaPlaylistsStore,
   type MediaPlaylistCapabilitiesSnapshot,
   type MediaPlaylistEntryMediaKind,
   type MediaPlaylistEntrySnapshot,

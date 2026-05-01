@@ -21,7 +21,7 @@ export type MediaPlaylistsRefreshReason =
   | `playlist:${string}`
   | `error:${string}`;
 export type MediaPlaylistKind = 'smart' | 'basic' | 'unsupported';
-export type MediaPlaylistEntryMediaKind = 'audio' | 'unsupported';
+export type MediaPlaylistEntryMediaKind = 'audio' | 'video' | 'unsupported';
 
 export interface MediaPlaylistCapabilitiesSnapshot {
   canBrowse: boolean;
@@ -116,6 +116,7 @@ const ENTRY_PROPERTIES = [
   'file'
 ] as const satisfies readonly FileDirectoryPropertyName[];
 const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'm4a', 'aac', 'ogg', 'wav']);
+const VIDEO_EXTENSIONS = new Set(['mkv', 'mp4', 'm4v', 'avi', 'mov', 'webm']);
 const BASIC_PLAYLIST_EXTENSIONS = new Set(['m3u', 'pls']);
 
 function defaultSnapshot(media: MediaPlaylistsMedia): MediaPlaylistsStoreSnapshot {
@@ -369,8 +370,8 @@ export class MediaPlaylistsStore {
       const id = `entry:${++this.#entryCounter}`;
       const label = normalizePublicLabel(item.label, path, `Entry ${this.#entryCounter}`);
       const extension = extensionFromPath(path);
-      const playable =
-        item.filetype !== 'directory' && extension !== undefined && AUDIO_EXTENSIONS.has(extension);
+      const mediaKind = entryMediaKindForExtension(this.#media, item.filetype, extension);
+      const playable = mediaKind === 'audio';
       const record: EntryRecord = {
         id,
         label,
@@ -381,7 +382,7 @@ export class MediaPlaylistsStore {
       const snapshot: MediaPlaylistEntrySnapshot = {
         id,
         label,
-        mediaKind: playable ? 'audio' : 'unsupported',
+        mediaKind,
         ...(extension ? { extension } : {}),
         capabilities: { canPlay: playable, canQueue: playable }
       };
@@ -428,6 +429,11 @@ export const mediaPlaylistsStore = createMediaPlaylistsStore({
   createClient: createActiveKodiJsonRpcHttpClient
 });
 
+export const videoMediaPlaylistsStore = createMediaPlaylistsStore({
+  media: 'video',
+  createClient: createActiveKodiJsonRpcHttpClient
+});
+
 function playlistRootForMedia(media: MediaPlaylistsMedia): string {
   return media === 'video' ? VIDEO_PLAYLIST_ROOT : MUSIC_PLAYLIST_ROOT;
 }
@@ -442,6 +448,22 @@ function playlistKindForExtension(extension: string | undefined): MediaPlaylistK
   }
 
   return 'unsupported';
+}
+
+function entryMediaKindForExtension(
+  media: MediaPlaylistsMedia,
+  filetype: unknown,
+  extension: string | undefined
+): MediaPlaylistEntryMediaKind {
+  if (filetype === 'directory' || !extension) {
+    return 'unsupported';
+  }
+
+  if (media === 'video') {
+    return VIDEO_EXTENSIONS.has(extension) ? 'video' : 'unsupported';
+  }
+
+  return AUDIO_EXTENSIONS.has(extension) ? 'audio' : 'unsupported';
 }
 
 function createSafeError(error: unknown): MusicLibrarySafeErrorSnapshot {

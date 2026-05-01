@@ -156,6 +156,7 @@ function button(labelOrText: string): HTMLButtonElement {
 
 function expectSecretSafe(value: string): void {
   expect(value).not.toContain('.xsp');
+  expect(value).not.toContain('special://');
   expect(value).not.toContain('smb://');
   expect(value).not.toContain('http://');
   expect(value).not.toContain('https://');
@@ -169,11 +170,11 @@ function expectSecretSafe(value: string): void {
   expect(value).not.toContain('C:\\');
 }
 
-function playlistPayload(id: string, label: string) {
+function playlistPayload(id: string, label: string, media: 'music' | 'video' = 'music') {
   return {
     id,
     label,
-    media: 'music',
+    media,
     kind: 'smart',
     capabilities: { canBrowse: true, canPlay: true, canQueue: true }
   };
@@ -459,5 +460,68 @@ describe('MediaPlaylistsPanel', () => {
     expect(statusText()).toContain('credentials [redacted]');
     expect(button('Open playlist Favorites').disabled).toBe(false);
     expectSecretSafe(screenText());
+  });
+
+  it('renders video playlists as browse-only with video entry metadata and opaque navigation ids', async () => {
+    const { dispatch, actionDispatch } = renderPanel({
+      snapshot: createSnapshot({
+        media: 'video',
+        playlists: [
+          {
+            id: 'playlist:video:1',
+            label: 'Recently Added Movies',
+            media: 'video',
+            kind: 'smart',
+            extension: 'xsp',
+            capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+          }
+        ],
+        breadcrumbs: [{ id: 'playlist:video:1', label: 'Recently Added Movies' }],
+        entries: [
+          {
+            id: 'entry:1',
+            label: 'Movie.mkv',
+            mediaKind: 'video',
+            extension: 'mkv',
+            capabilities: { canPlay: false, canQueue: false }
+          },
+          {
+            id: 'entry:2',
+            label: 'notes.txt',
+            mediaKind: 'unsupported',
+            extension: 'txt',
+            capabilities: { canPlay: false, canQueue: false }
+          }
+        ]
+      })
+    });
+
+    const text = screenText();
+    expect(statusText()).toContain('Showing video playlists. 1 playlist, 2 entries.');
+    expect(text).toContain('Video playlists');
+    expect(text).toContain('Recently Added Movies');
+    expect(text).toContain('Can open, but video playback and queueing are disabled');
+    expect(text).toContain('Movie.mkv');
+    expect(text).toContain('Video entry');
+    expect(text).toContain('Video item is browse-only in this view');
+    expect(text).toContain('notes.txt');
+    expect(text).toContain('Unsupported entry');
+    expectSecretSafe(text);
+
+    button('Open playlist Recently Added Movies').click();
+    await tick();
+    button('Open breadcrumb Recently Added Movies').click();
+    await tick();
+
+    expect(dispatch.openPlaylist).toHaveBeenCalledWith('playlist:video:1');
+    expect(dispatch.openBreadcrumb).toHaveBeenCalledWith('playlist:video:1');
+    expect(actionDispatch.playPlaylistItem).not.toHaveBeenCalled();
+    expect(actionDispatch.queuePlaylistItem).not.toHaveBeenCalled();
+
+    const labels = Array.from(document.querySelectorAll('button')).map(
+      (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
+    );
+    expect(labels.some((label) => label === 'Play playlist Recently Added Movies')).toBe(false);
+    expect(labels.some((label) => label === 'Queue playlist Recently Added Movies')).toBe(false);
   });
 });
