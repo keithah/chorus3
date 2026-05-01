@@ -18,6 +18,14 @@ export type JsonRpcVersionResult = {
   version: string | KodiVersion;
 };
 
+export type JsonRpcIntrospectionParams = Record<string, unknown> & {
+  filter?: Record<string, unknown>;
+  getdescriptions?: boolean;
+  getmetadata?: boolean;
+};
+
+export type JsonRpcIntrospectionResult = Record<string, unknown>;
+
 export type ApplicationPropertyName = 'muted' | 'name' | 'version' | 'volume';
 
 export type ApplicationPropertiesResult = Partial<{
@@ -1088,6 +1096,19 @@ export function getJsonRpcVersion(
   options?: KodiHttpCallOptions
 ): Promise<JsonRpcVersionResult> {
   return callKodi<JsonRpcVersionResult>(client, 'JSONRPC.Version', undefined, options);
+}
+
+export function getJsonRpcIntrospection(
+  client: KodiJsonRpcHttpClient,
+  params?: JsonRpcIntrospectionParams,
+  options?: KodiHttpCallOptions
+): Promise<JsonRpcIntrospectionResult> {
+  return callKodi<JsonRpcIntrospectionResult, JsonRpcIntrospectionParams>(
+    client,
+    'JSONRPC.Introspect',
+    params,
+    options
+  );
 }
 
 export function getApplicationProperties(

@@ -27,7 +27,8 @@ import type {
   SettingsGetCategoriesParams,
   SettingsGetSettingsParams,
   SettingsSetSettingValueParams,
-  SettingsSettingValue
+  SettingsSettingValue,
+  JsonRpcIntrospectionParams
 } from './methods';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
@@ -48,6 +49,7 @@ import {
   getAudioLibrarySongs,
   getFileDirectory,
   getFileSources,
+  getJsonRpcIntrospection,
   getJsonRpcVersion,
   getPlayerItem,
   getPlayerProperties,
@@ -275,6 +277,39 @@ describe('Kodi curated method wrappers', () => {
     await expect(getJsonRpcVersion(client)).resolves.toEqual({ version: '2.0' });
 
     expect(client.calls).toEqual([{ method: 'JSONRPC.Version' }]);
+  });
+
+  it('gets JSON-RPC introspection preserving exact params and call options', async () => {
+    const params = {
+      filter: { id: 'Player.Open', type: 'method' },
+      getdescriptions: true,
+      getmetadata: false
+    } as const satisfies JsonRpcIntrospectionParams;
+    const options = { timeoutMs: 125 };
+    const result = {
+      methods: {
+        'Player.Open': {
+          type: 'method',
+          description: 'Open playback item'
+        }
+      }
+    };
+    const call = vi.fn().mockResolvedValue(result);
+    const client: KodiJsonRpcHttpClient = { call };
+
+    await expect(getJsonRpcIntrospection(client, params, options)).resolves.toBe(result);
+
+    expect(call).toHaveBeenCalledWith('JSONRPC.Introspect', params, options);
+  });
+
+  it('gets JSON-RPC introspection without params and propagates transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const call = vi.fn().mockRejectedValue(error);
+    const client: KodiJsonRpcHttpClient = { call };
+
+    await expect(getJsonRpcIntrospection(client)).rejects.toBe(error);
+
+    expect(call).toHaveBeenCalledWith('JSONRPC.Introspect', undefined, undefined);
   });
 
   it('gets requested application properties exactly', async () => {
