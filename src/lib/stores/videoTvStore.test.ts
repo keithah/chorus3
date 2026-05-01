@@ -330,6 +330,49 @@ describe('video TV store', () => {
     expectSecretSafe(store.snapshot);
   });
 
+  it('records season artwork refresh attempts as unsupported without unsafe wrapper calls', async () => {
+    const { client, store } = createHarness();
+
+    await store.refreshSeasonArtwork(7, 2, 'manual');
+
+    expect(client.calls).toEqual([]);
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'ready',
+      lastRefreshReason: 'manual',
+      selectedTvShowId: 7,
+      selectedSeason: 2,
+      seasonArtworkCapability: {
+        status: 'unsupported',
+        reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+      },
+      lastError: null
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
+  it('rejects invalid season artwork refresh IDs before calling Kodi and preserves latest safe status', async () => {
+    const { client, store } = createHarness();
+
+    await store.refreshSeasonArtwork(7, 2, 'manual');
+    await store.refreshSeasonArtwork(Number.POSITIVE_INFINITY, 2, 'manual');
+    expect(store.snapshot.seasonArtworkCapability).toMatchObject({
+      status: 'unsupported',
+      reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+    });
+
+    await store.refreshSeasonArtwork(7, -1, 'manual');
+    expect(client.calls).toEqual([]);
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'error',
+      lastError: { source: 'client' }
+    });
+    expect(store.snapshot.seasonArtworkCapability).toMatchObject({
+      status: 'unsupported',
+      reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
   it('rejects invalid IDs before calling Kodi and preserves prior safe data on later failures', async () => {
     const { client, store } = createHarness();
     await store.refreshTvShow(Number.NaN, 'manual');

@@ -225,6 +225,10 @@ type QueueDispatchWithMovies = QueueDispatch & {
   queueMovieItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithEpisodes = QueueDispatch & {
+  queueEpisodeItem(item: unknown): Promise<void>;
+};
+
 type QueueDispatchWithFiles = QueueDispatch & {
   queueFileItem(item: unknown): Promise<void>;
 };
@@ -239,6 +243,10 @@ function asMusicDispatch(dispatch: QueueDispatch): QueueDispatchWithMusic {
 
 function asMovieDispatch(dispatch: QueueDispatch): QueueDispatchWithMovies {
   return dispatch as QueueDispatchWithMovies;
+}
+
+function asEpisodeDispatch(dispatch: QueueDispatch): QueueDispatchWithEpisodes {
+  return dispatch as QueueDispatchWithEpisodes;
 }
 
 function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
@@ -385,6 +393,105 @@ describe('queue dispatch', () => {
       lastCommand: 'queueMovieItem',
       lastError: null
     });
+  });
+
+  it('queues episode items through Playlist.Add with video playlist id and authoritative refetches', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asEpisodeDispatch(dispatch).queueEpisodeItem({ episodeid: 8801 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { episodeid: 8801 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueEpisodeItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects invalid episode queue ids before calling Kodi or refreshing stores', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const invalidInputs = [
+      {},
+      { episodeid: 0 },
+      { episodeid: -1 },
+      { episodeid: 1.5 },
+      { episodeid: Number.POSITIVE_INFINITY },
+      { episodeid: Number.NaN },
+      { episodeid: '8801' },
+      { episodeid: Number.MAX_SAFE_INTEGER + 1 },
+      { episodeid: 8801, file: 'smb://secret/episode.mkv' },
+      { episodeid: 8801, movieid: 4401 }
+    ];
+
+    for (const input of invalidInputs) {
+      await asEpisodeDispatch(dispatch).queueEpisodeItem(input);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'queueEpisodeItem',
+        lastError: { source: 'input', code: 'input/invalid-episode-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active clients for episode queue commands without refreshing', async () => {
+    const playerStore = new FakePlayerStore();
+    const queueStore = new FakeQueueDispatchStore();
+    const dispatch = createQueueDispatch({
+      playerStore,
+      queueStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await asEpisodeDispatch(dispatch).queueEpisodeItem({ episodeid: 8801 });
+
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueEpisodeItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('sanitizes episode queue command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Add',
+      new Error(
+        'add failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://secret/episode.mkv from localStorage raw body'
+      )
+    );
+
+    await asEpisodeDispatch(dispatch).queueEpisodeItem({ episodeid: 8801 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { episodeid: 8801 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueEpisodeItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
   });
 
   it('queues smart playlist files through Playlist.Add with audio playlist id and authoritative refetches', async () => {

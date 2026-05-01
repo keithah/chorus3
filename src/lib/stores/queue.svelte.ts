@@ -1,5 +1,6 @@
 import {
   KodiHttpClientError,
+  addEpisodePlaylistItem,
   addFilePlaylistItem,
   addMoviePlaylistItem,
   addMusicPlaylistItem,
@@ -10,6 +11,7 @@ import {
   removePlaylistItem,
   swapPlaylistItems,
   type KodiEndpointDescription,
+  type KodiEpisodeLibraryItem,
   type KodiJsonRpcHttpClient,
   type KodiMovieLibraryItem,
   type KodiMusicLibraryItem,
@@ -28,6 +30,7 @@ export type QueueCommandName =
   | 'swap'
   | 'queueMusicItem'
   | 'queueMovieItem'
+  | 'queueEpisodeItem'
   | 'queueFileItem'
   | 'queuePlaylistItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
@@ -38,6 +41,7 @@ export type MusicQueueItem =
   | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
 
 export type MovieQueueItem = { movieid: number };
+export type EpisodeQueueItem = { episodeid: number };
 export type FileQueueItem = { file: string; mediaKind: 'audio' };
 export type PlaylistQueueItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
 
@@ -486,6 +490,10 @@ export class QueueDispatch {
     return this.#runMovieQueueCommand(item);
   }
 
+  queueEpisodeItem(item: EpisodeQueueItem): Promise<void> {
+    return this.#runEpisodeQueueCommand(item);
+  }
+
   queueFileItem(item: FileQueueItem): Promise<void> {
     return this.#runFileQueueCommand(item);
   }
@@ -589,6 +597,56 @@ export class QueueDispatch {
       ...this.#snapshot,
       commandStatus: 'success',
       lastCommand: 'queueMovieItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runEpisodeQueueCommand(item: EpisodeQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queueEpisodeItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queueEpisodeItem');
+
+    const episodeItemResult = normalizeEpisodeQueueItem(item);
+    if (!episodeItemResult.ok) {
+      this.#failCommand('queueEpisodeItem', episodeItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queueEpisodeItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addEpisodePlaylistItem(clientResult.client, episodeItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queueEpisodeItem');
+
+    if (commandError) {
+      this.#failCommand('queueEpisodeItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queueEpisodeItem',
       lastError: null,
       lastCompletedAt: this.#now()
     };
@@ -901,6 +959,24 @@ function normalizeMovieQueueItem(
   return { ok: false, error: createInvalidMovieItemError() };
 }
 
+function normalizeEpisodeQueueItem(
+  item: unknown
+):
+  | { ok: true; item: KodiEpisodeLibraryItem }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidEpisodeItemError() };
+  }
+
+  const keys = Object.keys(item).sort();
+
+  if (keys.length === 1 && keys[0] === 'episodeid' && isPositiveSafeInteger(item.episodeid)) {
+    return { ok: true, item: { episodeid: item.episodeid } };
+  }
+
+  return { ok: false, error: createInvalidEpisodeItemError() };
+}
+
 function normalizeFileQueueItem(
   item: unknown
 ): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
@@ -968,6 +1044,13 @@ function createInvalidMovieItemError(): QueueDispatchSafeErrorSnapshot {
   return createQueueInputError(
     'input/invalid-movie-item',
     'Choose a valid movie to add to the queue.'
+  );
+}
+
+function createInvalidEpisodeItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-episode-item',
+    'Choose a valid episode to add to the queue.'
   );
 }
 

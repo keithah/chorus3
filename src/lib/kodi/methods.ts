@@ -282,6 +282,17 @@ export type KodiMovieLibraryItem = {
   songid?: never;
   albumid?: never;
   artistid?: never;
+  episodeid?: never;
+  playlistid?: never;
+  file?: never;
+};
+
+export type KodiEpisodeLibraryItem = {
+  episodeid: number;
+  movieid?: never;
+  songid?: never;
+  albumid?: never;
+  artistid?: never;
   playlistid?: never;
   file?: never;
 };
@@ -301,6 +312,13 @@ export type PlayerOpenMovieParams = {
   };
 };
 
+export type PlayerOpenEpisodeParams = {
+  item: KodiEpisodeLibraryItem;
+  options?: {
+    resume?: boolean;
+  };
+};
+
 export type PlaylistAddParams = {
   playlistid: number;
   item: KodiMusicLibraryItem;
@@ -309,6 +327,11 @@ export type PlaylistAddParams = {
 export type PlaylistAddMovieParams = {
   playlistid: number;
   item: KodiMovieLibraryItem;
+};
+
+export type PlaylistAddEpisodeParams = {
+  playlistid: number;
+  item: KodiEpisodeLibraryItem;
 };
 
 export type KodiFileItem = {
@@ -1039,6 +1062,21 @@ export function openPlayerMovieItem(
   );
 }
 
+export function openPlayerEpisodeItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiEpisodeLibraryItem,
+  openOptions?: PlayerOpenEpisodeParams['options'],
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  const params: PlayerOpenEpisodeParams = openOptions ? { item, options: openOptions } : { item };
+  return callKodi<PlayerCommandResult, PlayerOpenEpisodeParams>(
+    client,
+    'Player.Open',
+    params,
+    options
+  );
+}
+
 export function openPlayerFile(
   client: KodiJsonRpcHttpClient,
   item: KodiFileItem,
@@ -1087,6 +1125,19 @@ export function addMoviePlaylistItem(
   options?: KodiHttpCallOptions
 ): Promise<PlayerCommandResult> {
   return callKodi<PlayerCommandResult, PlaylistAddMovieParams>(
+    client,
+    'Playlist.Add',
+    { playlistid: 0, item },
+    options
+  );
+}
+
+export function addEpisodePlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiEpisodeLibraryItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistAddEpisodeParams>(
     client,
     'Playlist.Add',
     { playlistid: 0, item },

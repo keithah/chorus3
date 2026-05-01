@@ -32,6 +32,11 @@ type PlayerDispatchWithMovieStream = ReturnType<typeof createPlayerDispatch> & {
   streamMovieItem(item: unknown): Promise<void>;
 };
 
+type PlayerDispatchWithEpisodes = ReturnType<typeof createPlayerDispatch> & {
+  playEpisodeItem(item: unknown): Promise<void>;
+  streamEpisodeItem(item: unknown): Promise<void>;
+};
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -210,6 +215,26 @@ function createMoviePlayerSnapshot(
       title: 'Arrival',
       type: 'movie',
       movieid: 4401
+    },
+    properties: { speed: 1, type: 'video' },
+    ...overrides
+  });
+}
+
+function createEpisodePlayerSnapshot(
+  overrides: Partial<PlayerStoreSnapshot> = {}
+): PlayerStoreSnapshot {
+  return createSnapshot({
+    activePlayers: [{ playerid: 7, type: 'video' }],
+    primaryPlayer: { playerid: 7, type: 'video' },
+    playbackStatus: 'active',
+    item: {
+      file: 'smb://nas/tv/severance/s02e01.mkv',
+      label: 'Hello, Ms. Cobel',
+      title: 'Hello, Ms. Cobel',
+      showtitle: 'Severance',
+      type: 'episode',
+      episodeid: 8801
     },
     properties: { speed: 1, type: 'video' },
     ...overrides
@@ -616,6 +641,221 @@ describe('player dispatch', () => {
       mode: 'kodi',
       commandStatus: 'error',
       lastCommand: 'streamMovieItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('opens episode items through Player.Open with optional resume and without requiring an active player', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Player.Open', 'OK');
+    const episodeDispatch = dispatch as PlayerDispatchWithEpisodes;
+
+    await episodeDispatch.playEpisodeItem({ episodeid: 8801 });
+    await episodeDispatch.playEpisodeItem({ episodeid: 8801, resume: true });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { episodeid: 8801 } } },
+      { method: 'Player.Open', params: { item: { episodeid: 8801 }, options: { resume: true } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:playEpisodeItem',
+      'command:playEpisodeItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'playEpisodeItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('stops Local playback only after episode Player.Open succeeds', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+
+    await (dispatch as PlayerDispatchWithEpisodes).playEpisodeItem({
+      episodeid: 8801,
+      resume: true
+    });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { episodeid: 8801 }, options: { resume: true } } }
+    ]);
+    expect(localPlayerStore.calls).toEqual([{ method: 'stop' }]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'playEpisodeItem',
+      lastError: null
+    });
+  });
+
+  it('rejects invalid episode playback and stream inputs before calling Kodi or Local playback', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidItems = [
+      {},
+      { episodeid: 0 },
+      { episodeid: -1 },
+      { episodeid: 1.5 },
+      { episodeid: Number.POSITIVE_INFINITY },
+      { episodeid: '8801' },
+      { episodeid: Number.MAX_SAFE_INTEGER + 1 },
+      { episodeid: 8801, resume: 'yes' },
+      { episodeid: 8801, file: 'smb://nas/tv/leak.mkv' },
+      { episodeid: 8801, label: 'smb://nas/tv/leak.mkv' }
+    ];
+
+    for (const item of invalidItems) {
+      await (dispatch as PlayerDispatchWithEpisodes).playEpisodeItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'playEpisodeItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-episode-item' }
+      });
+
+      await (dispatch as PlayerDispatchWithEpisodes).streamEpisodeItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'streamEpisodeItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-episode-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active-host client state for episode playback and streaming without refresh', async () => {
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    }) as PlayerDispatchWithEpisodes;
+
+    await dispatch.playEpisodeItem({ episodeid: 8801 });
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playEpisodeItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+
+    await dispatch.streamEpisodeItem({ episodeid: 8801 });
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'streamEpisodeItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+    expect(playerStore.refreshReasons).toEqual([]);
+  });
+
+  it('sanitizes episode playback command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    client.enqueue(
+      'Player.Open',
+      new Error(
+        'episode failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://nas/tv/leak.mkv from localStorage raw body'
+      )
+    );
+
+    await (dispatch as PlayerDispatchWithEpisodes).playEpisodeItem({ episodeid: 8801 });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { episodeid: 8801 } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playEpisodeItem']);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'error',
+      lastCommand: 'playEpisodeItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('streams an episode through Kodi open, refreshed file resolution, prepared Local URL, and Kodi pause', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    playerStore.enqueueRefreshSnapshot(createEpisodePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/severance-s02e01.mkv' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
+
+    await (dispatch as PlayerDispatchWithEpisodes).streamEpisodeItem({
+      episodeid: 8801,
+      title: 'Hello, Ms. Cobel'
+    });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { episodeid: 8801 } } },
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/tv/severance/s02e01.mkv' } },
+      { method: 'Player.PlayPause', params: { playerid: 7 } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:streamEpisodeItem']);
+    expect(localPlayerStore.calls).toEqual([
+      {
+        method: 'loadAndPlay',
+        args: {
+          source: 'http://kodi.local:8080/vfs/severance-s02e01.mkv',
+          mediaKind: 'video',
+          kodiWasPaused: true,
+          item: {
+            label: 'Hello, Ms. Cobel',
+            title: 'Hello, Ms. Cobel',
+            type: 'episode',
+            episodeid: 8801
+          }
+        }
+      }
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'success',
+      lastCommand: 'streamEpisodeItem',
+      lastError: null
+    });
+    expectSecretSafe(dispatch.snapshot);
+    expectSecretSafe(localPlayerStore.calls);
+  });
+
+  it('records Local load failures after pausing Kodi for episode streaming', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    playerStore.enqueueRefreshSnapshot(createEpisodePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/severance-s02e01.mkv' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
+    localPlayerStore.loadError = new Error(
+      'local load rejected for http://admin:p@ssword@kodi.local/vfs/episode.mkv Authorization: Basic token localStorage'
+    );
+
+    await (dispatch as PlayerDispatchWithEpisodes).streamEpisodeItem({ episodeid: 8801 });
+
+    expect(client.calls.map((call) => call.method)).toEqual([
+      'Player.Open',
+      'Files.PrepareDownload',
+      'Player.PlayPause'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'error',
+      lastCommand: 'streamEpisodeItem',
       lastError: { source: 'command', code: 'command/failed' }
     });
     expectSecretSafe(dispatch.snapshot);

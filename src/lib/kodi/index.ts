@@ -71,6 +71,7 @@ export {
 } from './webSocket';
 
 export {
+  addEpisodePlaylistItem,
   addFilePlaylistItem,
   addMoviePlaylistItem,
   addMusicPlaylistItem,
@@ -104,6 +105,7 @@ export {
   refreshVideoLibraryEpisode,
   goToPlayerItem,
   openPlayer,
+  openPlayerEpisodeItem,
   openPlayerFile,
   openPlayerItem,
   openPlayerMovieItem,
@@ -158,6 +160,7 @@ export {
   type FileSource,
   type FileSourcesResult,
   type JsonRpcVersionResult,
+  type KodiEpisodeLibraryItem,
   type KodiFileItem,
   type KodiHttpConnectionTestResult,
   type KodiLibraryWriteResult,
@@ -204,6 +207,8 @@ export {
   type PlayerVideoStream,
   type PlaylistAddParams,
   type PlaylistAddMovieParams,
+  type PlaylistAddEpisodeParams,
+  type PlayerOpenEpisodeParams,
   type PlayerOpenFileParams,
   type PlayerOpenPlaylistFileParams,
   type FilePlaylistAddParams,

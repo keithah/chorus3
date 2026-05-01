@@ -432,6 +432,48 @@ export class VideoTvStore {
     }
   }
 
+  async refreshSeasonArtwork(
+    tvshowid: number,
+    season: number,
+    reason: VideoLibraryRefreshReason = 'manual'
+  ): Promise<void> {
+    if (!isValidPositiveId(tvshowid)) {
+      this.#rejectInvalid(
+        'client/invalid-tvshowid',
+        'Season artwork refresh requires a finite positive safe-integer TV show ID.',
+        {
+          selectedTvShowId: null
+        }
+      );
+      return;
+    }
+    if (!isValidSeason(season)) {
+      this.#rejectInvalid(
+        'client/invalid-season',
+        'Season artwork refresh requires a finite non-negative safe-integer season.',
+        {
+          selectedSeason: null
+        }
+      );
+      return;
+    }
+
+    this.#requestId += 1;
+    this.#snapshot = {
+      ...this.#snapshot,
+      refreshStatus: 'ready',
+      lastRefreshReason: reason,
+      lastUpdatedAt: this.#now(),
+      selectedTvShowId: tvshowid,
+      selectedSeason: season,
+      seasonArtworkCapability: {
+        status: 'unsupported',
+        reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+      },
+      lastError: null
+    };
+  }
+
   destroy(): void {
     this.#requestId += 1;
   }
