@@ -94,19 +94,53 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Road Trip.m3u');
   });
 
-  it('mounts a safe settings placeholder for the direct settings route', async () => {
+  it('mounts populated M005 browser-proof fixtures for the direct settings route', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1');
 
     await importMain();
 
     expect(document.body.textContent).toContain('Kodi Settings');
-    expect(document.body.textContent).toContain('Settings support is loading for this route.');
+    expect(document.body.textContent).toContain('Autoplay next item');
+    expect(document.body.textContent).toContain('Seek step size');
+    expect(document.body.textContent).toContain('HDR tone mapping');
+    expect(document.body.textContent).toContain('Pending write proof');
+    expect(document.body.textContent).toContain('Saved write proof');
+    expect(document.body.textContent).toContain('Rejected write proof');
+    expect(document.body.textContent).toContain('Setting change failed.');
+    expect(document.body.textContent).toContain('Rollback value: previous safe value');
+    expect(document.body.textContent).toContain('Refresh after write: pending for');
+    expect(document.body.textContent).toContain('fixture.pendingwrite');
+    expect(document.body.textContent).toContain('4 attempted, 2 succeeded, 1 failed');
+    expect(document.body.textContent).toContain(
+      'Read-only: Kodi path settings are not safe to edit here.'
+    );
+    expect(document.body.textContent).not.toContain('Settings support is loading for this route.');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('Basic');
     expect(document.body.textContent).not.toContain('admin:p@ssword');
     expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
     expect(document.body.textContent).not.toContain('localStorage');
     expect(document.body.textContent).not.toContain('sessionStorage');
+  });
+
+  it('does not expose M005 settings fixtures on unrelated routes or disabled fixture mode', async () => {
+    setPathAndSearch('/video/movies', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Video Movies');
+    expect(document.body.textContent).not.toContain('Autoplay next item');
+    expect(document.body.textContent).not.toContain('Rejected write proof');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/settings', '?m005-browser-proof=0');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).not.toContain('Autoplay next item');
+    expect(document.body.textContent).not.toContain('Rejected write proof');
   });
 
   it('mounts a safe settings unknown route without raw unsafe input', async () => {

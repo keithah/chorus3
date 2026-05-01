@@ -2,6 +2,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import type { AppRoute } from './lib/app/appRouter';
 import type {
   MusicBrowseActionDispatch,
   MusicBrowsePanelDispatch
@@ -19,6 +20,7 @@ import type {
   MediaPlaylistsActionDispatch,
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
+import type { SettingsPanelDispatch } from './lib/components/SettingsPanel.svelte';
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from './lib/components/VideoMovieStreamShell.svelte';
 import type { VideoEpisodeActionDispatch } from './lib/components/VideoEpisodeDetailShell.svelte';
@@ -87,7 +89,9 @@ type AppProps = {
   videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
   videoMediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
   videoMediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
-  route?: VideoRoute;
+  route?: AppRoute | VideoRoute;
+  settingsSnapshot?: import('./lib/stores/settingsStore.svelte').SettingsStoreSnapshot;
+  settingsDispatch?: SettingsPanelDispatch;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
@@ -560,6 +564,66 @@ function createVideoTvSnapshot(
   };
 }
 
+function createSettingsSnapshot(
+  overrides: Partial<import('./lib/stores/settingsStore.svelte').SettingsStoreSnapshot> = {}
+): import('./lib/stores/settingsStore.svelte').SettingsStoreSnapshot {
+  return {
+    loadStatus: 'success',
+    writeStatus: 'idle',
+    sections: [
+      { id: 'player', label: 'Player' },
+      { id: 'services', label: 'Services' }
+    ],
+    categories: [
+      { id: 'videos', label: 'Videos' },
+      { id: 'interface', label: 'Interface' }
+    ],
+    settings: [
+      {
+        id: 'videoplayer.autoplaynextitem',
+        label: 'Autoplay next item',
+        type: 'boolean',
+        editKind: 'boolean',
+        value: true,
+        defaultValue: false,
+        options: [],
+        readOnly: false
+      },
+      {
+        id: 'filebrowser.source',
+        label: 'Media source path',
+        type: 'path',
+        editKind: 'unsupported',
+        value: 'redacted-file',
+        defaultValue: null,
+        options: [],
+        readOnly: true
+      }
+    ],
+    selectedSectionId: 'player',
+    selectedCategoryId: 'videos',
+    lastError: null,
+    lastWrite: null,
+    rollbackValue: null,
+    refreshAfterWrite: null,
+    writeCounts: { attempted: 0, succeeded: 0, failed: 0 },
+    ...overrides
+  };
+}
+
+function createSettingsDispatch(
+  overrides: Partial<SettingsPanelDispatch> = {}
+): SettingsPanelDispatch {
+  return {
+    load: vi.fn(),
+    retry: vi.fn(),
+    selectSection: vi.fn(),
+    selectCategory: vi.fn(),
+    setValue: vi.fn(),
+    ...overrides
+  };
+}
+
 function createEpisodeActionDispatch(
   overrides: Partial<VideoEpisodeActionDispatch> = {}
 ): VideoEpisodeActionDispatch {
@@ -660,6 +724,12 @@ function getVideoDetailPanelText(target: HTMLElement): string {
 
 function getVideoStreamPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.video-movie-stream-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getSettingsPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.settings-panel');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
 }
@@ -1046,6 +1116,81 @@ describe('App shell', () => {
     expect(target.textContent).toContain('Music Library');
     expect(target.textContent).toContain('Kodi host settings');
     expect(target.textContent).not.toContain('Video Movies');
+  });
+
+  it('renders the settings route through SettingsPanel with injected snapshots and dispatches', async () => {
+    const settingsDispatch = createSettingsDispatch();
+    const target = renderApp({
+      route: { kind: 'settings' },
+      settingsSnapshot: createSettingsSnapshot({
+        writeStatus: 'error',
+        lastError: {
+          source: 'write',
+          code: 'fixture/rejected-write',
+          message: 'A safe fixture write rejection was rolled back.'
+        },
+        lastWrite: {
+          settingId: 'videoplayer.autoplaynextitem',
+          value: false,
+          status: 'error',
+          at: '2026-05-01T20:00:00.000Z'
+        },
+        rollbackValue: true,
+        refreshAfterWrite: {
+          settingId: 'videoplayer.autoplaynextitem',
+          categoryId: 'videos',
+          requestedAt: '2026-05-01T20:00:00.000Z',
+          refreshed: false
+        },
+        writeCounts: { attempted: 2, succeeded: 1, failed: 1 }
+      }),
+      settingsDispatch
+    });
+    const settingsText = getSettingsPanelText(target);
+
+    expect(settingsText).toContain('Kodi Settings');
+    expect(settingsText).toContain('Settings loaded.');
+    expect(settingsText).toContain('Setting change failed.');
+    expect(settingsText).toContain('fixture/rejected-write');
+    expect(settingsText).toContain('Rollback value: true');
+    expect(settingsText).toContain('Refresh after write: pending for');
+    expect(settingsText).toContain('videoplayer.autoplaynextitem');
+    expect(settingsText).toContain('2 attempted, 1 succeeded, 1 failed');
+    expect(settingsText).toContain('Autoplay next item');
+    expect(settingsText).toContain('Media source path');
+    expect(settingsText).toContain('Read-only: Kodi path settings are not safe to edit here.');
+    expect(target.textContent).not.toContain('Kodi host settings');
+
+    const checkbox = target.querySelector<HTMLInputElement>(
+      '[data-setting-control="videoplayer.autoplaynextitem"]'
+    );
+    expect(checkbox).toBeInstanceOf(HTMLInputElement);
+    checkbox!.checked = false;
+    checkbox!.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick();
+
+    expect(settingsDispatch.setValue).toHaveBeenCalledWith('videoplayer.autoplaynextitem', false);
+  });
+
+  it('renders store-backed settings load errors through SettingsPanel by default', () => {
+    const target = renderApp({ route: { kind: 'settings' } });
+    const settingsText = getSettingsPanelText(target);
+
+    expect(settingsText).toContain('Kodi Settings');
+    expect(settingsText).toContain('Settings have not been loaded yet.');
+    expect(settingsText).toContain('No settings sections are available.');
+    expect(settingsText).not.toContain('Settings support is loading for this route.');
+  });
+
+  it('does not render SettingsPanel for unknown settings subpaths', () => {
+    const target = renderApp({
+      route: { kind: 'settingsUnknown', pathLabel: '/settings/[redacted]' },
+      settingsSnapshot: createSettingsSnapshot()
+    });
+
+    expect(target.querySelector('.settings-panel')).toBeNull();
+    expect(target.textContent).toContain('Settings route not found');
+    expect(target.textContent).not.toContain('Autoplay next item');
   });
 
   it('renders the routed video movies grid with safe href detail links', () => {

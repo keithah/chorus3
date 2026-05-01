@@ -26,6 +26,7 @@
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
+  import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import VideoRecentPanel from '$components/VideoRecentPanel.svelte';
@@ -61,6 +62,7 @@
     playerStore,
     queueDispatch as defaultQueueDispatch,
     queueStore,
+    settingsStore,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
     type MediaFilesStoreSnapshot,
@@ -69,7 +71,8 @@
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
-    type QueueStoreSnapshot
+    type QueueStoreSnapshot,
+    type SettingsStoreSnapshot
   } from '$lib/stores';
   import {
     videoLibraryStore,
@@ -119,6 +122,8 @@
     videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoNavigationDispatch?: VideoNavigationDispatch;
+    settingsSnapshot?: SettingsStoreSnapshot;
+    settingsDispatch?: SettingsPanelDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -238,6 +243,14 @@
     }
   };
 
+  const defaultSettingsDispatch: SettingsPanelDispatch = {
+    load: () => settingsStore.load(),
+    retry: () => settingsStore.retry(),
+    selectSection: (sectionId) => settingsStore.selectSection(sectionId),
+    selectCategory: (categoryId) => settingsStore.selectCategory(categoryId),
+    setValue: (settingId, value) => settingsStore.writeSettingValue(settingId, value)
+  };
+
   const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
 
   let {
@@ -265,6 +278,8 @@
     route = { kind: 'dashboard' },
     videoLibrarySnapshot,
     videoMovieDetailSnapshot,
+    settingsSnapshot,
+    settingsDispatch = defaultSettingsDispatch,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -289,6 +304,7 @@
     videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
+  const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
@@ -611,11 +627,7 @@
     </main>
   {:else if isSettingsRoute}
     <main class="settings-route" aria-label="Kodi Settings">
-      <section class="settings-placeholder surface" aria-labelledby="settings-placeholder-title">
-        <p class="section-kicker">Kodi Settings</p>
-        <h2 id="settings-placeholder-title">Kodi Settings</h2>
-        <p>Settings support is loading for this route.</p>
-      </section>
+      <SettingsPanel snapshot={currentSettingsSnapshot} dispatch={settingsDispatch} />
     </main>
   {:else if isSettingsUnknownRoute}
     <main class="settings-route" aria-label="Unknown settings route">

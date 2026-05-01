@@ -9,6 +9,10 @@ import {
   createM004BrowserProofAppProps,
   type M004BrowserProofAppProps
 } from './lib/testing/m004BrowserProofFixtures';
+import {
+  createM005BrowserProofAppProps,
+  type M005BrowserProofAppProps
+} from './lib/testing/m005BrowserProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
 import { parseAppRoute, type AppRoute } from './lib/app/appRouter';
 import type { VideoRoute } from './lib/video/videoRouter';
@@ -24,7 +28,7 @@ export interface EntrypointLocation {
 }
 
 type AppProps = { route: AppRoute } & Partial<
-  Omit<M003BrowserProofAppProps & M004BrowserProofAppProps, 'route'>
+  Omit<M003BrowserProofAppProps & M004BrowserProofAppProps & M005BrowserProofAppProps, 'route'>
 >;
 
 const canLoadM003BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
@@ -100,7 +104,8 @@ export function resolveEntrypointAppProps(
   }
 
   if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
-    return { route };
+    const props = createM005BrowserProofAppProps(location);
+    return props.settingsSnapshot ? props : { route };
   }
 
   return { route };
