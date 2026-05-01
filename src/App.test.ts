@@ -1140,6 +1140,45 @@ describe('App shell', () => {
     await waitForText(target, 'Marked Quiet Signal watched.');
   });
 
+  it('surfaces sanitized failed movie writes without refreshing or fabricating local watched state', async () => {
+    const markMovieWatched = vi
+      .spyOn(videoWriteStore, 'markMovieWatched')
+      .mockRejectedValue(
+        new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/movie.mkv'
+        )
+      );
+    const refreshLibrary = vi.spyOn(videoLibraryStore, 'refresh').mockResolvedValue();
+    const refreshMovieDetail = vi
+      .spyOn(videoMovieDetailStore, 'refreshMovieDetail')
+      .mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4402 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    expect(getVideoDetailPanelText(target)).toContain('Not watched in this snapshot');
+
+    getButtonByAria(target, 'Mark movie Quiet Signal watched').click();
+    await waitForText(target, 'Could not mark Quiet Signal watched.');
+
+    const detailText = getVideoDetailPanelText(target);
+    expect(markMovieWatched).toHaveBeenCalledWith({ movieid: 4402, label: 'Quiet Signal' }, true);
+    expect(refreshLibrary).not.toHaveBeenCalled();
+    expect(refreshMovieDetail).not.toHaveBeenCalled();
+    expect(detailText).toContain('Could not mark Quiet Signal watched.');
+    expect(detailText).toContain('credentials [redacted]');
+    expect(detailText).toContain('[redacted-url]');
+    expect(detailText).toContain('response body [redacted]');
+    expect(detailText).toContain('browser storage');
+    expect(detailText).toContain('Not watched in this snapshot');
+    expect(detailText).not.toContain('smb://');
+    expect(detailText).not.toContain('Authorization');
+    expect(detailText).not.toContain('Basic');
+    expect(detailText).not.toContain('admin:p@ssword');
+    expect(detailText).not.toContain('localStorage');
+  });
+
   it('preserves injected movie action dispatches for fixture mode without touching defaults', async () => {
     const playMovieItem = vi.spyOn(defaultPlayerDispatch, 'playMovieItem').mockResolvedValue();
     const queueMovieItem = vi.spyOn(defaultQueueDispatch, 'queueMovieItem').mockResolvedValue();

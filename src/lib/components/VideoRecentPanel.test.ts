@@ -173,6 +173,54 @@ describe('VideoRecentPanel', () => {
     expectSecretSafe(text);
   });
 
+  it('preserves store-provided recent-played movie and episode ordering without client-side resorting', () => {
+    renderPanel(
+      createVideoSnapshot({
+        isEmpty: false,
+        recentlyPlayedMovies: [
+          { movieid: 1, label: 'Provider first', lastplayed: '2026-04-29 20:00:00' },
+          { movieid: 2, label: 'Provider second', lastplayed: '2026-04-30 20:00:00' },
+          { movieid: 3, label: 'Provider third', lastplayed: '2026-04-28 20:00:00' }
+        ],
+        recentlyPlayedEpisodes: [
+          {
+            episodeid: 10,
+            tvshowid: 20,
+            season: 1,
+            episode: 1,
+            label: 'Episode first',
+            lastplayed: '2026-04-29 20:00:00'
+          },
+          {
+            episodeid: 11,
+            tvshowid: 20,
+            season: 1,
+            episode: 2,
+            label: 'Episode second',
+            lastplayed: '2026-04-30 20:00:00'
+          }
+        ],
+        limits: {
+          recentlyPlayedMovies: { start: 0, end: 3, total: 3 },
+          recentlyPlayedEpisodes: { start: 0, end: 2, total: 2 }
+        }
+      })
+    );
+
+    const movieLabels = Array.from(
+      document.querySelectorAll('[aria-label="Recently played movies"] .recent-link')
+    ).map((link) => link.textContent?.trim());
+    const episodeLabels = Array.from(
+      document.querySelectorAll('[aria-label="Recently played episodes"] .recent-link')
+    ).map((link) => link.textContent?.trim());
+
+    expect(movieLabels).toEqual(['Provider first', 'Provider second', 'Provider third']);
+    expect(episodeLabels).toEqual(['Episode first', 'Episode second']);
+    expect(screenText()).toContain('3 of 3');
+    expect(screenText()).toContain('2 of 2');
+    expectSecretSafe(screenText());
+  });
+
   it('renders sanitized loading and error copy without crashing', () => {
     renderPanel(
       createVideoSnapshot({

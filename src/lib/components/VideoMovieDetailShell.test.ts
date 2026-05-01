@@ -304,6 +304,61 @@ describe('VideoMovieDetailShell', () => {
     expectSecretSafe(text);
   });
 
+  it('keeps changed movie version selection visible without sending selected-version payloads', async () => {
+    const actionDispatch = createMovieActionDispatch({
+      markMovieWatched: vi.fn(async () => undefined)
+    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoMovieDetail', movieid: 42 },
+      {
+        detailSnapshot: createMovieDetailSnapshot({
+          detail: {
+            ...createMovieDetailSnapshot().detail!,
+            watched: false,
+            playcount: 0,
+            versions: {
+              status: 'ready',
+              selectedId: 1,
+              items: [
+                { id: 1, label: 'Theatrical cut' },
+                { id: 2, label: 'Director cut' }
+              ]
+            }
+          }
+        }),
+        actionDispatch
+      }
+    );
+    const select = document.querySelector('#video-movie-version') as HTMLSelectElement | null;
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+
+    select!.value = '2';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick();
+
+    expect(select!.value).toBe('2');
+    getButtonByAria('Play movie Alien').click();
+    await tick();
+    await tick();
+    getButtonByAria('Mark movie Alien watched').click();
+    await tick();
+    await tick();
+
+    expect(actionDispatch.playMovieItem).toHaveBeenCalledWith({ movieid: 42 });
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({
+      movieid: 42,
+      watched: true,
+      label: 'Alien'
+    });
+    expect(actionDispatch.playMovieItem).not.toHaveBeenCalledWith(
+      expect.objectContaining({ versionid: 2 })
+    );
+    expect(actionDispatch.markMovieWatched).not.toHaveBeenCalledWith(
+      expect.objectContaining({ versionid: 2 })
+    );
+  });
+
   it('renders unsupported unavailable and error version states safely', () => {
     for (const versions of [
       { status: 'unsupported', reason: 'Kodi movie versions are not supported yet.' } as const,

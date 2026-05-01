@@ -261,6 +261,70 @@ describe('video write store', () => {
     expect(serialized).not.toContain('CHORUS_SENTINEL_SECRET');
   });
 
+  it('continues 103-episode batches after item failures and retries sanitized failed IDs only', async () => {
+    const { store, writeMethods } = createHarness();
+    vi.mocked(writeMethods.setEpisodeDetails).mockImplementation(async (_client, params) => {
+      if (params.episodeid === 2 || params.episodeid === 101) {
+        throw new Error(
+          `Authorization: Basic token failed for http://admin:p@ssword@kodi.local/jsonrpc /mnt/private/episode${params.episodeid}.mkv localStorage CHORUS_SENTINEL_SECRET`
+        );
+      }
+      return 'OK';
+    });
+    const episodes: VideoWriteEpisodeItem[] = Array.from({ length: 103 }, (_, index) => ({
+      episodeid: index + 1,
+      label: `Episode ${index + 1} smb://nas/private/episode${index + 1}.mkv`
+    }));
+
+    await store.markEpisodesWatched(episodes, true);
+
+    expect(writeMethods.setEpisodeDetails).toHaveBeenCalledTimes(103);
+    expect(store.snapshot).toMatchObject({
+      status: 'partial',
+      lastOperation: 'episodes-batch-watched',
+      summary: { total: 103, succeeded: 101, failed: 2 },
+      failedItems: [
+        { kind: 'episode', id: 2, label: 'Episode 2 redacted-file' },
+        { kind: 'episode', id: 101, label: 'Episode 101 redacted-file' }
+      ],
+      writeCounts: { episodesWatched: 101 }
+    });
+
+    const serializedFailure = serializeSnapshot(store.snapshot);
+    expect(serializedFailure).not.toContain('Authorization');
+    expect(serializedFailure).not.toContain('Basic ');
+    expect(serializedFailure).not.toContain('admin:p@ssword');
+    expect(serializedFailure).not.toContain('http://');
+    expect(serializedFailure).not.toContain('/mnt/private');
+    expect(serializedFailure).not.toContain('smb://');
+    expect(serializedFailure).not.toContain('localStorage');
+    expect(serializedFailure).not.toContain('CHORUS_SENTINEL_SECRET');
+
+    vi.mocked(writeMethods.setEpisodeDetails).mockResolvedValue('OK');
+    vi.mocked(writeMethods.setEpisodeDetails).mockClear();
+
+    await store.retryFailed();
+
+    expect(writeMethods.setEpisodeDetails).toHaveBeenCalledTimes(2);
+    expect(writeMethods.setEpisodeDetails).toHaveBeenNthCalledWith(1, expect.any(FakeKodiClient), {
+      episodeid: 2,
+      playcount: 1,
+      lastplayed: '2026-05-01 10:20:30'
+    });
+    expect(writeMethods.setEpisodeDetails).toHaveBeenNthCalledWith(2, expect.any(FakeKodiClient), {
+      episodeid: 101,
+      playcount: 1,
+      lastplayed: '2026-05-01 10:20:30'
+    });
+    expect(store.snapshot).toMatchObject({
+      status: 'success',
+      lastOperation: 'retry-failed',
+      summary: { total: 2, succeeded: 2, failed: 0 },
+      failedItems: [],
+      writeCounts: { episodesWatched: 103, retries: 1 }
+    });
+  });
+
   it('retries failed IDs only and clears failures after retry success', async () => {
     const { store, writeMethods } = createHarness();
     vi.mocked(writeMethods.setEpisodeDetails).mockImplementation(async (_client, params) => {

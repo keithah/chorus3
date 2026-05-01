@@ -388,6 +388,26 @@ describe('video library store', () => {
     expectSecretSafe(store.snapshot);
   });
 
+  it('preserves bounded 25-of-503 movie limits without pretending the full large grid was fetched', async () => {
+    const { client, store } = createHarness();
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: Array.from({ length: 25 }, (_, index) => ({
+        movieid: index + 1,
+        label: `Movie ${index + 1}`
+      })),
+      limits: { start: 0, end: 25, total: 503 }
+    });
+    enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
+
+    await store.refresh('manual');
+
+    expect(store.snapshot.movies).toHaveLength(25);
+    expect(store.snapshot.limits.movies).toEqual({ start: 0, end: 25, total: 503 });
+    expect(store.snapshot.isEmpty).toBe(false);
+    expect(JSON.stringify(store.snapshot)).not.toContain('Movie 503');
+  });
+
   it('normalizes successful movie snapshots without leaking raw file fields', async () => {
     const { client, setNow, store } = createHarness();
     enqueueSuccessfulMovies(client);
