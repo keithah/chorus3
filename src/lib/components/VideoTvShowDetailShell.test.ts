@@ -131,7 +131,9 @@ describe('VideoTvShowDetailShell', () => {
       document.querySelector('.video-tv-show-detail-shell[aria-labelledby="video-tv-show-title"]')
     ).not.toBeNull();
     expect(document.querySelector('#video-tv-show-title')?.textContent).toContain('Severance');
-    expect(document.querySelector('a[href="/video/tv"]')?.textContent).toContain('Back to TV shows');
+    expect(document.querySelector('a[href="/video/tv"]')?.textContent).toContain(
+      'Back to TV shows'
+    );
     expect(text).toContain('TV show ID 11');
     expect(text).toContain('Workers split office and home memories.');
     expect(text).toContain('Drama, Science Fiction');
@@ -168,7 +170,8 @@ describe('VideoTvShowDetailShell', () => {
         lastError: {
           source: 'http',
           code: 'http/auth',
-          message: 'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc'
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc'
         }
       }),
       { kind: 'videoTvShowDetail', tvshowid: 11 }
@@ -209,7 +212,7 @@ describe('VideoTvShowDetailShell', () => {
       pathLabel: '/video/Authorization/Basic/SENTINEL_SECRET'
     });
 
-    let text = screenText();
+    const text = screenText();
     expect(text).toContain('TV show route unavailable');
     expect(text).toContain('Open the TV shows grid and choose a TV show link.');
     expectSecretSafe(text);

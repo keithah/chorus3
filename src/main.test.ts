@@ -117,6 +117,69 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Back to movies');
   });
 
+  it('mounts populated M004 browser-proof fixtures for direct TV routes in test mode', async () => {
+    setPathAndSearch('/video/tv', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('TV Shows');
+    expect(document.body.textContent).toContain('Aurora Files');
+    expect(document.body.textContent).toContain('3 unwatched episodes');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/tv/5501', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Aurora Files');
+    expect(document.body.textContent).toContain('Season 1');
+    expect(document.body.textContent).toContain('Poster artwork available');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/tv/5501/seasons/1', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Season 1');
+    expect(document.body.textContent).toContain('Signal Mirror');
+    expect(document.body.textContent).toContain('Season artwork unsupported');
+    expect(document.body.textContent).toContain('Refresh artwork');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/tv/5501/seasons/1/episodes/6601', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Signal Mirror');
+    expect(document.body.textContent).toContain('Episode ID 6601');
+    expect(document.body.textContent).toContain('Resume available');
+    expect(document.body.textContent).toContain('Stream');
+    expect(document.body.textContent).not.toContain('smb://');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('localStorage');
+  });
+
+  it('does not expose M004 TV fixture labels in default or disabled rendering', async () => {
+    setPathAndSearch('/video/tv', '');
+
+    await importMain();
+
+    expect(document.body.textContent).not.toContain('Aurora Files');
+    expect(document.body.textContent).not.toContain('Signal Mirror');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/tv', '?m004-browser-proof=0');
+
+    await importMain();
+
+    expect(document.body.textContent).not.toContain('Aurora Files');
+    expect(document.body.textContent).not.toContain('Signal Mirror');
+  });
+
   it('mounts safe M004 browser stream fixtures only when explicitly requested', async () => {
     setPathAndSearch('/video/movies/4401/stream', '?m004-browser-proof=1');
 
@@ -178,6 +241,17 @@ describe('main entrypoint', () => {
     ).toEqual({
       kind: 'videoMovieDetail',
       movieid: 4401
+    });
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/video/tv/5501/seasons/1/episodes/6601',
+        search: '?ignored=1'
+      })
+    ).toEqual({
+      kind: 'videoEpisodeDetail',
+      tvshowid: 5501,
+      season: 1,
+      episodeid: 6601
     });
     expect(resolveEntrypointRoute(undefined)).toEqual({ kind: 'dashboard' });
     expect(

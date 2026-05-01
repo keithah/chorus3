@@ -50,7 +50,14 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
   return createTvSnapshot({
     selectedTvShowId: 11,
     selectedSeason: 2,
-    tvShowDetail: { tvshowid: 11, label: 'Severance', title: 'Severance', thumbnailAvailable: true, fanartAvailable: true, artwork: {} },
+    tvShowDetail: {
+      tvshowid: 11,
+      label: 'Severance',
+      title: 'Severance',
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: {}
+    },
     seasons: [
       { tvshowid: 11, season: 2, label: 'Season 2', episodeCount: 3, unwatchedEpisodes: 2 }
     ],
@@ -210,7 +217,9 @@ describe('VideoSeasonDetailShell', () => {
       artworkDispatch
     );
 
-    const button = document.querySelector<HTMLButtonElement>('button[aria-label="Refresh artwork for Severance season 2"]');
+    const button = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Refresh artwork for Severance season 2"]'
+    );
     expect(button).toBeInstanceOf(HTMLButtonElement);
     button!.click();
     await tick();
@@ -244,7 +253,11 @@ describe('VideoSeasonDetailShell', () => {
       artworkDispatch
     );
 
-    document.querySelector<HTMLButtonElement>('button[aria-label="Refresh artwork for Severance season 2"]')!.click();
+    document
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label="Refresh artwork for Severance season 2"]'
+      )!
+      .click();
     await tick();
     await tick();
 
@@ -258,7 +271,11 @@ describe('VideoSeasonDetailShell', () => {
 
   it('renders invalid route empty and hostile episode states safely without dispatch', () => {
     const artworkDispatch: VideoSeasonArtworkDispatch = { refreshSeasonArtwork: vi.fn() };
-    renderShell(populatedSnapshot(), { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 999 }, artworkDispatch);
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 999 },
+      artworkDispatch
+    );
 
     expect(screenText()).toContain('Season 999 is not present in this snapshot.');
     expect(document.querySelector('button')).toBeNull();

@@ -175,6 +175,84 @@ describe('createM004BrowserProofAppProps', () => {
     expect(isM004BrowserProofFixtureSecretSafe(props.videoMovieActionDispatch)).toBe(true);
   });
 
+  test('creates safe TV fixture props for direct TV routes', async () => {
+    const grid = createM004BrowserProofAppProps({
+      pathname: '/video/tv',
+      search: '?m004-browser-proof=1'
+    });
+    expect(grid.route).toEqual({ kind: 'videoTvShows' });
+    expect(grid.videoLibrarySnapshot.tvShows.map((show) => show.label)).toContain('Aurora Files');
+    expect(grid.videoLibrarySnapshot.limits.tvShows.total).toBe(1);
+
+    const show = createM004BrowserProofAppProps({
+      pathname: '/video/tv/5501',
+      search: '?m004-browser-proof=1'
+    });
+    expect(show.route).toEqual({ kind: 'videoTvShowDetail', tvshowid: 5501 });
+    expect(show.videoTvSnapshot.selectedTvShowId).toBe(5501);
+    expect(show.videoTvSnapshot.tvShowDetail?.label).toBe('Aurora Files');
+    expect(show.videoTvSnapshot.seasons.map((season) => season.label)).toContain('Season 1');
+
+    const season = createM004BrowserProofAppProps({
+      pathname: '/video/tv/5501/seasons/1',
+      search: '?m004-browser-proof=1'
+    });
+    expect(season.route).toEqual({ kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 });
+    expect(season.videoTvSnapshot.selectedSeason).toBe(1);
+    expect(season.videoTvSnapshot.episodes.map((episode) => episode.label)).toContain(
+      'Signal Mirror'
+    );
+    expect(season.videoTvSnapshot.seasonArtworkCapability).toMatchObject({
+      status: 'unsupported',
+      reason: expect.stringContaining('proven JSON-RPC')
+    });
+
+    const episode = createM004BrowserProofAppProps({
+      pathname: '/video/tv/5501/seasons/1/episodes/6601',
+      search: '?m004-browser-proof=1'
+    });
+    expect(episode.route).toEqual({
+      kind: 'videoEpisodeDetail',
+      tvshowid: 5501,
+      season: 1,
+      episodeid: 6601
+    });
+    expect(episode.videoTvSnapshot.selectedEpisodeId).toBe(6601);
+    expect(episode.videoTvSnapshot.episodeDetail?.label).toBe('Signal Mirror');
+    expect(episode.videoTvSnapshot.episodeDetail?.resume?.position).toBeGreaterThan(0);
+  });
+
+  test('uses inert TV episode and artwork dispatch behavior without unsafe side effects', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
+    const sessionStorageSpy = vi.spyOn(window.sessionStorage.__proto__, 'getItem');
+    const props = createM004BrowserProofAppProps({
+      pathname: '/video/tv/5501/seasons/1/episodes/6601'
+    });
+
+    await expect(
+      props.videoEpisodeActionDispatch.playEpisodeItem({ episodeid: 6601 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoEpisodeActionDispatch.resumeEpisodeItem({ episodeid: 6601 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoEpisodeActionDispatch.queueEpisodeItem({ episodeid: 6601 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoEpisodeActionDispatch.streamEpisodeItem({ episodeid: 6601 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoSeasonArtworkDispatch.refreshSeasonArtwork({ tvshowid: 5501, season: 1 })
+    ).resolves.toBeUndefined();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(sessionStorageSpy).not.toHaveBeenCalled();
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoEpisodeActionDispatch)).toBe(true);
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoSeasonArtworkDispatch)).toBe(true);
+  });
+
   test('creates safe direct detail and unknown route variants from location input', () => {
     expect(createM004BrowserProofAppProps({ pathname: '/video/movies/4402' }).route).toEqual({
       kind: 'videoMovieDetail',

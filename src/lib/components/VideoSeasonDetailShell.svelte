@@ -32,47 +32,95 @@
   let { snapshot, route, artworkDispatch = noopArtworkDispatch }: Props = $props();
   let artworkStatusOverride = $state<ArtworkStatus | null>(null);
 
-  const routeTvShowId = $derived(route.kind === 'videoTvSeasonDetail' ? safePositiveId(route.tvshowid) : null);
-  const routeSeason = $derived(route.kind === 'videoTvSeasonDetail' ? safeSeason(route.season) : null);
-  const tvShow = $derived(snapshot.selectedTvShowId === routeTvShowId ? snapshot.tvShowDetail : null);
+  const routeTvShowId = $derived(
+    route.kind === 'videoTvSeasonDetail' ? safePositiveId(route.tvshowid) : null
+  );
+  const routeSeason = $derived(
+    route.kind === 'videoTvSeasonDetail' ? safeSeason(route.season) : null
+  );
+  const tvShow = $derived(
+    snapshot.selectedTvShowId === routeTvShowId ? snapshot.tvShowDetail : null
+  );
   const season = $derived(findSeason(snapshot.seasons, routeTvShowId, routeSeason));
-  const episodes = $derived(season ? orderedEpisodes(snapshot.episodes, routeTvShowId, routeSeason) : []);
+  const episodes = $derived(
+    season ? orderedEpisodes(snapshot.episodes, routeTvShowId, routeSeason) : []
+  );
   const title = $derived(season ? safeSeasonLabel(season) : fallbackTitle(route));
   const showTitle = $derived(tvShow ? safeLabel(tvShow, 'Unknown TV show') : 'TV show');
-  const statusMessage = $derived(artworkStatusOverride?.message ?? capabilityText(snapshot.seasonArtworkCapability));
+  const statusMessage = $derived(
+    artworkStatusOverride?.message ?? capabilityText(snapshot.seasonArtworkCapability)
+  );
   const pending = $derived(artworkStatusOverride?.kind === 'pending');
 
-  function findSeason(values: readonly VideoSeasonSnapshot[], tvshowid: number | null, seasonNumber: number | null): VideoSeasonSnapshot | null {
-    if (tvshowid === null || seasonNumber === null || snapshot.selectedTvShowId !== tvshowid || snapshot.selectedSeason !== seasonNumber) return null;
-    return values.find((item) => safePositiveId(item.tvshowid) === tvshowid && safeSeason(item.season) === seasonNumber) ?? null;
+  function findSeason(
+    values: readonly VideoSeasonSnapshot[],
+    tvshowid: number | null,
+    seasonNumber: number | null
+  ): VideoSeasonSnapshot | null {
+    if (
+      tvshowid === null ||
+      seasonNumber === null ||
+      snapshot.selectedTvShowId !== tvshowid ||
+      snapshot.selectedSeason !== seasonNumber
+    )
+      return null;
+    return (
+      values.find(
+        (item) =>
+          safePositiveId(item.tvshowid) === tvshowid && safeSeason(item.season) === seasonNumber
+      ) ?? null
+    );
   }
 
-  function orderedEpisodes(values: readonly VideoEpisodeSnapshot[], tvshowid: number | null, seasonNumber: number | null): VideoEpisodeSnapshot[] {
+  function orderedEpisodes(
+    values: readonly VideoEpisodeSnapshot[],
+    tvshowid: number | null,
+    seasonNumber: number | null
+  ): VideoEpisodeSnapshot[] {
     if (tvshowid === null || seasonNumber === null) return [];
     return [...values]
-      .filter((episode) => (episode.tvshowid === undefined || safePositiveId(episode.tvshowid) === tvshowid) && (episode.season === undefined || safeSeason(episode.season) === seasonNumber))
-      .sort((left, right) => (safeSeason(left.episode) ?? 0) - (safeSeason(right.episode) ?? 0) || (safePositiveId(left.episodeid) ?? 0) - (safePositiveId(right.episodeid) ?? 0));
+      .filter(
+        (episode) =>
+          (episode.tvshowid === undefined || safePositiveId(episode.tvshowid) === tvshowid) &&
+          (episode.season === undefined || safeSeason(episode.season) === seasonNumber)
+      )
+      .sort(
+        (left, right) =>
+          (safeSeason(left.episode) ?? 0) - (safeSeason(right.episode) ?? 0) ||
+          (safePositiveId(left.episodeid) ?? 0) - (safePositiveId(right.episodeid) ?? 0)
+      );
   }
 
   function episodeHref(episode: VideoEpisodeSnapshot): string | null {
     const tvshowid = routeTvShowId;
     const seasonNumber = routeSeason;
     const episodeid = safePositiveId(episode.episodeid);
-    return tvshowid === null || seasonNumber === null || episodeid === null ? null : buildVideoRoute({ kind: 'videoEpisodeDetail', tvshowid, season: seasonNumber, episodeid });
+    return tvshowid === null || seasonNumber === null || episodeid === null
+      ? null
+      : buildVideoRoute({ kind: 'videoEpisodeDetail', tvshowid, season: seasonNumber, episodeid });
   }
 
   async function refreshArtwork(): Promise<void> {
     if (routeTvShowId === null || routeSeason === null || !season) {
-      artworkStatusOverride = { kind: 'error', message: 'Choose a valid season before refreshing artwork.' };
+      artworkStatusOverride = {
+        kind: 'error',
+        message: 'Choose a valid season before refreshing artwork.'
+      };
       return;
     }
     const label = `${showTitle} season ${routeSeason}`;
     artworkStatusOverride = { kind: 'pending', message: `Refreshing artwork for ${label}…` };
     try {
       await artworkDispatch.refreshSeasonArtwork({ tvshowid: routeTvShowId, season: routeSeason });
-      artworkStatusOverride = { kind: 'success', message: `Artwork refresh requested for ${label}.` };
+      artworkStatusOverride = {
+        kind: 'success',
+        message: `Artwork refresh requested for ${label}.`
+      };
     } catch (error) {
-      artworkStatusOverride = { kind: 'error', message: `Could not refresh artwork for ${label}. ${sanitizeUiText(errorMessage(error))}` };
+      artworkStatusOverride = {
+        kind: 'error',
+        message: `Could not refresh artwork for ${label}. ${sanitizeUiText(errorMessage(error))}`
+      };
     }
   }
 
@@ -81,8 +129,10 @@
       const types = capability.availableArtTypes.map(sanitizeUiText).join(', ');
       return `Season artwork ready. ${sanitizeUiText(capability.reason)}${types ? ` Available types: ${types}.` : ''}`;
     }
-    if (capability.status === 'unsupported') return `Season artwork unsupported. ${sanitizeUiText(capability.reason)}`;
-    if (capability.status === 'unavailable') return `Season artwork unavailable. ${sanitizeUiText(capability.reason)}`;
+    if (capability.status === 'unsupported')
+      return `Season artwork unsupported. ${sanitizeUiText(capability.reason)}`;
+    if (capability.status === 'unavailable')
+      return `Season artwork unavailable. ${sanitizeUiText(capability.reason)}`;
     return `Season artwork failed. ${sanitizeUiText(capability.message)}`;
   }
 
@@ -92,7 +142,8 @@
   }
 
   function notFoundCopy(): string {
-    if (route.kind !== 'videoTvSeasonDetail' || routeTvShowId === null || routeSeason === null) return 'Open a TV show and choose a season link.';
+    if (route.kind !== 'videoTvSeasonDetail' || routeTvShowId === null || routeSeason === null)
+      return 'Open a TV show and choose a season link.';
     return `Season ${routeSeason} is not present in this snapshot.`;
   }
 
@@ -129,7 +180,11 @@
     return count === 1 ? '1 unwatched episode' : `${count} unwatched episodes`;
   }
   function countSummary(): string {
-    const total = typeof snapshot.limits.episodes.total === 'number' && Number.isFinite(snapshot.limits.episodes.total) ? snapshot.limits.episodes.total : episodes.length;
+    const total =
+      typeof snapshot.limits.episodes.total === 'number' &&
+      Number.isFinite(snapshot.limits.episodes.total)
+        ? snapshot.limits.episodes.total
+        : episodes.length;
     return `${episodes.length} of ${total} episodes`;
   }
   function isWatched(value: VideoEpisodeSnapshot): boolean {
@@ -150,7 +205,9 @@
     return sanitizeUiText(trimmed);
   }
   function errorMessage(error: unknown): string {
-    return error instanceof Error && error.message.trim() ? error.message : 'Season artwork refresh failed.';
+    return error instanceof Error && error.message.trim()
+      ? error.message
+      : 'Season artwork refresh failed.';
   }
   function sanitizeUiText(value: string): string {
     return value
@@ -169,18 +226,38 @@
       .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
   }
   function looksLikePathOrUrl(value: string): boolean {
-    return /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) || /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) || /\\/.test(value);
+    return (
+      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
+      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
+      /\\/.test(value)
+    );
   }
 </script>
 
 <section class="video-season-detail-shell surface" aria-labelledby="video-season-title">
-  <a class="back-link" href={routeTvShowId ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId }) : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a>
-  <div class="panel-heading"><p class="section-kicker">Season detail</p><h2 id="video-season-title">{title}</h2><p class="summary-line">Browse ordered episodes and request season artwork refresh feedback.</p></div>
+  <a
+    class="back-link"
+    href={routeTvShowId
+      ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
+      : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
+  >
+  <div class="panel-heading">
+    <p class="section-kicker">Season detail</p>
+    <h2 id="video-season-title">{title}</h2>
+    <p class="summary-line">Browse ordered episodes and request season artwork refresh feedback.</p>
+  </div>
 
   {#if season}
     <div class="artwork-actions">
-      <button type="button" aria-label={`Refresh artwork for ${showTitle} season ${routeSeason}`} disabled={pending} onclick={() => void refreshArtwork()}>Refresh artwork</button>
-      <div class="action-status" role="status" aria-live="polite" aria-atomic="true">{statusMessage}</div>
+      <button
+        type="button"
+        aria-label={`Refresh artwork for ${showTitle} season ${routeSeason}`}
+        disabled={pending}
+        onclick={() => void refreshArtwork()}>Refresh artwork</button
+      >
+      <div class="action-status" role="status" aria-live="polite" aria-atomic="true">
+        {statusMessage}
+      </div>
     </div>
     <p class="count-summary">{countSummary()}</p>
     <p class="state-copy">{unwatchedText(season)}</p>
@@ -191,8 +268,13 @@
         {#each episodes as episode (safePositiveId(episode.episodeid))}
           {@const href = episodeHref(episode)}
           <li class="episode-card">
-            {#if href}<a class="episode-link episode-title" {href}>{safeEpisodeLabel(episode)}</a>{:else}<span class="episode-title">{safeEpisodeLabel(episode)}</span>{/if}
-            <p class="episode-meta">{[episodeNumberText(episode), durationText(episode.runtime)].filter(Boolean).join(' · ')}</p>
+            {#if href}<a class="episode-link episode-title" {href}>{safeEpisodeLabel(episode)}</a
+              >{:else}<span class="episode-title">{safeEpisodeLabel(episode)}</span>{/if}
+            <p class="episode-meta">
+              {[episodeNumberText(episode), durationText(episode.runtime)]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
             <div class="badge-list" aria-label="Episode metadata">
               {#if isWatched(episode)}<span class="badge">Watched</span>{/if}
               {#if hasResume(episode)}<span class="badge">Resume available</span>{/if}
@@ -202,23 +284,115 @@
       </ul>
     {/if}
   {:else}
-    <div class="empty-state" role="status" aria-live="polite" aria-atomic="true"><p>{fallbackTitle(route)}</p><p>{notFoundCopy()}</p></div>
+    <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">
+      <p>{fallbackTitle(route)}</p>
+      <p>{notFoundCopy()}</p>
+    </div>
   {/if}
 </section>
 
 <style>
-  .video-season-detail-shell { display: grid; gap: var(--space-lg); padding: clamp(var(--space-lg), 4vw, var(--space-xl)); }
-  .panel-heading, .episode-card, .empty-state, .artwork-actions { display: grid; gap: var(--space-xs); }
-  .section-kicker, h2, p, ul { margin: 0; }
-  .section-kicker { color: var(--color-accent); font-family: var(--font-mono); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-  h2 { overflow-wrap: anywhere; font-size: clamp(1.4rem, 3vw, 2.1rem); line-height: 1.08; text-wrap: balance; }
-  .summary-line, .episode-meta, .empty-state, .action-status, .state-copy, .count-summary { color: var(--color-text-muted); line-height: 1.55; text-wrap: pretty; }
-  .back-link, .episode-link, .episode-title { color: var(--color-text); font-weight: 850; text-decoration-thickness: 0.08em; text-underline-offset: 0.18em; overflow-wrap: anywhere; }
-  .back-link:focus-visible, .episode-link:focus-visible, button:focus-visible { outline: none; box-shadow: var(--shadow-ring); }
-  button { min-height: 2.5rem; justify-self: start; padding: 0.65rem 1rem; border: 0; border-radius: var(--radius-md); color: var(--color-text); background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised)); font: inherit; font-weight: 850; cursor: pointer; }
-  button:disabled { cursor: not-allowed; opacity: 0.55; }
-  .episode-list { display: grid; gap: var(--space-md); padding: 0; list-style: none; }
-  .episode-card, .empty-state, .action-status { padding: var(--space-md); background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--color-border); }
-  .badge-list { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
-  .badge { padding: 0.18rem 0.55rem; color: var(--color-text); font-size: 0.78rem; font-variant-numeric: tabular-nums; font-weight: 800; line-height: 1.4; background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface)); border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent); }
+  .video-season-detail-shell {
+    display: grid;
+    gap: var(--space-lg);
+    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+  }
+  .panel-heading,
+  .episode-card,
+  .empty-state,
+  .artwork-actions {
+    display: grid;
+    gap: var(--space-xs);
+  }
+  .section-kicker,
+  h2,
+  p,
+  ul {
+    margin: 0;
+  }
+  .section-kicker {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h2 {
+    overflow-wrap: anywhere;
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+  .summary-line,
+  .episode-meta,
+  .empty-state,
+  .action-status,
+  .state-copy,
+  .count-summary {
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .back-link,
+  .episode-link,
+  .episode-title {
+    color: var(--color-text);
+    font-weight: 850;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+    overflow-wrap: anywhere;
+  }
+  .back-link:focus-visible,
+  .episode-link:focus-visible,
+  button:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-ring);
+  }
+  button {
+    min-height: 2.5rem;
+    justify-self: start;
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .episode-list {
+    display: grid;
+    gap: var(--space-md);
+    padding: 0;
+    list-style: none;
+  }
+  .episode-card,
+  .empty-state,
+  .action-status {
+    padding: var(--space-md);
+    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+  .badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .badge {
+    padding: 0.18rem 0.55rem;
+    color: var(--color-text);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    line-height: 1.4;
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
+  }
 </style>

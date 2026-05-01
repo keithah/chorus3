@@ -4,8 +4,11 @@ import type {
 } from '$lib/stores/videoLibrary.svelte';
 import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
 import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
+import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
 import type { VideoMovieActionDispatch } from '$lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from '$lib/components/VideoMovieStreamShell.svelte';
+import type { VideoEpisodeActionDispatch } from '$lib/components/VideoEpisodeDetailShell.svelte';
+import type { VideoSeasonArtworkDispatch } from '$lib/components/VideoSeasonDetailShell.svelte';
 import { parseVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
 export interface M004BrowserProofLocation {
@@ -27,11 +30,17 @@ export interface M004BrowserProofAppProps {
   videoNavigationDispatch: VideoNavigationDispatch;
   videoMovieActionDispatch: VideoMovieActionDispatch;
   videoMovieStreamActionDispatch: VideoMovieStreamDispatch;
+  videoTvSnapshot: VideoTvStoreSnapshot;
+  videoEpisodeActionDispatch: VideoEpisodeActionDispatch;
+  videoSeasonArtworkDispatch: VideoSeasonArtworkDispatch;
 }
 
 export const M004_BROWSER_PROOF_FORBIDDEN_TEXT = [
   'smb://',
   'special://',
+  'file://',
+  'http://',
+  'https://',
   '://admin:',
   'Authorization',
   'Basic',
@@ -55,10 +64,13 @@ export function createM004BrowserProofAppProps(
     route,
     videoLibrarySnapshot: createVideoLibrarySnapshot(),
     videoMovieDetailSnapshot: createVideoMovieDetailSnapshot(route),
+    videoTvSnapshot: createVideoTvSnapshot(route),
     localPlayerSnapshot: createLocalPlayerSnapshot(route),
     videoNavigationDispatch: createVideoNavigationDispatch(),
     videoMovieActionDispatch: createVideoMovieActionDispatch(),
-    videoMovieStreamActionDispatch: createVideoMovieStreamActionDispatch()
+    videoMovieStreamActionDispatch: createVideoMovieStreamActionDispatch(),
+    videoEpisodeActionDispatch: createVideoEpisodeActionDispatch(),
+    videoSeasonArtworkDispatch: createVideoSeasonArtworkDispatch()
   };
 }
 
@@ -68,6 +80,7 @@ export function isM004BrowserProofFixtureSecretSafe(value: unknown): boolean {
 }
 
 function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
+  const tvShows = createFixtureTvShows();
   const movies: Array<VideoLibraryMovieSnapshot & { versionCount?: number }> = [
     {
       movieid: 4401,
@@ -102,10 +115,10 @@ function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
     lastRefreshReason: 'manual',
     lastUpdatedAt: readyAt,
     movies,
-    tvShows: [],
+    tvShows,
     limits: {
       movies: { start: 0, end: movies.length, total: movies.length },
-      tvShows: { start: 0, end: 0, total: 0 }
+      tvShows: { start: 0, end: tvShows.length, total: tvShows.length }
     },
     isEmpty: false,
     lastError: null
@@ -195,6 +208,191 @@ function createQuietSignalDetail(): VideoMovieDetailStoreSnapshot['detail'] {
   };
 }
 
+function createFixtureTvShows(): VideoTvStoreSnapshot['tvShows'] {
+  return [
+    {
+      tvshowid: 5501,
+      label: 'Aurora Files',
+      title: 'Aurora Files',
+      year: 2026,
+      thumbnail: 'poster:aurora-files',
+      fanart: 'fanart:aurora-files',
+      art: { poster: 'poster:aurora-files', fanart: 'fanart:aurora-files' },
+      episodeCount: 6,
+      watchedEpisodeCount: 3,
+      unwatchedEpisodes: 3,
+      hasUnwatched: true,
+      playcount: 0,
+      dateadded: '2026-04-25 09:00:00',
+      watched: false
+    }
+  ];
+}
+
+function createVideoTvSnapshot(route: VideoRoute): VideoTvStoreSnapshot {
+  const tvShows = createFixtureTvShows();
+  const tvShowDetail = createAuroraFilesDetail();
+  const seasons = createAuroraFilesSeasons();
+  const episodes = createAuroraFilesEpisodes();
+  const episodeDetail = createSignalMirrorDetail();
+  const selectedTvShowId =
+    route.kind === 'videoTvShowDetail' ||
+    route.kind === 'videoTvSeasonDetail' ||
+    route.kind === 'videoEpisodeDetail'
+      ? route.tvshowid
+      : null;
+  const selectedSeason =
+    route.kind === 'videoTvSeasonDetail' || route.kind === 'videoEpisodeDetail'
+      ? route.season
+      : null;
+  const selectedEpisodeId = route.kind === 'videoEpisodeDetail' ? route.episodeid : null;
+
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'manual',
+    lastUpdatedAt: readyAt,
+    selectedTvShowId,
+    selectedSeason,
+    selectedEpisodeId,
+    tvShows,
+    tvShowDetail: selectedTvShowId === 5501 ? tvShowDetail : null,
+    seasons: selectedTvShowId === 5501 ? seasons : [],
+    episodes: selectedTvShowId === 5501 && selectedSeason === 1 ? episodes : [],
+    episodeDetail: selectedEpisodeId === 6601 ? episodeDetail : null,
+    limits: {
+      tvShows: { start: 0, end: tvShows.length, total: tvShows.length },
+      seasons: {
+        start: 0,
+        end: selectedTvShowId === 5501 ? seasons.length : 0,
+        total: selectedTvShowId === 5501 ? seasons.length : 0
+      },
+      episodes: {
+        start: 0,
+        end: selectedSeason === 1 ? episodes.length : 0,
+        total: selectedSeason === 1 ? episodes.length : 0
+      }
+    },
+    seasonArtworkCapability:
+      selectedTvShowId === 5501 && selectedSeason === 1
+        ? {
+            status: 'unsupported',
+            reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+          }
+        : { status: 'unavailable', reason: 'No season selected.' },
+    lastError: null
+  };
+}
+
+function createAuroraFilesDetail(): VideoTvStoreSnapshot['tvShowDetail'] {
+  return {
+    tvshowid: 5501,
+    label: 'Aurora Files',
+    title: 'Aurora Files',
+    year: 2026,
+    plot: 'Investigators decode aurora-borne transmissions without exposing raw media paths.',
+    genre: ['Mystery', 'Science Fiction'],
+    studio: ['Polar Signal'],
+    rating: 7.6,
+    userrating: 8,
+    premiered: '2026-01-17',
+    uniqueid: { fixture: 'aurora-files' },
+    thumbnail: 'poster:aurora-files',
+    fanart: 'fanart:aurora-files',
+    art: { poster: 'poster:aurora-files', fanart: 'fanart:aurora-files' },
+    episodeCount: 6,
+    watchedEpisodeCount: 3,
+    unwatchedEpisodes: 3,
+    hasUnwatched: true,
+    playcount: 0,
+    watched: false,
+    thumbnailAvailable: true,
+    fanartAvailable: true,
+    artwork: { poster: true, fanart: true }
+  };
+}
+
+function createAuroraFilesSeasons(): VideoTvStoreSnapshot['seasons'] {
+  return [
+    {
+      tvshowid: 5501,
+      season: 1,
+      label: 'Season 1',
+      title: 'Season 1',
+      showtitle: 'Aurora Files',
+      thumbnail: 'poster:aurora-files-season-1',
+      fanart: 'fanart:aurora-files-season-1',
+      art: { poster: 'poster:aurora-files-season-1' },
+      episodeCount: 2,
+      watchedEpisodeCount: 1,
+      unwatchedEpisodes: 1,
+      hasUnwatched: true,
+      playcount: 0,
+      watched: false
+    }
+  ];
+}
+
+function createAuroraFilesEpisodes(): VideoTvStoreSnapshot['episodes'] {
+  return [
+    {
+      episodeid: 6601,
+      tvshowid: 5501,
+      season: 1,
+      episode: 1,
+      label: 'Signal Mirror',
+      title: 'Signal Mirror',
+      showtitle: 'Aurora Files',
+      runtime: 2700,
+      thumbnail: 'thumb:signal-mirror',
+      art: { thumb: 'thumb:signal-mirror' },
+      playcount: 0,
+      resume: { position: 600, total: 2700 },
+      dateadded: '2026-04-30 11:00:00',
+      watched: false
+    },
+    {
+      episodeid: 6602,
+      tvshowid: 5501,
+      season: 1,
+      episode: 2,
+      label: 'Cold Open',
+      title: 'Cold Open',
+      showtitle: 'Aurora Files',
+      runtime: 2640,
+      playcount: 1,
+      watched: true
+    }
+  ];
+}
+
+function createSignalMirrorDetail(): VideoTvStoreSnapshot['episodeDetail'] {
+  return {
+    episodeid: 6601,
+    tvshowid: 5501,
+    season: 1,
+    episode: 1,
+    label: 'Signal Mirror',
+    title: 'Signal Mirror',
+    showtitle: 'Aurora Files',
+    runtime: 2700,
+    plot: 'The team follows a safe fixture signal into a mirrored storm.',
+    director: ['Rhea Vale'],
+    writer: ['Noel Cross'],
+    rating: 7.9,
+    userrating: 8,
+    firstaired: '2026-01-17',
+    uniqueid: { fixture: 'signal-mirror' },
+    thumbnail: 'thumb:signal-mirror',
+    art: { thumb: 'thumb:signal-mirror' },
+    playcount: 0,
+    resume: { position: 600, total: 2700 },
+    watched: false,
+    thumbnailAvailable: true,
+    fanartAvailable: false,
+    artwork: { thumb: true }
+  };
+}
+
 function createLocalPlayerSnapshot(route: VideoRoute): LocalPlayerStoreSnapshot {
   const movieid = route.kind === 'videoMovieStream' ? route.movieid : null;
 
@@ -236,6 +434,21 @@ function createVideoMovieStreamActionDispatch(): VideoMovieStreamDispatch {
   return {
     streamMovieItem: noop,
     resumeOnKodi: noop
+  };
+}
+
+function createVideoEpisodeActionDispatch(): VideoEpisodeActionDispatch {
+  return {
+    playEpisodeItem: noop,
+    resumeEpisodeItem: noop,
+    queueEpisodeItem: noop,
+    streamEpisodeItem: noop
+  };
+}
+
+function createVideoSeasonArtworkDispatch(): VideoSeasonArtworkDispatch {
+  return {
+    refreshSeasonArtwork: noop
   };
 }
 

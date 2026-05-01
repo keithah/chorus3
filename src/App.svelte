@@ -35,6 +35,14 @@
     type VideoMovieStreamDispatch
   } from '$components/VideoMovieStreamShell.svelte';
   import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
+  import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
+  import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
+  import VideoSeasonDetailShell, {
+    type VideoSeasonArtworkDispatch
+  } from '$components/VideoSeasonDetailShell.svelte';
+  import VideoEpisodeDetailShell, {
+    type VideoEpisodeActionDispatch
+  } from '$components/VideoEpisodeDetailShell.svelte';
   import {
     configStore,
     connectionStore,
@@ -63,6 +71,7 @@
     type VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
   import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
+  import { videoTvStore, type VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -96,6 +105,9 @@
     videoNavigationDispatch?: VideoNavigationDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
+    videoTvSnapshot?: VideoTvStoreSnapshot;
+    videoEpisodeActionDispatch?: VideoEpisodeActionDispatch;
+    videoSeasonArtworkDispatch?: VideoSeasonArtworkDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -156,6 +168,19 @@
     resumeOnKodi: () => defaultPlayerDispatch.resumeOnKodi()
   };
 
+  const defaultVideoEpisodeActionDispatch: VideoEpisodeActionDispatch = {
+    playEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.playEpisodeItem({ episodeid }),
+    resumeEpisodeItem: ({ episodeid }) =>
+      defaultPlayerDispatch.playEpisodeItem({ episodeid, resume: true }),
+    queueEpisodeItem: ({ episodeid }) => defaultQueueDispatch.queueEpisodeItem({ episodeid }),
+    streamEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.streamEpisodeItem({ episodeid })
+  };
+
+  const defaultVideoSeasonArtworkDispatch: VideoSeasonArtworkDispatch = {
+    refreshSeasonArtwork: ({ tvshowid, season }) =>
+      videoTvStore.refreshSeasonArtwork(tvshowid, season, 'command:refreshSeasonArtwork')
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -179,7 +204,10 @@
     videoLibrarySnapshot,
     videoMovieDetailSnapshot,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
-    videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch
+    videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
+    videoTvSnapshot,
+    videoEpisodeActionDispatch = defaultVideoEpisodeActionDispatch,
+    videoSeasonArtworkDispatch = defaultVideoSeasonArtworkDispatch
   }: Props = $props();
   const currentRoute = $derived(route);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
@@ -193,10 +221,15 @@
     mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
+  const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isVideoMoviesRoute = $derived(currentRoute.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentRoute.kind === 'videoMovieDetail');
   const isVideoMovieStreamRoute = $derived(currentRoute.kind === 'videoMovieStream');
+  const isVideoTvShowsRoute = $derived(currentRoute.kind === 'videoTvShows');
+  const isVideoTvShowDetailRoute = $derived(currentRoute.kind === 'videoTvShowDetail');
+  const isVideoTvSeasonDetailRoute = $derived(currentRoute.kind === 'videoTvSeasonDetail');
+  const isVideoEpisodeDetailRoute = $derived(currentRoute.kind === 'videoEpisodeDetail');
   const isVideoUnknownRoute = $derived(currentRoute.kind === 'videoUnknown');
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
@@ -453,6 +486,30 @@
         actionDispatch={videoMovieStreamActionDispatch}
       />
     </main>
+  {:else if isVideoTvShowsRoute}
+    <main class="video-route" aria-label="Video TV shows route">
+      <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
+    </main>
+  {:else if isVideoTvShowDetailRoute}
+    <main class="video-route" aria-label="Video TV show detail route">
+      <VideoTvShowDetailShell snapshot={currentVideoTvSnapshot} route={currentRoute} />
+    </main>
+  {:else if isVideoTvSeasonDetailRoute}
+    <main class="video-route" aria-label="Video TV season detail route">
+      <VideoSeasonDetailShell
+        snapshot={currentVideoTvSnapshot}
+        route={currentRoute}
+        artworkDispatch={videoSeasonArtworkDispatch}
+      />
+    </main>
+  {:else if isVideoEpisodeDetailRoute}
+    <main class="video-route" aria-label="Video episode detail route">
+      <VideoEpisodeDetailShell
+        snapshot={currentVideoTvSnapshot}
+        route={currentRoute}
+        actionDispatch={videoEpisodeActionDispatch}
+      />
+    </main>
   {:else if isVideoUnknownRoute}
     <main class="video-route" aria-label="Unknown video route">
       <section class="video-route-not-found surface" aria-labelledby="video-route-not-found-title">
@@ -463,7 +520,10 @@
             ? currentRoute.pathLabel
             : '/video/unknown'} is not available in this app shell.
         </p>
-        <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
+        <nav class="video-route-recovery" aria-label="Video route recovery">
+          <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
+          <a href={buildVideoRoute({ kind: 'videoTvShows' })}>TV shows</a>
+        </nav>
       </section>
     </main>
   {/if}
@@ -545,6 +605,12 @@
     color: var(--color-text-muted);
     font-size: 1rem;
     line-height: 1.7;
+  }
+
+  .video-route-recovery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
   }
 
   .host-grid {

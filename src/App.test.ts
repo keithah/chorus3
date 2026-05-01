@@ -21,8 +21,11 @@ import type {
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from './lib/components/VideoMovieStreamShell.svelte';
+import type { VideoEpisodeActionDispatch } from './lib/components/VideoEpisodeDetailShell.svelte';
+import type { VideoSeasonArtworkDispatch } from './lib/components/VideoSeasonDetailShell.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
+import type { VideoTvStoreSnapshot } from './lib/stores/videoTvStore.svelte.ts';
 import type { VideoRoute } from './lib/video/videoRouter';
 import {
   configStore,
@@ -78,6 +81,9 @@ type AppProps = {
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
   videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
+  videoTvSnapshot?: VideoTvStoreSnapshot;
+  videoEpisodeActionDispatch?: VideoEpisodeActionDispatch;
+  videoSeasonArtworkDispatch?: VideoSeasonArtworkDispatch;
 };
 
 type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
@@ -387,6 +393,151 @@ function createVideoLibrarySnapshot(
     lastError: null,
     ...overrides
   };
+}
+
+function createVideoTvSnapshot(
+  overrides: Partial<VideoTvStoreSnapshot> = {}
+): VideoTvStoreSnapshot {
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'manual',
+    lastUpdatedAt: '2026-05-01T07:00:00.000Z',
+    selectedTvShowId: 5501,
+    selectedSeason: 1,
+    selectedEpisodeId: 6601,
+    tvShows: [
+      {
+        tvshowid: 5501,
+        label: 'Aurora Files',
+        title: 'Aurora Files',
+        year: 2026,
+        episodeCount: 6,
+        watchedEpisodeCount: 3,
+        unwatchedEpisodes: 3,
+        hasUnwatched: true,
+        watched: false,
+        art: { poster: 'poster:aurora-files' }
+      }
+    ],
+    tvShowDetail: {
+      tvshowid: 5501,
+      label: 'Aurora Files',
+      title: 'Aurora Files',
+      year: 2026,
+      plot: 'Investigators decode aurora-borne transmissions without exposing raw media paths.',
+      genre: ['Mystery', 'Science Fiction'],
+      studio: ['Polar Signal'],
+      episodeCount: 6,
+      watchedEpisodeCount: 3,
+      unwatchedEpisodes: 3,
+      hasUnwatched: true,
+      watched: false,
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: { poster: true, fanart: true }
+    },
+    seasons: [
+      {
+        tvshowid: 5501,
+        season: 1,
+        label: 'Season 1',
+        title: 'Season 1',
+        episodeCount: 2,
+        watchedEpisodeCount: 1,
+        unwatchedEpisodes: 1,
+        hasUnwatched: true,
+        watched: false
+      }
+    ],
+    episodes: [
+      {
+        episodeid: 6601,
+        tvshowid: 5501,
+        season: 1,
+        episode: 1,
+        label: 'Signal Mirror',
+        title: 'Signal Mirror',
+        runtime: 2700,
+        playcount: 0,
+        watched: false,
+        resume: { position: 600, total: 2700 }
+      }
+    ],
+    episodeDetail: {
+      episodeid: 6601,
+      tvshowid: 5501,
+      season: 1,
+      episode: 1,
+      label: 'Signal Mirror',
+      title: 'Signal Mirror',
+      runtime: 2700,
+      plot: 'The team follows a safe fixture signal into a mirrored storm.',
+      director: ['Rhea Vale'],
+      writer: ['Noel Cross'],
+      playcount: 0,
+      watched: false,
+      resume: { position: 600, total: 2700 },
+      thumbnailAvailable: true,
+      fanartAvailable: false,
+      artwork: { thumb: true }
+    },
+    limits: {
+      tvShows: { start: 0, end: 1, total: 1 },
+      seasons: { start: 0, end: 1, total: 1 },
+      episodes: { start: 0, end: 1, total: 1 }
+    },
+    seasonArtworkCapability: {
+      status: 'unsupported',
+      reason: 'Kodi does not expose a proven JSON-RPC season artwork refresh action.'
+    },
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createEpisodeActionDispatch(
+  overrides: Partial<VideoEpisodeActionDispatch> = {}
+): VideoEpisodeActionDispatch {
+  return {
+    playEpisodeItem: vi.fn(),
+    resumeEpisodeItem: vi.fn(),
+    queueEpisodeItem: vi.fn(),
+    streamEpisodeItem: vi.fn(),
+    ...overrides
+  };
+}
+
+function createSeasonArtworkDispatch(
+  overrides: Partial<VideoSeasonArtworkDispatch> = {}
+): VideoSeasonArtworkDispatch {
+  return {
+    refreshSeasonArtwork: vi.fn(),
+    ...overrides
+  };
+}
+
+function getVideoTvPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-tv-shows-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoTvShowDetailText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-tv-show-detail-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoSeasonDetailText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-season-detail-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoEpisodeDetailText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-episode-detail-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
 }
 
 function createMovieActionDispatch(
@@ -1036,6 +1187,129 @@ describe('App shell', () => {
     expect(streamMovieItem).toHaveBeenNthCalledWith(1, { movieid: 4402 });
     expect(streamMovieItem).toHaveBeenNthCalledWith(2, { movieid: 4402, resume: true });
     expect(resumeOnKodi).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders routed TV grid, show, season, and episode shells from injected snapshots', () => {
+    const gridTarget = renderApp({
+      route: { kind: 'videoTvShows' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot({
+        tvShows: createVideoTvSnapshot().tvShows,
+        limits: { movies: { start: 0, end: 2, total: 2 }, tvShows: { start: 0, end: 1, total: 1 } }
+      })
+    });
+
+    expect(getVideoTvPanelText(gridTarget)).toContain('TV Shows');
+    expect(getVideoTvPanelText(gridTarget)).toContain('Aurora Files');
+    expect(getVideoLink(gridTarget, 'Aurora Files').getAttribute('href')).toBe('/video/tv/5501');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const showTarget = renderApp({
+      route: { kind: 'videoTvShowDetail', tvshowid: 5501 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    expect(getVideoTvShowDetailText(showTarget)).toContain('Aurora Files');
+    expect(getVideoTvShowDetailText(showTarget)).toContain('Season 1');
+    expect(getVideoLink(showTarget, 'Season 1').getAttribute('href')).toBe(
+      '/video/tv/5501/seasons/1'
+    );
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const seasonTarget = renderApp({
+      route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    expect(getVideoSeasonDetailText(seasonTarget)).toContain('Season 1');
+    expect(getVideoSeasonDetailText(seasonTarget)).toContain('Signal Mirror');
+    expect(getVideoSeasonDetailText(seasonTarget)).toContain('Season artwork unsupported');
+    expect(getVideoLink(seasonTarget, 'Signal Mirror').getAttribute('href')).toBe(
+      '/video/tv/5501/seasons/1/episodes/6601'
+    );
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const episodeTarget = renderApp({
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    expect(getVideoEpisodeDetailText(episodeTarget)).toContain('Signal Mirror');
+    expect(getVideoEpisodeDetailText(episodeTarget)).toContain('Episode ID 6601');
+    expect(getVideoEpisodeDetailText(episodeTarget)).toContain('Resume available');
+    expect(episodeTarget.textContent).not.toContain('smb://');
+    expect(episodeTarget.textContent).not.toContain('Authorization');
+  });
+
+  it('routes default and injected TV episode/artwork actions through App seams', async () => {
+    const playEpisodeItem = vi.spyOn(defaultPlayerDispatch, 'playEpisodeItem').mockResolvedValue();
+    const streamEpisodeItem = vi
+      .spyOn(defaultPlayerDispatch, 'streamEpisodeItem')
+      .mockResolvedValue();
+    const queueEpisodeItem = vi.spyOn(defaultQueueDispatch, 'queueEpisodeItem').mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    getButtonByAria(target, 'Play episode Signal Mirror').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Resume episode Signal Mirror').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue episode Signal Mirror').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Stream episode Signal Mirror').click();
+    await tick();
+    await tick();
+
+    expect(playEpisodeItem).toHaveBeenNthCalledWith(1, { episodeid: 6601 });
+    expect(playEpisodeItem).toHaveBeenNthCalledWith(2, { episodeid: 6601, resume: true });
+    expect(queueEpisodeItem).toHaveBeenCalledWith({ episodeid: 6601 });
+    expect(streamEpisodeItem).toHaveBeenCalledWith({ episodeid: 6601 });
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const injectedEpisodeDispatch = createEpisodeActionDispatch();
+    const injectedArtworkDispatch = createSeasonArtworkDispatch();
+    const injectedEpisodeTarget = renderApp({
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
+      videoTvSnapshot: createVideoTvSnapshot(),
+      videoEpisodeActionDispatch: injectedEpisodeDispatch
+    });
+    getButtonByAria(injectedEpisodeTarget, 'Queue episode Signal Mirror').click();
+    await tick();
+    await tick();
+    expect(injectedEpisodeDispatch.queueEpisodeItem).toHaveBeenCalledWith({ episodeid: 6601 });
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const injectedSeasonTarget = renderApp({
+      route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+      videoTvSnapshot: createVideoTvSnapshot(),
+      videoSeasonArtworkDispatch: injectedArtworkDispatch
+    });
+    getButtonByAria(injectedSeasonTarget, 'Refresh artwork for Aurora Files season 1').click();
+    await tick();
+    await tick();
+    expect(injectedArtworkDispatch.refreshSeasonArtwork).toHaveBeenCalledWith({
+      tvshowid: 5501,
+      season: 1
+    });
+  });
+
+  it('renders unknown video route recovery links for movies and TV', () => {
+    const target = renderApp({
+      route: { kind: 'videoUnknown', pathLabel: '/video/[redacted]/clips' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    expect(getVideoLink(target, 'Movies').getAttribute('href')).toBe('/video/movies');
+    expect(getVideoLink(target, 'TV shows').getAttribute('href')).toBe('/video/tv');
   });
 
   it('renders unknown video routes as sanitized in-app not found UI with a movies link', () => {

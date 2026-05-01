@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import VideoEpisodeDetailShell, {
   type VideoEpisodeActionDispatch
 } from './VideoEpisodeDetailShell.svelte';
-import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+import type { VideoRoute } from '$lib/video/videoRouter';
 import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
 
 let mounted: ReturnType<typeof mount> | null = null;
@@ -51,7 +51,14 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
     selectedTvShowId: 11,
     selectedSeason: 2,
     selectedEpisodeId: 100,
-    tvShowDetail: { tvshowid: 11, label: 'Severance', title: 'Severance', thumbnailAvailable: true, fanartAvailable: true, artwork: {} },
+    tvShowDetail: {
+      tvshowid: 11,
+      label: 'Severance',
+      title: 'Severance',
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: {}
+    },
     seasons: [{ tvshowid: 11, season: 2, label: 'Season 2' }],
     episodes: [
       {
@@ -90,7 +97,9 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
   });
 }
 
-function createActionDispatch(overrides: Partial<VideoEpisodeActionDispatch> = {}): VideoEpisodeActionDispatch {
+function createActionDispatch(
+  overrides: Partial<VideoEpisodeActionDispatch> = {}
+): VideoEpisodeActionDispatch {
   return {
     playEpisodeItem: vi.fn(async () => undefined),
     resumeEpisodeItem: vi.fn(async () => undefined),
@@ -156,8 +165,12 @@ describe('VideoEpisodeDetailShell', () => {
     expect(text).toContain('55:00');
     expect(text).toContain('Resume available');
     expect(text).toContain('Mark returns to Lumon.');
-    expect(text).toContain('Watched toggles are owned by S05 and are not available in this view yet.');
-    expect(document.querySelector('[role="status"]')?.textContent).toContain('Episode actions are ready.');
+    expect(text).toContain(
+      'Watched toggles are owned by S05 and are not available in this view yet.'
+    );
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(
+      'Episode actions are ready.'
+    );
     expect(document.querySelectorAll('button')).toHaveLength(4);
     expectSecretSafe(text);
   });

@@ -39,7 +39,10 @@
       return [];
     }
     return [...values]
-      .filter((season) => safePositiveId(season.tvshowid) === tvshowid && safeSeason(season.season) !== null)
+      .filter(
+        (season) =>
+          safePositiveId(season.tvshowid) === tvshowid && safeSeason(season.season) !== null
+      )
       .sort((left, right) => (safeSeason(left.season) ?? 0) - (safeSeason(right.season) ?? 0));
   }
 
@@ -86,7 +89,11 @@
 
   function safeSeasonLabel(value: VideoSeasonSnapshot): string {
     const season = safeSeason(value.season);
-    return textOrNull(value.title) ?? textOrNull(value.label) ?? (season === null ? 'Unknown season' : `Season ${season}`);
+    return (
+      textOrNull(value.title) ??
+      textOrNull(value.label) ??
+      (season === null ? 'Unknown season' : `Season ${season}`)
+    );
   }
 
   function seasonHref(season: VideoSeasonSnapshot): string | null {
@@ -98,7 +105,9 @@
   }
 
   function metadata(value: VideoTvShowDetailSnapshot): string {
-    return [formatYear(value.year), episodeCountText(value.episodeCount)].filter(Boolean).join(' · ');
+    return [formatYear(value.year), episodeCountText(value.episodeCount)]
+      .filter(Boolean)
+      .join(' · ');
   }
 
   function detailFields(value: VideoTvShowDetailSnapshot): { label: string; value: string }[] {
@@ -147,12 +156,17 @@
   }
 
   function safeJoin(values: readonly string[] | undefined): string {
-    return (values ?? []).map(textOrNull).filter((value): value is string => value !== null).join(', ');
+    return (values ?? [])
+      .map(textOrNull)
+      .filter((value): value is string => value !== null)
+      .join(', ');
   }
 
   function formatRating(label: string, value: unknown): string {
     const rating = numberOrNull(value);
-    return rating === null ? '' : `${label} ${Number.isInteger(rating) ? rating : rating.toFixed(1)}`;
+    return rating === null
+      ? ''
+      : `${label} ${Number.isInteger(rating) ? rating : rating.toFixed(1)}`;
   }
 
   function numberOrNull(value: unknown): number | null {
@@ -184,7 +198,11 @@
   }
 
   function looksLikePathOrUrl(value: string): boolean {
-    return /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) || /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) || /\\/.test(value);
+    return (
+      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
+      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
+      /\\/.test(value)
+    );
   }
 </script>
 
@@ -201,16 +219,31 @@
 
   {#if tvShow}
     <dl class="detail-list">
-      <div><dt>Route identity</dt><dd>TV show ID {routeTvShowId}</dd></div>
-      {#if metadata(tvShow)}<div><dt>Safe metadata</dt><dd>{metadata(tvShow)}</dd></div>{/if}
-      <div><dt>Unwatched state</dt><dd>{showUnwatchedText(tvShow)}</dd></div>
-      <div><dt>Artwork</dt><dd>{artworkText(tvShow)}</dd></div>
+      <div>
+        <dt>Route identity</dt>
+        <dd>TV show ID {routeTvShowId}</dd>
+      </div>
+      {#if metadata(tvShow)}<div>
+          <dt>Safe metadata</dt>
+          <dd>{metadata(tvShow)}</dd>
+        </div>{/if}
+      <div>
+        <dt>Unwatched state</dt>
+        <dd>{showUnwatchedText(tvShow)}</dd>
+      </div>
+      <div>
+        <dt>Artwork</dt>
+        <dd>{artworkText(tvShow)}</dd>
+      </div>
     </dl>
 
     {#if detailFields(tvShow).length > 0}
       <dl class="detail-list rich-fields">
         {#each detailFields(tvShow) as field}
-          <div><dt>{field.label}</dt><dd>{field.value}</dd></div>
+          <div>
+            <dt>{field.label}</dt>
+            <dd>{field.value}</dd>
+          </div>
         {/each}
       </dl>
     {/if}
@@ -230,7 +263,9 @@
             <div class="badge-list" aria-label="Season metadata">
               <span class="badge">{unwatchedText(season)}</span>
               {#if isWatched(season)}<span class="badge">Watched</span>{/if}
-              {#if episodeCountText(season.episodeCount)}<span class="badge subtle">{episodeCountText(season.episodeCount)}</span>{/if}
+              {#if episodeCountText(season.episodeCount)}<span class="badge subtle"
+                  >{episodeCountText(season.episodeCount)}</span
+                >{/if}
             </div>
           </li>
         {/each}
@@ -249,18 +284,102 @@
 </section>
 
 <style>
-  .video-tv-show-detail-shell { display: grid; gap: var(--space-lg); padding: clamp(var(--space-lg), 4vw, var(--space-xl)); }
-  .panel-heading, .detail-list, .empty-state, .season-card { display: grid; gap: var(--space-xs); }
-  .section-kicker, h2, p, dl, dt, dd, ul { margin: 0; }
-  .section-kicker, dt { color: var(--color-accent); font-family: var(--font-mono); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-  h2 { overflow-wrap: anywhere; font-size: clamp(1.4rem, 3vw, 2.1rem); line-height: 1.08; text-wrap: balance; }
-  .summary-line, dd, .empty-state, .status-line, .state-copy { color: var(--color-text-muted); line-height: 1.55; text-wrap: pretty; }
-  .back-link, .season-link, .season-title { color: var(--color-text); font-weight: 850; text-decoration-thickness: 0.08em; text-underline-offset: 0.18em; overflow-wrap: anywhere; }
-  .back-link:focus-visible, .season-link:focus-visible { outline: none; box-shadow: var(--shadow-ring); }
-  .detail-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-md); }
-  .detail-list div, .empty-state, .status-line, .season-card { padding: var(--space-md); background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--color-border); }
-  .season-list { display: grid; gap: var(--space-md); padding: 0; list-style: none; }
-  .badge-list { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
-  .badge { padding: 0.18rem 0.55rem; color: var(--color-text); font-size: 0.78rem; font-variant-numeric: tabular-nums; font-weight: 800; line-height: 1.4; background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface)); border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent); }
-  .badge.subtle { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-surface) 78%, transparent); }
+  .video-tv-show-detail-shell {
+    display: grid;
+    gap: var(--space-lg);
+    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+  }
+  .panel-heading,
+  .detail-list,
+  .empty-state,
+  .season-card {
+    display: grid;
+    gap: var(--space-xs);
+  }
+  .section-kicker,
+  h2,
+  p,
+  dl,
+  dt,
+  dd,
+  ul {
+    margin: 0;
+  }
+  .section-kicker,
+  dt {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h2 {
+    overflow-wrap: anywhere;
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+  .summary-line,
+  dd,
+  .empty-state,
+  .status-line,
+  .state-copy {
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .back-link,
+  .season-link,
+  .season-title {
+    color: var(--color-text);
+    font-weight: 850;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+    overflow-wrap: anywhere;
+  }
+  .back-link:focus-visible,
+  .season-link:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-ring);
+  }
+  .detail-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: var(--space-md);
+  }
+  .detail-list div,
+  .empty-state,
+  .status-line,
+  .season-card {
+    padding: var(--space-md);
+    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+  .season-list {
+    display: grid;
+    gap: var(--space-md);
+    padding: 0;
+    list-style: none;
+  }
+  .badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .badge {
+    padding: 0.18rem 0.55rem;
+    color: var(--color-text);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    line-height: 1.4;
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
+  }
+  .badge.subtle {
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  }
 </style>

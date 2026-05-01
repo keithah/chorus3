@@ -1,5 +1,8 @@
 <script lang="ts">
-  import type { VideoLibraryStoreSnapshot, VideoTvShowSnapshot } from '$lib/stores/videoLibrary.svelte';
+  import type {
+    VideoLibraryStoreSnapshot,
+    VideoTvShowSnapshot
+  } from '$lib/stores/videoLibrary.svelte';
   import { buildVideoRoute } from '$lib/video/videoRouter';
 
   interface Props {

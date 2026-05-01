@@ -38,30 +38,68 @@
   let { snapshot, route, actionDispatch = noopActionDispatch }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
 
-  const routeTvShowId = $derived(route.kind === 'videoEpisodeDetail' ? safePositiveId(route.tvshowid) : null);
-  const routeSeason = $derived(route.kind === 'videoEpisodeDetail' ? safeSeason(route.season) : null);
-  const routeEpisodeId = $derived(route.kind === 'videoEpisodeDetail' ? safePositiveId(route.episodeid) : null);
-  const tvShow = $derived(snapshot.selectedTvShowId === routeTvShowId ? snapshot.tvShowDetail : null);
+  const routeTvShowId = $derived(
+    route.kind === 'videoEpisodeDetail' ? safePositiveId(route.tvshowid) : null
+  );
+  const routeSeason = $derived(
+    route.kind === 'videoEpisodeDetail' ? safeSeason(route.season) : null
+  );
+  const routeEpisodeId = $derived(
+    route.kind === 'videoEpisodeDetail' ? safePositiveId(route.episodeid) : null
+  );
+  const tvShow = $derived(
+    snapshot.selectedTvShowId === routeTvShowId ? snapshot.tvShowDetail : null
+  );
   const episode = $derived(findEpisode(snapshot, routeTvShowId, routeSeason, routeEpisodeId));
   const title = $derived(episode ? safeEpisodeLabel(episode) : fallbackTitle(route));
   const showTitle = $derived(tvShow ? safeLabel(tvShow, 'TV show') : 'TV show');
-  const actionDisabled = $derived(actionStatus.kind === 'pending' || !episode || routeEpisodeId === null);
+  const actionDisabled = $derived(
+    actionStatus.kind === 'pending' || !episode || routeEpisodeId === null
+  );
   const hasResumeState = $derived(episode ? hasResume(episode) : false);
 
-  function findEpisode(value: VideoTvStoreSnapshot, tvshowid: number | null, seasonNumber: number | null, episodeid: number | null): VideoEpisodeDetailSnapshot | VideoEpisodeSnapshot | null {
-    if (tvshowid === null || seasonNumber === null || episodeid === null || value.selectedTvShowId !== tvshowid || value.selectedSeason !== seasonNumber || value.selectedEpisodeId !== episodeid) {
+  function findEpisode(
+    value: VideoTvStoreSnapshot,
+    tvshowid: number | null,
+    seasonNumber: number | null,
+    episodeid: number | null
+  ): VideoEpisodeDetailSnapshot | VideoEpisodeSnapshot | null {
+    if (
+      tvshowid === null ||
+      seasonNumber === null ||
+      episodeid === null ||
+      value.selectedTvShowId !== tvshowid ||
+      value.selectedSeason !== seasonNumber ||
+      value.selectedEpisodeId !== episodeid
+    ) {
       return null;
     }
     const detail = value.episodeDetail;
-    if (safePositiveId(detail?.episodeid) === episodeid && detail && (detail.tvshowid === undefined || detail.tvshowid === tvshowid) && (detail.season === undefined || detail.season === seasonNumber)) {
+    if (
+      safePositiveId(detail?.episodeid) === episodeid &&
+      detail &&
+      (detail.tvshowid === undefined || detail.tvshowid === tvshowid) &&
+      (detail.season === undefined || detail.season === seasonNumber)
+    ) {
       return detail;
     }
-    return value.episodes.find((item) => safePositiveId(item.episodeid) === episodeid && (item.tvshowid === undefined || item.tvshowid === tvshowid) && (item.season === undefined || item.season === seasonNumber)) ?? null;
+    return (
+      value.episodes.find(
+        (item) =>
+          safePositiveId(item.episodeid) === episodeid &&
+          (item.tvshowid === undefined || item.tvshowid === tvshowid) &&
+          (item.season === undefined || item.season === seasonNumber)
+      ) ?? null
+    );
   }
 
   async function runAction(action: ActionKind): Promise<void> {
     if (!episode || routeEpisodeId === null) {
-      actionStatus = { kind: 'error', action, message: 'Choose a valid episode before sending an action.' };
+      actionStatus = {
+        kind: 'error',
+        action,
+        message: 'Choose a valid episode before sending an action.'
+      };
       return;
     }
     const label = safeEpisodeLabel(episode);
@@ -69,12 +107,25 @@
     actionStatus = { kind: 'pending', action, message: `${commandLabel.present} ${label}…` };
     try {
       if (action === 'play') await actionDispatch.playEpisodeItem({ episodeid: routeEpisodeId });
-      else if (action === 'resume') await actionDispatch.resumeEpisodeItem({ episodeid: routeEpisodeId });
-      else if (action === 'queue') await actionDispatch.queueEpisodeItem({ episodeid: routeEpisodeId });
+      else if (action === 'resume')
+        await actionDispatch.resumeEpisodeItem({ episodeid: routeEpisodeId });
+      else if (action === 'queue')
+        await actionDispatch.queueEpisodeItem({ episodeid: routeEpisodeId });
       else await actionDispatch.streamEpisodeItem({ episodeid: routeEpisodeId });
-      actionStatus = { kind: 'success', action, message: action === 'play' ? `Playing ${label} started.` : `${commandLabel.past} ${label}${action === 'stream' ? ' requested' : ''}.` };
+      actionStatus = {
+        kind: 'success',
+        action,
+        message:
+          action === 'play'
+            ? `Playing ${label} started.`
+            : `${commandLabel.past} ${label}${action === 'stream' ? ' requested' : ''}.`
+      };
     } catch (error) {
-      actionStatus = { kind: 'error', action, message: `Could not ${commandLabel.verb} ${label}. ${sanitizeUiText(errorMessage(error))}` };
+      actionStatus = {
+        kind: 'error',
+        action,
+        message: `Could not ${commandLabel.verb} ${label}. ${sanitizeUiText(errorMessage(error))}`
+      };
     }
   }
 
@@ -90,19 +141,29 @@
     return routeEpisodeId === null ? 'Episode route unavailable' : 'Episode not found';
   }
   function notFoundCopy(): string {
-    if (route.kind !== 'videoEpisodeDetail' || routeEpisodeId === null) return 'Open a season and choose an episode link.';
+    if (route.kind !== 'videoEpisodeDetail' || routeEpisodeId === null)
+      return 'Open a season and choose an episode link.';
     return `Episode ID ${routeEpisodeId} is not present in this snapshot.`;
   }
   function routeIdentity(): string | null {
     return routeEpisodeId === null ? null : `Episode ID ${routeEpisodeId}`;
   }
-  function episodePosition(value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot): string | null {
+  function episodePosition(
+    value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot
+  ): string | null {
     const season = safeSeason(value.season ?? routeSeason);
     const episodeNumber = safeSeason(value.episode);
     if (season === null && episodeNumber === null) return null;
-    return [season === null ? null : `Season ${season}`, episodeNumber === null ? null : `Episode ${episodeNumber}`].filter(Boolean).join(' · ');
+    return [
+      season === null ? null : `Season ${season}`,
+      episodeNumber === null ? null : `Episode ${episodeNumber}`
+    ]
+      .filter(Boolean)
+      .join(' · ');
   }
-  function detailFields(value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot): { label: string; value: string }[] {
+  function detailFields(
+    value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot
+  ): { label: string; value: string }[] {
     if (!('plot' in value)) return [];
     return [
       { label: 'Plot', value: textOrNull(value.plot) ?? '' },
@@ -132,7 +193,9 @@
     const hours = Math.floor(safeSeconds / 3600);
     const minutes = Math.floor((safeSeconds % 3600) / 60);
     const remainingSeconds = safeSeconds % 60;
-    return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}` : `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return hours > 0
+      ? `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+      : `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
   function watchedText(value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot): string {
     return isWatched(value) ? 'Watched' : 'Not watched in this snapshot';
@@ -146,11 +209,16 @@
     return position !== null && total !== null && total > 0 && position > 0;
   }
   function safeJoin(values: readonly string[] | undefined): string {
-    return (values ?? []).map(textOrNull).filter((value): value is string => value !== null).join(', ');
+    return (values ?? [])
+      .map(textOrNull)
+      .filter((value): value is string => value !== null)
+      .join(', ');
   }
   function formatRating(label: string, value: unknown): string {
     const rating = numberOrNull(value);
-    return rating === null ? '' : `${label} ${Number.isInteger(rating) ? rating : rating.toFixed(1)}`;
+    return rating === null
+      ? ''
+      : `${label} ${Number.isInteger(rating) ? rating : rating.toFixed(1)}`;
   }
   function numberOrNull(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -162,7 +230,9 @@
     return sanitizeUiText(trimmed);
   }
   function errorMessage(error: unknown): string {
-    return error instanceof Error && error.message.trim() ? error.message : 'Episode action failed.';
+    return error instanceof Error && error.message.trim()
+      ? error.message
+      : 'Episode action failed.';
   }
   function sanitizeUiText(value: string): string {
     return value
@@ -181,57 +251,205 @@
       .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
   }
   function looksLikePathOrUrl(value: string): boolean {
-    return /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) || /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) || /\\/.test(value);
+    return (
+      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
+      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
+      /\\/.test(value)
+    );
   }
 </script>
 
 <section class="video-episode-detail-shell surface" aria-labelledby="video-episode-title">
   <nav class="back-links" aria-label="Episode navigation">
-    <a href={routeTvShowId && routeSeason !== null ? buildVideoRoute({ kind: 'videoTvSeasonDetail', tvshowid: routeTvShowId, season: routeSeason }) : buildVideoRoute({ kind: 'videoTvShows' })}>Back to Season {routeSeason}</a>
-    <a href={routeTvShowId ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId }) : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a>
+    <a
+      href={routeTvShowId && routeSeason !== null
+        ? buildVideoRoute({
+            kind: 'videoTvSeasonDetail',
+            tvshowid: routeTvShowId,
+            season: routeSeason
+          })
+        : buildVideoRoute({ kind: 'videoTvShows' })}>Back to Season {routeSeason}</a
+    >
+    <a
+      href={routeTvShowId
+        ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
+        : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
+    >
   </nav>
-  <div class="panel-heading"><p class="section-kicker">Episode detail</p><h2 id="video-episode-title">{title}</h2><p class="summary-line">Review safe episode metadata and playback action seams.</p></div>
+  <div class="panel-heading">
+    <p class="section-kicker">Episode detail</p>
+    <h2 id="video-episode-title">{title}</h2>
+    <p class="summary-line">Review safe episode metadata and playback action seams.</p>
+  </div>
 
   {#if episode}
-    <div class={`action-status ${actionStatus.kind}`} role="status" aria-live="polite" aria-atomic="true">{actionStatus.message}</div>
-    <div class="episode-actions" aria-label="Episode actions">
-      <button type="button" aria-label={`Play episode ${title}`} disabled={actionDisabled} onclick={() => void runAction('play')}>Play</button>
-      <button type="button" aria-label={`Resume episode ${title}`} disabled={actionDisabled || !hasResumeState} onclick={() => void runAction('resume')}>Resume</button>
-      <button type="button" aria-label={`Queue episode ${title}`} disabled={actionDisabled} onclick={() => void runAction('queue')}>Queue</button>
-      <button type="button" aria-label={`Stream episode ${title}`} disabled={actionDisabled} onclick={() => void runAction('stream')}>Stream</button>
+    <div
+      class={`action-status ${actionStatus.kind}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {actionStatus.message}
     </div>
-    <p class="state-copy">Watched toggles are owned by S05 and are not available in this view yet.</p>
+    <div class="episode-actions" aria-label="Episode actions">
+      <button
+        type="button"
+        aria-label={`Play episode ${title}`}
+        disabled={actionDisabled}
+        onclick={() => void runAction('play')}>Play</button
+      >
+      <button
+        type="button"
+        aria-label={`Resume episode ${title}`}
+        disabled={actionDisabled || !hasResumeState}
+        onclick={() => void runAction('resume')}>Resume</button
+      >
+      <button
+        type="button"
+        aria-label={`Queue episode ${title}`}
+        disabled={actionDisabled}
+        onclick={() => void runAction('queue')}>Queue</button
+      >
+      <button
+        type="button"
+        aria-label={`Stream episode ${title}`}
+        disabled={actionDisabled}
+        onclick={() => void runAction('stream')}>Stream</button
+      >
+    </div>
+    <p class="state-copy">
+      Watched toggles are owned by S05 and are not available in this view yet.
+    </p>
     <dl class="detail-list">
-      {#if routeIdentity()}<div><dt>Route identity</dt><dd>{routeIdentity()}</dd></div>{/if}
-      {#if episodePosition(episode)}<div><dt>Episode order</dt><dd>{episodePosition(episode)}</dd></div>{/if}
-      {#if durationText(episode.runtime)}<div><dt>Runtime</dt><dd>{durationText(episode.runtime)}</dd></div>{/if}
-      <div><dt>Watched state</dt><dd>{watchedText(episode)}</dd></div>
-      <div><dt>Resume state</dt><dd>{hasResumeState ? 'Resume available' : 'No resume point available'}</dd></div>
+      {#if routeIdentity()}<div>
+          <dt>Route identity</dt>
+          <dd>{routeIdentity()}</dd>
+        </div>{/if}
+      {#if episodePosition(episode)}<div>
+          <dt>Episode order</dt>
+          <dd>{episodePosition(episode)}</dd>
+        </div>{/if}
+      {#if durationText(episode.runtime)}<div>
+          <dt>Runtime</dt>
+          <dd>{durationText(episode.runtime)}</dd>
+        </div>{/if}
+      <div>
+        <dt>Watched state</dt>
+        <dd>{watchedText(episode)}</dd>
+      </div>
+      <div>
+        <dt>Resume state</dt>
+        <dd>{hasResumeState ? 'Resume available' : 'No resume point available'}</dd>
+      </div>
     </dl>
     {#if detailFields(episode).length > 0}
       <dl class="detail-list rich-fields">
-        {#each detailFields(episode) as field}<div><dt>{field.label}</dt><dd>{field.value}</dd></div>{/each}
+        {#each detailFields(episode) as field}<div>
+            <dt>{field.label}</dt>
+            <dd>{field.value}</dd>
+          </div>{/each}
       </dl>
     {/if}
   {:else}
-    <div class="empty-state" role="status" aria-live="polite" aria-atomic="true"><p>{fallbackTitle(route)}</p><p>{notFoundCopy()}</p></div>
+    <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">
+      <p>{fallbackTitle(route)}</p>
+      <p>{notFoundCopy()}</p>
+    </div>
   {/if}
 </section>
 
 <style>
-  .video-episode-detail-shell { display: grid; gap: var(--space-lg); padding: clamp(var(--space-lg), 4vw, var(--space-xl)); }
-  .panel-heading, .detail-list, .empty-state { display: grid; gap: var(--space-xs); }
-  .section-kicker, h2, p, dl, dt, dd { margin: 0; }
-  .section-kicker, dt { color: var(--color-accent); font-family: var(--font-mono); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-  h2 { overflow-wrap: anywhere; font-size: clamp(1.4rem, 3vw, 2.1rem); line-height: 1.08; text-wrap: balance; }
-  .summary-line, dd, .empty-state, .action-status, .state-copy { color: var(--color-text-muted); line-height: 1.55; text-wrap: pretty; }
-  .back-links, .episode-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-  .back-links a { color: var(--color-text); font-weight: 850; text-decoration-thickness: 0.08em; text-underline-offset: 0.18em; }
-  .back-links a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--shadow-ring); }
-  button { min-height: 2.5rem; padding: 0.65rem 1rem; border: 0; border-radius: var(--radius-md); color: var(--color-text); background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised)); font: inherit; font-weight: 850; cursor: pointer; }
-  button:disabled { cursor: not-allowed; opacity: 0.55; }
-  .detail-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-md); }
-  .detail-list div, .empty-state, .action-status { padding: var(--space-md); background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--color-border); }
-  .action-status.success { color: var(--color-success); }
-  .action-status.error { color: var(--color-danger); }
+  .video-episode-detail-shell {
+    display: grid;
+    gap: var(--space-lg);
+    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+  }
+  .panel-heading,
+  .detail-list,
+  .empty-state {
+    display: grid;
+    gap: var(--space-xs);
+  }
+  .section-kicker,
+  h2,
+  p,
+  dl,
+  dt,
+  dd {
+    margin: 0;
+  }
+  .section-kicker,
+  dt {
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h2 {
+    overflow-wrap: anywhere;
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+  .summary-line,
+  dd,
+  .empty-state,
+  .action-status,
+  .state-copy {
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    text-wrap: pretty;
+  }
+  .back-links,
+  .episode-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  .back-links a {
+    color: var(--color-text);
+    font-weight: 850;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.18em;
+  }
+  .back-links a:focus-visible,
+  button:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-ring);
+  }
+  button {
+    min-height: 2.5rem;
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .detail-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: var(--space-md);
+  }
+  .detail-list div,
+  .empty-state,
+  .action-status {
+    padding: var(--space-md);
+    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+  .action-status.success {
+    color: var(--color-success);
+  }
+  .action-status.error {
+    color: var(--color-danger);
+  }
 </style>
