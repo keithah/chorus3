@@ -1,4 +1,17 @@
 export {
+  DEFAULT_LOCALE,
+  LOCALE_STORAGE_KEY,
+  LocaleStore,
+  createLocaleStore,
+  localeStore,
+  type Locale,
+  type LocaleMutationResult,
+  type LocaleStorage,
+  type LocaleStoreOptions,
+  type LocaleStoreSnapshot
+} from './locale.svelte';
+
+export {
   ConfigStore,
   CONFIG_STORAGE_KEY,
   configStore,
