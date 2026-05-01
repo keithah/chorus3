@@ -31,6 +31,9 @@
   import VideoMovieDetailShell, {
     type VideoMovieActionDispatch
   } from '$components/VideoMovieDetailShell.svelte';
+  import VideoMovieStreamShell, {
+    type VideoMovieStreamDispatch
+  } from '$components/VideoMovieStreamShell.svelte';
   import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
   import {
     configStore,
@@ -92,6 +95,7 @@
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoNavigationDispatch?: VideoNavigationDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
+    videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -147,6 +151,11 @@
     queueMovieItem: ({ movieid }) => defaultQueueDispatch.queueMovieItem({ movieid })
   };
 
+  const defaultVideoMovieStreamActionDispatch: VideoMovieStreamDispatch = {
+    streamMovieItem: (item) => defaultPlayerDispatch.streamMovieItem(item),
+    resumeOnKodi: () => defaultPlayerDispatch.resumeOnKodi()
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -169,7 +178,8 @@
     route = { kind: 'dashboard' },
     videoLibrarySnapshot,
     videoMovieDetailSnapshot,
-    videoMovieActionDispatch = defaultVideoMovieActionDispatch
+    videoMovieActionDispatch = defaultVideoMovieActionDispatch,
+    videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch
   }: Props = $props();
   const currentRoute = $derived(route);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
@@ -186,6 +196,7 @@
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isVideoMoviesRoute = $derived(currentRoute.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentRoute.kind === 'videoMovieDetail');
+  const isVideoMovieStreamRoute = $derived(currentRoute.kind === 'videoMovieStream');
   const isVideoUnknownRoute = $derived(currentRoute.kind === 'videoUnknown');
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
@@ -429,6 +440,17 @@
         route={currentRoute}
         detailSnapshot={videoMovieDetailSnapshot}
         actionDispatch={videoMovieActionDispatch}
+      />
+    </main>
+  {:else if isVideoMovieStreamRoute}
+    <main class="video-stream-route" aria-label="Video movie stream route">
+      <VideoMovieStreamShell
+        snapshot={currentVideoLibrarySnapshot}
+        route={currentRoute}
+        detailSnapshot={videoMovieDetailSnapshot}
+        localPlayerSnapshot={currentLocalSnapshot}
+        dispatchSnapshot={playerDispatch.snapshot}
+        actionDispatch={videoMovieStreamActionDispatch}
       />
     </main>
   {:else if isVideoUnknownRoute}

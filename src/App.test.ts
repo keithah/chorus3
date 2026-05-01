@@ -20,6 +20,7 @@ import type {
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
+import type { VideoMovieStreamDispatch } from './lib/components/VideoMovieStreamShell.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
 import type { VideoRoute } from './lib/video/videoRouter';
@@ -76,6 +77,7 @@ type AppProps = {
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
+  videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
 };
 
 type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
@@ -394,6 +396,16 @@ function createMovieActionDispatch(
   };
 }
 
+function createMovieStreamActionDispatch(
+  overrides: Partial<VideoMovieStreamDispatch> = {}
+): VideoMovieStreamDispatch {
+  return {
+    streamMovieItem: vi.fn(),
+    resumeOnKodi: vi.fn(),
+    ...overrides
+  };
+}
+
 function getVideoMoviesPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.video-movies-panel');
   expect(panel).toBeInstanceOf(HTMLElement);
@@ -402,6 +414,12 @@ function getVideoMoviesPanelText(target: HTMLElement): string {
 
 function getVideoDetailPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.video-movie-detail-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoStreamPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-movie-stream-shell');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
 }
@@ -487,6 +505,25 @@ function createPlayerSnapshot(overrides: Partial<PlayerStoreSnapshot> = {}): Pla
     queue: { playlistid: null, position: null },
     time: { currentSeconds: null, totalSeconds: null },
     lastError: null,
+    ...overrides
+  };
+}
+
+function createLocalPlayerSnapshot(
+  overrides: Partial<import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot> = {}
+): import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot {
+  return {
+    status: 'idle',
+    mediaKind: 'video',
+    item: null,
+    currentSeconds: 0,
+    durationSeconds: null,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: false,
+    resumeAvailable: false,
+    lastUpdatedAt: null,
     ...overrides
   };
 }
@@ -907,6 +944,94 @@ describe('App shell', () => {
     await tick();
     await tick();
     expect(videoMovieActionDispatch.playMovieItem).toHaveBeenCalledWith({ movieid: 4401 });
+  });
+
+  it('renders routed movie stream shell with Local runtime status and injected stream recovery dispatch', async () => {
+    const videoMovieStreamActionDispatch = createMovieStreamActionDispatch();
+    const videoLibrarySnapshot = createVideoLibrarySnapshot();
+    videoLibrarySnapshot.movies[0] = {
+      ...videoLibrarySnapshot.movies[0],
+      resume: { position: 1830, total: 6420 }
+    };
+    const target = renderApp({
+      route: { kind: 'videoMovieStream', movieid: 4401 },
+      videoLibrarySnapshot,
+      localPlayerSnapshot: createLocalPlayerSnapshot({
+        status: 'paused',
+        mediaKind: 'video',
+        item: { movieid: 4401, label: 'Neon Harbor', title: 'Neon Harbor', type: 'movie' },
+        currentSeconds: 1830,
+        durationSeconds: 6420,
+        resumeAvailable: true,
+        kodiPausedForLocal: true
+      }),
+      playerDispatch: createPlayerDispatch(
+        createDispatchSnapshot({ mode: 'local', lastCommand: 'streamMovieItem' })
+      ),
+      videoMovieStreamActionDispatch
+    });
+    const streamText = getVideoStreamPanelText(target);
+
+    expect(streamText).toContain('Browser stream');
+    expect(streamText).toContain('Neon Harbor');
+    expect(streamText).toContain('Local browser playback is paused.');
+    expect(streamText).toContain('Resume point available at 30:30.');
+    expect(target.querySelector('video.local-media-runtime.fullscreen')).toBeInstanceOf(
+      HTMLVideoElement
+    );
+    expect(getButtonByAria(target, 'Play in browser').disabled).toBe(false);
+    expect(getButtonByAria(target, 'Resume in browser').disabled).toBe(false);
+    expect(getButtonByAria(target, 'Retry').disabled).toBe(false);
+    expect(getButtonByAria(target, 'Send to Kodi').disabled).toBe(false);
+
+    getButtonByAria(target, 'Play in browser').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Resume in browser').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Send to Kodi').click();
+    await tick();
+    await tick();
+
+    expect(videoMovieStreamActionDispatch.streamMovieItem).toHaveBeenNthCalledWith(1, {
+      movieid: 4401
+    });
+    expect(videoMovieStreamActionDispatch.streamMovieItem).toHaveBeenNthCalledWith(2, {
+      movieid: 4401,
+      resume: true
+    });
+    expect(videoMovieStreamActionDispatch.resumeOnKodi).toHaveBeenCalledTimes(1);
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('Authorization');
+    expect(target.textContent).not.toContain('localStorage');
+  });
+
+  it('routes default movie stream actions through PlayerDispatch stream and resume seams', async () => {
+    const streamMovieItem = vi.spyOn(defaultPlayerDispatch, 'streamMovieItem').mockResolvedValue();
+    const resumeOnKodi = vi.spyOn(defaultPlayerDispatch, 'resumeOnKodi').mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoMovieStream', movieid: 4402 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot(),
+      localPlayerSnapshot: createLocalPlayerSnapshot({
+        resumeAvailable: true,
+        kodiPausedForLocal: true
+      })
+    });
+
+    getButtonByAria(target, 'Play in browser').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Resume in browser').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Send to Kodi').click();
+    await tick();
+    await tick();
+
+    expect(streamMovieItem).toHaveBeenNthCalledWith(1, { movieid: 4402 });
+    expect(streamMovieItem).toHaveBeenNthCalledWith(2, { movieid: 4402, resume: true });
+    expect(resumeOnKodi).toHaveBeenCalledTimes(1);
   });
 
   it('renders unknown video routes as sanitized in-app not found UI with a movies link', () => {

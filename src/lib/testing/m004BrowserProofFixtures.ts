@@ -3,7 +3,9 @@ import type {
   VideoLibraryStoreSnapshot
 } from '$lib/stores/videoLibrary.svelte';
 import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
+import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
 import type { VideoMovieActionDispatch } from '$lib/components/VideoMovieDetailShell.svelte';
+import type { VideoMovieStreamDispatch } from '$lib/components/VideoMovieStreamShell.svelte';
 import { parseVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
 export interface M004BrowserProofLocation {
@@ -21,8 +23,10 @@ export interface M004BrowserProofAppProps {
   route: VideoRoute;
   videoLibrarySnapshot: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot: VideoMovieDetailStoreSnapshot;
+  localPlayerSnapshot: LocalPlayerStoreSnapshot;
   videoNavigationDispatch: VideoNavigationDispatch;
   videoMovieActionDispatch: VideoMovieActionDispatch;
+  videoMovieStreamActionDispatch: VideoMovieStreamDispatch;
 }
 
 export const M004_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -51,8 +55,10 @@ export function createM004BrowserProofAppProps(
     route,
     videoLibrarySnapshot: createVideoLibrarySnapshot(),
     videoMovieDetailSnapshot: createVideoMovieDetailSnapshot(route),
+    localPlayerSnapshot: createLocalPlayerSnapshot(route),
     videoNavigationDispatch: createVideoNavigationDispatch(),
-    videoMovieActionDispatch: createVideoMovieActionDispatch()
+    videoMovieActionDispatch: createVideoMovieActionDispatch(),
+    videoMovieStreamActionDispatch: createVideoMovieStreamActionDispatch()
   };
 }
 
@@ -185,6 +191,27 @@ function createQuietSignalDetail(): VideoMovieDetailStoreSnapshot['detail'] {
   };
 }
 
+function createLocalPlayerSnapshot(route: VideoRoute): LocalPlayerStoreSnapshot {
+  const movieid = route.kind === 'videoMovieStream' ? route.movieid : null;
+
+  return {
+    status: movieid === 4401 ? 'paused' : 'idle',
+    mediaKind: 'video',
+    item:
+      movieid === 4401
+        ? { movieid: 4401, label: 'Neon Harbor', title: 'Neon Harbor', type: 'movie' }
+        : null,
+    currentSeconds: movieid === 4401 ? 1830 : 0,
+    durationSeconds: movieid === 4401 ? 6420 : null,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: movieid === 4401,
+    resumeAvailable: movieid === 4401,
+    lastUpdatedAt: movieid === 4401 ? readyAt : null
+  };
+}
+
 function createVideoNavigationDispatch(): VideoNavigationDispatch {
   return {
     openMovieGrid: noop,
@@ -198,6 +225,13 @@ function createVideoMovieActionDispatch(): VideoMovieActionDispatch {
     playMovieItem: noop,
     resumeMovieItem: noop,
     queueMovieItem: noop
+  };
+}
+
+function createVideoMovieStreamActionDispatch(): VideoMovieStreamDispatch {
+  return {
+    streamMovieItem: noop,
+    resumeOnKodi: noop
   };
 }
 

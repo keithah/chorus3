@@ -100,6 +100,46 @@ describe('createM004BrowserProofAppProps', () => {
     });
   });
 
+  test('creates rich safe S03 stream fixture props for the browser streaming route', () => {
+    const props = createM004BrowserProofAppProps({
+      pathname: '/video/movies/4401/stream',
+      search: '?m004-browser-proof=1'
+    });
+
+    expect(props.route).toEqual({ kind: 'videoMovieStream', movieid: 4401 });
+    expect(props.videoLibrarySnapshot.movies.map((movie) => movie.label)).toContain('Neon Harbor');
+    expect(props.videoMovieDetailSnapshot.selectedMovieId).toBeNull();
+    expect(props.localPlayerSnapshot).toMatchObject({
+      status: 'paused',
+      mediaKind: 'video',
+      currentSeconds: 1830,
+      durationSeconds: 6420,
+      kodiPausedForLocal: true,
+      resumeAvailable: true,
+      item: { movieid: 4401, label: 'Neon Harbor', title: 'Neon Harbor', type: 'movie' }
+    });
+  });
+
+  test('uses inert stream action dispatch behavior without unsafe side effects', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
+    const sessionStorageSpy = vi.spyOn(window.sessionStorage.__proto__, 'getItem');
+    const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4401/stream' });
+
+    await expect(
+      props.videoMovieStreamActionDispatch.streamMovieItem({ movieid: 4401 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoMovieStreamActionDispatch.streamMovieItem({ movieid: 4401, resume: true })
+    ).resolves.toBeUndefined();
+    await expect(props.videoMovieStreamActionDispatch.resumeOnKodi()).resolves.toBeUndefined();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(sessionStorageSpy).not.toHaveBeenCalled();
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoMovieStreamActionDispatch)).toBe(true);
+  });
+
   test('creates honest unsupported detail fixture props for the second movie', () => {
     const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4402' });
 
@@ -172,7 +212,7 @@ describe('createM004BrowserProofAppProps', () => {
   });
 
   test('keeps every fixture value clear of forbidden text and sentinel secrets', () => {
-    const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4401' });
+    const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4401/stream' });
     const text = collectText(props);
 
     expect(isM004BrowserProofFixtureSecretSafe(props)).toBe(true);

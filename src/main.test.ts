@@ -117,6 +117,36 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Back to movies');
   });
 
+  it('mounts safe M004 browser stream fixtures only when explicitly requested', async () => {
+    setPathAndSearch('/video/movies/4401/stream', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Browser stream');
+    expect(document.body.textContent).toContain('Neon Harbor');
+    expect(document.body.textContent).toContain('Local browser playback is paused.');
+    expect(document.body.textContent).toContain('Resume point available at 30:30.');
+    expect(document.body.querySelector('video.local-media-runtime.fullscreen')).toBeInstanceOf(
+      HTMLVideoElement
+    );
+    expect(document.body.textContent).toContain('Play in browser');
+    expect(document.body.textContent).toContain('Resume in browser');
+    expect(document.body.textContent).toContain('Retry');
+    expect(document.body.textContent).toContain('Send to Kodi');
+    expect(document.body.textContent).not.toContain('smb://');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('localStorage');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/movies/4401/stream', '?m004-browser-proof=0');
+
+    await importMain();
+
+    expect(document.body.textContent).not.toContain('Neon Harbor');
+    expect(document.body.textContent).not.toContain('Local browser playback is paused.');
+  });
+
   it('routes unknown video paths to safe in-app not-found UI without raw unsafe input', async () => {
     setPathAndSearch(
       '/video/smb://admin:p@ssword@example.local/Authorization/SENTINEL_SECRET',
@@ -137,6 +167,12 @@ describe('main entrypoint', () => {
   it('exposes M004 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
     const { resolveEntrypointRoute, shouldUseM004BrowserProofFixtures } = await importMain();
 
+    expect(
+      resolveEntrypointRoute({ pathname: '/video/movies/4401/stream', search: '?ignored=1' })
+    ).toEqual({
+      kind: 'videoMovieStream',
+      movieid: 4401
+    });
     expect(
       resolveEntrypointRoute({ pathname: '/video/movies/4401', search: '?ignored=1' })
     ).toEqual({
