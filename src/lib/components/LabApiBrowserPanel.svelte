@@ -99,6 +99,13 @@
     return redactJsonForDisplay(value);
   }
 
+  function methodOptionLabel(method: LabApiBrowserStoreSnapshot['methods'][number]): string {
+    if (method.guard.blocked) return `${safeText(method.name)} — blocked`;
+    if (method.guard.requiresConfirmation)
+      return `${safeText(method.name)} — confirmation required`;
+    return safeText(method.name);
+  }
+
   function endpointCopy(): string | null {
     const endpoint = snapshot.lastError?.endpoint;
     if (!endpoint) return null;
@@ -184,7 +191,7 @@
           {#each snapshot.namespaces as namespace (namespace.name)}
             <optgroup label={safeText(namespace.name)}>
               {#each namespace.methods as method (method.name)}
-                <option value={method.name}>{safeText(method.name)}</option>
+                <option value={method.name}>{methodOptionLabel(method)}</option>
               {/each}
             </optgroup>
           {/each}

@@ -21,6 +21,7 @@ import type {
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { SettingsPanelDispatch } from './lib/components/SettingsPanel.svelte';
+import type { LabApiBrowserPanelDispatch } from './lib/components/LabApiBrowserPanel.svelte';
 import type { AddonDetailDispatch } from './lib/components/AddonDetailShell.svelte';
 import type { AddonsPanelDispatch } from './lib/components/AddonsPanel.svelte';
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
@@ -63,7 +64,8 @@ import {
   type PlayerStoreSnapshot,
   type QueueDispatchSnapshot,
   type QueueStoreSnapshot,
-  type AddonsStoreSnapshot
+  type AddonsStoreSnapshot,
+  type LabApiBrowserStoreSnapshot
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
@@ -98,6 +100,8 @@ type AppProps = {
   addonsSnapshot?: AddonsStoreSnapshot;
   addonsDispatch?: AddonsPanelDispatch;
   addonDetailDispatch?: AddonDetailDispatch;
+  labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
+  labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
@@ -766,6 +770,117 @@ function getShortcutsPanelText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.shortcuts-panel');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
+}
+
+function getLabApiBrowserPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.lab-api-browser-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function createLabApiBrowserSnapshot(
+  overrides: Partial<LabApiBrowserStoreSnapshot> = {}
+): LabApiBrowserStoreSnapshot {
+  const safeGuard = {
+    level: 'safe' as const,
+    requiresConfirmation: false,
+    blocked: false,
+    reason: 'Read-only JSON-RPC method.'
+  };
+  const confirmationGuard = {
+    level: 'confirmation-required' as const,
+    requiresConfirmation: true,
+    blocked: false,
+    reason: 'Mutating JSON-RPC method requires explicit confirmation.'
+  };
+  const blockedGuard = {
+    level: 'blocked' as const,
+    requiresConfirmation: false,
+    blocked: true,
+    reason: 'Destructive system-level JSON-RPC method blocked.'
+  };
+  const methods = [
+    {
+      name: 'Application.GetProperties',
+      namespace: 'Application',
+      shortName: 'GetProperties',
+      description: 'Return safe application properties.',
+      params: { type: 'object', properties: { properties: { type: 'array' } } },
+      returns: { type: 'object' },
+      guard: safeGuard
+    },
+    {
+      name: 'Player.Open',
+      namespace: 'Player',
+      shortName: 'Open',
+      description: 'Open playback with confirmation.',
+      params: { type: 'object' },
+      returns: { type: 'string' },
+      guard: confirmationGuard
+    },
+    {
+      name: 'System.Shutdown',
+      namespace: 'System',
+      shortName: 'Shutdown',
+      description: 'Blocked destructive system method.',
+      params: { type: 'object' },
+      returns: { type: 'string' },
+      guard: blockedGuard
+    }
+  ];
+
+  return {
+    introspectionStatus: 'success',
+    callStatus: 'needs-confirmation',
+    namespaces: [
+      { name: 'Application', methods: [methods[0]] },
+      { name: 'Player', methods: [methods[1]] },
+      { name: 'System', methods: [methods[2]] }
+    ],
+    methods,
+    selectedMethodName: 'Player.Open',
+    selectedMethod: methods[1],
+    paramsText: '{"item":{"movieid":4401}}',
+    validationError: 'Confirm this mutating JSON-RPC method before running it.',
+    guardDecision: confirmationGuard,
+    confirmation: {
+      method: 'Player.Open',
+      paramsText: '{"item":{"movieid":4401}}',
+      confirmed: false,
+      requestedAt: '2026-05-01T20:00:00.000Z'
+    },
+    lastCall: {
+      method: 'Player.Open',
+      guardLevel: 'confirmation-required',
+      requestedAt: '2026-05-01T20:00:00.000Z',
+      completedAt: null
+    },
+    lastError: {
+      source: 'validation',
+      code: 'validation/needs-confirmation',
+      message: 'Confirm this mutating JSON-RPC method before running it.'
+    },
+    rawRequestJson: '{"jsonrpc":"2.0","method":"Player.Open","params":{"item":{"movieid":4401}}}',
+    rawResponseJson: '{"result":"fixture-ok","redactedField1":"[redacted]"}',
+    rawErrorJson:
+      '{"code":"validation/needs-confirmation","message":"Confirm this mutating JSON-RPC method before running it."}',
+    ...overrides
+  };
+}
+
+function createLabApiBrowserDispatch(
+  overrides: Partial<LabApiBrowserPanelDispatch> = {}
+): LabApiBrowserPanelDispatch {
+  return {
+    loadIntrospection: vi.fn(),
+    retryIntrospection: vi.fn(),
+    selectMethod: vi.fn(),
+    setParamsText: vi.fn(),
+    runSelectedMethod: vi.fn(),
+    confirmSelectedMethod: vi.fn(),
+    clearConfirmation: vi.fn(),
+    ...overrides
+  };
 }
 
 function getLabNotFoundText(target: HTMLElement): string {
@@ -1465,6 +1580,34 @@ describe('App shell', () => {
     );
     expect(target.textContent).not.toContain('Kodi host settings');
     expect(target.textContent).not.toMatch(/Authorization|Basic|localStorage|admin:p@ssword/i);
+  });
+
+  it('renders the Lab API browser route with injected snapshots and dispatches', async () => {
+    const labApiBrowserDispatch = createLabApiBrowserDispatch();
+    const target = renderApp({
+      route: { kind: 'labApiBrowser' },
+      labApiBrowserSnapshot: createLabApiBrowserSnapshot(),
+      labApiBrowserDispatch
+    });
+    const labText = getLabApiBrowserPanelText(target);
+
+    expect(labText).toContain('Lab API browser');
+    expect(labText).toContain('Introspection loaded.');
+    expect(labText).toContain('Confirmation required.');
+    expect(labText).toContain('Player.Open');
+    expect(labText).toContain('Mutating JSON-RPC method requires explicit confirmation.');
+    expect(labText).toContain('Confirm this mutating JSON-RPC method before running it.');
+    expect(labText).toContain('Redacted JSON diagnostics');
+    expect(labText).toContain('fixture-ok');
+    expect(labText).toContain('redactedField1');
+    expect(target.querySelector('.lab-api-browser-placeholder')).toBeNull();
+    expect(target.textContent).not.toMatch(
+      /Authorization|Basic|localStorage|admin:p@ssword|smb:\/\//i
+    );
+
+    getButton(target, 'Load JSON-RPC methods').click();
+    await tick();
+    expect(labApiBrowserDispatch.loadIntrospection).toHaveBeenCalledTimes(1);
   });
 
   it('renders safe Lab unknown route recovery without raw unsafe path text', () => {

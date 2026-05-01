@@ -154,6 +154,76 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('fixture.addon-write-rejected');
   });
 
+  it('mounts populated M005 browser-proof fixtures for direct Lab routes only', async () => {
+    setPathAndSearch('/lab/shortcuts', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Playback shortcuts');
+    expect(document.body.textContent).toContain('Play / pause');
+    expect(document.body.textContent).not.toContain('Lab API browser');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/lab/api-browser', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Lab API browser');
+    expect(document.body.textContent).toContain('Introspection loaded.');
+    expect(document.body.textContent).toContain('Player.Open');
+    expect(document.body.textContent).toContain('Confirmation required.');
+    expect(document.body.textContent).toContain('System.Shutdown — blocked');
+    expect(document.body.textContent).toContain('redactedField1');
+    expect(document.body.textContent).not.toMatch(
+      /Authorization|Basic|admin:p@ssword|SENTINEL_SECRET|localStorage|sessionStorage|smb:\/\//i
+    );
+  });
+
+  it('does not expose M005 Lab API fixtures when the flag is absent, disabled, production-like, or route is unsafe', async () => {
+    setPathAndSearch('/lab/api-browser', '');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Lab API browser');
+    expect(document.body.textContent).not.toContain('Player.Open');
+    expect(document.body.textContent).not.toContain('fixture-ok');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/lab/api-browser', '?m005-browser-proof=0');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Lab API browser');
+    expect(document.body.textContent).not.toContain('Player.Open');
+
+    const { resolveEntrypointAppProps } = await importMain();
+    expect(
+      resolveEntrypointAppProps(
+        { pathname: '/lab/api-browser', search: '?m005-browser-proof=1' },
+        { DEV: false, MODE: 'production' }
+      )
+    ).toEqual({ route: { kind: 'labApiBrowser' } });
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch(
+      '/lab/api-browser/Authorization/Basic/SENTINEL_SECRET/localStorage',
+      '?m005-browser-proof=1&token=Basic'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('/lab/[redacted]');
+    expect(document.body.textContent).not.toContain('Player.Open');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+    expect(document.body.textContent).not.toContain('localStorage');
+  });
+
   it('does not expose M005 add-ons fixtures when the flag is absent, disabled, or route is unsafe', async () => {
     setPathAndSearch('/addons', '');
 

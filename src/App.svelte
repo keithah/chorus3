@@ -7,6 +7,9 @@
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
+  import LabApiBrowserPanel, {
+    type LabApiBrowserPanelDispatch
+  } from '$components/LabApiBrowserPanel.svelte';
   import MediaFilesPanel, {
     type MediaFilesActionDispatch,
     type MediaFilesActionItem,
@@ -58,6 +61,7 @@
     configStore,
     connectionStore,
     localPlayerStore,
+    labApiBrowserStore,
     mediaFilesStore,
     mediaPlaylistsStore,
     videoMediaPlaylistsStore,
@@ -72,6 +76,7 @@
     type AddonsStoreSnapshot,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type LabApiBrowserStoreSnapshot,
     type MediaFilesStoreSnapshot,
     type MediaPlaylistsStoreSnapshot,
     type MediaSearchStoreSnapshot,
@@ -135,6 +140,8 @@
     addonsSnapshot?: AddonsStoreSnapshot;
     addonsDispatch?: AddonsPanelDispatch;
     addonDetailDispatch?: AddonDetailDispatch;
+    labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
+    labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -276,6 +283,16 @@
     back: () => openAddonsRoute()
   };
 
+  const defaultLabApiBrowserDispatch: LabApiBrowserPanelDispatch = {
+    loadIntrospection: () => labApiBrowserStore.loadIntrospection(),
+    retryIntrospection: () => labApiBrowserStore.loadIntrospection(),
+    selectMethod: (methodName) => labApiBrowserStore.selectMethod(methodName),
+    setParamsText: (paramsText) => labApiBrowserStore.setParamsText(paramsText),
+    runSelectedMethod: () => labApiBrowserStore.runSelectedMethod(),
+    confirmSelectedMethod: () => labApiBrowserStore.confirmSelectedMethod(),
+    clearConfirmation: () => labApiBrowserStore.clearConfirmation()
+  };
+
   const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
 
   let {
@@ -308,6 +325,8 @@
     addonsSnapshot,
     addonsDispatch = defaultAddonsDispatch,
     addonDetailDispatch = defaultAddonDetailDispatch,
+    labApiBrowserSnapshot,
+    labApiBrowserDispatch = defaultLabApiBrowserDispatch,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -334,6 +353,9 @@
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
   const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
+  const currentLabApiBrowserSnapshot = $derived(
+    labApiBrowserSnapshot ?? labApiBrowserStore.snapshot
+  );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
@@ -750,14 +772,10 @@
     </main>
   {:else if isLabApiBrowserRoute}
     <main class="lab-route" aria-label="Lab API browser">
-      <section class="lab-api-browser-placeholder surface" aria-labelledby="lab-api-browser-title">
-        <p class="section-kicker">Lab utility</p>
-        <h2 id="lab-api-browser-title">API browser</h2>
-        <p>The guarded Kodi JSON-RPC API browser will render here.</p>
-        <nav class="lab-route-recovery" aria-label="Lab route recovery">
-          <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
-        </nav>
-      </section>
+      <LabApiBrowserPanel
+        snapshot={currentLabApiBrowserSnapshot}
+        dispatch={labApiBrowserDispatch}
+      />
     </main>
   {:else if isLabUnknownRoute}
     <main class="lab-route" aria-label="Unknown Lab route">

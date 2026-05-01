@@ -1,9 +1,11 @@
 import type { AddonDetailDispatch } from '$lib/components/AddonDetailShell.svelte';
 import type { AddonsPanelDispatch } from '$lib/components/AddonsPanel.svelte';
 import type { SettingsPanelDispatch } from '$lib/components/SettingsPanel.svelte';
+import type { LabApiBrowserPanelDispatch } from '$lib/components/LabApiBrowserPanel.svelte';
 import { parseAppRoute, type AppRoute } from '$lib/app/appRouter';
 import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
+import type { LabApiBrowserStoreSnapshot } from '$lib/stores/labApiBrowser.svelte';
 
 export interface M005BrowserProofLocation {
   pathname?: unknown;
@@ -17,6 +19,8 @@ export interface M005BrowserProofAppProps {
   addonsSnapshot?: AddonsStoreSnapshot;
   addonsDispatch?: AddonsPanelDispatch;
   addonDetailDispatch?: AddonDetailDispatch;
+  labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
+  labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
 }
 
 export const M005_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -33,7 +37,9 @@ export const M005_BROWSER_PROOF_FORBIDDEN_TEXT = [
   'admin:p@ssword',
   'super-secret-password',
   'SENTINEL_SECRET',
-  'CHORUS3_SENTINEL_SECRET'
+  'CHORUS3_SENTINEL_SECRET',
+  'raw body',
+  'raw payload'
 ] as const;
 
 const fixtureTime = '2026-05-01T20:00:00.000Z';
@@ -69,12 +75,157 @@ export function createM005BrowserProofAppProps(
     };
   }
 
+  if (route.kind === 'labApiBrowser') {
+    return {
+      route,
+      labApiBrowserSnapshot: createLabApiBrowserSnapshot(),
+      labApiBrowserDispatch: createLabApiBrowserDispatch()
+    };
+  }
+
   return { route };
 }
 
 export function isM005BrowserProofFixtureSecretSafe(value: unknown): boolean {
   const text = collectFixtureText(value);
   return M005_BROWSER_PROOF_FORBIDDEN_TEXT.every((forbidden) => !text.includes(forbidden));
+}
+
+function createLabApiBrowserSnapshot(): LabApiBrowserStoreSnapshot {
+  const safeGuard = {
+    level: 'safe' as const,
+    requiresConfirmation: false,
+    blocked: false,
+    reason: 'Read-only JSON-RPC method.'
+  };
+  const confirmationGuard = {
+    level: 'confirmation-required' as const,
+    requiresConfirmation: true,
+    blocked: false,
+    reason: 'Mutating JSON-RPC method requires explicit confirmation.'
+  };
+  const blockedGuard = {
+    level: 'blocked' as const,
+    requiresConfirmation: false,
+    blocked: true,
+    reason: 'Destructive system-level JSON-RPC method blocked.'
+  };
+  const methods: LabApiBrowserStoreSnapshot['methods'] = [
+    {
+      name: 'Application.GetProperties',
+      namespace: 'Application',
+      shortName: 'GetProperties',
+      description: 'Return safe application properties for deterministic fixture proof.',
+      params: {
+        type: 'object',
+        properties: { properties: { type: 'array', items: { type: 'string' } } }
+      },
+      returns: { type: 'object', properties: { volume: { type: 'number' } } },
+      guard: safeGuard
+    },
+    {
+      name: 'Player.Open',
+      namespace: 'Player',
+      shortName: 'Open',
+      description: 'Open playback after explicit confirmation.',
+      params: { type: 'object', properties: { item: { type: 'object' } } },
+      returns: { type: 'string' },
+      guard: confirmationGuard
+    },
+    {
+      name: 'System.Shutdown',
+      namespace: 'System',
+      shortName: 'Shutdown',
+      description: 'Blocked destructive system method fixture.',
+      params: { type: 'object' },
+      returns: { type: 'string' },
+      guard: blockedGuard
+    }
+  ];
+
+  return cloneLabApiBrowserSnapshot({
+    introspectionStatus: 'success',
+    callStatus: 'needs-confirmation',
+    namespaces: [
+      { name: 'Application', methods: [methods[0]] },
+      { name: 'Player', methods: [methods[1]] },
+      { name: 'System', methods: [methods[2]] }
+    ],
+    methods,
+    selectedMethodName: 'Player.Open',
+    selectedMethod: methods[1],
+    paramsText: '{"item":{"movieid":4401}}',
+    validationError: 'Confirm this mutating JSON-RPC method before running it.',
+    guardDecision: confirmationGuard,
+    confirmation: {
+      method: 'Player.Open',
+      paramsText: '{"item":{"movieid":4401}}',
+      confirmed: false,
+      requestedAt: fixtureTime
+    },
+    lastCall: {
+      method: 'Player.Open',
+      guardLevel: 'confirmation-required',
+      requestedAt: fixtureTime,
+      completedAt: null
+    },
+    lastError: {
+      source: 'validation',
+      code: 'validation/needs-confirmation',
+      message: 'Confirm this mutating JSON-RPC method before running it.'
+    },
+    rawRequestJson:
+      '{"jsonrpc":"2.0","method":"Player.Open","params":{"item":{"movieid":4401},"redactedField1":"[redacted]"}}',
+    rawResponseJson:
+      '{"result":"fixture-ok","redactedField1":"[redacted]","items":[{"label":"Safe fixture movie"}]}',
+    rawErrorJson:
+      '{"code":"validation/needs-confirmation","message":"Confirm this mutating JSON-RPC method before running it."}'
+  });
+}
+
+function createLabApiBrowserDispatch(): LabApiBrowserPanelDispatch {
+  return {
+    loadIntrospection: noop,
+    retryIntrospection: noop,
+    selectMethod: noop,
+    setParamsText: noop,
+    runSelectedMethod: noop,
+    confirmSelectedMethod: noop,
+    clearConfirmation: noop
+  };
+}
+
+function cloneLabApiBrowserSnapshot(
+  snapshot: LabApiBrowserStoreSnapshot
+): LabApiBrowserStoreSnapshot {
+  return {
+    ...snapshot,
+    namespaces: snapshot.namespaces.map((namespace) => ({
+      name: namespace.name,
+      methods: namespace.methods.map(cloneLabMethod)
+    })),
+    methods: snapshot.methods.map(cloneLabMethod),
+    selectedMethod: snapshot.selectedMethod ? cloneLabMethod(snapshot.selectedMethod) : null,
+    guardDecision: snapshot.guardDecision ? { ...snapshot.guardDecision } : null,
+    confirmation: snapshot.confirmation ? { ...snapshot.confirmation } : null,
+    lastCall: snapshot.lastCall ? { ...snapshot.lastCall } : null,
+    lastError: snapshot.lastError ? { ...snapshot.lastError } : null
+  };
+}
+
+function cloneLabMethod(
+  method: LabApiBrowserStoreSnapshot['methods'][number]
+): LabApiBrowserStoreSnapshot['methods'][number] {
+  return {
+    ...method,
+    params: cloneFixtureJson(method.params),
+    returns: cloneFixtureJson(method.returns),
+    guard: { ...method.guard }
+  };
+}
+
+function cloneFixtureJson<T>(value: T): T {
+  return value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
 }
 
 function createSettingsSnapshot(): SettingsStoreSnapshot {

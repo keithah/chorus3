@@ -105,7 +105,9 @@ export function resolveEntrypointAppProps(
 
   if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
     const props = createM005BrowserProofAppProps(location);
-    return props.settingsSnapshot || props.addonsSnapshot ? props : { route };
+    return props.settingsSnapshot || props.addonsSnapshot || props.labApiBrowserSnapshot
+      ? props
+      : { route };
   }
 
   return { route };
