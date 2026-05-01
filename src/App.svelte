@@ -38,7 +38,10 @@
   import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
   import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
   import VideoSeasonDetailShell, {
-    type VideoSeasonArtworkDispatch
+    type VideoSeasonArtworkDispatch,
+    type VideoSeasonWriteDispatch,
+    type VideoSeasonWriteItem,
+    type VideoSeasonWriteSummary
   } from '$components/VideoSeasonDetailShell.svelte';
   import VideoEpisodeDetailShell, {
     type VideoEpisodeActionDispatch
@@ -70,8 +73,12 @@
     videoLibraryStore,
     type VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
-  import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
+  import {
+    videoMovieDetailStore,
+    type VideoMovieDetailStoreSnapshot
+  } from '$lib/stores/videoMovieDetailStore.svelte';
   import { videoTvStore, type VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
+  import { videoWriteStore, type VideoWriteStoreSnapshot } from '$lib/stores/videoWriteStore.svelte';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -108,6 +115,7 @@
     videoTvSnapshot?: VideoTvStoreSnapshot;
     videoEpisodeActionDispatch?: VideoEpisodeActionDispatch;
     videoSeasonArtworkDispatch?: VideoSeasonArtworkDispatch;
+    videoSeasonWriteDispatch?: VideoSeasonWriteDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -160,7 +168,12 @@
     playMovieItem: ({ movieid }) => defaultPlayerDispatch.playMovieItem({ movieid }),
     resumeMovieItem: ({ movieid }) =>
       defaultPlayerDispatch.playMovieItem({ movieid, resume: true }),
-    queueMovieItem: ({ movieid }) => defaultQueueDispatch.queueMovieItem({ movieid })
+    queueMovieItem: ({ movieid }) => defaultQueueDispatch.queueMovieItem({ movieid }),
+    markMovieWatched: async ({ movieid, watched, label }) => {
+      await videoWriteStore.markMovieWatched({ movieid, label }, watched);
+      assertVideoWriteSucceeded(videoWriteStore.snapshot);
+      await refreshAfterMovieWrite(movieid);
+    }
   };
 
   const defaultVideoMovieStreamActionDispatch: VideoMovieStreamDispatch = {
@@ -173,12 +186,32 @@
     resumeEpisodeItem: ({ episodeid }) =>
       defaultPlayerDispatch.playEpisodeItem({ episodeid, resume: true }),
     queueEpisodeItem: ({ episodeid }) => defaultQueueDispatch.queueEpisodeItem({ episodeid }),
-    streamEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.streamEpisodeItem({ episodeid })
+    streamEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.streamEpisodeItem({ episodeid }),
+    markEpisodeWatched: async ({ episodeid, watched, label }) => {
+      await videoWriteStore.markEpisodeWatched({ episodeid, label }, watched);
+      assertVideoWriteSucceeded(videoWriteStore.snapshot);
+      await refreshAfterEpisodeWrite(episodeid);
+    }
   };
 
   const defaultVideoSeasonArtworkDispatch: VideoSeasonArtworkDispatch = {
     refreshSeasonArtwork: ({ tvshowid, season }) =>
       videoTvStore.refreshSeasonArtwork(tvshowid, season, 'command:refreshSeasonArtwork')
+  };
+
+  const defaultVideoSeasonWriteDispatch: VideoSeasonWriteDispatch = {
+    markEpisodesWatched: async (items, watched) => {
+      await videoWriteStore.markEpisodesWatched(toVideoWriteEpisodeItems(items), watched);
+      const snapshot = videoWriteStore.snapshot;
+      await refreshAfterSeasonWrite();
+      return toSeasonWriteSummary(snapshot);
+    },
+    retryFailedVideoWrites: async (items) => {
+      await videoWriteStore.retryFailed();
+      const snapshot = videoWriteStore.snapshot;
+      await refreshAfterSeasonWrite();
+      return toSeasonWriteSummary(snapshot, items.length);
+    }
   };
 
   let {
@@ -207,7 +240,8 @@
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
     videoEpisodeActionDispatch = defaultVideoEpisodeActionDispatch,
-    videoSeasonArtworkDispatch = defaultVideoSeasonArtworkDispatch
+    videoSeasonArtworkDispatch = defaultVideoSeasonArtworkDispatch,
+    videoSeasonWriteDispatch = defaultVideoSeasonWriteDispatch
   }: Props = $props();
   const currentRoute = $derived(route);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
@@ -304,6 +338,67 @@
     | { kind: 'album'; albumid: number }
     | { kind: 'song'; songid: number } {
     return toMusicPlaybackItem(item);
+  }
+
+  async function refreshAfterMovieWrite(movieid: number): Promise<void> {
+    await bestEffortRefresh([
+      () => videoLibraryStore.refresh('command:videoWrite'),
+      () => videoMovieDetailStore.refreshMovieDetail(movieid, 'command:videoWrite')
+    ]);
+  }
+
+  async function refreshAfterEpisodeWrite(episodeid: number): Promise<void> {
+    await bestEffortRefresh([
+      () => videoTvStore.refreshEpisodeDetail(episodeid, 'command:videoWrite')
+    ]);
+  }
+
+  async function refreshAfterSeasonWrite(): Promise<void> {
+    if (currentRoute.kind !== 'videoTvSeasonDetail') {
+      return;
+    }
+
+    await bestEffortRefresh([
+      () =>
+        videoTvStore.refreshSeasonEpisodes(
+          currentRoute.tvshowid,
+          currentRoute.season,
+          'command:videoWrite'
+        )
+    ]);
+  }
+
+  async function bestEffortRefresh(refreshes: Array<() => Promise<void>>): Promise<void> {
+    await Promise.allSettled(refreshes.map((refresh) => refresh()));
+  }
+
+  function assertVideoWriteSucceeded(snapshot: VideoWriteStoreSnapshot): void {
+    if (snapshot.status !== 'error') {
+      return;
+    }
+
+    throw new Error(snapshot.lastError?.message ?? 'Video write failed.');
+  }
+
+  function toVideoWriteEpisodeItems(items: readonly VideoSeasonWriteItem[]): {
+    episodeid: number;
+    label?: string;
+  }[] {
+    return items.map((item) => ({ episodeid: item.episodeid, label: item.label }));
+  }
+
+  function toSeasonWriteSummary(
+    snapshot: VideoWriteStoreSnapshot,
+    attemptedTotal = snapshot.summary.total
+  ): VideoSeasonWriteSummary {
+    const total = snapshot.summary.total || attemptedTotal;
+    return {
+      total,
+      succeeded: snapshot.summary.succeeded,
+      failed: snapshot.summary.failed,
+      failedItems: snapshot.failedItems,
+      lastError: snapshot.lastError
+    };
   }
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
@@ -500,6 +595,7 @@
         snapshot={currentVideoTvSnapshot}
         route={currentRoute}
         artworkDispatch={videoSeasonArtworkDispatch}
+        writeDispatch={videoSeasonWriteDispatch}
       />
     </main>
   {:else if isVideoEpisodeDetailRoute}

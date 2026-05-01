@@ -8,7 +8,10 @@ import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
 import type { VideoMovieActionDispatch } from '$lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from '$lib/components/VideoMovieStreamShell.svelte';
 import type { VideoEpisodeActionDispatch } from '$lib/components/VideoEpisodeDetailShell.svelte';
-import type { VideoSeasonArtworkDispatch } from '$lib/components/VideoSeasonDetailShell.svelte';
+import type {
+  VideoSeasonArtworkDispatch,
+  VideoSeasonWriteDispatch
+} from '$lib/components/VideoSeasonDetailShell.svelte';
 import { parseVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
 export interface M004BrowserProofLocation {
@@ -33,6 +36,7 @@ export interface M004BrowserProofAppProps {
   videoTvSnapshot: VideoTvStoreSnapshot;
   videoEpisodeActionDispatch: VideoEpisodeActionDispatch;
   videoSeasonArtworkDispatch: VideoSeasonArtworkDispatch;
+  videoSeasonWriteDispatch: VideoSeasonWriteDispatch;
 }
 
 export const M004_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -70,7 +74,8 @@ export function createM004BrowserProofAppProps(
     videoMovieActionDispatch: createVideoMovieActionDispatch(),
     videoMovieStreamActionDispatch: createVideoMovieStreamActionDispatch(),
     videoEpisodeActionDispatch: createVideoEpisodeActionDispatch(),
-    videoSeasonArtworkDispatch: createVideoSeasonArtworkDispatch()
+    videoSeasonArtworkDispatch: createVideoSeasonArtworkDispatch(),
+    videoSeasonWriteDispatch: createVideoSeasonWriteDispatch()
   };
 }
 
@@ -426,7 +431,8 @@ function createVideoMovieActionDispatch(): VideoMovieActionDispatch {
   return {
     playMovieItem: noop,
     resumeMovieItem: noop,
-    queueMovieItem: noop
+    queueMovieItem: noop,
+    markMovieWatched: noop
   };
 }
 
@@ -442,13 +448,45 @@ function createVideoEpisodeActionDispatch(): VideoEpisodeActionDispatch {
     playEpisodeItem: noop,
     resumeEpisodeItem: noop,
     queueEpisodeItem: noop,
-    streamEpisodeItem: noop
+    streamEpisodeItem: noop,
+    markEpisodeWatched: noop
   };
 }
 
 function createVideoSeasonArtworkDispatch(): VideoSeasonArtworkDispatch {
   return {
     refreshSeasonArtwork: noop
+  };
+}
+
+function createVideoSeasonWriteDispatch(): VideoSeasonWriteDispatch {
+  return {
+    markEpisodesWatched: async (items) => ({
+      total: items.length,
+      succeeded: Math.max(0, items.length - 1),
+      failed: items.length > 0 ? 1 : 0,
+      failedItems:
+        items.length > 0
+          ? [
+              {
+                kind: 'episode',
+                id: items[items.length - 1].episodeid,
+                label: items[items.length - 1].label,
+                error: {
+                  source: 'write',
+                  code: 'fixture/partial-season-write',
+                  message: 'Fixture write withheld one safe episode for retry proof.'
+                }
+              }
+            ]
+          : []
+    }),
+    retryFailedVideoWrites: async (items) => ({
+      total: items.length,
+      succeeded: items.length,
+      failed: 0,
+      failedItems: []
+    })
   };
 }
 

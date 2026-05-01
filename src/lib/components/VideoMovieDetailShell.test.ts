@@ -350,7 +350,11 @@ describe('VideoMovieDetailShell', () => {
     await tick();
     await tick();
 
-    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 42, watched: false });
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({
+      movieid: 42,
+      watched: false,
+      label: 'Alien'
+    });
     expect(screenText()).toContain('Marked Alien unwatched.');
 
     document.body.innerHTML = '';
@@ -364,7 +368,11 @@ describe('VideoMovieDetailShell', () => {
     await tick();
     await tick();
 
-    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 84, watched: true });
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({
+      movieid: 84,
+      watched: true,
+      label: 'Arrival'
+    });
     expect(screenText()).toContain('Marked Arrival watched.');
   });
 
@@ -418,7 +426,11 @@ describe('VideoMovieDetailShell', () => {
     await tick();
 
     const text = screenText();
-    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({ movieid: 84, watched: true });
+    expect(actionDispatch.markMovieWatched).toHaveBeenCalledWith({
+      movieid: 84,
+      watched: true,
+      label: 'Arrival'
+    });
     expect(text).toContain('Could not mark Arrival watched.');
     expect(text).toContain('credentials [redacted]');
     expect(text).toContain('[redacted-url]');

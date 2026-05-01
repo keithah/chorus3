@@ -4,7 +4,11 @@
     resumeEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
     queueEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
     streamEpisodeItem: (item: { episodeid: number }) => Promise<void> | void;
-    markEpisodeWatched?: (item: { episodeid: number; watched: boolean }) => Promise<void> | void;
+    markEpisodeWatched?: (item: {
+      episodeid: number;
+      watched: boolean;
+      label?: string;
+    }) => Promise<void> | void;
   }
 </script>
 
@@ -118,7 +122,8 @@
       else
         await actionDispatch.markEpisodeWatched?.({
           episodeid: routeEpisodeId,
-          watched: action === 'mark-watched'
+          watched: action === 'mark-watched',
+          label
         });
       actionStatus = {
         kind: 'success',

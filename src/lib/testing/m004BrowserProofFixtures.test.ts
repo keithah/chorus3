@@ -169,6 +169,9 @@ describe('createM004BrowserProofAppProps', () => {
     await expect(
       props.videoMovieActionDispatch.queueMovieItem({ movieid: 4401 })
     ).resolves.toBeUndefined();
+    await expect(
+      props.videoMovieActionDispatch.markMovieWatched?.({ movieid: 4401, watched: false })
+    ).resolves.toBeUndefined();
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(localStorageSpy).not.toHaveBeenCalled();
@@ -243,14 +246,46 @@ describe('createM004BrowserProofAppProps', () => {
       props.videoEpisodeActionDispatch.streamEpisodeItem({ episodeid: 6601 })
     ).resolves.toBeUndefined();
     await expect(
+      props.videoEpisodeActionDispatch.markEpisodeWatched?.({ episodeid: 6601, watched: true })
+    ).resolves.toBeUndefined();
+    await expect(
       props.videoSeasonArtworkDispatch.refreshSeasonArtwork({ tvshowid: 5501, season: 1 })
     ).resolves.toBeUndefined();
+    await expect(
+      props.videoSeasonWriteDispatch.markEpisodesWatched(
+        [
+          { episodeid: 6601, label: 'Signal Mirror' },
+          { episodeid: 6602, label: 'Cold Open' }
+        ],
+        true
+      )
+    ).resolves.toMatchObject({
+      total: 2,
+      succeeded: 1,
+      failed: 1,
+      failedItems: [
+        {
+          kind: 'episode',
+          id: 6602,
+          label: 'Cold Open',
+          error: {
+            source: 'write',
+            code: 'fixture/partial-season-write',
+            message: expect.stringContaining('retry proof')
+          }
+        }
+      ]
+    });
+    await expect(
+      props.videoSeasonWriteDispatch.retryFailedVideoWrites([{ episodeid: 6602, label: 'Cold Open' }])
+    ).resolves.toMatchObject({ total: 1, succeeded: 1, failed: 0, failedItems: [] });
 
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(localStorageSpy).not.toHaveBeenCalled();
     expect(sessionStorageSpy).not.toHaveBeenCalled();
     expect(isM004BrowserProofFixtureSecretSafe(props.videoEpisodeActionDispatch)).toBe(true);
     expect(isM004BrowserProofFixtureSecretSafe(props.videoSeasonArtworkDispatch)).toBe(true);
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoSeasonWriteDispatch)).toBe(true);
   });
 
   test('creates safe direct detail and unknown route variants from location input', () => {

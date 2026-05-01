@@ -7,7 +7,11 @@
     resumeMovieItem: (item: { movieid: number }) => Promise<void> | void;
     queueMovieItem: (item: MovieQueueItem) => Promise<void> | void;
     streamMovieItem?: (item: { movieid: number }) => Promise<void> | void;
-    markMovieWatched?: (item: { movieid: number; watched: boolean }) => Promise<void> | void;
+    markMovieWatched?: (item: {
+      movieid: number;
+      watched: boolean;
+      label?: string;
+    }) => Promise<void> | void;
   }
 </script>
 
@@ -313,7 +317,8 @@
       } else {
         await actionDispatch.markMovieWatched?.({
           movieid,
-          watched: action === 'mark-watched'
+          watched: action === 'mark-watched',
+          label
         });
       }
 

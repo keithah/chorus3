@@ -22,7 +22,10 @@ import type {
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from './lib/components/VideoMovieStreamShell.svelte';
 import type { VideoEpisodeActionDispatch } from './lib/components/VideoEpisodeDetailShell.svelte';
-import type { VideoSeasonArtworkDispatch } from './lib/components/VideoSeasonDetailShell.svelte';
+import type {
+  VideoSeasonArtworkDispatch,
+  VideoSeasonWriteDispatch
+} from './lib/components/VideoSeasonDetailShell.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
 import type { VideoTvStoreSnapshot } from './lib/stores/videoTvStore.svelte.ts';
@@ -36,6 +39,10 @@ import {
   mediaPlaylistsStore,
   playerDispatch as defaultPlayerDispatch,
   queueDispatch as defaultQueueDispatch,
+  videoLibraryStore,
+  videoMovieDetailStore,
+  videoTvStore,
+  videoWriteStore,
   type MusicBrowseStoreSnapshot,
   type MediaDirectoryEntrySnapshot,
   type MediaFilesBreadcrumbSnapshot,
@@ -84,6 +91,7 @@ type AppProps = {
   videoTvSnapshot?: VideoTvStoreSnapshot;
   videoEpisodeActionDispatch?: VideoEpisodeActionDispatch;
   videoSeasonArtworkDispatch?: VideoSeasonArtworkDispatch;
+  videoSeasonWriteDispatch?: VideoSeasonWriteDispatch;
 };
 
 type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
@@ -512,6 +520,26 @@ function createSeasonArtworkDispatch(
 ): VideoSeasonArtworkDispatch {
   return {
     refreshSeasonArtwork: vi.fn(),
+    ...overrides
+  };
+}
+
+function createSeasonWriteDispatch(
+  overrides: Partial<VideoSeasonWriteDispatch> = {}
+): VideoSeasonWriteDispatch {
+  return {
+    markEpisodesWatched: vi.fn(async (items) => ({
+      total: items.length,
+      succeeded: items.length,
+      failed: 0,
+      failedItems: []
+    })),
+    retryFailedVideoWrites: vi.fn(async (items) => ({
+      total: items.length,
+      succeeded: items.length,
+      failed: 0,
+      failedItems: []
+    })),
     ...overrides
   };
 }
@@ -1020,6 +1048,27 @@ describe('App shell', () => {
     expect(getVideoDetailPanelText(target)).toContain('Queued Quiet Signal.');
   });
 
+  it('routes default movie watched writes through videoWriteStore and refreshes movie reads best-effort', async () => {
+    const markMovieWatched = vi.spyOn(videoWriteStore, 'markMovieWatched').mockResolvedValue();
+    const refreshLibrary = vi.spyOn(videoLibraryStore, 'refresh').mockResolvedValue();
+    const refreshMovieDetail = vi
+      .spyOn(videoMovieDetailStore, 'refreshMovieDetail')
+      .mockRejectedValue(new Error('refresh failed after write'));
+    const target = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4402 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    getButtonByAria(target, 'Mark movie Quiet Signal watched').click();
+    await tick();
+    await tick();
+
+    expect(markMovieWatched).toHaveBeenCalledWith({ movieid: 4402, label: 'Quiet Signal' }, true);
+    expect(refreshLibrary).toHaveBeenCalledWith('command:videoWrite');
+    expect(refreshMovieDetail).toHaveBeenCalledWith(4402, 'command:videoWrite');
+    await waitForText(target, 'Marked Quiet Signal watched.');
+  });
+
   it('preserves injected movie action dispatches for fixture mode without touching defaults', async () => {
     const playMovieItem = vi.spyOn(defaultPlayerDispatch, 'playMovieItem').mockResolvedValue();
     const queueMovieItem = vi.spyOn(defaultQueueDispatch, 'queueMovieItem').mockResolvedValue();
@@ -1300,6 +1349,67 @@ describe('App shell', () => {
       tvshowid: 5501,
       season: 1
     });
+  });
+
+  it('routes default episode watched writes through videoWriteStore and refreshes episode detail', async () => {
+    const markEpisodeWatched = vi.spyOn(videoWriteStore, 'markEpisodeWatched').mockResolvedValue();
+    const refreshEpisodeDetail = vi.spyOn(videoTvStore, 'refreshEpisodeDetail').mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    getButtonByAria(target, 'Mark episode Signal Mirror watched').click();
+    await tick();
+    await tick();
+
+    expect(markEpisodeWatched).toHaveBeenCalledWith(
+      { episodeid: 6601, label: 'Signal Mirror' },
+      true
+    );
+    expect(refreshEpisodeDetail).toHaveBeenCalledWith(6601, 'command:videoWrite');
+    await waitForText(target, 'Marked Signal Mirror watched.');
+  });
+
+  it('routes default season batch writes through videoWriteStore and refreshes season episodes after partial writes', async () => {
+    const markEpisodesWatched = vi.spyOn(videoWriteStore, 'markEpisodesWatched').mockResolvedValue();
+    const refreshSeasonEpisodes = vi.spyOn(videoTvStore, 'refreshSeasonEpisodes').mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    getButtonByAria(target, 'Mark season watched').click();
+    await tick();
+    await tick();
+
+    expect(markEpisodesWatched).toHaveBeenCalledWith(
+      [
+        { episodeid: 6601, label: 'Signal Mirror' }
+      ],
+      true
+    );
+    expect(refreshSeasonEpisodes).toHaveBeenCalledWith(5501, 1, 'command:videoWrite');
+  });
+
+  it('preserves injected season write dispatches without touching the default video write store', async () => {
+    const markEpisodesWatched = vi.spyOn(videoWriteStore, 'markEpisodesWatched').mockResolvedValue();
+    const videoSeasonWriteDispatch = createSeasonWriteDispatch();
+    const target = renderApp({
+      route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+      videoTvSnapshot: createVideoTvSnapshot(),
+      videoSeasonWriteDispatch
+    });
+
+    getButtonByAria(target, 'Mark season watched').click();
+    await tick();
+    await tick();
+
+    expect(videoSeasonWriteDispatch.markEpisodesWatched).toHaveBeenCalledWith(
+      [{ episodeid: 6601, label: 'Signal Mirror' }],
+      true
+    );
+    expect(markEpisodesWatched).not.toHaveBeenCalled();
   });
 
   it('renders unknown video route recovery links for movies and TV', () => {

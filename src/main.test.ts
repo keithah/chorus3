@@ -104,6 +104,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Play');
     expect(document.body.textContent).toContain('Resume');
     expect(document.body.textContent).toContain('Queue');
+    expect(document.body.textContent).toContain('Mark unwatched');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -146,6 +147,9 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Signal Mirror');
     expect(document.body.textContent).toContain('Season artwork unsupported');
     expect(document.body.textContent).toContain('Refresh artwork');
+    expect(document.body.textContent).toContain('Mark season watched');
+    expect(document.body.textContent).toContain('Mark season unwatched');
+    expect(document.body.textContent).toContain('Season write actions are ready.');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -157,6 +161,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Episode ID 6601');
     expect(document.body.textContent).toContain('Resume available');
     expect(document.body.textContent).toContain('Stream');
+    expect(document.body.textContent).toContain('Mark watched');
     expect(document.body.textContent).not.toContain('smb://');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('localStorage');

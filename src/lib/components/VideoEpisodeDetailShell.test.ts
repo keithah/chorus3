@@ -218,7 +218,8 @@ describe('VideoEpisodeDetailShell', () => {
 
     expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
       episodeid: 100,
-      watched: true
+      watched: true,
+      label: 'Hello, Ms. Cobel'
     });
     expect(screenText()).toContain('Marked Hello, Ms. Cobel watched.');
 
@@ -253,7 +254,8 @@ describe('VideoEpisodeDetailShell', () => {
 
     expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
       episodeid: 200,
-      watched: false
+      watched: false,
+      label: 'Goodbye, Mrs. Selvig'
     });
     expect(screenText()).toContain('Marked Goodbye, Mrs. Selvig unwatched.');
   });
@@ -327,7 +329,8 @@ describe('VideoEpisodeDetailShell', () => {
     const text = screenText();
     expect(actionDispatch.markEpisodeWatched).toHaveBeenCalledWith({
       episodeid: 100,
-      watched: true
+      watched: true,
+      label: 'Hello, Ms. Cobel'
     });
     expect(text).toContain('Could not mark Hello, Ms. Cobel watched.');
     expect(text).toContain('credentials [redacted]');
