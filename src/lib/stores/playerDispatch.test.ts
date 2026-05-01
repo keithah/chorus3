@@ -24,6 +24,10 @@ type PlayerDispatchWithPlaylists = ReturnType<typeof createPlayerDispatch> & {
   playPlaylistItem(item: unknown): Promise<void>;
 };
 
+type PlayerDispatchWithMovies = ReturnType<typeof createPlayerDispatch> & {
+  playMovieItem(item: unknown): Promise<void>;
+};
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -248,6 +252,122 @@ describe('player dispatch', () => {
       lastError: null,
       lastCompletedAt: '2026-01-02T00:00:00.000Z'
     });
+  });
+
+  it('opens movie items through Player.Open with optional resume and without requiring an active player', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Player.Open', 'OK');
+    const movieDispatch = dispatch as PlayerDispatchWithMovies;
+
+    await movieDispatch.playMovieItem({ movieid: 4401 });
+    await movieDispatch.playMovieItem({ movieid: 4401, resume: true });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Player.Open', params: { item: { movieid: 4401 }, options: { resume: true } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMovieItem', 'command:playMovieItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'playMovieItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('stops Local playback only after movie Player.Open succeeds', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+
+    await (dispatch as PlayerDispatchWithMovies).playMovieItem({ movieid: 4401, resume: true });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 }, options: { resume: true } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMovieItem']);
+    expect(localPlayerStore.calls).toEqual([{ method: 'stop' }]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'playMovieItem',
+      lastError: null
+    });
+  });
+
+  it('rejects invalid movie playback ids before calling Kodi or refreshing', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidItems = [
+      { movieid: 0 },
+      { movieid: -1 },
+      { movieid: 1.5 },
+      { movieid: Number.POSITIVE_INFINITY },
+      { movieid: Number.NaN },
+      { movieid: '4401' },
+      { movieid: Number.MAX_SAFE_INTEGER + 1 },
+      { movieid: 4401, resume: 'yes' },
+      { movieid: 4401, file: 'smb://nas/movies/leak.mkv' }
+    ];
+
+    for (const item of invalidItems) {
+      await (dispatch as PlayerDispatchWithMovies).playMovieItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'playMovieItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-movie-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active-host client state for movie playback without Kodi calls or refresh', async () => {
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await (dispatch as PlayerDispatchWithMovies).playMovieItem({ movieid: 4401 });
+
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playMovieItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('sanitizes movie playback command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    client.enqueue(
+      'Player.Open',
+      new Error(
+        'movie failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://nas/movies/leak.mkv from localStorage raw body'
+      )
+    );
+
+    await (dispatch as PlayerDispatchWithMovies).playMovieItem({ movieid: 4401 });
+
+    expect(client.calls).toEqual([{ method: 'Player.Open', params: { item: { movieid: 4401 } } }]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMovieItem']);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'error',
+      lastCommand: 'playMovieItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
   });
 
   it('opens audio file items through Player.Open and refreshes with file-specific command state', async () => {

@@ -20,7 +20,7 @@ import type {
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
-import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte';
+import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
 import type { VideoRoute } from './lib/video/videoRouter';
 import {
   configStore,

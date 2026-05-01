@@ -221,6 +221,10 @@ type QueueDispatchWithMusic = QueueDispatch & {
   queueMusicItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithMovies = QueueDispatch & {
+  queueMovieItem(item: unknown): Promise<void>;
+};
+
 type QueueDispatchWithFiles = QueueDispatch & {
   queueFileItem(item: unknown): Promise<void>;
 };
@@ -233,6 +237,10 @@ function asMusicDispatch(dispatch: QueueDispatch): QueueDispatchWithMusic {
   return dispatch as QueueDispatchWithMusic;
 }
 
+function asMovieDispatch(dispatch: QueueDispatch): QueueDispatchWithMovies {
+  return dispatch as QueueDispatchWithMovies;
+}
+
 function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
   return dispatch as QueueDispatchWithFiles;
 }
@@ -242,6 +250,143 @@ function asPlaylistDispatch(dispatch: QueueDispatch): QueueDispatchWithPlaylists
 }
 
 describe('queue dispatch', () => {
+  it('queues movie items through Playlist.Add with video playlist id and authoritative refetches', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asMovieDispatch(dispatch).queueMovieItem({ movieid: 4401 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueMovieItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMovieItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects invalid movie queue ids before calling Kodi or refreshing stores', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const invalidInputs = [
+      { movieid: 0 },
+      { movieid: -1 },
+      { movieid: 1.5 },
+      { movieid: Number.POSITIVE_INFINITY },
+      { movieid: Number.NaN },
+      { movieid: '4401' },
+      { movieid: Number.MAX_SAFE_INTEGER + 1 },
+      { movieid: 4401, file: 'smb://secret/movie.mkv' },
+      { movieid: 4401, songid: 42 }
+    ];
+
+    for (const input of invalidInputs) {
+      await asMovieDispatch(dispatch).queueMovieItem(input);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'queueMovieItem',
+        lastError: { source: 'input', code: 'input/invalid-movie-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active clients for movie queue commands without refreshing', async () => {
+    const playerStore = new FakePlayerStore();
+    const queueStore = new FakeQueueDispatchStore();
+    const dispatch = createQueueDispatch({
+      playerStore,
+      queueStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await asMovieDispatch(dispatch).queueMovieItem({ movieid: 4401 });
+
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMovieItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('sanitizes movie queue command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Add',
+      new Error(
+        'add failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://secret/movie.mkv from localStorage raw body'
+      )
+    );
+
+    await asMovieDispatch(dispatch).queueMovieItem({ movieid: 4401 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueMovieItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMovieItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('serializes movie queue commands and preserves success when refreshes fail', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const pending = deferred<unknown>();
+    client.enqueue('Playlist.Add', pending);
+    client.enqueue('Playlist.Add', 'OK');
+    queueStore.refreshError = new Error('queue refresh failed with smb://secret/movie.mkv');
+    playerStore.refreshError = new Error('player refresh failed with Authorization: Basic token');
+    const movieDispatch = asMovieDispatch(dispatch);
+
+    const firstCall = movieDispatch.queueMovieItem({ movieid: 4401 });
+    await flushPromises();
+    await movieDispatch.queueMovieItem({ movieid: 4402 });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMovieItem',
+      lastError: { code: 'command/already-running' }
+    });
+
+    pending.resolve('OK');
+    await firstCall;
+    await movieDispatch.queueMovieItem({ movieid: 4403 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4403 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem', 'command:queueMovieItem']);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:queueMovieItem',
+      'command:queueMovieItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMovieItem',
+      lastError: null
+    });
+  });
+
   it('queues smart playlist files through Playlist.Add with audio playlist id and authoritative refetches', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     queueStore.snapshot = createQueueSnapshot({

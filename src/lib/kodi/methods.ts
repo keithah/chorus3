@@ -277,6 +277,15 @@ export type KodiMusicLibraryItem =
   | { albumid: number; songid?: never; artistid?: never; playlistid?: never; file?: never }
   | { artistid: number; songid?: never; albumid?: never; playlistid?: never; file?: never };
 
+export type KodiMovieLibraryItem = {
+  movieid: number;
+  songid?: never;
+  albumid?: never;
+  artistid?: never;
+  playlistid?: never;
+  file?: never;
+};
+
 export type PlayerOpenItem =
   | KodiMusicLibraryItem
   | { playlistid: number; songid?: never; albumid?: never; artistid?: never; file?: never };
@@ -285,9 +294,21 @@ export type PlayerOpenParams = {
   item: PlayerOpenItem;
 };
 
+export type PlayerOpenMovieParams = {
+  item: KodiMovieLibraryItem;
+  options?: {
+    resume?: boolean;
+  };
+};
+
 export type PlaylistAddParams = {
   playlistid: number;
   item: KodiMusicLibraryItem;
+};
+
+export type PlaylistAddMovieParams = {
+  playlistid: number;
+  item: KodiMovieLibraryItem;
 };
 
 export type KodiFileItem = {
@@ -742,8 +763,17 @@ export type AudioLibraryAlbumsParams = KodiListParams<AudioLibraryAlbumPropertyN
 export type AudioLibrarySongsParams = KodiListParams<AudioLibrarySongPropertyName>;
 export type AudioLibraryGenresParams = KodiListParams<AudioLibraryGenrePropertyName>;
 export type VideoLibraryMoviesParams = KodiListParams<VideoLibraryMoviePropertyName>;
+export type VideoLibraryMovieDetailsParams = {
+  movieid: number;
+  properties?: readonly VideoLibraryMoviePropertyName[];
+};
 export type VideoLibraryTvShowsParams = KodiListParams<VideoLibraryTvShowPropertyName>;
 export type VideoLibraryEpisodesParams = KodiListParams<VideoLibraryEpisodePropertyName>;
+
+export interface VideoLibraryMovieDetailsResult {
+  moviedetails?: VideoLibraryMovie;
+  [key: string]: unknown;
+}
 
 export interface KodiHttpConnectionTestResult {
   ping: string;
@@ -864,6 +894,21 @@ export function openPlayerItem(
   return openPlayer(client, { item }, options);
 }
 
+export function openPlayerMovieItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiMovieLibraryItem,
+  openOptions?: PlayerOpenMovieParams['options'],
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  const params: PlayerOpenMovieParams = openOptions ? { item, options: openOptions } : { item };
+  return callKodi<PlayerCommandResult, PlayerOpenMovieParams>(
+    client,
+    'Player.Open',
+    params,
+    options
+  );
+}
+
 export function openPlayerFile(
   client: KodiJsonRpcHttpClient,
   item: KodiFileItem,
@@ -904,6 +949,19 @@ export function addMusicPlaylistItem(
   options?: KodiHttpCallOptions
 ): Promise<PlayerCommandResult> {
   return addPlaylistItem(client, { playlistid: 0, item }, options);
+}
+
+export function addMoviePlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiMovieLibraryItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistAddMovieParams>(
+    client,
+    'Playlist.Add',
+    { playlistid: 0, item },
+    options
+  );
 }
 
 export function addFilePlaylistItem(
@@ -1250,6 +1308,19 @@ export function getVideoLibraryMovies(
   return callKodi<VideoLibraryMoviesResult, VideoLibraryMoviesParams>(
     client,
     'VideoLibrary.GetMovies',
+    params,
+    options
+  );
+}
+
+export function getVideoLibraryMovieDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryMovieDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryMovieDetailsResult> {
+  return callKodi<VideoLibraryMovieDetailsResult, VideoLibraryMovieDetailsParams>(
+    client,
+    'VideoLibrary.GetMovieDetails',
     params,
     options
   );

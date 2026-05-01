@@ -4,6 +4,7 @@ import {
   isKodiHttpClientError,
   openPlayerFile,
   openPlayerItem,
+  openPlayerMovieItem,
   openPlayerPlaylistFile,
   playPausePlayer,
   seekPlayer,
@@ -50,6 +51,7 @@ export type PlayerCommandName =
   | 'setAudioStream'
   | 'setSubtitle'
   | 'playMusicItem'
+  | 'playMovieItem'
   | 'playFileItem'
   | 'playPlaylistItem'
   | 'startLocalPlayback'
@@ -58,6 +60,7 @@ export type MusicPlaybackItem =
   | { kind: 'song'; songid: number }
   | { kind: 'album'; albumid: number }
   | { kind: 'artist'; artistid: number };
+export type MoviePlaybackItem = { movieid: number; resume?: boolean };
 export type FilePlaybackItem = { file: string; mediaKind: 'audio' };
 export type PlaylistPlaybackItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
 
@@ -384,6 +387,27 @@ export class PlayerDispatch {
       validate: () => validateMusicPlaybackItem(item),
       resolvePlayerid: false,
       execute: (client) => openPlayerItem(client, musicItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
+    });
+  }
+
+  playMovieItem(item: MoviePlaybackItem): Promise<void> {
+    const movieItem = toKodiMoviePlaybackItem(item) ?? { movieid: 0 };
+    const openOptions = item?.resume === true ? { resume: true } : undefined;
+
+    return this.#runCommand({
+      command: 'playMovieItem',
+      validate: () => validateMoviePlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerMovieItem(client, movieItem, openOptions),
       afterCommandSuccess: () => {
         if (this.#snapshot.mode === 'local') {
           this.#localPlayerStore.stop();
@@ -852,6 +876,14 @@ function validateMusicPlaybackItem(
   return null;
 }
 
+function validateMoviePlaybackItem(
+  item: MoviePlaybackItem
+): PlayerDispatchSafeErrorSnapshot | null {
+  return toKodiMoviePlaybackItem(item)
+    ? null
+    : createInputError('input/invalid-movie-item', 'Choose a movie with a valid library id.');
+}
+
 function validateFilePlaybackItem(item: FilePlaybackItem): PlayerDispatchSafeErrorSnapshot | null {
   return toKodiFilePlaybackItem(item)
     ? null
@@ -912,6 +944,31 @@ function toKodiPlaylistPlaybackItem(item: PlaylistPlaybackItem): { file: string 
   return null;
 }
 
+function toKodiMoviePlaybackItem(item: MoviePlaybackItem): { movieid: number } | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+  const hasValidKeys =
+    (keys.length === 1 && keys[0] === 'movieid') ||
+    (keys.length === 2 && keys[0] === 'movieid' && keys[1] === 'resume');
+
+  if (!hasValidKeys || !isPositiveSafeInteger(candidate.movieid)) {
+    return null;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(candidate, 'resume') &&
+    typeof candidate.resume !== 'boolean'
+  ) {
+    return null;
+  }
+
+  return { movieid: candidate.movieid };
+}
+
 function toKodiMusicLibraryItem(item: MusicPlaybackItem): KodiMusicLibraryItem | null {
   if (!item || typeof item !== 'object') {
     return null;
@@ -952,6 +1009,10 @@ function toKodiMusicLibraryItem(item: MusicPlaybackItem): KodiMusicLibraryItem |
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
 function createInputError(code: string, message: string): PlayerDispatchSafeErrorSnapshot {

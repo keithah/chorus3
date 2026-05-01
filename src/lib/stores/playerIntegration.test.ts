@@ -284,6 +284,82 @@ describe('integrated player loop store contracts', () => {
     expectSecretSafe(queueDispatch.snapshot);
   });
 
+  it('opens and queues movie items through shared dispatch seams while handing Local playback back to Kodi', async () => {
+    const client = new FakeKodiClient();
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+
+    const playerStore = new FakePlayerStore();
+    playerStore.snapshot = createPlayerSnapshot({
+      activePlayers: [],
+      primaryPlayer: null,
+      item: { type: 'movie', label: 'Neon Harbor', movieid: 4401 }
+    });
+    const queueStore = new FakeQueueStore();
+    queueStore.snapshot = { playlistid: null, items: [] };
+    const localPlayerStore = new FakeLocalPlayerStore();
+    localPlayerStore.snapshot = createLocalSnapshot({
+      status: 'playing',
+      mediaKind: 'video',
+      item: {
+        type: 'movie',
+        movieid: 4401,
+        label: 'Neon Harbor',
+        file: 'smb://nas/movies/neon-harbor.mkv'
+      } as unknown as LocalPlayerStoreSnapshot['item'],
+      currentSeconds: 120,
+      durationSeconds: 7200,
+      resumeAvailable: true
+    });
+    const playerDispatch = createPlayerDispatch({
+      mode: 'local',
+      playerStore,
+      localPlayerStore: localPlayerStore as never,
+      configStore: { activeHost: createActiveHost() } as never,
+      createClient: () => client,
+      now: () => '2026-04-29T20:10:00.000Z'
+    });
+    const queueDispatch = createQueueDispatch({
+      queueStore,
+      playerStore,
+      createClient: () => client,
+      now: () => '2026-04-29T20:12:00.000Z'
+    });
+
+    await (
+      playerDispatch as unknown as { playMovieItem(item: unknown): Promise<void> }
+    ).playMovieItem({
+      movieid: 4401,
+      resume: true
+    });
+    await (
+      queueDispatch as unknown as { queueMovieItem(item: unknown): Promise<void> }
+    ).queueMovieItem({
+      movieid: 4401
+    });
+
+    expect(localPlayerStore.stop).toHaveBeenCalledTimes(1);
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 }, options: { resume: true } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMovieItem', 'command:queueMovieItem']);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);
+    expect(playerDispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'playMovieItem',
+      lastError: null
+    });
+    expect(queueDispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMovieItem',
+      lastError: null
+    });
+    expectSecretSafe(playerDispatch.snapshot);
+    expectSecretSafe(queueDispatch.snapshot);
+  });
+
   it('keeps failure snapshots safe across local preparation, scrobble, and queue commands', async () => {
     const client = new FakeKodiClient();
     client.enqueue('Player.PlayPause', { speed: 0 });

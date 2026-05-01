@@ -4,14 +4,17 @@ import type {
   FileDirectoryParams,
   FileDirectoryResult,
   KodiFileItem,
+  KodiMovieLibraryItem,
   KodiMusicLibraryItem,
   KodiPlaylistFileItem,
   PlayerGoToTarget,
   PlayerOpenItem,
+  PlayerOpenMovieParams,
   PlayerOpenParams,
   PlayerRepeatValue,
   PlayerSeekValue,
   PlayerShuffleValue,
+  PlaylistAddMovieParams,
   PlaylistAddParams,
   PlaylistItemPropertyName
 } from './methods';
@@ -19,6 +22,7 @@ import type {
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
   addFilePlaylistItem,
+  addMoviePlaylistItem,
   addMusicPlaylistItem,
   addPlaylistFileItem,
   addPlaylistItem,
@@ -37,12 +41,14 @@ import {
   getPlaylistItems,
   getSystemProperties,
   getVideoLibraryEpisodes,
+  getVideoLibraryMovieDetails,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
   goToPlayerItem,
   openPlayer,
   openPlayerFile,
   openPlayerItem,
+  openPlayerMovieItem,
   openPlayerPlaylistFile,
   pingKodi,
   playPausePlayer,
@@ -75,6 +81,11 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>,
   ExpectTrue<IsNotAssignable<number, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<string, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<{ movieid: number }, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<number, KodiMovieLibraryItem>>,
+  ExpectTrue<IsNotAssignable<string, KodiMovieLibraryItem>>,
+  ExpectTrue<IsNotAssignable<{ songid: number }, KodiMovieLibraryItem>>,
+  ExpectTrue<IsNotAssignable<{ file: string }, KodiMovieLibraryItem>>,
   ExpectTrue<IsNotAssignable<number, KodiFileItem>>,
   ExpectTrue<IsNotAssignable<string, KodiFileItem>>,
   ExpectTrue<IsNotAssignable<number, KodiPlaylistFileItem>>,
@@ -83,7 +94,11 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<{ file: string }, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<{ episodeid: number }, PlayerOpenItem>>,
   ExpectTrue<IsNotAssignable<{ item: { file: string } }, PlayerOpenParams>>,
-  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>
+  ExpectTrue<IsNotAssignable<{ item: { movieid: number } }, PlayerOpenParams>>,
+  ExpectTrue<IsNotAssignable<{ item: { songid: number } }, PlayerOpenMovieParams>>,
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>,
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { movieid: number } }, PlaylistAddParams>>,
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistAddMovieParams>>
 ];
 
 type RecordedCall = {
@@ -270,6 +285,30 @@ describe('Kodi curated method wrappers', () => {
       { method: 'Player.Open', params: { item: { albumid: 7 } } },
       { method: 'Player.Open', params: { item: { artistid: 3 } } },
       { method: 'Player.Open', params: { item: { playlistid: 0 } } }
+    ]);
+  });
+
+  it('opens movie player items with exact movie id and optional resume params', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(openPlayerMovieItem(client, { movieid: 4401 })).resolves.toBe('OK');
+    await expect(openPlayerMovieItem(client, { movieid: 4401 }, { resume: true })).resolves.toBe(
+      'OK'
+    );
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Player.Open', params: { item: { movieid: 4401 }, options: { resume: true } } }
+    ]);
+  });
+
+  it('adds movie playlist items preserving video playlist id and movie id', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(addMoviePlaylistItem(client, { movieid: 4401 })).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
     ]);
   });
 
@@ -726,6 +765,31 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMovies', params }]);
+  });
+
+  it('gets video library movie details preserving exact id and requested properties', async () => {
+    const client = createFakeClient([
+      {
+        moviedetails: {
+          movieid: 4401,
+          label: 'Neon Harbor',
+          title: 'Neon Harbor',
+          resume: { position: 120, total: 600 }
+        }
+      }
+    ]);
+    const params = { movieid: 4401, properties: ['title', 'resume', 'playcount'] } as const;
+
+    await expect(getVideoLibraryMovieDetails(client, params)).resolves.toEqual({
+      moviedetails: {
+        movieid: 4401,
+        label: 'Neon Harbor',
+        title: 'Neon Harbor',
+        resume: { position: 120, total: 600 }
+      }
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMovieDetails', params }]);
   });
 
   it('gets video library TV shows preserving requested params', async () => {

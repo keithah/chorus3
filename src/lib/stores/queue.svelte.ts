@@ -1,6 +1,7 @@
 import {
   KodiHttpClientError,
   addFilePlaylistItem,
+  addMoviePlaylistItem,
   addMusicPlaylistItem,
   addPlaylistFileItem,
   clearPlaylist,
@@ -10,6 +11,7 @@ import {
   swapPlaylistItems,
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
+  type KodiMovieLibraryItem,
   type KodiMusicLibraryItem,
   type KodiNotification,
   type PlaylistItemPropertyName
@@ -25,6 +27,7 @@ export type QueueCommandName =
   | 'clear'
   | 'swap'
   | 'queueMusicItem'
+  | 'queueMovieItem'
   | 'queueFileItem'
   | 'queuePlaylistItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
@@ -34,6 +37,7 @@ export type MusicQueueItem =
   | { kind?: 'album'; albumid: number; songid?: never; artistid?: never; file?: never }
   | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
 
+export type MovieQueueItem = { movieid: number };
 export type FileQueueItem = { file: string; mediaKind: 'audio' };
 export type PlaylistQueueItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
 
@@ -478,6 +482,10 @@ export class QueueDispatch {
     return this.#runMusicQueueCommand(item);
   }
 
+  queueMovieItem(item: MovieQueueItem): Promise<void> {
+    return this.#runMovieQueueCommand(item);
+  }
+
   queueFileItem(item: FileQueueItem): Promise<void> {
     return this.#runFileQueueCommand(item);
   }
@@ -531,6 +539,56 @@ export class QueueDispatch {
       ...this.#snapshot,
       commandStatus: 'success',
       lastCommand: 'queueMusicItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runMovieQueueCommand(item: MovieQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queueMovieItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queueMovieItem');
+
+    const movieItemResult = normalizeMovieQueueItem(item);
+    if (!movieItemResult.ok) {
+      this.#failCommand('queueMovieItem', movieItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queueMovieItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addMoviePlaylistItem(clientResult.client, movieItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queueMovieItem');
+
+    if (commandError) {
+      this.#failCommand('queueMovieItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queueMovieItem',
       lastError: null,
       lastCompletedAt: this.#now()
     };
@@ -827,6 +885,22 @@ function normalizeMusicQueueItem(
   return { ok: true, item: { artistid: idValue } };
 }
 
+function normalizeMovieQueueItem(
+  item: unknown
+): { ok: true; item: KodiMovieLibraryItem } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidMovieItemError() };
+  }
+
+  const keys = Object.keys(item).sort();
+
+  if (keys.length === 1 && keys[0] === 'movieid' && isPositiveSafeInteger(item.movieid)) {
+    return { ok: true, item: { movieid: item.movieid } };
+  }
+
+  return { ok: false, error: createInvalidMovieItemError() };
+}
+
 function normalizeFileQueueItem(
   item: unknown
 ): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
@@ -879,10 +953,21 @@ function isPositiveInteger(value: unknown): value is number {
   return Number.isInteger(value) && typeof value === 'number' && value > 0;
 }
 
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 function createInvalidMusicItemError(): QueueDispatchSafeErrorSnapshot {
   return createQueueInputError(
     'input/invalid-music-item',
     'Choose a valid song, album, or artist to add to the queue.'
+  );
+}
+
+function createInvalidMovieItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-movie-item',
+    'Choose a valid movie to add to the queue.'
   );
 }
 
