@@ -16,6 +16,10 @@ The proof covers two modes:
 
 The proof uses deterministic fixture data only. It does not require a live Kodi instance, does not prove real media decoding, and does not use prepared stream addresses or raw Kodi responses.
 
+## Requirement Reconciliation Cross-Reference
+
+Use `docs/m004-requirement-reconciliation.md` as the requirement-level map for the validation gaps remediated after S07. This browser proof is deterministic route proof: it proves fixture-backed route assembly, visible status copy, diagnostics, and redaction boundaries, not live Kodi mutation proof or unsupported dispatch capabilities.
+
 ## Server Lifecycle
 
 Start the dev server with the managed background process tool from the repository root:

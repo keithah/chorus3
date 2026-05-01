@@ -36,6 +36,10 @@ npm run verify
 
 The deterministic browser proof in the M004 browser proof document is also CI-safe when run against the local Vite dev server. It uses fixture data and must not require a live Kodi endpoint.
 
+## Requirement Reconciliation Cross-Reference
+
+Use `docs/m004-requirement-reconciliation.md` as the validation-gap map before treating an M004 video requirement as proven. The matrix distinguishes implemented/test-backed behavior from deliberately deferred or optional-live behavior for large-library inspection, movie-version selection, play-from-here expectations, artwork state handling, watched/resume batch policy, and restore-policy checks.
+
 ## No-Live Smoke Expectations
 
 With no Kodi environment configured, `npm run smoke:kodi:m004-video` must exit successfully while reporting skipped live probes. Expected behavior:
@@ -107,6 +111,17 @@ The deterministic proof does not require a live Kodi endpoint and does not decod
 ## Optional Manual Live Browser UAT
 
 Manual live browser checks are optional. Run them only against a Kodi instance that is safe to inspect and, for mutating checks, safe to modify and restore.
+
+### Optional live reconciliation checks
+
+These checks are optional-live and should be recorded as "not run" rather than failed when no safe live Kodi test library is available.
+
+- Large-library inspection is read-only unless it intentionally exercises watched/resume writes; confirm bounded lists or understandable empty states before attempting any mutation.
+- Movie-version checks may confirm visible metadata or unsupported/unavailable copy, but must not claim selected-version dispatch unless a future task adds passing implementation and tests.
+- Play-from-here checks are out of the deterministic proof baseline unless a future task adds explicit dispatch behavior and tests.
+- Artwork checks should confirm visible supported, unsupported, unavailable, pending, success, or error states; live artwork mutation is not required for M004 closeout.
+- Watched/resume and season-batch checks are opt-in mutating checks and must use only a restorable test library.
+- Restore-policy evidence must include that every changed watched/resume state was restored, or that the mutating check was skipped because restoration was not safe.
 
 ### Read-only manual checks
 
