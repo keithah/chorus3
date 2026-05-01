@@ -52,6 +52,82 @@ export type SettingsSetSettingValueParams = Record<string, unknown> & {
 };
 export type SettingsSetSettingValueResult = 'OK';
 
+export type AddonEnabledFilter = boolean | 'all';
+export type AddonInstalledFilter = boolean | 'all';
+export type AddonSetEnabledValue = boolean | 'toggle';
+export type AddonPropertyName =
+  | 'name'
+  | 'version'
+  | 'summary'
+  | 'description'
+  | 'path'
+  | 'author'
+  | 'thumbnail'
+  | 'disclaimer'
+  | 'fanart'
+  | 'dependencies'
+  | 'broken'
+  | 'extrainfo'
+  | 'rating'
+  | 'enabled'
+  | 'installed';
+
+export interface AddonSummary {
+  addonid: string;
+  type?: string;
+  name?: string;
+  version?: string;
+  summary?: string;
+  description?: string;
+  path?: string;
+  author?: string;
+  thumbnail?: string;
+  disclaimer?: string;
+  fanart?: string;
+  dependencies?: unknown;
+  broken?: string | boolean;
+  extrainfo?: unknown;
+  rating?: number;
+  enabled?: boolean;
+  installed?: boolean;
+  [key: string]: unknown;
+}
+
+export type AddonDetail = AddonSummary;
+
+export type AddonsGetAddonsParams = Record<string, unknown> & {
+  type?: string;
+  content?: string;
+  enabled?: AddonEnabledFilter;
+  installed?: AddonInstalledFilter;
+  properties?: readonly AddonPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+  sort?: unknown;
+};
+
+export interface AddonsGetAddonsResult {
+  addons?: AddonSummary[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export type AddonsGetAddonDetailsParams = Record<string, unknown> & {
+  addonid: string;
+  properties?: readonly AddonPropertyName[];
+};
+
+export interface AddonsGetAddonDetailsResult {
+  addondetails?: AddonDetail;
+  [key: string]: unknown;
+}
+
+export type AddonsSetAddonEnabledParams = Record<string, unknown> & {
+  addonid: string;
+  enabled: AddonSetEnabledValue;
+};
+
+export type AddonsSetAddonEnabledResult = 'OK';
+
 export interface KodiSettingsSection {
   id?: string;
   label?: string;
@@ -1086,6 +1162,45 @@ export function setSettingValue(
   return callKodi<SettingsSetSettingValueResult, SettingsSetSettingValueParams>(
     client,
     'Settings.SetSettingValue',
+    params,
+    options
+  );
+}
+
+export function getAddons(
+  client: KodiJsonRpcHttpClient,
+  params: AddonsGetAddonsParams = {},
+  options?: KodiHttpCallOptions
+): Promise<AddonsGetAddonsResult> {
+  return callKodi<AddonsGetAddonsResult, AddonsGetAddonsParams>(
+    client,
+    'Addons.GetAddons',
+    params,
+    options
+  );
+}
+
+export function getAddonDetails(
+  client: KodiJsonRpcHttpClient,
+  params: AddonsGetAddonDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<AddonsGetAddonDetailsResult> {
+  return callKodi<AddonsGetAddonDetailsResult, AddonsGetAddonDetailsParams>(
+    client,
+    'Addons.GetAddonDetails',
+    params,
+    options
+  );
+}
+
+export function setAddonEnabled(
+  client: KodiJsonRpcHttpClient,
+  params: AddonsSetAddonEnabledParams,
+  options?: KodiHttpCallOptions
+): Promise<AddonsSetAddonEnabledResult> {
+  return callKodi<AddonsSetAddonEnabledResult, AddonsSetAddonEnabledParams>(
+    client,
+    'Addons.SetAddonEnabled',
     params,
     options
   );

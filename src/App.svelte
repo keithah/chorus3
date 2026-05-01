@@ -322,7 +322,10 @@
     if (
       input.kind === 'dashboard' ||
       input.kind === 'settings' ||
-      input.kind === 'settingsUnknown'
+      input.kind === 'settingsUnknown' ||
+      input.kind === 'addons' ||
+      input.kind === 'addonDetail' ||
+      input.kind === 'addonsUnknown'
     ) {
       return input;
     }

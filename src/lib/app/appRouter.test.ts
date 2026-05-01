@@ -16,6 +16,8 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('', '?m005-browser-proof=1')).toEqual({ kind: 'dashboard' });
     expect(parseAppRoute('/settings')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/settings', '?m005-browser-proof=1')).toEqual({ kind: 'settings' });
+    expect(parseAppRoute('/addons')).toEqual({ kind: 'addons' });
+    expect(parseAppRoute('/addons', '?m005-browser-proof=1')).toEqual({ kind: 'addons' });
   });
 
   test('delegates video routes to the video router with parity', () => {
@@ -34,6 +36,47 @@ describe('parseAppRoute', () => {
 
       expect(parseAppRoute(path, '?ignored=1')).toEqual({ kind: 'video', route: videoRoute });
       expect(unwrapVideoRoute(parseAppRoute(path))).toEqual(videoRoute);
+    }
+  });
+
+  test('parses safe add-on detail routes with dotted ids', () => {
+    expect(parseAppRoute('/addons/plugin.video.youtube')).toEqual({
+      kind: 'addonDetail',
+      addonid: 'plugin.video.youtube'
+    });
+    expect(parseAppRoute('/addons/script.module.safe-demo_1')).toEqual({
+      kind: 'addonDetail',
+      addonid: 'script.module.safe-demo_1'
+    });
+    expect(parseAppRoute('/addons/plugin.video.safe-demo', '?m005-browser-proof=1')).toEqual({
+      kind: 'addonDetail',
+      addonid: 'plugin.video.safe-demo'
+    });
+  });
+
+  test('sanitizes unsafe add-ons subpaths and labels', () => {
+    const unsafeInputs = [
+      '/addons/plugin.video.youtube/extra',
+      '/addons/plugin.video.youtube%2Fextra',
+      '/addons/http:example',
+      '/addons/https:example',
+      '/addons/file:example',
+      '/addons/user:pass@host',
+      '/addons/Authorization',
+      '/addons/Basic',
+      '/addons/localStorage',
+      '/addons/sessionStorage',
+      '/addons/CHORUS3_SENTINEL_SECRET'
+    ];
+
+    for (const input of unsafeInputs) {
+      const route = parseAppRoute(input, '?token=Basic');
+
+      expect(route.kind).toBe('addonsUnknown');
+      expect(JSON.stringify(route)).not.toMatch(
+        /Authorization|Basic|user:pass@host|CHORUS3_SENTINEL_SECRET|localStorage|sessionStorage|token=|http:|https:|file:/i
+      );
+      expect(route).toEqual({ kind: 'addonsUnknown', pathLabel: '/addons/[redacted]' });
     }
   });
 
@@ -77,6 +120,16 @@ describe('buildAppRoute', () => {
   test.each<[AppRoute, string]>([
     [{ kind: 'dashboard' }, '/'],
     [{ kind: 'settings' }, '/settings'],
+    [{ kind: 'addons' }, '/addons'],
+    [{ kind: 'addonDetail', addonid: 'plugin.video.youtube' }, '/addons/plugin.video.youtube'],
+    [
+      { kind: 'addonDetail', addonid: 'script.module.safe-demo_1' },
+      '/addons/script.module.safe-demo_1'
+    ],
+    [
+      { kind: 'addonsUnknown', pathLabel: '/addons/Authorization/Basic' },
+      '/addons/[redacted]/[redacted]'
+    ],
     [
       { kind: 'settingsUnknown', pathLabel: '/settings/Authorization/Basic' },
       '/settings/[redacted]/[redacted]'
@@ -91,6 +144,12 @@ describe('buildAppRoute', () => {
     expect(buildAppRoute({ kind: 'unexpected' } as unknown as AppRoute)).toBe('/');
     expect(buildAppRoute({ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 0 } })).toBe(
       '/video/unknown'
+    );
+    expect(buildAppRoute({ kind: 'addonDetail', addonid: 'http:example' })).toBe(
+      '/addons/[redacted]'
+    );
+    expect(buildAppRoute({ kind: 'addonDetail', addonid: 'plugin.video.youtube/extra' })).toBe(
+      '/addons/[redacted]'
     );
   });
 });

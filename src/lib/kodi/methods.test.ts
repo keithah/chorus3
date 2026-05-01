@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+  AddonEnabledFilter,
+  AddonInstalledFilter,
+  AddonPropertyName,
+  AddonSetEnabledValue,
+  AddonsGetAddonDetailsParams,
+  AddonsGetAddonsParams,
+  AddonsSetAddonEnabledParams,
   FileDirectoryParams,
   FileDirectoryResult,
   KodiFileItem,
@@ -31,6 +38,8 @@ import {
   addPlaylistFileItem,
   addPlaylistItem,
   clearPlaylist,
+  getAddonDetails,
+  getAddons,
   getActivePlayers,
   getApplicationProperties,
   getAudioLibraryAlbums,
@@ -71,6 +80,7 @@ import {
   prepareFileDownload,
   removePlaylistItem,
   seekPlayer,
+  setAddonEnabled,
   setApplicationMute,
   setApplicationVolume,
   setEpisodeDetails,
@@ -116,6 +126,14 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { movieid: number } }, PlaylistAddParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistAddMovieParams>>,
+  ExpectTrue<IsNotAssignable<'sometimes', AddonEnabledFilter>>,
+  ExpectTrue<IsNotAssignable<'partial', AddonInstalledFilter>>,
+  ExpectTrue<IsNotAssignable<'unknownAddonProperty', AddonPropertyName>>,
+  ExpectTrue<IsNotAssignable<'enabled', AddonSetEnabledValue>>,
+  ExpectTrue<IsNotAssignable<string, AddonsGetAddonsParams>>,
+  ExpectTrue<IsNotAssignable<string, AddonsGetAddonDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ addonid: string }, AddonsSetAddonEnabledParams>>,
+  ExpectTrue<IsNotAssignable<{ enabled: true }, AddonsSetAddonEnabledParams>>,
   ExpectTrue<IsNotAssignable<string, SettingsGetCategoriesParams>>,
   ExpectTrue<IsNotAssignable<string, SettingsGetSettingsParams>>,
   ExpectTrue<IsNotAssignable<{ setting: string; value: undefined }, SettingsSetSettingValueParams>>,
@@ -142,6 +160,107 @@ function createFakeClient(
 }
 
 describe('Kodi curated method wrappers', () => {
+  it('gets add-ons preserving requested params and raw result shape', async () => {
+    const client = createFakeClient([
+      {
+        addons: [
+          {
+            addonid: 'plugin.video.youtube',
+            name: 'YouTube',
+            type: 'xbmc.python.pluginsource',
+            enabled: true
+          }
+        ],
+        limits: { start: 0, end: 1, total: 1 }
+      }
+    ]);
+    const params = {
+      type: 'xbmc.python.pluginsource',
+      enabled: 'all',
+      installed: true,
+      properties: ['name', 'version', 'enabled'],
+      limits: { start: 0, end: 25 },
+      sort: { method: 'name', order: 'ascending' }
+    } as const satisfies AddonsGetAddonsParams;
+
+    await expect(getAddons(client, params)).resolves.toEqual({
+      addons: [
+        {
+          addonid: 'plugin.video.youtube',
+          name: 'YouTube',
+          type: 'xbmc.python.pluginsource',
+          enabled: true
+        }
+      ],
+      limits: { start: 0, end: 1, total: 1 }
+    });
+
+    expect(client.calls).toEqual([{ method: 'Addons.GetAddons', params }]);
+  });
+
+  it('gets add-on details preserving the exact addon id and properties', async () => {
+    const client = createFakeClient([
+      {
+        addondetails: {
+          addonid: 'plugin.video.youtube',
+          name: 'YouTube',
+          version: '7.0.0',
+          enabled: true
+        }
+      }
+    ]);
+    const params = {
+      addonid: 'plugin.video.youtube',
+      properties: ['name', 'version', 'enabled']
+    } as const satisfies AddonsGetAddonDetailsParams;
+
+    await expect(getAddonDetails(client, params)).resolves.toEqual({
+      addondetails: {
+        addonid: 'plugin.video.youtube',
+        name: 'YouTube',
+        version: '7.0.0',
+        enabled: true
+      }
+    });
+
+    expect(client.calls).toEqual([{ method: 'Addons.GetAddonDetails', params }]);
+  });
+
+  it('sets add-on enabled state preserving the exact value including toggle', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(
+      setAddonEnabled(client, { addonid: 'plugin.video.youtube', enabled: false })
+    ).resolves.toBe('OK');
+    await expect(
+      setAddonEnabled(client, { addonid: 'plugin.video.youtube', enabled: 'toggle' })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Addons.SetAddonEnabled',
+        params: { addonid: 'plugin.video.youtube', enabled: false }
+      },
+      {
+        method: 'Addons.SetAddonEnabled',
+        params: { addonid: 'plugin.video.youtube', enabled: 'toggle' }
+      }
+    ]);
+  });
+
+  it('propagates add-on wrapper transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(getAddons(client)).rejects.toBe(error);
+    await expect(getAddonDetails(client, { addonid: 'plugin.video.youtube' })).rejects.toBe(error);
+    await expect(
+      setAddonEnabled(client, { addonid: 'plugin.video.youtube', enabled: true })
+    ).rejects.toBe(error);
+  });
+
   it('pings Kodi without params', async () => {
     const client = createFakeClient(['pong']);
 

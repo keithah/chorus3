@@ -8,12 +8,18 @@ import {
 export type AppDashboardRoute = DashboardRoute;
 export type SettingsRoute = { kind: 'settings' };
 export type SettingsUnknownRoute = { kind: 'settingsUnknown'; pathLabel: string };
+export type AddonsRoute = { kind: 'addons' };
+export type AddonDetailRoute = { kind: 'addonDetail'; addonid: string };
+export type AddonsUnknownRoute = { kind: 'addonsUnknown'; pathLabel: string };
 export type DelegatedVideoRoute = { kind: 'video'; route: Exclude<VideoRoute, DashboardRoute> };
 
 export type AppRoute =
   | AppDashboardRoute
   | SettingsRoute
   | SettingsUnknownRoute
+  | AddonsRoute
+  | AddonDetailRoute
+  | AddonsUnknownRoute
   | DelegatedVideoRoute;
 
 export interface AppRouteHistory {
@@ -26,7 +32,9 @@ export interface NavigateAppRouteOptions {
 
 const ROOT_PATH = '/';
 const SETTINGS_PATH = '/settings';
+const ADDONS_PATH = '/addons';
 const UNKNOWN_SETTINGS_PATH = '/settings/unknown';
+const UNKNOWN_ADDONS_PATH = '/addons/[redacted]';
 const UNSAFE_SEGMENT = '[redacted]';
 const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
@@ -46,6 +54,19 @@ export function parseAppRoute(pathname: unknown, search?: unknown): AppRoute {
 
   if (path.startsWith(`${SETTINGS_PATH}/`)) {
     return { kind: 'settingsUnknown', pathLabel: normalizePathLabel(path, UNKNOWN_SETTINGS_PATH) };
+  }
+
+  if (path === ADDONS_PATH) {
+    return { kind: 'addons' };
+  }
+
+  if (path.startsWith(`${ADDONS_PATH}/`)) {
+    const segments = path.split('/').filter(Boolean);
+    const decodedAddonId = segments.length === 2 ? safeDecode(segments[1] ?? '').trim() : '';
+
+    return isSafeAddonId(decodedAddonId)
+      ? { kind: 'addonDetail', addonid: decodedAddonId }
+      : { kind: 'addonsUnknown', pathLabel: UNKNOWN_ADDONS_PATH };
   }
 
   if (path.startsWith('/video/')) {
@@ -73,6 +94,20 @@ export function buildAppRoute(route: AppRoute): string {
 
   if (route.kind === 'settingsUnknown') {
     return normalizePathLabel(route.pathLabel || UNKNOWN_SETTINGS_PATH, UNKNOWN_SETTINGS_PATH);
+  }
+
+  if (route.kind === 'addons') {
+    return ADDONS_PATH;
+  }
+
+  if (route.kind === 'addonDetail') {
+    return isSafeAddonId(route.addonid)
+      ? `${ADDONS_PATH}/${encodeURIComponent(route.addonid)}`
+      : UNKNOWN_ADDONS_PATH;
+  }
+
+  if (route.kind === 'addonsUnknown') {
+    return normalizePathLabel(route.pathLabel || UNKNOWN_ADDONS_PATH, UNKNOWN_ADDONS_PATH);
   }
 
   if (route.kind === 'video') {
@@ -164,6 +199,20 @@ function sanitizePathSegment(segment: string): string {
   }
 
   return decoded;
+}
+
+function isSafeAddonId(addonid: unknown): addonid is string {
+  if (typeof addonid !== 'string') {
+    return false;
+  }
+
+  const decoded = safeDecode(addonid).trim();
+
+  return (
+    decoded === addonid &&
+    /^[A-Za-z0-9._-]+$/.test(decoded) &&
+    !FORBIDDEN_SEGMENT_PATTERN.test(decoded)
+  );
 }
 
 function safeDecode(value: string): string {
