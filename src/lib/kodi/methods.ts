@@ -62,6 +62,7 @@ export type AddonPropertyName =
   | 'description'
   | 'path'
   | 'author'
+  | 'type'
   | 'thumbnail'
   | 'disclaimer'
   | 'fanart'

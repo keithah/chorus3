@@ -314,6 +314,27 @@ export {
 } from './localScrobble.svelte';
 
 export {
+  AddonsStore,
+  addonsStore,
+  createAddonsStore,
+  type AddonSnapshot,
+  type AddonsDetailStatus,
+  type AddonsErrorSource,
+  type AddonsGroupBy,
+  type AddonsGroupSnapshot,
+  type AddonsLastWriteSnapshot,
+  type AddonsLoadStatus,
+  type AddonsPendingToggleSnapshot,
+  type AddonsRefreshAfterWriteSnapshot,
+  type AddonsSafeErrorSnapshot,
+  type AddonsStoreMethods,
+  type AddonsStoreOptions,
+  type AddonsStoreSnapshot,
+  type AddonsWriteCountsSnapshot,
+  type AddonsWriteStatus
+} from './addonsStore.svelte';
+
+export {
   SettingsStore,
   createSettingsStore,
   settingsStore,
