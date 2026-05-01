@@ -388,3 +388,22 @@ export {
   type HostTestSnapshot,
   type HostTestStatus
 } from './hostConnection.svelte';
+
+export {
+  LabApiBrowserStore,
+  createLabApiBrowserStore,
+  labApiBrowserStore,
+  type LabApiBrowserCallStatus,
+  type LabApiBrowserConfirmationSnapshot,
+  type LabApiBrowserErrorSource,
+  type LabApiBrowserGuardDecisionSnapshot,
+  type LabApiBrowserGuardLevel,
+  type LabApiBrowserIntrospectionStatus,
+  type LabApiBrowserLastCallSnapshot,
+  type LabApiBrowserMethodSnapshot,
+  type LabApiBrowserNamespaceSnapshot,
+  type LabApiBrowserSafeErrorSnapshot,
+  type LabApiBrowserStoreMethods,
+  type LabApiBrowserStoreOptions,
+  type LabApiBrowserStoreSnapshot
+} from './labApiBrowser.svelte';
