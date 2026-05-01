@@ -313,6 +313,26 @@ export {
 } from './localScrobble.svelte';
 
 export {
+  VideoWriteStore,
+  createVideoWriteStore,
+  videoWriteStore,
+  type VideoWriteCountsSnapshot,
+  type VideoWriteEpisodeItem,
+  type VideoWriteErrorSource,
+  type VideoWriteFailedItemKind,
+  type VideoWriteFailedItemSnapshot,
+  type VideoWriteMovieItem,
+  type VideoWriteOperation,
+  type VideoWriteResumePosition,
+  type VideoWriteSafeErrorSnapshot,
+  type VideoWriteStatus,
+  type VideoWriteStoreOptions,
+  type VideoWriteStoreSnapshot,
+  type VideoWriteSummarySnapshot,
+  type VideoWriteWriteMethods
+} from './videoWriteStore.svelte';
+
+export {
   HostConnectionStore,
   createHostConnectionStore,
   hostConnectionStore,
