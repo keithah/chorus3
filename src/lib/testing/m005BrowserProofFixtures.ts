@@ -1,5 +1,8 @@
+import type { AddonDetailDispatch } from '$lib/components/AddonDetailShell.svelte';
+import type { AddonsPanelDispatch } from '$lib/components/AddonsPanel.svelte';
 import type { SettingsPanelDispatch } from '$lib/components/SettingsPanel.svelte';
 import { parseAppRoute, type AppRoute } from '$lib/app/appRouter';
+import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
 
 export interface M005BrowserProofLocation {
@@ -11,6 +14,9 @@ export interface M005BrowserProofAppProps {
   route: AppRoute;
   settingsSnapshot?: SettingsStoreSnapshot;
   settingsDispatch?: SettingsPanelDispatch;
+  addonsSnapshot?: AddonsStoreSnapshot;
+  addonsDispatch?: AddonsPanelDispatch;
+  addonDetailDispatch?: AddonDetailDispatch;
 }
 
 export const M005_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -38,15 +44,32 @@ export function createM005BrowserProofAppProps(
 ): M005BrowserProofAppProps {
   const route = parseAppRoute(readPathname(location), readSearch(location));
 
-  if (route.kind !== 'settings') {
-    return { route };
+  if (route.kind === 'settings') {
+    return {
+      route,
+      settingsSnapshot: createSettingsSnapshot(),
+      settingsDispatch: createSettingsDispatch()
+    };
   }
 
-  return {
-    route,
-    settingsSnapshot: createSettingsSnapshot(),
-    settingsDispatch: createSettingsDispatch()
-  };
+  if (route.kind === 'addons') {
+    return {
+      route,
+      addonsSnapshot: createAddonsListSnapshot(),
+      addonsDispatch: createAddonsDispatch()
+    };
+  }
+
+  if (route.kind === 'addonDetail' && route.addonid === 'plugin.video.safe-demo') {
+    return {
+      route,
+      addonsSnapshot: createAddonDetailSnapshot(),
+      addonsDispatch: createAddonsDispatch(),
+      addonDetailDispatch: createAddonDetailDispatch()
+    };
+  }
+
+  return { route };
 }
 
 export function isM005BrowserProofFixtureSecretSafe(value: unknown): boolean {
@@ -204,6 +227,168 @@ function createSettingsDispatch(): SettingsPanelDispatch {
     selectCategory: noop,
     setValue: noop
   };
+}
+
+function createFixtureAddons(): AddonSnapshot[] {
+  return [
+    {
+      addonid: 'plugin.video.safe-demo',
+      name: 'Safe Video Demo',
+      version: '1.2.3',
+      summary: 'Browse safe fixture videos.',
+      description: 'A deterministic add-on detail used for no-live-Kodi proof.',
+      author: 'Fixture Maintainers',
+      enabled: false,
+      installed: true,
+      type: 'xbmc.python.pluginsource',
+      broken: null,
+      dependencyCount: 2,
+      extrainfoCount: 1
+    },
+    {
+      addonid: 'script.module.safe-helper',
+      name: 'Safe Helper Module',
+      version: '2.0.0',
+      summary: 'Dependency helper fixture.',
+      description: 'A helper add-on fixture.',
+      author: 'Fixture Maintainers',
+      enabled: true,
+      installed: true,
+      type: 'xbmc.python.module',
+      broken: null,
+      dependencyCount: 0,
+      extrainfoCount: 0
+    },
+    {
+      addonid: 'plugin.audio.safe-radio',
+      name: 'Safe Radio',
+      version: '0.9.0',
+      summary: 'Audio stream fixture without transport details.',
+      description: 'A disabled audio add-on fixture.',
+      author: 'Fixture Maintainers',
+      enabled: false,
+      installed: true,
+      type: 'xbmc.addon.audio',
+      broken: 'Safe fixture dependency missing',
+      dependencyCount: 1,
+      extrainfoCount: 2
+    }
+  ];
+}
+
+function createAddonsListSnapshot(): AddonsStoreSnapshot {
+  const addons = createFixtureAddons();
+  return cloneAddonsSnapshot({
+    loadStatus: 'success',
+    detailStatus: 'idle',
+    writeStatus: 'idle',
+    addons,
+    selectedAddonId: null,
+    detail: null,
+    searchQuery: 'safe',
+    groupBy: 'type',
+    visibleAddons: addons,
+    groups: createTypeGroups(addons),
+    pendingToggle: null,
+    lastWrite: null,
+    rollbackEnabled: null,
+    refreshAfterWrite: null,
+    writeCounts: { attempted: 3, succeeded: 1, failed: 1 },
+    lastError: null
+  });
+}
+
+function createAddonDetailSnapshot(): AddonsStoreSnapshot {
+  const addons = createFixtureAddons();
+  const detail = addons[0];
+  return cloneAddonsSnapshot({
+    loadStatus: 'success',
+    detailStatus: 'success',
+    writeStatus: 'error',
+    addons,
+    selectedAddonId: detail.addonid,
+    detail,
+    searchQuery: 'safe',
+    groupBy: 'type',
+    visibleAddons: addons,
+    groups: createTypeGroups(addons),
+    pendingToggle: {
+      addonid: 'plugin.video.safe-demo',
+      enabled: true,
+      requestedAt: fixtureTime
+    },
+    lastWrite: {
+      addonid: 'plugin.audio.safe-radio',
+      enabled: false,
+      status: 'error',
+      at: fixtureTime
+    },
+    rollbackEnabled: true,
+    refreshAfterWrite: {
+      addonid: 'plugin.audio.safe-radio',
+      requestedAt: fixtureTime,
+      refreshed: false,
+      warning: 'Add-on write succeeded, but refreshed add-on state is unavailable.'
+    },
+    writeCounts: { attempted: 3, succeeded: 1, failed: 1 },
+    lastError: {
+      source: 'write',
+      code: 'fixture.addon-write-rejected',
+      message: 'Safe add-on write rejection was rolled back.'
+    }
+  });
+}
+
+function createTypeGroups(addons: AddonSnapshot[]): AddonsStoreSnapshot['groups'] {
+  const byType = new Map<string, AddonSnapshot[]>();
+  for (const addon of addons) {
+    byType.set(addon.type, [...(byType.get(addon.type) ?? []), addon]);
+  }
+  return [...byType.entries()].map(([type, groupedAddons]) => ({
+    key: type,
+    label: type,
+    addons: groupedAddons.map(cloneAddon)
+  }));
+}
+
+function createAddonsDispatch(): AddonsPanelDispatch {
+  return {
+    load: noop,
+    retry: noop,
+    setSearchQuery: noop,
+    setGroupBy: noop
+  };
+}
+
+function createAddonDetailDispatch(): AddonDetailDispatch {
+  return {
+    load: noop,
+    retry: noop,
+    setAddonEnabled: noop,
+    back: noop
+  };
+}
+
+function cloneAddonsSnapshot(snapshot: AddonsStoreSnapshot): AddonsStoreSnapshot {
+  return {
+    ...snapshot,
+    addons: snapshot.addons.map(cloneAddon),
+    detail: snapshot.detail ? cloneAddon(snapshot.detail) : null,
+    visibleAddons: snapshot.visibleAddons.map(cloneAddon),
+    groups: snapshot.groups.map((group) => ({
+      ...group,
+      addons: group.addons.map(cloneAddon)
+    })),
+    pendingToggle: snapshot.pendingToggle ? { ...snapshot.pendingToggle } : null,
+    lastWrite: snapshot.lastWrite ? { ...snapshot.lastWrite } : null,
+    refreshAfterWrite: snapshot.refreshAfterWrite ? { ...snapshot.refreshAfterWrite } : null,
+    writeCounts: { ...snapshot.writeCounts },
+    lastError: snapshot.lastError ? { ...snapshot.lastError } : null
+  };
+}
+
+function cloneAddon(addon: AddonSnapshot): AddonSnapshot {
+  return { ...addon };
 }
 
 function readPathname(location: M005BrowserProofLocation | null | undefined): unknown {

@@ -50,6 +50,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('Quiet Signal');
     expect(document.body.textContent).not.toContain('Signal Mirror');
     expect(document.body.textContent).not.toContain('Rain City Thrillers.xsp');
+    expect(document.body.textContent).not.toContain('Safe Video Demo');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -67,6 +68,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('Quiet Signal');
     expect(document.body.textContent).not.toContain('Signal Mirror');
     expect(document.body.textContent).not.toContain('Rain City Thrillers.xsp');
+    expect(document.body.textContent).not.toContain('Safe Video Demo');
   });
 
   it('mounts populated M003 browser-proof fixtures in test mode when explicitly requested', async () => {
@@ -121,6 +123,70 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
     expect(document.body.textContent).not.toContain('localStorage');
     expect(document.body.textContent).not.toContain('sessionStorage');
+  });
+
+  it('mounts populated M005 browser-proof fixtures for direct add-ons routes only', async () => {
+    setPathAndSearch('/addons', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Add-ons');
+    expect(document.body.textContent).toContain('Safe Video Demo');
+    expect(document.body.textContent).toContain('Safe Helper Module');
+    expect(document.body.textContent).toContain('Safe Radio');
+    expect(document.body.textContent).toContain('Broken: Safe fixture dependency missing');
+    expect(document.body.textContent).not.toContain('Kodi Settings');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+    expect(document.body.textContent).not.toContain('localStorage');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/addons/plugin.video.safe-demo', '?m005-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Safe Video Demo');
+    expect(document.body.textContent).toContain('Add-on detail loaded.');
+    expect(document.body.textContent).toContain('Enable add-on');
+    expect(document.body.textContent).toContain('Refresh after write warning');
+    expect(document.body.textContent).toContain('fixture.addon-write-rejected');
+  });
+
+  it('does not expose M005 add-ons fixtures when the flag is absent, disabled, or route is unsafe', async () => {
+    setPathAndSearch('/addons', '');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Add-ons');
+    expect(document.body.textContent).not.toContain('Safe Video Demo');
+    expect(document.body.textContent).not.toContain('Safe Helper Module');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/addons', '?m005-browser-proof=0');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Add-ons');
+    expect(document.body.textContent).not.toContain('Safe Video Demo');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch(
+      '/addons/admin:p@ssword/Authorization/Basic/SENTINEL_SECRET/localStorage',
+      '?m005-browser-proof=1&token=Basic'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Add-ons route not found');
+    expect(document.body.textContent).not.toContain('Safe Video Demo');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+    expect(document.body.textContent).not.toContain('localStorage');
   });
 
   it('does not expose M005 settings fixtures on unrelated routes or disabled fixture mode', async () => {

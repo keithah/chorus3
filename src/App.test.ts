@@ -21,6 +21,8 @@ import type {
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { SettingsPanelDispatch } from './lib/components/SettingsPanel.svelte';
+import type { AddonDetailDispatch } from './lib/components/AddonDetailShell.svelte';
+import type { AddonsPanelDispatch } from './lib/components/AddonsPanel.svelte';
 import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from './lib/components/VideoMovieStreamShell.svelte';
 import type { VideoEpisodeActionDispatch } from './lib/components/VideoEpisodeDetailShell.svelte';
@@ -60,7 +62,8 @@ import {
   type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot,
   type QueueDispatchSnapshot,
-  type QueueStoreSnapshot
+  type QueueStoreSnapshot,
+  type AddonsStoreSnapshot
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
@@ -92,6 +95,9 @@ type AppProps = {
   route?: AppRoute | VideoRoute;
   settingsSnapshot?: import('./lib/stores/settingsStore.svelte').SettingsStoreSnapshot;
   settingsDispatch?: SettingsPanelDispatch;
+  addonsSnapshot?: AddonsStoreSnapshot;
+  addonsDispatch?: AddonsPanelDispatch;
+  addonDetailDispatch?: AddonDetailDispatch;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
@@ -622,6 +628,138 @@ function createSettingsDispatch(
     setValue: vi.fn(),
     ...overrides
   };
+}
+
+function createAddonSnapshot(
+  overrides: Partial<AddonsStoreSnapshot['addons'][number]> = {}
+): AddonsStoreSnapshot['addons'][number] {
+  return {
+    addonid: 'plugin.video.safe-demo',
+    name: 'Safe Video Demo',
+    version: '1.2.3',
+    summary: 'Browse safe fixture videos.',
+    description: 'A deterministic add-on detail used for no-live-Kodi proof.',
+    author: 'Fixture Maintainers',
+    enabled: false,
+    installed: true,
+    type: 'xbmc.python.pluginsource',
+    broken: null,
+    dependencyCount: 2,
+    extrainfoCount: 1,
+    ...overrides
+  };
+}
+
+function createAddonsSnapshot(overrides: Partial<AddonsStoreSnapshot> = {}): AddonsStoreSnapshot {
+  const addons = overrides.addons ?? [
+    createAddonSnapshot(),
+    createAddonSnapshot({
+      addonid: 'script.module.safe-helper',
+      name: 'Safe Helper Module',
+      summary: 'Dependency helper fixture.',
+      description: 'A helper add-on fixture.',
+      enabled: true,
+      type: 'xbmc.python.module',
+      dependencyCount: 0,
+      extrainfoCount: 0
+    }),
+    createAddonSnapshot({
+      addonid: 'plugin.audio.safe-radio',
+      name: 'Safe Radio',
+      summary: 'Audio stream fixture without transport details.',
+      description: 'A disabled audio add-on fixture.',
+      enabled: false,
+      type: 'xbmc.addon.audio',
+      broken: 'Safe fixture dependency missing',
+      dependencyCount: 1,
+      extrainfoCount: 2
+    })
+  ];
+  const searchQuery = overrides.searchQuery ?? '';
+  const visibleAddons = overrides.visibleAddons ?? addons;
+  const groupBy = overrides.groupBy ?? 'type';
+
+  return {
+    loadStatus: 'success',
+    detailStatus: 'success',
+    writeStatus: 'error',
+    addons,
+    selectedAddonId: 'plugin.video.safe-demo',
+    detail: addons[0],
+    searchQuery,
+    groupBy,
+    visibleAddons,
+    groups: overrides.groups ?? [
+      { key: 'xbmc.python.pluginsource', label: 'xbmc.python.pluginsource', addons: [addons[0]] },
+      { key: 'xbmc.python.module', label: 'xbmc.python.module', addons: [addons[1]] },
+      { key: 'xbmc.addon.audio', label: 'xbmc.addon.audio', addons: [addons[2]] }
+    ],
+    pendingToggle: {
+      addonid: 'plugin.video.safe-demo',
+      enabled: true,
+      requestedAt: '2026-05-01T21:00:00.000Z'
+    },
+    lastWrite: {
+      addonid: 'plugin.audio.safe-radio',
+      enabled: false,
+      status: 'error',
+      at: '2026-05-01T21:00:00.000Z'
+    },
+    rollbackEnabled: true,
+    refreshAfterWrite: {
+      addonid: 'plugin.audio.safe-radio',
+      requestedAt: '2026-05-01T21:00:00.000Z',
+      refreshed: false,
+      warning: 'Add-on write succeeded, but refreshed add-on state is unavailable.'
+    },
+    writeCounts: { attempted: 3, succeeded: 1, failed: 1 },
+    lastError: {
+      source: 'write',
+      code: 'fixture.addon-write-rejected',
+      message: 'Safe add-on write rejection was rolled back.'
+    },
+    ...overrides
+  };
+}
+
+function createAddonsDispatch(overrides: Partial<AddonsPanelDispatch> = {}): AddonsPanelDispatch {
+  return {
+    load: vi.fn(),
+    retry: vi.fn(),
+    setSearchQuery: vi.fn(),
+    setGroupBy: vi.fn(),
+    ...overrides
+  };
+}
+
+function createAddonDetailDispatch(
+  overrides: Partial<AddonDetailDispatch> = {}
+): AddonDetailDispatch {
+  return {
+    load: vi.fn(),
+    retry: vi.fn(),
+    setAddonEnabled: vi.fn(),
+    back: vi.fn(),
+    ...overrides
+  };
+}
+
+function getAddonsPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.addons-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getAddonDetailText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.addon-detail');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getAddonsNotFoundText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.addons-route-not-found');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
 }
 
 function createEpisodeActionDispatch(
@@ -1170,6 +1308,138 @@ describe('App shell', () => {
     await tick();
 
     expect(settingsDispatch.setValue).toHaveBeenCalledWith('videoplayer.autoplaynextitem', false);
+  });
+
+  it('renders the add-ons browser route with injected snapshots and dispatches', async () => {
+    const addonsDispatch = createAddonsDispatch();
+    const target = renderApp({
+      route: { kind: 'addons' },
+      addonsSnapshot: createAddonsSnapshot(),
+      addonsDispatch,
+      settingsSnapshot: createSettingsSnapshot()
+    });
+    const addonsText = getAddonsPanelText(target);
+
+    expect(addonsText).toContain('Kodi Add-ons');
+    expect(addonsText).toContain('Add-ons loaded.');
+    expect(addonsText).toContain('3 of 3 add-ons');
+    expect(addonsText).toContain('Safe Video Demo');
+    expect(addonsText).toContain('Safe Helper Module');
+    expect(addonsText).toContain('Safe Radio');
+    expect(addonsText).toContain('Broken: Safe fixture dependency missing');
+    expect(target.textContent).not.toContain('Kodi Settings');
+    expect(target.textContent).not.toContain('Kodi host settings');
+    expect(getVideoLink(target, 'Open Safe Video Demo details').getAttribute('href')).toBe(
+      '/addons/plugin.video.safe-demo'
+    );
+
+    getButton(target, 'Reload add-ons').click();
+    await tick();
+    expect(addonsDispatch.load).toHaveBeenCalledTimes(1);
+
+    changeInputValue(getInput(target, '#addon-search'), 'radio');
+    await tick();
+    changeSelectValue(getSelect(target, '#addon-group-by'), 'enabled');
+    await tick();
+    expect(addonsDispatch.setSearchQuery).toHaveBeenCalledWith('radio');
+    expect(addonsDispatch.setGroupBy).toHaveBeenCalledWith('enabled');
+  });
+
+  it('renders the add-on detail route with injected snapshots and confirmation dispatches', async () => {
+    const addonDetailDispatch = createAddonDetailDispatch();
+    const target = renderApp({
+      route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' },
+      addonsSnapshot: createAddonsSnapshot(),
+      addonDetailDispatch,
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+    const detailText = getAddonDetailText(target);
+
+    expect(detailText).toContain('Safe Video Demo');
+    expect(detailText).toContain('Add-on detail loaded.');
+    expect(detailText).toContain('Add-on write failed.');
+    expect(detailText).toContain('fixture.addon-write-rejected');
+    expect(detailText).toContain('Safe add-on write rejection was rolled back.');
+    expect(detailText).toContain('Enabling plugin.video.safe-demo is pending.');
+    expect(detailText).toContain('Last write: disable plugin.audio.safe-radio (error)');
+    expect(detailText).toContain('Rolled back to enabled.');
+    expect(detailText).toContain('Refresh after write warning');
+    expect(detailText).toContain('3 attempted, 1 succeeded, 1 failed');
+    expect(target.textContent).not.toContain('Video Movies');
+
+    getButton(target, 'Enable add-on').click();
+    await tick();
+    expect(getAddonDetailText(target)).toMatch(/Confirm enable\s+Safe Video Demo\?/);
+    getButton(target, 'Cancel enable').click();
+    await tick();
+    expect(addonDetailDispatch.setAddonEnabled).not.toHaveBeenCalled();
+
+    getButton(target, 'Enable add-on').click();
+    await tick();
+    getButton(target, 'Confirm enable').click();
+    await tick();
+    expect(addonDetailDispatch.setAddonEnabled).toHaveBeenCalledWith(
+      'plugin.video.safe-demo',
+      true
+    );
+  });
+
+  it('routes default add-on browser and detail dispatches through the production add-ons store', async () => {
+    const { addonsStore } = await import('./lib/stores/addonsStore.svelte');
+    const loadAddons = vi.spyOn(addonsStore, 'loadAddons').mockResolvedValue();
+    const setSearchQuery = vi.spyOn(addonsStore, 'setSearchQuery').mockImplementation(() => {});
+    const setGroupBy = vi.spyOn(addonsStore, 'setGroupBy').mockImplementation(() => {});
+    const loadAddonDetail = vi.spyOn(addonsStore, 'loadAddonDetail').mockResolvedValue();
+    const setAddonEnabled = vi.spyOn(addonsStore, 'setAddonEnabled').mockResolvedValue();
+
+    const browserTarget = renderApp({ route: { kind: 'addons' } });
+    getButton(browserTarget, 'Reload add-ons').click();
+    await tick();
+    changeInputValue(getInput(browserTarget, '#addon-search'), 'safe');
+    await tick();
+    changeSelectValue(getSelect(browserTarget, '#addon-group-by'), 'enabled');
+    await tick();
+
+    expect(loadAddons).toHaveBeenCalledTimes(1);
+    expect(setSearchQuery).toHaveBeenCalledWith('safe');
+    expect(setGroupBy).toHaveBeenCalledWith('enabled');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const detailTarget = renderApp({
+      route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' },
+      addonsSnapshot: createAddonsSnapshot()
+    });
+    getButton(detailTarget, 'Reload detail').click();
+    await tick();
+    getButton(detailTarget, 'Enable add-on').click();
+    await tick();
+    getButton(detailTarget, 'Confirm enable').click();
+    await tick();
+
+    expect(loadAddonDetail).toHaveBeenCalledWith('plugin.video.safe-demo');
+    expect(setAddonEnabled).toHaveBeenCalledWith('plugin.video.safe-demo', true);
+  });
+
+  it('renders safe add-ons unknown routes without injected fixture data or raw unsafe path text', () => {
+    const target = renderApp({
+      route: { kind: 'addonsUnknown', pathLabel: '/addons/[redacted]' },
+      addonsSnapshot: createAddonsSnapshot({
+        addons: [createAddonSnapshot({ name: 'Leaked Fixture Add-on' })],
+        visibleAddons: [createAddonSnapshot({ name: 'Leaked Fixture Add-on' })]
+      })
+    });
+    const notFoundText = getAddonsNotFoundText(target);
+
+    expect(notFoundText).toContain('Add-ons route not found');
+    expect(notFoundText).toContain('/addons/[redacted]');
+    expect(target.querySelector('.addons-panel')).toBeNull();
+    expect(target.querySelector('.addon-detail')).toBeNull();
+    expect(target.textContent).not.toContain('Leaked Fixture Add-on');
+    expect(target.textContent).not.toContain('Authorization');
+    expect(target.textContent).not.toContain('Basic');
+    expect(target.textContent).not.toContain('SENTINEL_SECRET');
+    expect(target.textContent).not.toContain('localStorage');
   });
 
   it('renders store-backed settings load errors through SettingsPanel by default', () => {

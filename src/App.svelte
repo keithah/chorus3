@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
+  import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import AppShell from '$components/AppShell.svelte';
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
@@ -49,6 +51,7 @@
     type VideoEpisodeActionDispatch
   } from '$components/VideoEpisodeDetailShell.svelte';
   import {
+    addonsStore,
     configStore,
     connectionStore,
     localPlayerStore,
@@ -63,6 +66,7 @@
     queueDispatch as defaultQueueDispatch,
     queueStore,
     settingsStore,
+    type AddonsStoreSnapshot,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
     type MediaFilesStoreSnapshot,
@@ -87,7 +91,7 @@
     videoWriteStore,
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
-  import { type AppRoute } from '$lib/app/appRouter';
+  import { buildAppRoute, type AppRoute } from '$lib/app/appRouter';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -124,6 +128,9 @@
     videoNavigationDispatch?: VideoNavigationDispatch;
     settingsSnapshot?: SettingsStoreSnapshot;
     settingsDispatch?: SettingsPanelDispatch;
+    addonsSnapshot?: AddonsStoreSnapshot;
+    addonsDispatch?: AddonsPanelDispatch;
+    addonDetailDispatch?: AddonDetailDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -251,6 +258,20 @@
     setValue: (settingId, value) => settingsStore.writeSettingValue(settingId, value)
   };
 
+  const defaultAddonsDispatch: AddonsPanelDispatch = {
+    load: () => addonsStore.loadAddons(),
+    retry: () => addonsStore.loadAddons(),
+    setSearchQuery: (query) => addonsStore.setSearchQuery(query),
+    setGroupBy: (groupBy) => addonsStore.setGroupBy(groupBy)
+  };
+
+  const defaultAddonDetailDispatch: AddonDetailDispatch = {
+    load: () => loadCurrentAddonDetail(),
+    retry: () => loadCurrentAddonDetail(),
+    setAddonEnabled: (addonid, enabled) => addonsStore.setAddonEnabled(addonid, enabled),
+    back: () => openAddonsRoute()
+  };
+
   const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
 
   let {
@@ -280,6 +301,9 @@
     videoMovieDetailSnapshot,
     settingsSnapshot,
     settingsDispatch = defaultSettingsDispatch,
+    addonsSnapshot,
+    addonsDispatch = defaultAddonsDispatch,
+    addonDetailDispatch = defaultAddonDetailDispatch,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -305,10 +329,14 @@
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
+  const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
   const isSettingsUnknownRoute = $derived(currentRoute.kind === 'settingsUnknown');
+  const isAddonsRoute = $derived(currentRoute.kind === 'addons');
+  const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
+  const isAddonsUnknownRoute = $derived(currentRoute.kind === 'addonsUnknown');
   const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentVideoRoute?.kind === 'videoMovieDetail');
   const isVideoMovieStreamRoute = $derived(currentVideoRoute?.kind === 'videoMovieStream');
@@ -409,6 +437,28 @@
     | { kind: 'album'; albumid: number }
     | { kind: 'song'; songid: number } {
     return toMusicPlaybackItem(item);
+  }
+
+  function currentAddonId(): string | null {
+    return currentRoute.kind === 'addonDetail' ? currentRoute.addonid : null;
+  }
+
+  async function loadCurrentAddonDetail(): Promise<void> {
+    const addonid = currentAddonId();
+
+    if (!addonid) {
+      return;
+    }
+
+    await addonsStore.loadAddonDetail(addonid);
+  }
+
+  function openAddonsRoute(): void {
+    try {
+      globalThis.history?.pushState({ routeKind: 'addons' }, '', buildAppRoute({ kind: 'addons' }));
+    } catch {
+      // Navigation recovery is best-effort; the route UI remains safe without it.
+    }
   }
 
   async function refreshAfterMovieWrite(movieid: number): Promise<void> {
@@ -628,6 +678,32 @@
       />
       <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
     </main>
+  {:else if isAddonsRoute}
+    <main class="addons-route" aria-label="Kodi Add-ons">
+      <AddonsPanel snapshot={currentAddonsSnapshot} dispatch={addonsDispatch} />
+    </main>
+  {:else if isAddonDetailRoute}
+    <main class="addons-route" aria-label="Kodi add-on detail">
+      <AddonDetailShell snapshot={currentAddonsSnapshot} dispatch={addonDetailDispatch} />
+    </main>
+  {:else if isAddonsUnknownRoute}
+    <main class="addons-route" aria-label="Unknown add-ons route">
+      <section
+        class="addons-route-not-found surface"
+        aria-labelledby="addons-route-not-found-title"
+      >
+        <p class="section-kicker">Kodi Add-ons</p>
+        <h2 id="addons-route-not-found-title">Add-ons route not found</h2>
+        <p>
+          The add-ons route {currentRoute.kind === 'addonsUnknown'
+            ? currentRoute.pathLabel
+            : '/addons/[redacted]'} is not available in this app shell.
+        </p>
+        <nav class="addons-route-recovery" aria-label="Add-ons route recovery">
+          <a href={buildAppRoute({ kind: 'addons' })}>Add-ons</a>
+        </nav>
+      </section>
+    </main>
   {:else if isSettingsRoute}
     <main class="settings-route" aria-label="Kodi Settings">
       <SettingsPanel snapshot={currentSettingsSnapshot} dispatch={settingsDispatch} />
@@ -812,7 +888,8 @@
   }
 
   .video-route-recovery,
-  .settings-route-recovery {
+  .settings-route-recovery,
+  .addons-route-recovery {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-sm);
