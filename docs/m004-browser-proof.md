@@ -3,7 +3,7 @@
 Date: 2026-05-01
 Milestone: M004
 Slice: S07
-Task: T02 draft for T03 execution
+Task: T03 final browser proof
 
 ## Scope
 
@@ -54,15 +54,15 @@ If a no-flag video route is checked, use the same absence rule. Generic words su
 
 Run every route through the real Vite entrypoint with the M004 proof flag. Record the final outcome in the Evidence Log section.
 
-| Route | Proves | Required visible text or actions |
-| --- | --- | --- |
-| `/video/movies?m004-browser-proof=1` | Movie grid, recent movie sections, recent episode sections, and browse-only video playlists render from safe fixtures. | `Neon Harbor`, `Quiet Signal`, recently added/played movie states, `Signal Mirror`, `Cold Open`, `Rain City Thrillers.xsp`, browse-only playlist copy, disabled play/queue affordances for video playlist entries. |
-| `/video/movies/4401?m004-browser-proof=1` | Movie detail route assembles metadata, watched/resume state, versions, and action controls. | `Neon Harbor`, `One night can rewrite a city.`, `Theatrical cut`, `Director commentary cut`, play, resume, queue, stream, and watched-state controls. |
-| `/video/movies/4401/stream?m004-browser-proof=1` | Local video stream shell renders a safe deterministic runtime marker without decoding live media. | `Neon Harbor`, paused local runtime state, resume availability, Send-to-Kodi or resume-on-Kodi action, retry or stream action copy where present. |
-| `/video/tv?m004-browser-proof=1` | TV grid, recent video sections, and browse-only video playlists render from safe fixtures. | `Aurora Files`, watched/unwatched episode counts, `Signal Mirror`, `Cold Open`, `Rain City Thrillers.xsp`, browse-only playlist copy. |
-| `/video/tv/5501?m004-browser-proof=1` | TV show detail route assembles show metadata, season list, artwork state, and watched summary. | `Aurora Files`, `Season 1`, mystery/science-fiction metadata, episode counts, watched/unwatched summary, artwork availability state. |
-| `/video/tv/5501/seasons/1?m004-browser-proof=1` | Season detail route assembles episodes, season artwork capability, batch watched writes, partial failure, and retry state. | `Season 1`, `Signal Mirror`, `Cold Open`, unsupported season artwork copy, batch watched/unwatched controls, partial write failure copy, retry success copy. |
-| `/video/tv/5501/seasons/1/episodes/6601?m004-browser-proof=1` | Episode detail route assembles metadata, resume state, stream controls, queue/play controls, and watched write controls. | `Signal Mirror`, `Aurora Files`, episode and season numbering, play, resume, queue, stream, and watched-state controls. |
+| Route                                                         | Proves                                                                                                                     | Required visible text or actions                                                                                                                                                                                   |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/video/movies?m004-browser-proof=1`                          | Movie grid, recent movie sections, recent episode sections, and browse-only video playlists render from safe fixtures.     | `Neon Harbor`, `Quiet Signal`, recently added/played movie states, `Signal Mirror`, `Cold Open`, `Rain City Thrillers.xsp`, browse-only playlist copy, disabled play/queue affordances for video playlist entries. |
+| `/video/movies/4401?m004-browser-proof=1`                     | Movie detail route assembles metadata, watched/resume state, versions, and action controls.                                | `Neon Harbor`, `One night can rewrite a city.`, `Theatrical cut`, `Director commentary cut`, play, resume, queue, stream, and watched-state controls.                                                              |
+| `/video/movies/4401/stream?m004-browser-proof=1`              | Local video stream shell renders a safe deterministic runtime marker without decoding live media.                          | `Neon Harbor`, paused local runtime state, resume availability, Send-to-Kodi or resume-on-Kodi action, retry or stream action copy where present.                                                                  |
+| `/video/tv?m004-browser-proof=1`                              | TV grid, recent video sections, and browse-only video playlists render from safe fixtures.                                 | `Aurora Files`, watched/unwatched episode counts, `Signal Mirror`, `Cold Open`, `Rain City Thrillers.xsp`, browse-only playlist copy.                                                                              |
+| `/video/tv/5501?m004-browser-proof=1`                         | TV show detail route assembles show metadata, season list, artwork state, and watched summary.                             | `Aurora Files`, `Season 1`, mystery/science-fiction metadata, episode counts, watched/unwatched summary, artwork availability state.                                                                               |
+| `/video/tv/5501/seasons/1?m004-browser-proof=1`               | Season detail route assembles episodes, season artwork capability, batch watched writes, partial failure, and retry state. | `Season 1`, `Signal Mirror`, `Cold Open`, unsupported season artwork copy, batch watched/unwatched controls, partial write failure copy, retry success copy.                                                       |
+| `/video/tv/5501/seasons/1/episodes/6601?m004-browser-proof=1` | Episode detail route assembles metadata, resume state, stream controls, queue/play controls, and watched write controls.   | `Signal Mirror`, `Aurora Files`, episode and season numbering, play, resume, queue, stream, and watched-state controls.                                                                                            |
 
 ## Expected Route-Specific Behavior
 
@@ -100,22 +100,22 @@ Record the result by category. Do not paste literal sensitive examples into this
 
 ## Evidence Log
 
-T03 should update this section after the real browser run.
+T03 updated this section after the real browser run on 2026-05-01.
 
-| Check | Outcome | Notes |
-| --- | --- | --- |
-| Server started with managed process | Pending | Record ready port only. |
-| Default route fixture absence | Pending | Record distinctive labels absent. |
-| Movie grid route | Pending | Record route assertions and diagnostics. |
-| Movie detail route | Pending | Record route assertions and diagnostics. |
-| Movie stream route | Pending | Record safe local runtime assertions and diagnostics. |
-| TV grid route | Pending | Record route assertions and diagnostics. |
-| TV show detail route | Pending | Record route assertions and diagnostics. |
-| TV season detail route | Pending | Record partial-write/retry and artwork assertions. |
-| TV episode detail route | Pending | Record route assertions and diagnostics. |
-| Console diagnostics | Pending | Record no errors or exact non-sensitive failure class. |
-| Network diagnostics | Pending | Record no failed requests or exact non-sensitive failure class. |
-| Visible DOM redaction scan | Pending | Record category-level pass/fail only. |
+| Check                               | Outcome | Notes                                                                                                                                                                                          |
+| ----------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server started with managed process | Pass    | Managed Vite process reported ready on port 5173.                                                                                                                                              |
+| Default route fixture absence       | Pass    | Dashboard shell rendered; distinctive M004 fixture labels were absent from visible DOM.                                                                                                        |
+| Movie grid route                    | Pass    | Movie grid, recent movie/episode sections, and browse-only video playlist copy rendered from deterministic fixtures.                                                                           |
+| Movie detail route                  | Pass    | Movie metadata, version list, play/resume/queue/stream controls, and watched-state control rendered.                                                                                           |
+| Movie stream route                  | Pass    | Safe browser stream shell rendered paused local runtime copy, resume copy, retry control, and Send-to-Kodi control.                                                                            |
+| TV grid route                       | Pass    | TV grid, recent video sections, and browse-only video playlist copy rendered from deterministic fixtures.                                                                                      |
+| TV show detail route                | Pass    | Show metadata, Season 1, watched/unwatched summary, and poster/fanart availability copy rendered.                                                                                              |
+| TV season detail route              | Pass    | Season episodes, unsupported season artwork copy, batch watched/unwatched controls, partial write failure, and retry success state rendered after exercising the controls.                     |
+| TV episode detail route             | Pass    | Episode metadata, show/season breadcrumbs, play/resume/queue/stream controls, and watched-state control rendered.                                                                              |
+| Console diagnostics                 | Pass    | Console buffer was clean after default and every primary fixture route, aside from expected non-error Vite connection diagnostics on initial load.                                             |
+| Network diagnostics                 | Pass    | Failed-request buffer was clean after default and every primary fixture route.                                                                                                                 |
+| Visible DOM redaction scan          | Pass    | Category-level visible DOM scan found no raw URL schemes, media path schemes, auth/header strings, browser-storage names, raw response markers, prepared stream addresses, or sentinel tokens. |
 
 ## Verification Commands
 
