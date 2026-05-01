@@ -314,6 +314,27 @@ export {
 } from './localScrobble.svelte';
 
 export {
+  SettingsStore,
+  createSettingsStore,
+  settingsStore,
+  type SettingsCategorySnapshot,
+  type SettingsEditKind,
+  type SettingsErrorSource,
+  type SettingsLastWriteSnapshot,
+  type SettingsLoadStatus,
+  type SettingsOptionSnapshot,
+  type SettingsRefreshAfterWriteSnapshot,
+  type SettingsSafeErrorSnapshot,
+  type SettingsSectionSnapshot,
+  type SettingsSettingSnapshot,
+  type SettingsStoreMethods,
+  type SettingsStoreOptions,
+  type SettingsStoreSnapshot,
+  type SettingsWriteCountsSnapshot,
+  type SettingsWriteStatus
+} from './settingsStore.svelte';
+
+export {
   VideoWriteStore,
   createVideoWriteStore,
   videoWriteStore,

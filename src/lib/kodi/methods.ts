@@ -33,6 +33,62 @@ export type SystemPropertyName = 'canhibernate' | 'canreboot' | 'canshutdown' | 
 export type SystemPropertiesResult = Partial<Record<SystemPropertyName, boolean>> &
   Record<string, unknown>;
 
+export type SettingsLevel = 'basic' | 'standard' | 'advanced' | 'expert';
+export type SettingsSettingValue = string | number | boolean | null;
+export type SettingsGetSectionsParams = Record<string, unknown> & {
+  level?: SettingsLevel;
+};
+export type SettingsGetCategoriesParams = Record<string, unknown> & {
+  section?: string;
+  level?: SettingsLevel;
+};
+export type SettingsGetSettingsParams = Record<string, unknown> & {
+  category?: string;
+  level?: SettingsLevel;
+};
+export type SettingsSetSettingValueParams = Record<string, unknown> & {
+  setting: string;
+  value: SettingsSettingValue;
+};
+export type SettingsSetSettingValueResult = 'OK';
+
+export interface KodiSettingsSection {
+  id?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface KodiSettingsCategory {
+  id?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface KodiSettingsSetting {
+  id?: string;
+  label?: string;
+  type?: string;
+  value?: unknown;
+  default?: unknown;
+  options?: unknown;
+  [key: string]: unknown;
+}
+
+export interface SettingsGetSectionsResult {
+  sections?: KodiSettingsSection[];
+  [key: string]: unknown;
+}
+
+export interface SettingsGetCategoriesResult {
+  categories?: KodiSettingsCategory[];
+  [key: string]: unknown;
+}
+
+export interface SettingsGetSettingsResult {
+  settings?: KodiSettingsSetting[];
+  [key: string]: unknown;
+}
+
 export type PlayerType = 'audio' | 'picture' | 'video';
 
 export interface ActivePlayer {
@@ -979,6 +1035,58 @@ export function getSystemProperties(
     client,
     'System.GetProperties',
     { properties },
+    options
+  );
+}
+
+export function getSettingsSections(
+  client: KodiJsonRpcHttpClient,
+  params: SettingsGetSectionsParams = {},
+  options?: KodiHttpCallOptions
+): Promise<SettingsGetSectionsResult> {
+  return callKodi<SettingsGetSectionsResult, SettingsGetSectionsParams>(
+    client,
+    'Settings.GetSections',
+    params,
+    options
+  );
+}
+
+export function getSettingsCategories(
+  client: KodiJsonRpcHttpClient,
+  params: SettingsGetCategoriesParams = {},
+  options?: KodiHttpCallOptions
+): Promise<SettingsGetCategoriesResult> {
+  return callKodi<SettingsGetCategoriesResult, SettingsGetCategoriesParams>(
+    client,
+    'Settings.GetCategories',
+    params,
+    options
+  );
+}
+
+export function getSettings(
+  client: KodiJsonRpcHttpClient,
+  params: SettingsGetSettingsParams = {},
+  options?: KodiHttpCallOptions
+): Promise<SettingsGetSettingsResult> {
+  return callKodi<SettingsGetSettingsResult, SettingsGetSettingsParams>(
+    client,
+    'Settings.GetSettings',
+    params,
+    options
+  );
+}
+
+export function setSettingValue(
+  client: KodiJsonRpcHttpClient,
+  params: SettingsSetSettingValueParams,
+  options?: KodiHttpCallOptions
+): Promise<SettingsSetSettingValueResult> {
+  return callKodi<SettingsSetSettingValueResult, SettingsSetSettingValueParams>(
+    client,
+    'Settings.SetSettingValue',
+    params,
     options
   );
 }

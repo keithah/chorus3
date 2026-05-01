@@ -16,7 +16,11 @@ import type {
   PlayerShuffleValue,
   PlaylistAddMovieParams,
   PlaylistAddParams,
-  PlaylistItemPropertyName
+  PlaylistItemPropertyName,
+  SettingsGetCategoriesParams,
+  SettingsGetSettingsParams,
+  SettingsSetSettingValueParams,
+  SettingsSettingValue
 } from './methods';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
@@ -39,6 +43,9 @@ import {
   getPlayerItem,
   getPlayerProperties,
   getPlaylistItems,
+  getSettings,
+  getSettingsCategories,
+  getSettingsSections,
   getSystemProperties,
   getVideoLibraryEpisodes,
   getVideoLibraryMovieDetails,
@@ -72,6 +79,7 @@ import {
   setPlayerRepeat,
   setPlayerShuffle,
   setPlayerSubtitle,
+  setSettingValue,
   setSongDetails,
   stopPlayer,
   swapPlaylistItems,
@@ -107,7 +115,11 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<{ item: { songid: number } }, PlayerOpenMovieParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { movieid: number } }, PlaylistAddParams>>,
-  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistAddMovieParams>>
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistAddMovieParams>>,
+  ExpectTrue<IsNotAssignable<string, SettingsGetCategoriesParams>>,
+  ExpectTrue<IsNotAssignable<string, SettingsGetSettingsParams>>,
+  ExpectTrue<IsNotAssignable<{ setting: string; value: undefined }, SettingsSetSettingValueParams>>,
+  ExpectTrue<IsNotAssignable<symbol, SettingsSettingValue>>
 ];
 
 type RecordedCall = {
@@ -1032,6 +1044,57 @@ describe('Kodi curated method wrappers', () => {
     };
 
     await expect(pingKodi(client)).rejects.toBe(error);
+  });
+
+  it('gets settings sections preserving requested params', async () => {
+    const client = createFakeClient([{ sections: [{ id: 'system', label: 'System' }] }]);
+    const params = { level: 'expert' } as const;
+
+    await expect(getSettingsSections(client, params)).resolves.toEqual({
+      sections: [{ id: 'system', label: 'System' }]
+    });
+
+    expect(client.calls).toEqual([{ method: 'Settings.GetSections', params }]);
+  });
+
+  it('gets settings categories preserving section and level params', async () => {
+    const client = createFakeClient([{ categories: [{ id: 'audio', label: 'Audio' }] }]);
+    const params = { section: 'system', level: 'standard' } as const;
+
+    await expect(getSettingsCategories(client, params)).resolves.toEqual({
+      categories: [{ id: 'audio', label: 'Audio' }]
+    });
+
+    expect(client.calls).toEqual([{ method: 'Settings.GetCategories', params }]);
+  });
+
+  it('gets settings preserving category and level params', async () => {
+    const client = createFakeClient([{ settings: [{ id: 'audio.volume', label: 'Volume' }] }]);
+    const params = { category: 'audio', level: 'expert' } as const;
+
+    await expect(getSettings(client, params)).resolves.toEqual({
+      settings: [{ id: 'audio.volume', label: 'Volume' }]
+    });
+
+    expect(client.calls).toEqual([{ method: 'Settings.GetSettings', params }]);
+  });
+
+  it('sets a settings value preserving setting id and scalar value', async () => {
+    const client = createFakeClient(['OK']);
+    const params = { setting: 'audio.mute', value: true } as const;
+
+    await expect(setSettingValue(client, params)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([{ method: 'Settings.SetSettingValue', params }]);
+  });
+
+  it('propagates Settings wrapper transport errors unchanged', async () => {
+    const error = new Error('transport unavailable');
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(getSettingsSections(client)).rejects.toBe(error);
   });
 
   it('tests the connection with a stable ping, version, and application property sequence', async () => {
