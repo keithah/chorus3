@@ -20,6 +20,8 @@ import type {
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
+import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte';
+import type { VideoRoute } from './lib/video/videoRouter';
 import {
   configStore,
   connectionStore,
@@ -69,6 +71,8 @@ type AppProps = {
   mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
   mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
   mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
+  route?: VideoRoute;
+  videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
 };
 
 type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
@@ -334,6 +338,72 @@ function createMediaPlaylistsActionDispatch(
     queuePlaylistItem: vi.fn(),
     ...overrides
   };
+}
+
+function createVideoLibrarySnapshot(
+  overrides: Partial<VideoLibraryStoreSnapshot> = {}
+): VideoLibraryStoreSnapshot {
+  const movies = overrides.movies ?? [
+    {
+      movieid: 4401,
+      label: 'Neon Harbor',
+      title: 'Neon Harbor',
+      year: 2024,
+      runtime: 6420,
+      playcount: 1,
+      watched: true,
+      resume: { position: 0, total: 6420 },
+      art: { poster: 'poster:neon-harbor' },
+      versionCount: 2
+    } as VideoLibraryStoreSnapshot['movies'][number] & { versionCount?: number },
+    {
+      movieid: 4402,
+      label: 'Quiet Signal',
+      title: 'Quiet Signal',
+      year: 2025,
+      runtime: 5940,
+      playcount: 0,
+      watched: false,
+      resume: { position: 1275, total: 5940 }
+    }
+  ];
+
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'manual',
+    lastUpdatedAt: '2026-05-01T07:00:00.000Z',
+    movies,
+    limits: { movies: { start: 0, end: movies.length, total: movies.length } },
+    isEmpty: movies.length === 0,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function getVideoMoviesPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-movies-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoDetailPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-movie-detail-shell');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoNotFoundText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.video-route-not-found');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getVideoLink(target: HTMLElement, text: string): HTMLAnchorElement {
+  const link = Array.from(target.querySelectorAll<HTMLAnchorElement>('a')).find(
+    (candidate) => candidate.textContent?.trim() === text
+  );
+  expect(link).toBeInstanceOf(HTMLAnchorElement);
+  return link as HTMLAnchorElement;
 }
 
 function getMediaPlaylistsPanel(target: HTMLElement): HTMLElement {
@@ -664,6 +734,75 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
+  it('keeps the dashboard route as the default application surface', () => {
+    const target = renderApp({ route: { kind: 'dashboard' } });
+
+    expect(target.textContent).toContain('chorus3');
+    expect(target.textContent).toContain('Music Library');
+    expect(target.textContent).toContain('Kodi host settings');
+    expect(target.textContent).not.toContain('Video Movies');
+  });
+
+  it('renders the routed video movies grid with safe href detail links', () => {
+    const target = renderApp({
+      route: { kind: 'videoMovies' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+    const panelText = getVideoMoviesPanelText(target);
+    const neonLink = getVideoLink(target, 'Neon Harbor');
+    const quietLink = getVideoLink(target, 'Quiet Signal');
+
+    expect(panelText).toContain('Video Movies');
+    expect(panelText).toContain('2 of 2 movies');
+    expect(panelText).toContain('Neon Harbor');
+    expect(panelText).toContain('Quiet Signal');
+    expect(panelText).toContain('Watched');
+    expect(panelText).toContain('Resume available');
+    expect(panelText).toContain('2 versions available');
+    expect(neonLink.getAttribute('href')).toBe('/video/movies/4401');
+    expect(quietLink.getAttribute('href')).toBe('/video/movies/4402');
+    expect(target.textContent).not.toContain('Kodi host settings');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('Authorization');
+  });
+
+  it('renders routed movie details and a not-found detail shell from injected snapshots', () => {
+    const detailTarget = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4402 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+    const detailText = getVideoDetailPanelText(detailTarget);
+
+    expect(detailText).toContain('Quiet Signal');
+    expect(detailText).toContain('Movie ID 4402');
+    expect(detailText).toContain('Resume available');
+    expect(getVideoLink(detailTarget, 'Back to movies').getAttribute('href')).toBe('/video/movies');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const missingTarget = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 9999 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    expect(getVideoDetailPanelText(missingTarget)).toContain('Movie ID 9999 is not present');
+  });
+
+  it('renders unknown video routes as sanitized in-app not found UI with a movies link', () => {
+    const target = renderApp({
+      route: { kind: 'videoUnknown', pathLabel: '/video/[redacted]/clips' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+    const notFoundText = getVideoNotFoundText(target);
+
+    expect(notFoundText).toContain('Video route not found');
+    expect(notFoundText).toContain('/video/[redacted]/clips');
+    expect(getVideoLink(target, 'Movies').getAttribute('href')).toBe('/video/movies');
+    expect(notFoundText).not.toContain('Authorization');
+    expect(notFoundText).not.toContain('Basic');
+    expect(notFoundText).not.toContain('smb://');
+  });
+
   it('renders default no-player Now Playing controls as disabled without dispatching', () => {
     const dispatch = createPlayerDispatch();
     const target = renderApp({ playerSnapshot: createPlayerSnapshot(), playerDispatch: dispatch });

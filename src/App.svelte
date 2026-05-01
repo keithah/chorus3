@@ -28,6 +28,8 @@
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
+  import VideoMovieDetailShell from '$components/VideoMovieDetailShell.svelte';
+  import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
   import {
     configStore,
     connectionStore,
@@ -51,6 +53,17 @@
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot
   } from '$lib/stores';
+  import {
+    videoLibraryStore,
+    type VideoLibraryStoreSnapshot
+  } from '$lib/stores/videoLibrary.svelte';
+  import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+
+  interface VideoNavigationDispatch {
+    openMovieGrid: () => Promise<void>;
+    openMovieDetail: (movie: { movieid: number }) => Promise<void>;
+    openRoute: (route: VideoRoute) => Promise<void>;
+  }
 
   interface Props {
     playerSnapshot?: PlayerStoreSnapshot;
@@ -71,6 +84,9 @@
     mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
     mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
+    route?: VideoRoute;
+    videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
+    videoNavigationDispatch?: VideoNavigationDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -137,8 +153,11 @@
     mediaFilesActionDispatch = defaultMediaFilesActionDispatch,
     mediaPlaylistsSnapshot,
     mediaPlaylistsDispatch = defaultMediaPlaylistsDispatch,
-    mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch
+    mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch,
+    route = { kind: 'dashboard' },
+    videoLibrarySnapshot
   }: Props = $props();
+  const currentRoute = $derived(route);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
@@ -149,6 +168,11 @@
   const currentMediaPlaylistsSnapshot = $derived(
     mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
   );
+  const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
+  const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
+  const isVideoMoviesRoute = $derived(currentRoute.kind === 'videoMovies');
+  const isVideoMovieDetailRoute = $derived(currentRoute.kind === 'videoMovieDetail');
+  const isVideoUnknownRoute = $derived(currentRoute.kind === 'videoUnknown');
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
     if (id.startsWith('source:')) {
@@ -316,69 +340,92 @@
     <ThemeToggle />
   </header>
 
-  <main class="dashboard" aria-label="Kodi host configuration and status">
-    <section class="mission surface" aria-labelledby="mission-title">
-      <p class="section-kicker">Runtime surface</p>
-      <h2 id="mission-title">
-        {configStore.snapshot.activeHost?.label ?? 'No Kodi host configured yet'}
-      </h2>
-      <p>
-        Host settings are persisted locally for trusted devices, while connection diagnostics stay
-        secret-safe and visible in the status cards below.
-      </p>
-    </section>
+  {#if isDashboardRoute}
+    <main class="dashboard" aria-label="Kodi host configuration and status">
+      <section class="mission surface" aria-labelledby="mission-title">
+        <p class="section-kicker">Runtime surface</p>
+        <h2 id="mission-title">
+          {configStore.snapshot.activeHost?.label ?? 'No Kodi host configured yet'}
+        </h2>
+        <p>
+          Host settings are persisted locally for trusted devices, while connection diagnostics stay
+          secret-safe and visible in the status cards below.
+        </p>
+      </section>
 
-    <div class="host-grid">
-      <HostSettings />
-      <HostSwitcher />
-    </div>
+      <div class="host-grid">
+        <HostSettings />
+        <HostSwitcher />
+      </div>
 
-    <section class="status-grid" aria-label="Kodi readiness status">
-      <StatusCard
-        title="Connection"
-        status={connectionStatusText(connectionStore.snapshot)}
-        tone={connectionTone(connectionStore.snapshot)}
-        description={connectionDescription(connectionStore.snapshot)}
+      <section class="status-grid" aria-label="Kodi readiness status">
+        <StatusCard
+          title="Connection"
+          status={connectionStatusText(connectionStore.snapshot)}
+          tone={connectionTone(connectionStore.snapshot)}
+          description={connectionDescription(connectionStore.snapshot)}
+        />
+        <StatusCard
+          title="Theme contract"
+          status="active"
+          tone="success"
+          description="The toggle updates the root data-theme attribute and keeps colors flowing through project tokens."
+        />
+      </section>
+
+      <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} />
+      <MusicBrowsePanel
+        librarySnapshot={currentMusicLibrarySnapshot}
+        browseSnapshot={currentMusicBrowseSnapshot}
+        dispatch={musicBrowseDispatch}
+        actionDispatch={musicActionDispatch}
       />
-      <StatusCard
-        title="Theme contract"
-        status="active"
-        tone="success"
-        description="The toggle updates the root data-theme attribute and keeps colors flowing through project tokens."
+      <MediaSearchPanel
+        snapshot={currentMediaSearchSnapshot}
+        dispatch={mediaSearchDispatch}
+        actionDispatch={mediaSearchActionDispatch}
       />
-    </section>
+      <MediaFilesPanel
+        snapshot={currentMediaFilesSnapshot}
+        dispatch={mediaFilesDispatch}
+        actionDispatch={mediaFilesActionDispatch}
+      />
+      <MediaPlaylistsPanel
+        snapshot={currentMediaPlaylistsSnapshot}
+        dispatch={mediaPlaylistsDispatch}
+        actionDispatch={mediaPlaylistsActionDispatch}
+      />
 
-    <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} />
-    <MusicBrowsePanel
-      librarySnapshot={currentMusicLibrarySnapshot}
-      browseSnapshot={currentMusicBrowseSnapshot}
-      dispatch={musicBrowseDispatch}
-      actionDispatch={musicActionDispatch}
-    />
-    <MediaSearchPanel
-      snapshot={currentMediaSearchSnapshot}
-      dispatch={mediaSearchDispatch}
-      actionDispatch={mediaSearchActionDispatch}
-    />
-    <MediaFilesPanel
-      snapshot={currentMediaFilesSnapshot}
-      dispatch={mediaFilesDispatch}
-      actionDispatch={mediaFilesActionDispatch}
-    />
-    <MediaPlaylistsPanel
-      snapshot={currentMediaPlaylistsSnapshot}
-      dispatch={mediaPlaylistsDispatch}
-      actionDispatch={mediaPlaylistsActionDispatch}
-    />
-
-    <LocalMediaRuntime />
-    <NowPlayingPanel
-      snapshot={currentPlayerSnapshot}
-      dispatch={playerDispatch}
-      localPlayerSnapshot={currentLocalSnapshot}
-    />
-    <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
-  </main>
+      <LocalMediaRuntime />
+      <NowPlayingPanel
+        snapshot={currentPlayerSnapshot}
+        dispatch={playerDispatch}
+        localPlayerSnapshot={currentLocalSnapshot}
+      />
+      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
+    </main>
+  {:else if isVideoMoviesRoute}
+    <main class="video-route" aria-label="Video movies route">
+      <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
+    </main>
+  {:else if isVideoMovieDetailRoute}
+    <main class="video-route" aria-label="Video movie detail route">
+      <VideoMovieDetailShell snapshot={currentVideoLibrarySnapshot} route={currentRoute} />
+    </main>
+  {:else if isVideoUnknownRoute}
+    <main class="video-route" aria-label="Unknown video route">
+      <section class="video-route-not-found surface" aria-labelledby="video-route-not-found-title">
+        <p class="section-kicker">Video Library</p>
+        <h2 id="video-route-not-found-title">Video route not found</h2>
+        <p>
+          The video route {currentRoute.kind === 'videoUnknown'
+            ? currentRoute.pathLabel
+            : '/video/unknown'} is not available in this app shell.
+        </p>
+        <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
+      </section>
+    </main>
+  {/if}
 </AppShell>
 
 <style>

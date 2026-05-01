@@ -10,6 +10,10 @@ function setSearch(search: string): void {
   window.history.replaceState({}, '', `/${search}`);
 }
 
+function setPathAndSearch(pathname: string, search = ''): void {
+  window.history.replaceState({}, '', `${pathname}${search}`);
+}
+
 describe('main entrypoint', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -42,6 +46,8 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('Feeling Good');
     expect(document.body.textContent).not.toContain('I Put a Spell on You');
     expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
+    expect(document.body.textContent).not.toContain('Neon Harbor');
+    expect(document.body.textContent).not.toContain('Quiet Signal');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -55,6 +61,8 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('Feeling Good');
     expect(document.body.textContent).not.toContain('I Put a Spell on You');
     expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
+    expect(document.body.textContent).not.toContain('Neon Harbor');
+    expect(document.body.textContent).not.toContain('Quiet Signal');
   });
 
   it('mounts populated M003 browser-proof fixtures in test mode when explicitly requested', async () => {
@@ -80,6 +88,103 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('cover.jpg');
     expect(document.body.textContent).toContain('Late Night Jazz.xsp');
     expect(document.body.textContent).toContain('Road Trip.m3u');
+  });
+
+  it('mounts populated M004 browser-proof fixtures for direct video grid and detail routes in test mode', async () => {
+    setPathAndSearch('/video/movies', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Video Movies');
+    expect(document.body.textContent).toContain('Neon Harbor');
+    expect(document.body.textContent).toContain('Quiet Signal');
+    expect(document.body.textContent).toContain('2 of 2 movies');
+    expect(document.body.textContent).toContain('Resume available');
+    expect(document.body.textContent).not.toContain('Kodi host settings');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/video/movies/4402', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Quiet Signal');
+    expect(document.body.textContent).toContain('Movie ID 4402');
+    expect(document.body.textContent).toContain('Back to movies');
+  });
+
+  it('routes unknown video paths to safe in-app not-found UI without raw unsafe input', async () => {
+    setPathAndSearch(
+      '/video/smb://admin:p@ssword@example.local/Authorization/SENTINEL_SECRET',
+      '?m004-browser-proof=1&token=Basic'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Video route not found');
+    expect(document.body.textContent).toContain('Movies');
+    expect(document.body.textContent).not.toContain('smb://');
+    expect(document.body.textContent).not.toContain('admin:p@ssword');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('Basic');
+    expect(document.body.textContent).not.toContain('SENTINEL_SECRET');
+  });
+
+  it('exposes M004 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
+    const { resolveEntrypointRoute, shouldUseM004BrowserProofFixtures } = await importMain();
+
+    expect(
+      resolveEntrypointRoute({ pathname: '/video/movies/4401', search: '?ignored=1' })
+    ).toEqual({
+      kind: 'videoMovieDetail',
+      movieid: 4401
+    });
+    expect(resolveEntrypointRoute(undefined)).toEqual({ kind: 'dashboard' });
+    expect(
+      resolveEntrypointRoute({
+        get pathname(): string {
+          throw new Error('untrusted location');
+        },
+        search: '?m004-browser-proof=1'
+      }).kind
+    ).toBe('dashboard');
+    expect(
+      shouldUseM004BrowserProofFixtures(
+        { search: '?m004-browser-proof=1' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM004BrowserProofFixtures(
+        { search: '?m004-browser-proof=1' },
+        { DEV: false, MODE: 'test' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM004BrowserProofFixtures(
+        { search: '?m004-browser-proof=0' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(shouldUseM004BrowserProofFixtures(undefined, { DEV: true, MODE: 'development' })).toBe(
+      false
+    );
+    expect(
+      shouldUseM004BrowserProofFixtures(
+        {
+          get search(): string {
+            throw new Error('untrusted location');
+          }
+        },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(
+      shouldUseM004BrowserProofFixtures(
+        { search: '?m004-browser-proof=1' },
+        { DEV: false, MODE: 'production' }
+      )
+    ).toBe(false);
   });
 
   it('exposes pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
