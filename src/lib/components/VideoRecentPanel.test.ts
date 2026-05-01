@@ -157,6 +157,12 @@ describe('VideoRecentPanel', () => {
     expect(text).toContain('Played 2026-04-30 21:15:00');
     expect(text).toContain('Poster artwork available');
     expect(text).toContain('Fanart metadata available');
+    expect(text).toContain('Poster frame');
+    expect(text).toContain('Fanart wash');
+    expect(document.querySelectorAll('.poster-frame.has-fanart')).toHaveLength(1);
+    expect(document.querySelectorAll('.poster-frame.has-poster')).toHaveLength(1);
+    expect(document.querySelectorAll('.poster-frame.has-thumb')).toHaveLength(2);
+    expect(document.querySelectorAll('.fanart-wash')).toHaveLength(4);
     expect(getLink('Neon Harbor')?.getAttribute('href')).toBe('/video/movies/4401');
     expect(getLink('Quiet Signal')?.getAttribute('href')).toBe('/video/movies/4402');
     expect(getLink('Signal Mirror')?.getAttribute('href')).toBe(
@@ -228,6 +234,8 @@ describe('VideoRecentPanel', () => {
     expect(text).toContain('Unknown movie');
     expect(text).toContain('Safe Movie');
     expect(text).toContain('Missing Season');
+    expect(text).toContain('Artwork pending');
+    expect(document.querySelectorAll('.poster-frame.no-artwork').length).toBeGreaterThanOrEqual(2);
     expect(text).toContain('No recently played movies in this snapshot.');
     expect(text).toContain('No recently added episodes in this snapshot.');
     expect(getLink('Safe Movie')?.getAttribute('href')).toBe('/video/movies/7');

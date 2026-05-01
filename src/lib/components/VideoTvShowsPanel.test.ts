@@ -165,6 +165,13 @@ describe('VideoTvShowsPanel', () => {
     expect(text).toContain('10 unwatched episodes');
     expect(text).toContain('Resume available');
     expect(text).toContain('Artwork metadata available');
+    expect(text).toContain('Poster frame');
+    expect(text).toContain('Fanart wash');
+    expect(document.querySelectorAll('.poster-frame.has-fanart')).toHaveLength(1);
+    expect(document.querySelectorAll('.poster-frame.no-artwork')).toHaveLength(1);
+    expect(document.querySelector('[aria-label="Severance artwork availability"]')?.textContent).toContain(
+      'Poster frame'
+    );
     expect(text).toContain('The Bear');
     expect(text).toContain('Watched');
     expect(text).toContain('0 unwatched episodes');
@@ -201,6 +208,8 @@ describe('VideoTvShowsPanel', () => {
     const text = screenText();
     expect(text).toContain('Unknown TV show');
     expect(text).toContain('Safe Show');
+    expect(text).toContain('Artwork pending');
+    expect(document.querySelector('.fallback-initials')?.textContent).toBe('UT');
     expect(document.querySelectorAll('a.tv-show-link')).toHaveLength(1);
     expect(document.querySelector('a.tv-show-link')?.getAttribute('href')).toBe('/video/tv/7');
     expectSecretSafe(text);

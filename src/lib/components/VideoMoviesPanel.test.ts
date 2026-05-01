@@ -171,6 +171,14 @@ describe('VideoMoviesPanel', () => {
     expect(text).toContain('Resume available');
     expect(text).toContain('2 versions available');
     expect(text).toContain('Artwork metadata available');
+    expect(text).toContain('Poster frame');
+    expect(text).toContain('Fanart wash');
+    expect(document.querySelectorAll('.poster-frame.has-fanart')).toHaveLength(1);
+    expect(document.querySelectorAll('.poster-frame.has-poster')).toHaveLength(1);
+    expect(document.querySelectorAll('.fanart-wash')).toHaveLength(2);
+    expect(document.querySelector('[aria-label="Alien artwork availability"]')?.textContent).toContain(
+      'Poster frame'
+    );
 
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.movie-link')).map(
       (link) => link.getAttribute('href')
@@ -210,6 +218,9 @@ describe('VideoMoviesPanel', () => {
     const text = screenText();
     expect(text).toContain('Unknown movie');
     expect(text).toContain('Safe Movie');
+    expect(text).toContain('Artwork pending');
+    expect(document.querySelectorAll('.poster-frame.no-artwork')).toHaveLength(1);
+    expect(document.querySelector('.fallback-initials')?.textContent).toBe('UM');
     expect(document.querySelectorAll('a.movie-link')).toHaveLength(1);
     expect(document.querySelector('a.movie-link')?.getAttribute('href')).toBe('/video/movies/7');
     expectSecretSafe(text);

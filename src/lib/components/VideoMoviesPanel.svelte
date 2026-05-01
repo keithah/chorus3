@@ -9,6 +9,12 @@
     snapshot: VideoLibraryStoreSnapshot;
   }
 
+  type ArtworkPresentation = {
+    className: 'has-fanart' | 'has-poster' | 'has-thumb' | 'no-artwork';
+    badges: string[];
+    initials: string;
+  };
+
   let { snapshot }: Props = $props();
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
@@ -106,20 +112,78 @@
     return position !== null && total !== null && total > 0 && position > 0;
   }
 
-  function artworkText(movie: VideoLibraryMovieSnapshot): string | null {
-    const art = movie.art;
-    const hasArtwork =
-      typeof movie.thumbnail === 'string' ||
-      typeof movie.fanart === 'string' ||
-      (art !== undefined &&
-        Object.entries(art).some(
-          ([key, value]) =>
-            /^(poster|fanart|thumb|banner)$/i.test(key) &&
-            typeof value === 'string' &&
-            value.length > 0
-        ));
+  function artworkPresentation(movie: VideoLibraryMovieSnapshot): ArtworkPresentation {
+    const keys = artworkKeys(movie);
+    const badges: string[] = [];
 
-    return hasArtwork ? 'Artwork metadata available' : null;
+    if (keys.has('poster')) {
+      badges.push('Poster frame');
+      badges.push('Artwork metadata available');
+    }
+
+    if (keys.has('fanart')) {
+      badges.push('Fanart wash');
+      if (!badges.includes('Artwork metadata available')) {
+        badges.push('Artwork metadata available');
+      }
+    }
+
+    if (keys.has('thumb') && badges.length === 0) {
+      badges.push('Thumbnail frame');
+      badges.push('Artwork metadata available');
+    }
+
+    if (keys.size === 0) {
+      badges.push('Artwork pending');
+    }
+
+    return {
+      className: artworkClass(keys),
+      badges,
+      initials: initialsFor(safeMovieLabel(movie), 'M')
+    };
+  }
+
+  function artworkKeys(movie: VideoLibraryMovieSnapshot): Set<string> {
+    const keys = new Set<string>();
+
+    if (hasArtworkMetadata(movie.thumbnail)) {
+      keys.add('thumb');
+    }
+
+    if (hasArtworkMetadata(movie.fanart)) {
+      keys.add('fanart');
+    }
+
+    if (movie.art) {
+      for (const [key, value] of Object.entries(movie.art)) {
+        if (/^(poster|fanart|thumb|banner)$/i.test(key) && hasArtworkMetadata(value)) {
+          keys.add(key.toLowerCase() === 'banner' ? 'fanart' : key.toLowerCase());
+        }
+      }
+    }
+
+    return keys;
+  }
+
+  function hasArtworkMetadata(value: unknown): boolean {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  function artworkClass(keys: Set<string>): ArtworkPresentation['className'] {
+    if (keys.has('fanart')) {
+      return 'has-fanart';
+    }
+
+    if (keys.has('poster')) {
+      return 'has-poster';
+    }
+
+    if (keys.has('thumb')) {
+      return 'has-thumb';
+    }
+
+    return 'no-artwork';
   }
 
   function versionText(movie: VideoLibraryMovieSnapshot): string {
@@ -146,6 +210,25 @@
     }
 
     return 'Version metadata not loaded yet';
+  }
+
+  function initialsFor(value: string, fallback: string): string {
+    const words = value
+      .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length === 0) {
+      return fallback;
+    }
+
+    return words
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? '')
+      .join('')
+      .padEnd(2, fallback)
+      .slice(0, 2);
   }
 
   function textOrNull(value: unknown): string | null {
@@ -213,29 +296,45 @@
     <ul class="movie-grid" aria-label="Video movies">
       {#each snapshot.movies as movie, index (safeMovieId(movie.movieid) ?? index)}
         {@const href = detailHref(movie)}
+        {@const label = safeMovieLabel(movie)}
         {@const metadata = movieMetadata(movie)}
-        <li class="movie-card">
-          {#if href}
-            <a class="movie-link" {href}>{safeMovieLabel(movie)}</a>
-          {:else}
-            <span class="movie-title">{safeMovieLabel(movie)}</span>
-          {/if}
+        {@const artwork = artworkPresentation(movie)}
+        <li class={`movie-card ${artwork.className}`}>
+          <div class="fanart-wash" aria-hidden="true"></div>
+          <div
+            class={`poster-frame ${artwork.className}`}
+            aria-label={`${label} artwork availability`}
+          >
+            <span class="fallback-initials" aria-hidden="true">{artwork.initials}</span>
+            <span class="artwork-copy">{artwork.badges[0]}</span>
+            {#if artwork.badges.includes('Fanart wash')}
+              <span class="artwork-copy muted">Fanart wash</span>
+            {/if}
+          </div>
 
-          {#if metadata}
-            <p class="movie-meta">{metadata}</p>
-          {/if}
+          <div class="card-copy">
+            {#if href}
+              <a class="movie-link" {href}>{label}</a>
+            {:else}
+              <span class="movie-title">{label}</span>
+            {/if}
 
-          <div class="badge-list" aria-label="Movie metadata">
-            {#if isWatched(movie)}
-              <span class="badge">Watched</span>
+            {#if metadata}
+              <p class="movie-meta">{metadata}</p>
             {/if}
-            {#if hasResume(movie)}
-              <span class="badge">Resume available</span>
-            {/if}
-            {#if artworkText(movie)}
-              <span class="badge">{artworkText(movie)}</span>
-            {/if}
-            <span class="badge subtle">{versionText(movie)}</span>
+
+            <div class="badge-list" aria-label="Movie metadata">
+              {#if isWatched(movie)}
+                <span class="badge">Watched</span>
+              {/if}
+              {#if hasResume(movie)}
+                <span class="badge">Resume available</span>
+              {/if}
+              {#each artwork.badges as badge (badge)}
+                <span class="badge artwork-badge">{badge}</span>
+              {/each}
+              <span class="badge subtle">{versionText(movie)}</span>
+            </div>
           </div>
         </li>
       {/each}
@@ -251,7 +350,7 @@
   }
 
   .panel-heading,
-  .movie-card {
+  .card-copy {
     display: grid;
     gap: var(--space-xs);
   }
@@ -298,32 +397,156 @@
 
   .movie-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
     gap: var(--space-md);
     padding: 0;
     list-style: none;
   }
 
   .movie-card {
+    position: relative;
+    display: grid;
+    gap: var(--space-sm);
     align-content: start;
     min-width: 0;
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+    padding: var(--space-sm);
+    overflow: hidden;
+    background: color-mix(in srgb, var(--color-surface-raised) 68%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-sm));
+    box-shadow:
+      0 18px 40px color-mix(in srgb, black 10%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 78%, transparent);
+  }
+
+  .fanart-wash {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        circle at 20% 10%,
+        color-mix(in srgb, var(--color-accent) 24%, transparent),
+        transparent 34%
+      ),
+      linear-gradient(145deg, transparent, color-mix(in srgb, var(--color-surface) 62%, transparent));
+    opacity: 0.68;
+    pointer-events: none;
+  }
+
+  .movie-card.no-artwork .fanart-wash {
+    opacity: 0.34;
+  }
+
+  .poster-frame,
+  .card-copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .poster-frame {
+    display: grid;
+    place-items: center;
+    min-height: 10.5rem;
+    padding: var(--space-sm);
+    overflow: hidden;
+    color: var(--color-text);
+    text-align: center;
+    aspect-ratio: 2 / 3;
+    background:
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-accent) 22%, transparent),
+        color-mix(in srgb, var(--color-surface) 92%, transparent)
+      );
     border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 16%, transparent),
+      inset 0 0 0 2px color-mix(in srgb, var(--color-border) 70%, transparent),
+      0 14px 28px color-mix(in srgb, black 14%, transparent);
+  }
+
+  .poster-frame.has-fanart {
+    background:
+      radial-gradient(circle at 28% 18%, color-mix(in srgb, var(--color-accent) 76%, white), transparent 24%),
+      linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 30%, transparent), var(--color-surface));
+  }
+
+  .poster-frame.has-poster,
+  .poster-frame.has-thumb {
+    background:
+      linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 36%, transparent), transparent 48%),
+      color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
+  }
+
+  .poster-frame.no-artwork {
+    background:
+      repeating-linear-gradient(
+        -35deg,
+        color-mix(in srgb, var(--color-border) 30%, transparent) 0 1px,
+        transparent 1px 12px
+      ),
+      color-mix(in srgb, var(--color-surface) 84%, transparent);
+  }
+
+  .fallback-initials {
+    font-family: var(--font-mono);
+    font-size: clamp(1.85rem, 8vw, 3.2rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    opacity: 0.86;
+  }
+
+  .artwork-copy {
+    align-self: end;
+    min-height: 1.45rem;
+    padding: 0.22rem 0.58rem;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 74%, transparent);
+  }
+
+  .artwork-copy.muted {
+    color: var(--color-text-muted);
+  }
+
+  .card-copy {
+    padding: 0 var(--space-xs) var(--space-xs);
   }
 
   .movie-link,
   .movie-title {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
     overflow-wrap: anywhere;
     color: var(--color-text);
     font-weight: 850;
     text-decoration-thickness: 0.08em;
     text-underline-offset: 0.18em;
+    text-wrap: balance;
+    transition-property: color, scale;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .movie-link:hover {
+    color: var(--color-accent);
+  }
+
+  .movie-link:active {
+    scale: 0.96;
   }
 
   .movie-link:focus-visible {
     outline: none;
+    border-radius: var(--radius-sm);
     box-shadow: var(--shadow-ring);
   }
 
@@ -337,6 +560,7 @@
     padding: 0.18rem 0.55rem;
     color: var(--color-text);
     font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
     font-weight: 800;
     line-height: 1.4;
     background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
@@ -344,7 +568,8 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
   }
 
-  .badge.subtle {
+  .badge.subtle,
+  .artwork-badge {
     color: var(--color-text-muted);
     background: color-mix(in srgb, var(--color-surface) 78%, transparent);
   }

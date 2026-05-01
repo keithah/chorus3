@@ -32,6 +32,7 @@
     dateLabel: string | null;
     badges: string[];
     artworkClass: string;
+    initials: string;
   };
 
   let { snapshot }: Props = $props();
@@ -96,7 +97,8 @@
       href: movieid === null ? null : buildVideoRoute({ kind: 'videoMovieDetail', movieid }),
       dateLabel: formatDateLabel(dateKind, dateValue),
       badges: buildBadges(movie),
-      artworkClass: artworkClass(movie)
+      artworkClass: artworkClass(movie),
+      initials: initialsFor(label, 'M')
     };
   }
 
@@ -127,7 +129,8 @@
       href,
       dateLabel: formatDateLabel(dateKind, dateValue),
       badges: [...buildBadges(episode), ...(href === null ? ['Route unavailable'] : [])],
-      artworkClass: artworkClass(episode)
+      artworkClass: artworkClass(episode),
+      initials: initialsFor(label, 'E')
     };
   }
 
@@ -157,6 +160,10 @@
 
     if (safeKeys.size > 0 && badges.length === 0) {
       badges.push('Artwork metadata available');
+    }
+
+    if (safeKeys.size === 0) {
+      badges.push('Artwork pending');
     }
 
     return badges;
@@ -361,6 +368,25 @@
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
 
+  function initialsFor(value: string, fallback: string): string {
+    const words = value
+      .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length === 0) {
+      return fallback;
+    }
+
+    return words
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? '')
+      .join('')
+      .padEnd(2, fallback)
+      .slice(0, 2);
+  }
+
   function pad2(value: number): string {
     return value.toString().padStart(2, '0');
   }
@@ -395,7 +421,16 @@
           <ul class="recent-list" aria-label={section.title}>
             {#each section.items as item (item.key)}
               <li class={`recent-card ${item.artworkClass}`}>
-                <div class="artwork-token" aria-hidden="true"></div>
+                <div class="fanart-wash" aria-hidden="true"></div>
+                <div class={`poster-frame ${item.artworkClass}`} aria-label={`${item.label} artwork availability`}>
+                  <span class="fallback-initials" aria-hidden="true">{item.initials}</span>
+                  <span class="artwork-copy">
+                    {item.artworkClass === 'no-artwork' ? 'Artwork pending' : 'Poster frame'}
+                  </span>
+                  {#if item.artworkClass === 'has-fanart'}
+                    <span class="artwork-copy muted">Fanart wash</span>
+                  {/if}
+                </div>
                 <div class="card-copy">
                   {#if item.href}
                     <a class="recent-link" href={item.href}>{item.label}</a>
@@ -530,57 +565,148 @@
   }
 
   .recent-card {
+    position: relative;
     display: grid;
-    grid-template-columns: 3.25rem minmax(0, 1fr);
+    grid-template-columns: 4.25rem minmax(0, 1fr);
     gap: var(--space-sm);
     align-items: center;
     min-width: 0;
+    min-height: 5.5rem;
     padding: var(--space-sm);
+    overflow: hidden;
     background: color-mix(in srgb, var(--color-surface) 70%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 10px 24px color-mix(in srgb, black 8%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
+    transition-property: box-shadow, transform;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
-  .artwork-token {
-    aspect-ratio: 2 / 3;
-    border-radius: calc(var(--radius-md) * 0.72);
-    background:
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-text-muted) 16%, transparent),
-        transparent
-      ),
-      color-mix(in srgb, var(--color-border) 40%, var(--color-surface));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 80%, transparent);
+  .recent-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 14px 30px color-mix(in srgb, black 12%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 24%, var(--color-border));
   }
 
-  .has-fanart .artwork-token,
-  .has-poster .artwork-token,
-  .has-thumb .artwork-token {
+  .fanart-wash {
+    position: absolute;
+    inset: 0;
     background:
       radial-gradient(
-        circle at 25% 20%,
-        color-mix(in srgb, var(--color-accent) 62%, white),
-        transparent 28%
+        circle at 18% 12%,
+        color-mix(in srgb, var(--color-accent) 22%, transparent),
+        transparent 34%
       ),
+      linear-gradient(145deg, transparent, color-mix(in srgb, var(--color-surface) 64%, transparent));
+    opacity: 0.62;
+    pointer-events: none;
+  }
+
+  .recent-card.no-artwork .fanart-wash {
+    opacity: 0.32;
+  }
+
+  .poster-frame,
+  .card-copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .poster-frame {
+    display: grid;
+    place-items: center;
+    min-height: 4.75rem;
+    padding: 0.35rem;
+    overflow: hidden;
+    text-align: center;
+    aspect-ratio: 2 / 3;
+    background:
       linear-gradient(
         145deg,
         color-mix(in srgb, var(--color-accent) 24%, transparent),
-        color-mix(in srgb, var(--color-surface-raised) 90%, transparent)
+        color-mix(in srgb, var(--color-surface-raised) 86%, transparent)
       );
+    border-radius: var(--radius-md);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      inset 0 0 0 2px color-mix(in srgb, var(--color-border) 72%, transparent);
+  }
+
+  .poster-frame.has-fanart {
+    background:
+      radial-gradient(circle at 26% 18%, color-mix(in srgb, var(--color-accent) 70%, white), transparent 26%),
+      linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 28%, transparent), var(--color-surface));
+  }
+
+  .poster-frame.has-poster,
+  .poster-frame.has-thumb {
+    background:
+      linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 34%, transparent), transparent 48%),
+      color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
+  }
+
+  .poster-frame.no-artwork {
+    background:
+      repeating-linear-gradient(
+        -35deg,
+        color-mix(in srgb, var(--color-border) 30%, transparent) 0 1px,
+        transparent 1px 10px
+      ),
+      color-mix(in srgb, var(--color-surface) 84%, transparent);
+  }
+
+  .fallback-initials {
+    font-family: var(--font-mono);
+    font-size: 1.2rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 900;
+    letter-spacing: -0.08em;
+    opacity: 0.86;
+  }
+
+  .artwork-copy {
+    max-width: 100%;
+    padding: 0.14rem 0.34rem;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 850;
+    line-height: 1;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 74%, transparent);
+  }
+
+  .artwork-copy.muted {
+    color: var(--color-text-muted);
   }
 
   .recent-link,
   .recent-title {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
     overflow-wrap: anywhere;
     color: var(--color-text);
     font-weight: 850;
     text-decoration-thickness: 0.08em;
     text-underline-offset: 0.18em;
+    text-wrap: balance;
+    transition-property: color, scale;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
   .recent-link:hover {
     color: var(--color-accent);
+  }
+
+  .recent-link:active {
+    scale: 0.96;
   }
 
   .recent-link:focus-visible {
@@ -622,8 +748,8 @@
       grid-template-columns: 1fr;
     }
 
-    .artwork-token {
-      width: 3.25rem;
+    .poster-frame {
+      width: 4.25rem;
     }
   }
 </style>
