@@ -108,6 +108,24 @@ export {
 } from './musicBrowse.svelte';
 
 export {
+  MediaSearchStore,
+  createMediaSearchStore,
+  mediaSearchStore,
+  type MediaSearchAlbumResult,
+  type MediaSearchArtistResult,
+  type MediaSearchGenreResult,
+  type MediaSearchQuery,
+  type MediaSearchResult,
+  type MediaSearchResultCounts,
+  type MediaSearchResultGroups,
+  type MediaSearchScope,
+  type MediaSearchSongResult,
+  type MediaSearchStatus,
+  type MediaSearchStoreOptions,
+  type MediaSearchStoreSnapshot
+} from './mediaSearch.svelte';
+
+export {
   MusicLibraryClientError,
   cloneMusicLibraryAlbumSnapshots,
   cloneMusicLibraryArtistSnapshots,
