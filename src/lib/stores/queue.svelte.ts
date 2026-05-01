@@ -14,9 +14,9 @@ import {
   type PlaylistItemPropertyName
 } from '$lib/kodi';
 import { isQueueRefreshNotification } from '$lib/kodi/notifications';
-import { connectionStore as defaultConnectionStore } from './connection.svelte';
+import { connectionStore as defaultConnectionStore } from './connection.svelte.ts';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
-import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
+import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte.ts';
 
 export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
 export type QueueCommandName = 'removeAt' | 'clear' | 'swap' | 'queueMusicItem' | 'queueFileItem';

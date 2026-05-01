@@ -22,14 +22,14 @@ import {
   type PlayerShuffleValue,
   type PlayerSubtitleValue
 } from '$lib/kodi';
-import { configStore as defaultConfigStore, type ConfigStore } from './config.svelte';
+import { configStore as defaultConfigStore, type ConfigStore } from './config.svelte.ts';
 import {
   localPlayerStore as defaultLocalPlayerStore,
   prepareLocalStreamUrl,
   type LocalMediaKind,
   type LocalPlayerStore
-} from './localPlayer.svelte';
-import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
+} from './localPlayer.svelte.ts';
+import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte.ts';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 
 export type PlayerDispatchMode = 'kodi' | 'local';

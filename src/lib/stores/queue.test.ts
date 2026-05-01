@@ -9,9 +9,9 @@ import {
   type QueueDispatchQueueStore,
   type QueueStoreNotificationSource,
   type QueueStorePlayerStore,
-  type QueueStoreSnapshot
+  type QueueStoreSnapshot,
+  type QueueDispatch
 } from './index';
-import type { QueueDispatch } from './queue.svelte';
 
 type Deferred<T> = {
   promise: Promise<T>;

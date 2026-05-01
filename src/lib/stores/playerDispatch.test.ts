@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
-import { createConfigStore } from './config.svelte';
-import { createActiveKodiJsonRpcHttpClient, savedKodiHostToKodiHttpHost } from './kodiClient';
-import { createPlayerDispatch, type PlayerDispatchPlayerStore } from './playerDispatch.svelte';
-import type { PlayerStoreSnapshot } from './player.svelte';
-import type { SavedKodiHost } from './config.svelte';
+import {
+  createActiveKodiJsonRpcHttpClient,
+  createConfigStore,
+  createPlayerDispatch,
+  savedKodiHostToKodiHttpHost,
+  type PlayerDispatchPlayerStore,
+  type PlayerStoreSnapshot,
+  type SavedKodiHost
+} from './index';
 
 type CallRecord = {
   method: string;

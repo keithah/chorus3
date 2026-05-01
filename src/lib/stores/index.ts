@@ -127,6 +127,24 @@ export {
 } from './mediaSearch.svelte';
 
 export {
+  MediaFilesStore,
+  createMediaFilesStore,
+  mediaFilesStore,
+  type MediaDirectoryEntryCapabilitiesSnapshot,
+  type MediaDirectoryEntryKind,
+  type MediaDirectoryEntryMediaKind,
+  type MediaDirectoryEntrySnapshot,
+  type MediaFileSourceSnapshot,
+  type MediaFilesBreadcrumbSnapshot,
+  type MediaFilesMedia,
+  type MediaFilesPlayableEntryResult,
+  type MediaFilesRefreshReason,
+  type MediaFilesRefreshStatus,
+  type MediaFilesStoreOptions,
+  type MediaFilesStoreSnapshot
+} from './mediaFiles.svelte';
+
+export {
   MusicLibraryClientError,
   cloneMusicLibraryAlbumSnapshots,
   cloneMusicLibraryArtistSnapshots,
