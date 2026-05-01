@@ -5,6 +5,7 @@
     SettingsStoreSnapshot
   } from '$lib/stores/settingsStore.svelte';
   import type { SettingsSettingValue } from '$lib/kodi';
+  import type { TranslationContext } from '$lib/i18n';
 
   export interface SettingsPanelDispatch {
     load: () => void | Promise<void>;
@@ -19,9 +20,10 @@
   interface Props {
     snapshot: SettingsStoreSnapshot;
     dispatch: SettingsPanelDispatch;
+    i18n: TranslationContext;
   }
 
-  let { snapshot, dispatch }: Props = $props();
+  let { snapshot, dispatch, i18n }: Props = $props();
 
   const valueSeparator = '::';
 
@@ -106,30 +108,31 @@
 
   function settingLabel(setting: SettingsSettingSnapshot): string {
     const sanitized = safeText(setting.label).trim();
-    return sanitized.length > 0 ? sanitized : 'Untitled setting';
+    return sanitized.length > 0 ? sanitized : i18n.t('settings.panel.untitled');
   }
 
   function typeLabel(setting: SettingsSettingSnapshot): string {
     const sanitized = safeText(setting.type).trim();
-    return sanitized.length > 0 ? sanitized : 'unknown';
+    return sanitized.length > 0 ? sanitized : i18n.t('settings.panel.unknown');
   }
 
   function formatValue(value: SettingsSettingValue): string {
-    if (value === null) return 'not set';
-    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'unavailable';
+    if (value === null) return i18n.t('settings.panel.value.notSet');
+    if (typeof value === 'number')
+      return Number.isFinite(value) ? String(value) : i18n.t('settings.panel.value.unavailable');
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     return safeText(value);
   }
 
   function readOnlyReason(setting: SettingsSettingSnapshot): string {
-    if (!canRepresentValue(setting)) return 'Read-only: this value cannot be represented safely.';
+    if (!canRepresentValue(setting)) return i18n.t('settings.panel.readOnly.unrepresentable');
     const type = typeLabel(setting).toLowerCase();
-    if (type === 'action') return 'Read-only: Kodi action settings are not editable values.';
+    if (type === 'action') return i18n.t('settings.panel.readOnly.action');
     if (type === 'path' || type === 'folder' || type === 'file') {
-      return `Read-only: Kodi ${type} settings are not safe to edit here.`;
+      return i18n.t('settings.panel.readOnly.unsafeType', { type });
     }
-    if (type === 'custom') return 'Read-only: Kodi custom settings are not supported.';
-    return `Read-only: Kodi marks this ${type} setting as unsupported.`;
+    if (type === 'custom') return i18n.t('settings.panel.readOnly.custom');
+    return i18n.t('settings.panel.readOnly.unsupported', { type });
   }
 
   function canRepresentValue(setting: SettingsSettingSnapshot): boolean {
@@ -139,17 +142,17 @@
   }
 
   function loadStatusCopy(): string {
-    if (snapshot.loadStatus === 'loading') return 'Loading settings from Kodi.';
-    if (snapshot.loadStatus === 'error') return 'Settings could not be loaded.';
-    if (snapshot.loadStatus === 'success') return 'Settings loaded.';
-    return 'Settings have not been loaded yet.';
+    if (snapshot.loadStatus === 'loading') return i18n.t('settings.panel.load.loading');
+    if (snapshot.loadStatus === 'error') return i18n.t('settings.panel.load.error');
+    if (snapshot.loadStatus === 'success') return i18n.t('settings.panel.load.success');
+    return i18n.t('settings.panel.load.idle');
   }
 
   function writeStatusCopy(): string {
-    if (snapshot.writeStatus === 'pending') return 'Saving setting change.';
-    if (snapshot.writeStatus === 'success') return 'Setting change saved.';
-    if (snapshot.writeStatus === 'error') return 'Setting change failed.';
-    return 'No setting write is pending.';
+    if (snapshot.writeStatus === 'pending') return i18n.t('settings.panel.write.pending');
+    if (snapshot.writeStatus === 'success') return i18n.t('settings.panel.write.success');
+    if (snapshot.writeStatus === 'error') return i18n.t('settings.panel.write.error');
+    return i18n.t('settings.panel.write.idle');
   }
 
   function safeText(value: string): string {
@@ -175,32 +178,34 @@
 <section class="settings-panel" aria-labelledby="settings-panel-title">
   <header class="settings-panel-hero">
     <div>
-      <p class="settings-eyebrow">Kodi JSON-RPC</p>
-      <h2 id="settings-panel-title">Kodi Settings</h2>
+      <p class="settings-eyebrow">{i18n.t('settings.panel.eyebrow')}</p>
+      <h2 id="settings-panel-title">{i18n.t('settings.panel.title')}</h2>
       <p>
-        Browse deterministic Kodi-shaped settings snapshots and edit only values that Chorus can
-        safely validate before dispatching.
+        {i18n.t('settings.panel.description')}
       </p>
     </div>
     <button type="button" class="settings-primary-action" onclick={callLoad} disabled={isBusy}>
-      Reload settings
+      {i18n.t('settings.panel.reload')}
     </button>
   </header>
 
-  <div class="settings-status-grid" aria-label="Settings status">
+  <div class="settings-status-grid" aria-label={i18n.t('settings.panel.statusAria')}>
     <div class="settings-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>Load</span>
+      <span>{i18n.t('settings.panel.load')}</span>
       <strong>{loadStatusCopy()}</strong>
     </div>
     <div class="settings-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>Write</span>
+      <span>{i18n.t('settings.panel.write')}</span>
       <strong>{writeStatusCopy()}</strong>
     </div>
     <div class="settings-status settings-status-muted">
-      <span>Writes:</span>
+      <span>{i18n.t('settings.panel.writes')}</span>
       <strong
-        >{snapshot.writeCounts.attempted} attempted, {snapshot.writeCounts.succeeded} succeeded, {snapshot
-          .writeCounts.failed} failed</strong
+        >{i18n.t('settings.panel.writeCounts', {
+          attempted: snapshot.writeCounts.attempted,
+          succeeded: snapshot.writeCounts.succeeded,
+          failed: snapshot.writeCounts.failed
+        })}</strong
       >
     </div>
   </div>
@@ -212,37 +217,48 @@
     </div>
   {/if}
 
-  <div class="settings-diagnostics" aria-label="Settings write diagnostics">
+  <div class="settings-diagnostics" aria-label={i18n.t('settings.panel.diagnosticsAria')}>
     {#if snapshot.lastWrite}
       <p>
-        Last write: {safeText(snapshot.lastWrite.settingId)} ({snapshot.lastWrite.status}) =
-        {formatValue(snapshot.lastWrite.value)}
+        {i18n.t('settings.panel.lastWrite', {
+          settingId: safeText(snapshot.lastWrite.settingId),
+          status: snapshot.lastWrite.status,
+          value: formatValue(snapshot.lastWrite.value)
+        })}
       </p>
     {/if}
     {#if snapshot.rollbackValue !== null}
-      <p>Rollback value: {formatValue(snapshot.rollbackValue)}</p>
+      <p>
+        {i18n.t('settings.panel.rollbackValue', { value: formatValue(snapshot.rollbackValue) })}
+      </p>
     {/if}
     {#if snapshot.refreshAfterWrite}
       <p>
-        Refresh after write: {snapshot.refreshAfterWrite.refreshed ? 'refreshed' : 'pending'} for
-        {safeText(snapshot.refreshAfterWrite.settingId)}
+        {i18n.t('settings.panel.refreshAfterWrite', {
+          status: snapshot.refreshAfterWrite.refreshed
+            ? i18n.t('settings.panel.refreshStatus.refreshed')
+            : i18n.t('settings.panel.refreshStatus.pending'),
+          settingId: safeText(snapshot.refreshAfterWrite.settingId)
+        })}
       </p>
     {/if}
     {#if lastWriteTargetMissing}
-      <p>Last write target is no longer visible.</p>
+      <p>{i18n.t('settings.panel.lastWriteMissing')}</p>
     {/if}
   </div>
 
   <div class="settings-layout">
-    <nav class="settings-nav" aria-label="Settings sections">
-      <h3>Sections</h3>
+    <nav class="settings-nav" aria-label={i18n.t('settings.panel.sectionsAria')}>
+      <h3>{i18n.t('settings.panel.sectionsTitle')}</h3>
       {#if snapshot.sections.length > 0}
         <div class="settings-nav-list">
           {#each snapshot.sections as section (section.id)}
             <button
               type="button"
               class:active={section.id === snapshot.selectedSectionId}
-              aria-label={`Select settings section ${safeText(section.label)}`}
+              aria-label={i18n.t('settings.panel.selectSection', {
+                label: safeText(section.label)
+              })}
               aria-current={section.id === snapshot.selectedSectionId ? 'page' : undefined}
               onclick={() => selectSection(section.id)}
               disabled={isBusy || section.id === snapshot.selectedSectionId}
@@ -252,19 +268,21 @@
           {/each}
         </div>
       {:else}
-        <p class="settings-empty">No settings sections are available.</p>
+        <p class="settings-empty">{i18n.t('settings.panel.noSections')}</p>
       {/if}
     </nav>
 
-    <nav class="settings-nav" aria-label="Settings categories">
-      <h3>Categories</h3>
+    <nav class="settings-nav" aria-label={i18n.t('settings.panel.categoriesAria')}>
+      <h3>{i18n.t('settings.panel.categoriesTitle')}</h3>
       {#if snapshot.categories.length > 0}
         <div class="settings-nav-list">
           {#each snapshot.categories as category (category.id)}
             <button
               type="button"
               class:active={category.id === snapshot.selectedCategoryId}
-              aria-label={`Select settings category ${safeText(category.label)}`}
+              aria-label={i18n.t('settings.panel.selectCategory', {
+                label: safeText(category.label)
+              })}
               aria-current={category.id === snapshot.selectedCategoryId ? 'page' : undefined}
               onclick={() => selectCategory(category.id)}
               disabled={isBusy || category.id === snapshot.selectedCategoryId}
@@ -274,22 +292,22 @@
           {/each}
         </div>
       {:else}
-        <p class="settings-empty">No settings categories are available.</p>
+        <p class="settings-empty">{i18n.t('settings.panel.noCategories')}</p>
       {/if}
     </nav>
 
     <div class="settings-content">
       <div class="settings-content-heading">
         <div>
-          <h3>Settings</h3>
+          <h3>{i18n.t('settings.panel.settingsTitle')}</h3>
           {#if hasOnlyReadOnlySettings}
-            <p>This category is read-only in Chorus.</p>
+            <p>{i18n.t('settings.panel.readOnlyCategory')}</p>
           {:else}
-            <p>Editable values dispatch one validated write per control change.</p>
+            <p>{i18n.t('settings.panel.editableCategory')}</p>
           {/if}
         </div>
         {#if snapshot.loadStatus === 'error'}
-          <button type="button" onclick={callRetry}>Retry settings load</button>
+          <button type="button" onclick={callRetry}>{i18n.t('settings.panel.retryLoad')}</button>
         {/if}
       </div>
 
@@ -302,21 +320,31 @@
                   <h4>{settingLabel(setting)}</h4>
                   <p>{safeText(setting.id)}</p>
                 </div>
-                <span>{canEdit(setting) ? 'Editable' : 'Read-only'}</span>
+                <span
+                  >{canEdit(setting)
+                    ? i18n.t('settings.panel.editable')
+                    : i18n.t('settings.panel.readOnly')}</span
+                >
               </div>
 
               <dl class="settings-meta">
                 <div>
-                  <dt>Type</dt>
-                  <dd>Type: {typeLabel(setting)}</dd>
+                  <dt>{i18n.t('settings.panel.type')}</dt>
+                  <dd>{i18n.t('settings.panel.typeValue', { type: typeLabel(setting) })}</dd>
                 </div>
                 <div>
-                  <dt>Current</dt>
-                  <dd>Current: {formatValue(setting.value)}</dd>
+                  <dt>{i18n.t('settings.panel.current')}</dt>
+                  <dd>
+                    {i18n.t('settings.panel.currentValue', { value: formatValue(setting.value) })}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Default</dt>
-                  <dd>Default: {formatValue(setting.defaultValue)}</dd>
+                  <dt>{i18n.t('settings.panel.default')}</dt>
+                  <dd>
+                    {i18n.t('settings.panel.defaultValue', {
+                      value: formatValue(setting.defaultValue)
+                    })}
+                  </dd>
                 </div>
               </dl>
 
@@ -328,15 +356,17 @@
                         data-setting-control={setting.id}
                         type="checkbox"
                         checked={setting.value === true}
-                        aria-label={`Toggle ${settingLabel(setting)}`}
+                        aria-label={i18n.t('settings.panel.toggleSetting', {
+                          label: settingLabel(setting)
+                        })}
                         onchange={(event) => writeBoolean(setting, event)}
                         disabled={isBusy}
                       />
-                      Enabled
+                      {i18n.t('settings.panel.enabled')}
                     </label>
                   {:else if setting.editKind === 'integer' || setting.editKind === 'number'}
                     <label for={`setting-${setting.id}`}>
-                      {settingLabel(setting)} value
+                      {i18n.t('settings.panel.valueLabel', { label: settingLabel(setting) })}
                     </label>
                     <input
                       id={`setting-${setting.id}`}
@@ -344,30 +374,40 @@
                       type="text"
                       inputmode={setting.editKind === 'integer' ? 'numeric' : 'decimal'}
                       value={formatValue(setting.value)}
-                      aria-label={`Edit ${settingLabel(setting)}`}
+                      aria-label={i18n.t('settings.panel.editSetting', {
+                        label: settingLabel(setting)
+                      })}
                       onchange={(event) => writeText(setting, event)}
                       disabled={isBusy}
                     />
                   {:else if setting.editKind === 'string'}
                     <label for={`setting-${setting.id}`}>
-                      {settingLabel(setting)} value
+                      {i18n.t('settings.panel.valueLabel', { label: settingLabel(setting) })}
                     </label>
                     <input
                       id={`setting-${setting.id}`}
                       data-setting-control={setting.id}
                       type="text"
                       value={typeof setting.value === 'string' ? safeText(setting.value) : ''}
-                      aria-label={`Edit ${settingLabel(setting)}`}
+                      aria-label={i18n.t('settings.panel.editSetting', {
+                        label: settingLabel(setting)
+                      })}
                       onchange={(event) => writeText(setting, event)}
                       disabled={isBusy}
                     />
                   {:else if setting.editKind === 'enum'}
-                    <label for={`setting-${setting.id}`}>{settingLabel(setting)} option</label>
+                    <label for={`setting-${setting.id}`}
+                      >{i18n.t('settings.panel.optionLabel', {
+                        label: settingLabel(setting)
+                      })}</label
+                    >
                     <select
                       id={`setting-${setting.id}`}
                       data-setting-control={setting.id}
                       value={optionKey(setting.value)}
-                      aria-label={`Choose ${settingLabel(setting)}`}
+                      aria-label={i18n.t('settings.panel.chooseSetting', {
+                        label: settingLabel(setting)
+                      })}
                       onchange={(event) => writeEnum(setting, event)}
                       disabled={isBusy}
                     >
@@ -384,7 +424,7 @@
           {/each}
         </div>
       {:else}
-        <p class="settings-empty">No settings are available for this category.</p>
+        <p class="settings-empty">{i18n.t('settings.panel.noSettings')}</p>
       {/if}
     </div>
   </div>

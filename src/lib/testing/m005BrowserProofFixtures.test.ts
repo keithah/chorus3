@@ -33,6 +33,7 @@ describe('createM005BrowserProofAppProps', () => {
     if (!snapshot) throw new Error('Expected settings fixture snapshot.');
 
     expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.localeSnapshot).toBeUndefined();
     expect(snapshot).toMatchObject({
       loadStatus: 'success',
       writeStatus: 'error',
@@ -76,6 +77,29 @@ describe('createM005BrowserProofAppProps', () => {
       readOnly: true,
       value: 'redacted-file'
     });
+    expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
+  });
+
+  test('injects a clone-safe German locale snapshot for direct settings browser proof after validation', () => {
+    const props = createM005BrowserProofAppProps({
+      pathname: '/settings',
+      search: '?m005-browser-proof=1&locale=de'
+    });
+
+    expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.localeSnapshot).toEqual({ locale: 'de' });
+    expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
+  });
+
+  test('rejects malformed locale query values without persisting or exposing unsafe locale data', () => {
+    const props = createM005BrowserProofAppProps({
+      pathname: '/settings',
+      search: '?m005-browser-proof=1&locale=de<script>&locale=en'
+    });
+
+    expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.localeSnapshot).toBeUndefined();
+    expect(JSON.stringify(props)).not.toContain('de<script>');
     expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
   });
 

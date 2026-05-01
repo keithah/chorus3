@@ -34,6 +34,7 @@
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
+  import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
   import ShortcutsPanel from '$components/ShortcutsPanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
@@ -73,6 +74,7 @@
     queueDispatch as defaultQueueDispatch,
     queueStore,
     settingsStore,
+    localeStore,
     type AddonsStoreSnapshot,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
@@ -84,7 +86,8 @@
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot,
-    type SettingsStoreSnapshot
+    type SettingsStoreSnapshot,
+    type LocaleStoreSnapshot
   } from '$lib/stores';
   import {
     videoLibraryStore,
@@ -100,6 +103,7 @@
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
   import { buildAppRoute, type AppRoute } from '$lib/app/appRouter';
+  import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
@@ -137,6 +141,8 @@
     videoNavigationDispatch?: VideoNavigationDispatch;
     settingsSnapshot?: SettingsStoreSnapshot;
     settingsDispatch?: SettingsPanelDispatch;
+    localeSnapshot?: LocaleStoreSnapshot;
+    localeDispatch?: LocaleToggleDispatch;
     addonsSnapshot?: AddonsStoreSnapshot;
     addonsDispatch?: AddonsPanelDispatch;
     addonDetailDispatch?: AddonDetailDispatch;
@@ -261,6 +267,10 @@
     }
   };
 
+  const defaultLocaleDispatch: LocaleToggleDispatch = {
+    setLocale: (locale) => localeStore.setLocale(locale)
+  };
+
   const defaultSettingsDispatch: SettingsPanelDispatch = {
     load: () => settingsStore.load(),
     retry: () => settingsStore.retry(),
@@ -322,6 +332,8 @@
     videoMovieDetailSnapshot,
     settingsSnapshot,
     settingsDispatch = defaultSettingsDispatch,
+    localeSnapshot,
+    localeDispatch = defaultLocaleDispatch,
     addonsSnapshot,
     addonsDispatch = defaultAddonsDispatch,
     addonDetailDispatch = defaultAddonDetailDispatch,
@@ -352,6 +364,8 @@
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
+  const currentLocaleSnapshot = $derived(localeSnapshot ?? localeStore.snapshot);
+  const currentI18n = $derived(createTranslationContext(currentLocaleSnapshot.locale));
   const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
   const currentLabApiBrowserSnapshot = $derived(
     labApiBrowserSnapshot ?? labApiBrowserStore.snapshot
@@ -620,11 +634,11 @@
 
   function connectionStatusText(snapshot: ConnectionStoreSnapshot): string {
     if (snapshot.status === 'idle') {
-      return 'no host';
+      return currentI18n.t('app.connection.noHost');
     }
 
     if (snapshot.webSocketDegraded || snapshot.status === 'degraded') {
-      return 'degraded';
+      return currentI18n.t('app.connection.degraded');
     }
 
     return snapshot.status;
@@ -632,32 +646,40 @@
 
   function connectionDescription(snapshot: ConnectionStoreSnapshot): string {
     const version = formatKodiVersion(snapshot.kodiVersion);
-    const versionText = version ? ` Kodi ${version}.` : '';
+    const versionText = version ? currentI18n.t('app.connection.version', { version }) : '';
     const lastConnectedText = snapshot.lastConnectedAt
-      ? ` Last connected ${snapshot.lastConnectedAt}.`
+      ? currentI18n.t('app.connection.lastConnected', { lastConnectedAt: snapshot.lastConnectedAt })
       : '';
 
     if (snapshot.status === 'idle') {
-      return 'Add a trusted Kodi host to begin HTTP diagnostics. HTTP and WebSocket checks are idle.';
+      return currentI18n.t('app.connection.idleDescription');
     }
 
     if (snapshot.status === 'checking') {
-      return 'Checking Kodi HTTP diagnostics before opening the notification WebSocket.';
+      return currentI18n.t('app.connection.checkingDescription');
     }
 
     if (snapshot.webSocketDegraded || snapshot.status === 'degraded') {
-      return `WebSocket degraded after HTTP diagnostics succeeded; retry attempt ${snapshot.reconnectAttempt}.${versionText}${lastConnectedText}`;
+      return currentI18n.t('app.connection.degradedDescription', {
+        attempt: snapshot.reconnectAttempt,
+        version: versionText,
+        lastConnected: lastConnectedText
+      });
     }
 
     if (snapshot.status === 'failed') {
       return snapshot.lastError
-        ? `Kodi connection failed (${snapshot.lastError.source}/${snapshot.lastError.code}): ${snapshot.lastError.message}`
-        : 'Kodi connection failed with no additional diagnostics.';
+        ? currentI18n.t('app.connection.failedDescription', {
+            source: snapshot.lastError.source,
+            code: snapshot.lastError.code,
+            message: snapshot.lastError.message
+          })
+        : currentI18n.t('app.connection.failedFallback');
     }
 
     const transportText = snapshot.webSocketEndpoint
-      ? 'Kodi HTTP and WebSocket diagnostics are connected.'
-      : 'Kodi HTTP diagnostics are connected.';
+      ? currentI18n.t('app.connection.connectedHttpWs')
+      : currentI18n.t('app.connection.connectedHttp');
 
     return `${transportText}${versionText}${lastConnectedText}`;
   }
@@ -666,26 +688,29 @@
 <AppShell>
   <header class="hero" aria-labelledby="app-title">
     <div class="hero-copy">
-      <p class="eyebrow">Multi-host console</p>
-      <h1 id="app-title">chorus3</h1>
-      <p class="lede">
-        Save trusted Kodi endpoints, test HTTP diagnostics, switch the active host, and watch
-        connection status update without reloading the app.
-      </p>
+      <p class="eyebrow">{currentI18n.t('app.shell.eyebrow')}</p>
+      <h1 id="app-title">{currentI18n.t('app.name')}</h1>
+      <p class="lede">{currentI18n.t('app.shell.lede')}</p>
     </div>
-    <ThemeToggle />
+    <div class="hero-actions">
+      <LocaleToggle
+        locale={currentLocaleSnapshot.locale}
+        i18n={currentI18n}
+        dispatch={localeDispatch}
+      />
+      <ThemeToggle />
+    </div>
   </header>
 
   {#if isDashboardRoute}
-    <main class="dashboard" aria-label="Kodi host configuration and status">
+    <main class="dashboard" aria-label={currentI18n.t('app.dashboard.aria')}>
       <section class="mission surface" aria-labelledby="mission-title">
-        <p class="section-kicker">Runtime surface</p>
+        <p class="section-kicker">{currentI18n.t('app.mission.kicker')}</p>
         <h2 id="mission-title">
-          {configStore.snapshot.activeHost?.label ?? 'No Kodi host configured yet'}
+          {configStore.snapshot.activeHost?.label ?? currentI18n.t('app.mission.noHost')}
         </h2>
         <p>
-          Host settings are persisted locally for trusted devices, while connection diagnostics stay
-          secret-safe and visible in the status cards below.
+          {currentI18n.t('app.mission.description')}
         </p>
       </section>
 
@@ -694,18 +719,18 @@
         <HostSwitcher />
       </div>
 
-      <section class="status-grid" aria-label="Kodi readiness status">
+      <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
         <StatusCard
-          title="Connection"
+          title={currentI18n.t('app.connection.title')}
           status={connectionStatusText(connectionStore.snapshot)}
           tone={connectionTone(connectionStore.snapshot)}
           description={connectionDescription(connectionStore.snapshot)}
         />
         <StatusCard
-          title="Theme contract"
-          status="active"
+          title={currentI18n.t('app.themeContract.title')}
+          status={currentI18n.t('app.themeContract.status')}
           tone="success"
-          description="The toggle updates the root data-theme attribute and keeps colors flowing through project tokens."
+          description={currentI18n.t('app.themeContract.description')}
         />
       </section>
 
@@ -741,82 +766,96 @@
       <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
     </main>
   {:else if isAddonsRoute}
-    <main class="addons-route" aria-label="Kodi Add-ons">
+    <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
       <AddonsPanel snapshot={currentAddonsSnapshot} dispatch={addonsDispatch} />
     </main>
   {:else if isAddonDetailRoute}
-    <main class="addons-route" aria-label="Kodi add-on detail">
+    <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
       <AddonDetailShell snapshot={currentAddonsSnapshot} dispatch={addonDetailDispatch} />
     </main>
   {:else if isAddonsUnknownRoute}
-    <main class="addons-route" aria-label="Unknown add-ons route">
+    <main class="addons-route" aria-label={currentI18n.t('app.route.addonsUnknown.aria')}>
       <section
         class="addons-route-not-found surface"
         aria-labelledby="addons-route-not-found-title"
       >
-        <p class="section-kicker">Kodi Add-ons</p>
-        <h2 id="addons-route-not-found-title">Add-ons route not found</h2>
+        <p class="section-kicker">{currentI18n.t('app.route.addons.kicker')}</p>
+        <h2 id="addons-route-not-found-title">{currentI18n.t('app.route.addons.notFoundTitle')}</h2>
         <p>
-          The add-ons route {currentRoute.kind === 'addonsUnknown'
-            ? currentRoute.pathLabel
-            : '/addons/[redacted]'} is not available in this app shell.
+          {currentI18n.t('app.route.addons.notFoundDescription', {
+            path:
+              currentRoute.kind === 'addonsUnknown' ? currentRoute.pathLabel : '/addons/[redacted]'
+          })}
         </p>
-        <nav class="addons-route-recovery" aria-label="Add-ons route recovery">
+        <nav
+          class="addons-route-recovery"
+          aria-label={currentI18n.t('app.route.addons.recoveryAria')}
+        >
           <a href={buildAppRoute({ kind: 'addons' })}>Add-ons</a>
         </nav>
       </section>
     </main>
   {:else if isLabShortcutsRoute}
-    <main class="lab-route" aria-label="Lab shortcuts">
+    <main class="lab-route" aria-label={currentI18n.t('app.route.labShortcuts.aria')}>
       <ShortcutsPanel />
     </main>
   {:else if isLabApiBrowserRoute}
-    <main class="lab-route" aria-label="Lab API browser">
+    <main class="lab-route" aria-label={currentI18n.t('app.route.labApiBrowser.aria')}>
       <LabApiBrowserPanel
         snapshot={currentLabApiBrowserSnapshot}
         dispatch={labApiBrowserDispatch}
       />
     </main>
   {:else if isLabUnknownRoute}
-    <main class="lab-route" aria-label="Unknown Lab route">
+    <main class="lab-route" aria-label={currentI18n.t('app.route.labUnknown.aria')}>
       <section class="lab-route-not-found surface" aria-labelledby="lab-route-not-found-title">
-        <p class="section-kicker">Lab utility</p>
-        <h2 id="lab-route-not-found-title">Lab route not found</h2>
+        <p class="section-kicker">{currentI18n.t('app.route.lab.kicker')}</p>
+        <h2 id="lab-route-not-found-title">{currentI18n.t('app.route.lab.notFoundTitle')}</h2>
         <p>
-          The Lab route {currentRoute.kind === 'labUnknown'
-            ? currentRoute.pathLabel
-            : '/lab/[redacted]'} is not available in this app shell.
+          {currentI18n.t('app.route.lab.notFoundDescription', {
+            path: currentRoute.kind === 'labUnknown' ? currentRoute.pathLabel : '/lab/[redacted]'
+          })}
         </p>
-        <nav class="lab-route-recovery" aria-label="Lab route recovery">
+        <nav class="lab-route-recovery" aria-label={currentI18n.t('app.route.lab.recoveryAria')}>
           <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
           <a href={buildAppRoute({ kind: 'labApiBrowser' })}>API browser</a>
         </nav>
       </section>
     </main>
   {:else if isSettingsRoute}
-    <main class="settings-route" aria-label="Kodi Settings">
-      <SettingsPanel snapshot={currentSettingsSnapshot} dispatch={settingsDispatch} />
+    <main class="settings-route" aria-label={currentI18n.t('app.route.settings.aria')}>
+      <SettingsPanel
+        snapshot={currentSettingsSnapshot}
+        dispatch={settingsDispatch}
+        i18n={currentI18n}
+      />
     </main>
   {:else if isSettingsUnknownRoute}
-    <main class="settings-route" aria-label="Unknown settings route">
+    <main class="settings-route" aria-label={currentI18n.t('app.route.settingsUnknown.aria')}>
       <section
         class="settings-route-not-found surface"
         aria-labelledby="settings-route-not-found-title"
       >
-        <p class="section-kicker">Kodi Settings</p>
-        <h2 id="settings-route-not-found-title">Settings route not found</h2>
+        <p class="section-kicker">{currentI18n.t('app.route.settings.kicker')}</p>
+        <h2 id="settings-route-not-found-title">
+          {currentI18n.t('app.route.settings.notFoundTitle')}
+        </h2>
         <p>
-          The settings route {currentRoute.kind === 'settingsUnknown'
-            ? currentRoute.pathLabel
-            : '/settings/unknown'} is not available in this app shell.
+          {currentI18n.t('app.route.settings.notFoundDescription', {
+            path:
+              currentRoute.kind === 'settingsUnknown' ? currentRoute.pathLabel : '/settings/unknown'
+          })}
         </p>
-        <nav class="settings-route-recovery" aria-label="Settings route recovery">
+        <nav
+          class="settings-route-recovery"
+          aria-label={currentI18n.t('app.route.settings.recoveryAria')}
+        >
           <a href="/settings">Settings</a>
         </nav>
       </section>
     </main>
   {:else if isVideoMoviesRoute}
-    <main class="video-route" aria-label="Video movies route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
       <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
       <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
       <MediaPlaylistsPanel
@@ -826,7 +865,7 @@
       />
     </main>
   {:else if isVideoMovieDetailRoute}
-    <main class="video-route" aria-label="Video movie detail route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoMovieDetail.aria')}>
       <VideoMovieDetailShell
         snapshot={currentVideoLibrarySnapshot}
         route={currentRenderableVideoRoute}
@@ -835,7 +874,7 @@
       />
     </main>
   {:else if isVideoMovieStreamRoute}
-    <main class="video-stream-route" aria-label="Video movie stream route">
+    <main class="video-stream-route" aria-label={currentI18n.t('app.route.videoMovieStream.aria')}>
       <VideoMovieStreamShell
         snapshot={currentVideoLibrarySnapshot}
         route={currentRenderableVideoRoute}
@@ -846,7 +885,7 @@
       />
     </main>
   {:else if isVideoTvShowsRoute}
-    <main class="video-route" aria-label="Video TV shows route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
       <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
       <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
       <MediaPlaylistsPanel
@@ -856,14 +895,14 @@
       />
     </main>
   {:else if isVideoTvShowDetailRoute}
-    <main class="video-route" aria-label="Video TV show detail route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShowDetail.aria')}>
       <VideoTvShowDetailShell
         snapshot={currentVideoTvSnapshot}
         route={currentRenderableVideoRoute}
       />
     </main>
   {:else if isVideoTvSeasonDetailRoute}
-    <main class="video-route" aria-label="Video TV season detail route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvSeasonDetail.aria')}>
       <VideoSeasonDetailShell
         snapshot={currentVideoTvSnapshot}
         route={currentRenderableVideoRoute}
@@ -872,7 +911,7 @@
       />
     </main>
   {:else if isVideoEpisodeDetailRoute}
-    <main class="video-route" aria-label="Video episode detail route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoEpisodeDetail.aria')}>
       <VideoEpisodeDetailShell
         snapshot={currentVideoTvSnapshot}
         route={currentRenderableVideoRoute}
@@ -880,16 +919,22 @@
       />
     </main>
   {:else if isVideoUnknownRoute}
-    <main class="video-route" aria-label="Unknown video route">
+    <main class="video-route" aria-label={currentI18n.t('app.route.videoUnknown.aria')}>
       <section class="video-route-not-found surface" aria-labelledby="video-route-not-found-title">
-        <p class="section-kicker">Video Library</p>
-        <h2 id="video-route-not-found-title">Video route not found</h2>
+        <p class="section-kicker">{currentI18n.t('app.route.video.kicker')}</p>
+        <h2 id="video-route-not-found-title">{currentI18n.t('app.route.video.notFoundTitle')}</h2>
         <p>
-          The video route {currentVideoRoute?.kind === 'videoUnknown'
-            ? currentVideoRoute.pathLabel
-            : '/video/unknown'} is not available in this app shell.
+          {currentI18n.t('app.route.video.notFoundDescription', {
+            path:
+              currentVideoRoute?.kind === 'videoUnknown'
+                ? currentVideoRoute.pathLabel
+                : '/video/unknown'
+          })}
         </p>
-        <nav class="video-route-recovery" aria-label="Video route recovery">
+        <nav
+          class="video-route-recovery"
+          aria-label={currentI18n.t('app.route.video.recoveryAria')}
+        >
           <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
           <a href={buildVideoRoute({ kind: 'videoTvShows' })}>TV shows</a>
         </nav>
@@ -909,6 +954,13 @@
 
   .hero-copy {
     max-width: 48rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: flex-end;
   }
 
   .eyebrow,

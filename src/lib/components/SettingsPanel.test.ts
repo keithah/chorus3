@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import SettingsPanel, { type SettingsPanelDispatch } from './SettingsPanel.svelte';
+import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
 
 import type { SettingsSettingValue } from '$lib/kodi';
@@ -128,12 +129,20 @@ function createDispatch(overrides: Partial<SettingsPanelDispatch> = {}): Setting
 }
 
 function renderPanel(
-  props: { snapshot?: SettingsStoreSnapshot; dispatch?: SettingsPanelDispatch } = {}
+  props: {
+    snapshot?: SettingsStoreSnapshot;
+    dispatch?: SettingsPanelDispatch;
+    i18n?: TranslationContext;
+  } = {}
 ): SettingsPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(SettingsPanel, {
     target: document.body,
-    props: { snapshot: props.snapshot ?? createSnapshot(), dispatch }
+    props: {
+      snapshot: props.snapshot ?? createSnapshot(),
+      dispatch,
+      i18n: props.i18n ?? createTranslationContext('en')
+    }
   });
   return dispatch;
 }
@@ -235,6 +244,41 @@ describe('SettingsPanel', () => {
     expect(screenText()).toContain('Writes: 2 attempted, 1 succeeded, 1 failed');
     expect(inputFor('videoplayer.autoplaynextitem').getAttribute('aria-label')).toContain(
       'Autoplay next item'
+    );
+  });
+
+  it('renders German Settings chrome and read-only copy through the i18n context', () => {
+    renderPanel({ i18n: createTranslationContext('de') });
+
+    expect(document.querySelector('#settings-panel-title')?.textContent).toContain(
+      'Kodi-Einstellungen'
+    );
+    expect(screenText()).toContain('Abschnitte');
+    expect(screenText()).toContain('Kategorien');
+    expect(screenText()).toContain('Einstellungen geladen.');
+    expect(screenText()).toContain('Kein Schreibvorgang ausstehend.');
+    expect(screenText()).toContain('Bearbeitbar');
+    expect(screenText()).toContain('Schreibgeschützt');
+    expect(screenText()).toContain('Typ: path');
+    expect(screenText()).toContain(
+      'Schreibgeschützt: Kodi-path-Einstellungen können hier nicht sicher bearbeitet werden.'
+    );
+  });
+
+  it('surfaces visible missing translation diagnostics for touched Settings keys', () => {
+    renderPanel({
+      i18n: {
+        locale: 'en',
+        snapshot: { locale: 'en' },
+        t: (key) =>
+          key === 'settings.panel.title'
+            ? `[missing translation: ${key}]`
+            : createTranslationContext('en').t(key)
+      }
+    });
+
+    expect(document.querySelector('#settings-panel-title')?.textContent).toContain(
+      '[missing translation: settings.panel.title]'
     );
   });
 

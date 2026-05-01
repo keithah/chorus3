@@ -125,6 +125,27 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('sessionStorage');
   });
 
+  it('mounts M005 German settings fixture only when the locale query is valid', async () => {
+    setPathAndSearch('/settings', '?m005-browser-proof=1&locale=de');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi-Einstellungen');
+    expect(document.body.textContent).toContain('Einstellungen geladen.');
+    expect(document.body.textContent).toContain('Vorheriger Wert: previous safe value');
+    expect(document.body.textContent).toContain('4 versucht, 2 erfolgreich, 1 fehlgeschlagen');
+    expect(document.body.textContent).not.toContain('Kodi Settings');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/settings', '?m005-browser-proof=1&locale=fr');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
+  });
+
   it('mounts populated M005 browser-proof fixtures for direct add-ons routes only', async () => {
     setPathAndSearch('/addons', '?m005-browser-proof=1');
 

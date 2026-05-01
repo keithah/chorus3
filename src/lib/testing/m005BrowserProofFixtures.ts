@@ -6,6 +6,8 @@ import { parseAppRoute, type AppRoute } from '$lib/app/appRouter';
 import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
 import type { LabApiBrowserStoreSnapshot } from '$lib/stores/labApiBrowser.svelte';
+import { isLocale, type Locale } from '$lib/i18n';
+import type { LocaleStoreSnapshot } from '$lib/stores/locale.svelte';
 
 export interface M005BrowserProofLocation {
   pathname?: unknown;
@@ -21,6 +23,7 @@ export interface M005BrowserProofAppProps {
   addonDetailDispatch?: AddonDetailDispatch;
   labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
   labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
+  localeSnapshot?: LocaleStoreSnapshot;
 }
 
 export const M005_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -49,12 +52,14 @@ export function createM005BrowserProofAppProps(
   location: M005BrowserProofLocation | null | undefined = globalThis.window?.location
 ): M005BrowserProofAppProps {
   const route = parseAppRoute(readPathname(location), readSearch(location));
+  const localeSnapshot = createLocaleSnapshot(location);
 
   if (route.kind === 'settings') {
     return {
       route,
       settingsSnapshot: createSettingsSnapshot(),
-      settingsDispatch: createSettingsDispatch()
+      settingsDispatch: createSettingsDispatch(),
+      ...(localeSnapshot ? { localeSnapshot } : {})
     };
   }
 
@@ -89,6 +94,32 @@ export function createM005BrowserProofAppProps(
 export function isM005BrowserProofFixtureSecretSafe(value: unknown): boolean {
   const text = collectFixtureText(value);
   return M005_BROWSER_PROOF_FORBIDDEN_TEXT.every((forbidden) => !text.includes(forbidden));
+}
+
+function createLocaleSnapshot(
+  location: M005BrowserProofLocation | null | undefined
+): LocaleStoreSnapshot | null {
+  const locale = readLocaleQuery(location);
+  return locale ? { locale } : null;
+}
+
+function readLocaleQuery(location: M005BrowserProofLocation | null | undefined): Locale | null {
+  const search = readSearch(location);
+  if (typeof search !== 'string' || search.length === 0) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(search);
+    const values = params.getAll('locale');
+    if (values.length !== 1) {
+      return null;
+    }
+    const value = values[0];
+    return isLocale(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 function createLabApiBrowserSnapshot(): LabApiBrowserStoreSnapshot {

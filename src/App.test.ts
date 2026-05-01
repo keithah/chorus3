@@ -2,6 +2,8 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import { localeStore, type LocaleStoreSnapshot } from './lib/stores/locale.svelte';
+import type { LocaleMutationResult } from './lib/stores/locale.svelte';
 import type { AppRoute } from './lib/app/appRouter';
 import type {
   MusicBrowseActionDispatch,
@@ -102,6 +104,8 @@ type AppProps = {
   addonDetailDispatch?: AddonDetailDispatch;
   labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
   labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
+  localeSnapshot?: LocaleStoreSnapshot;
+  localeDispatch?: { setLocale: (locale: unknown) => LocaleMutationResult };
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
@@ -1355,6 +1359,7 @@ beforeEach(() => {
   configStore.reset();
   hostConnectionStore.destroy();
   connectionStore.destroy();
+  localeStore.setLocale('en');
 });
 
 afterEach(() => {
@@ -1367,6 +1372,7 @@ afterEach(() => {
   localPlayerStore.stop();
   configStore.reset();
   connectionStore.destroy();
+  localeStore.setLocale('en');
   document.body.innerHTML = '';
   document.documentElement.removeAttribute('data-theme');
   window.localStorage.clear();
@@ -1435,6 +1441,48 @@ describe('App shell', () => {
     await tick();
 
     expect(settingsDispatch.setValue).toHaveBeenCalledWith('videoplayer.autoplaynextitem', false);
+  });
+
+  it('switches app shell and settings copy between English and German without a reload', async () => {
+    localeStore.setLocale('en');
+    const target = renderApp({
+      route: { kind: 'settings' },
+      settingsSnapshot: createSettingsSnapshot(),
+      settingsDispatch: createSettingsDispatch()
+    });
+
+    expect(getSettingsPanelText(target)).toContain('Kodi Settings');
+    expect(getSettingsPanelText(target)).not.toContain('Kodi-Einstellungen');
+
+    const select = target.querySelector<HTMLSelectElement>('.locale-toggle select');
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+    select!.value = 'de';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick();
+
+    expect(getSettingsPanelText(target)).toContain('Kodi-Einstellungen');
+    expect(getSettingsPanelText(target)).toContain('Einstellungen geladen.');
+    expect(target.querySelector('#app-title')?.textContent).toBe('chorus3');
+  });
+
+  it('uses an injected locale snapshot and dispatch boundary for Settings rendering', async () => {
+    const localeDispatch = { setLocale: vi.fn(() => ({ ok: true, locale: 'en' as const })) };
+    const target = renderApp({
+      route: { kind: 'settings' },
+      localeSnapshot: { locale: 'de' },
+      localeDispatch,
+      settingsSnapshot: createSettingsSnapshot(),
+      settingsDispatch: createSettingsDispatch()
+    });
+
+    expect(getSettingsPanelText(target)).toContain('Kodi-Einstellungen');
+    const select = target.querySelector<HTMLSelectElement>('.locale-toggle select');
+    expect(select?.value).toBe('de');
+    select!.value = 'en';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick();
+
+    expect(localeDispatch.setLocale).toHaveBeenCalledWith('en');
   });
 
   it('renders the add-ons browser route with injected snapshots and dispatches', async () => {
