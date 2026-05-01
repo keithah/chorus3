@@ -31,12 +31,20 @@ function createVideoSnapshot(overrides: VideoSnapshotOverrides = {}): VideoLibra
     lastUpdatedAt: null,
     movies: [],
     tvShows: [],
+    recentlyAddedMovies: [],
+    recentlyPlayedMovies: [],
+    recentlyAddedEpisodes: [],
+    recentlyPlayedEpisodes: [],
     isEmpty: true,
     lastError: null,
     ...overrides,
     limits: {
       movies: { start: 0, end: 0, total: 0 },
       tvShows: { start: 0, end: 0, total: 0 },
+      recentlyAddedMovies: { start: 0, end: 0, total: 0 },
+      recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
+      recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
+      recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 },
       ...overrides.limits
     }
   };

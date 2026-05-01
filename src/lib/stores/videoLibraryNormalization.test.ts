@@ -290,13 +290,24 @@ describe('video library normalization helpers', () => {
     expectSecretSafe([httpError]);
   });
 
-  it('clones nested movie artwork resume limits errors and store snapshots', () => {
+  it('clones nested movie artwork resume recent arrays limits errors and store snapshots', () => {
     const movies = [
       {
         movieid: 42,
         label: 'Alien',
         art: { poster: 'poster.jpg' },
         resume: { position: 12.5, total: 7020 }
+      }
+    ];
+    const episodes = [
+      {
+        episodeid: 77,
+        tvshowid: 7,
+        season: 1,
+        episode: 2,
+        label: 'Recent episode',
+        art: { thumb: 'episode.jpg' },
+        resume: { position: 20, total: 3600 }
       }
     ];
     const limits = { start: 0, end: 1, total: 1 };
@@ -334,7 +345,18 @@ describe('video library normalization helpers', () => {
       lastUpdatedAt: '2026-01-01T00:00:00.000Z',
       movies,
       tvShows: [],
-      limits: { movies: limits, tvShows: { start: 0, end: 0, total: 0 } },
+      recentlyAddedMovies: movies,
+      recentlyPlayedMovies: movies,
+      recentlyAddedEpisodes: episodes,
+      recentlyPlayedEpisodes: episodes,
+      limits: {
+        movies: limits,
+        tvShows: { start: 0, end: 0, total: 0 },
+        recentlyAddedMovies: limits,
+        recentlyPlayedMovies: limits,
+        recentlyAddedEpisodes: limits,
+        recentlyPlayedEpisodes: limits
+      },
       isEmpty: false,
       lastError: error
     };
@@ -342,12 +364,24 @@ describe('video library normalization helpers', () => {
     const clonedSnapshot = cloneVideoLibrarySnapshot(snapshot);
     clonedSnapshot.movies[0].art!.poster = 'snapshot-mutated.jpg';
     clonedSnapshot.movies[0].resume!.total = 1;
+    clonedSnapshot.recentlyAddedMovies[0].label = 'Mutated recent movie';
+    clonedSnapshot.recentlyPlayedMovies[0].art!.poster = 'recent-mutated.jpg';
+    clonedSnapshot.recentlyAddedEpisodes[0].art!.thumb = 'mutated-episode.jpg';
+    clonedSnapshot.recentlyPlayedEpisodes[0].resume!.position = 99;
     clonedSnapshot.limits.movies.end = 100;
+    clonedSnapshot.limits.recentlyAddedMovies.total = 100;
+    clonedSnapshot.limits.recentlyPlayedEpisodes.total = 100;
     clonedSnapshot.lastError!.endpoint!.path = '/mutated';
 
     expect(snapshot.movies[0].art!.poster).toBe('poster.jpg');
     expect(snapshot.movies[0].resume!.total).toBe(7020);
+    expect(snapshot.recentlyAddedMovies[0].label).toBe('Alien');
+    expect(snapshot.recentlyPlayedMovies[0].art!.poster).toBe('poster.jpg');
+    expect(snapshot.recentlyAddedEpisodes[0].art!.thumb).toBe('episode.jpg');
+    expect(snapshot.recentlyPlayedEpisodes[0].resume!.position).toBe(20);
     expect(snapshot.limits.movies.end).toBe(1);
+    expect(snapshot.limits.recentlyAddedMovies.total).toBe(1);
+    expect(snapshot.limits.recentlyPlayedEpisodes.total).toBe(1);
     expect(snapshot.lastError!.endpoint!.path).toBe('/jsonrpc');
   });
 
@@ -572,5 +606,120 @@ describe('video library normalization helpers', () => {
       status: 'error',
       message: 'credentials [redacted] response body [redacted] redacted-path'
     });
+  });
+
+  it('normalizes recent movie and episode collections without hostile labels paths or malformed identities', () => {
+    const recentMovies = normalizeVideoMovies([
+      { movieid: 'bad', label: 'Dropped movie' },
+      { movieid: 101, label: 'smb://secret/movie.mkv', title: 'Safe movie title' },
+      {
+        movieid: 102,
+        label: 'Recently watched',
+        thumbnail: 'image://safe-poster.jpg/',
+        fanart: 'image://safe-fanart.jpg/',
+        art: {
+          poster: 'image://safe-poster.jpg/',
+          fanart: 'image://safe-fanart.jpg/',
+          file: 'smb://secret/poster.jpg'
+        },
+        lastplayed: '2026-04-01 10:11:12',
+        dateadded: '2026-03-01 01:02:03',
+        file: 'http://admin:p@ssword@kodi.local/movie.mkv'
+      }
+    ]);
+    const recentEpisodes = normalizeVideoEpisodes([
+      { episodeid: 'bad', label: 'Dropped episode' },
+      { episodeid: 201, season: 'bad', label: 'Dropped malformed season' },
+      {
+        episodeid: 202,
+        label: 'smb://secret/episode.mkv',
+        title: 'Safe episode title',
+        showtitle: 'Safe show',
+        episode: 4,
+        thumbnail: 'image://episode-thumb.jpg/',
+        fanart: 'image://episode-fanart.jpg/',
+        art: {
+          thumb: 'image://episode-thumb.jpg/',
+          file: 'special://profile/Thumbnails/secret.jpg'
+        },
+        playcount: 1,
+        lastplayed: '2026-04-02 10:11:12',
+        resume: { position: 30, total: 1800 },
+        dateadded: '2026-03-02 01:02:03',
+        file: 'smb://secret/show/episode.mkv'
+      },
+      {
+        episodeid: 203,
+        tvshowid: 7,
+        season: 1,
+        episode: 5,
+        label: 'Safe routed episode'
+      }
+    ]);
+
+    expect(recentMovies).toEqual([
+      { movieid: 101, label: 'Safe movie title', title: 'Safe movie title' },
+      {
+        movieid: 102,
+        label: 'Recently watched',
+        thumbnail: 'image://safe-poster.jpg/',
+        fanart: 'image://safe-fanart.jpg/',
+        art: { poster: 'image://safe-poster.jpg/', fanart: 'image://safe-fanart.jpg/' },
+        lastplayed: '2026-04-01 10:11:12',
+        dateadded: '2026-03-01 01:02:03'
+      }
+    ]);
+    expect(recentEpisodes).toEqual([
+      {
+        episodeid: 202,
+        episode: 4,
+        label: 'Safe episode title',
+        title: 'Safe episode title',
+        showtitle: 'Safe show',
+        thumbnail: 'image://episode-thumb.jpg/',
+        fanart: 'image://episode-fanart.jpg/',
+        art: { thumb: 'image://episode-thumb.jpg/' },
+        playcount: 1,
+        watched: true,
+        lastplayed: '2026-04-02 10:11:12',
+        resume: { position: 30, total: 1800 },
+        dateadded: '2026-03-02 01:02:03'
+      },
+      {
+        episodeid: 203,
+        tvshowid: 7,
+        season: 1,
+        episode: 5,
+        label: 'Safe routed episode'
+      }
+    ]);
+    expectSecretSafe([recentMovies, recentEpisodes]);
+  });
+
+  it('treats recent-only video snapshots as non-empty', () => {
+    const snapshot = cloneVideoLibrarySnapshot({
+      refreshStatus: 'ready',
+      lastRefreshReason: 'manual',
+      lastUpdatedAt: '2026-01-01T00:00:00.000Z',
+      movies: [],
+      tvShows: [],
+      recentlyAddedMovies: [{ movieid: 1, label: 'Recent movie' }],
+      recentlyPlayedMovies: [],
+      recentlyAddedEpisodes: [],
+      recentlyPlayedEpisodes: [],
+      limits: {
+        movies: { start: 0, end: 0, total: 0 },
+        tvShows: { start: 0, end: 0, total: 0 },
+        recentlyAddedMovies: { start: 0, end: 1, total: 1 },
+        recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
+        recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
+        recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 }
+      },
+      isEmpty: false,
+      lastError: null
+    });
+
+    expect(snapshot.isEmpty).toBe(false);
+    expect(snapshot.recentlyAddedMovies).toEqual([{ movieid: 1, label: 'Recent movie' }]);
   });
 });

@@ -112,6 +112,7 @@ function enqueueSuccessfulMovies(client: FakeKodiClient): void {
     limits: { start: 0, end: 25, total: 2 }
   });
   enqueueEmptyTvShows(client);
+  enqueueEmptyRecentVideo(client);
 }
 
 function enqueueEmptyTvShows(client: FakeKodiClient): void {
@@ -121,9 +122,23 @@ function enqueueEmptyTvShows(client: FakeKodiClient): void {
   });
 }
 
+function enqueueEmptyRecentVideo(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetMovies', { movies: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('VideoLibrary.GetMovies', { movies: [], limits: { start: 0, end: 0, total: 0 } });
+  client.enqueue('VideoLibrary.GetEpisodes', {
+    episodes: [],
+    limits: { start: 0, end: 0, total: 0 }
+  });
+  client.enqueue('VideoLibrary.GetEpisodes', {
+    episodes: [],
+    limits: { start: 0, end: 0, total: 0 }
+  });
+}
+
 function enqueueEmptyMovies(client: FakeKodiClient): void {
   client.enqueue('VideoLibrary.GetMovies', { movies: [], limits: { start: 0, end: 0, total: 0 } });
   enqueueEmptyTvShows(client);
+  enqueueEmptyRecentVideo(client);
 }
 
 function expectSecretSafe(value: unknown): void {
@@ -151,13 +166,24 @@ describe('video library store', () => {
       lastUpdatedAt: null,
       movies: [],
       tvShows: [],
-      limits: { movies: { start: 0, end: 0, total: 0 }, tvShows: { start: 0, end: 0, total: 0 } },
+      recentlyAddedMovies: [],
+      recentlyPlayedMovies: [],
+      recentlyAddedEpisodes: [],
+      recentlyPlayedEpisodes: [],
+      limits: {
+        movies: { start: 0, end: 0, total: 0 },
+        tvShows: { start: 0, end: 0, total: 0 },
+        recentlyAddedMovies: { start: 0, end: 0, total: 0 },
+        recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
+        recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
+        recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 }
+      },
       isEmpty: true,
       lastError: null
     } satisfies VideoLibraryStoreSnapshot);
   });
 
-  it('requests bounded read-only Kodi movie properties without raw file paths', async () => {
+  it('requests six bounded read-only video queries including sorted recent movie and episode snapshots', async () => {
     const { client, store } = createHarness();
     enqueueEmptyMovies(client);
 
@@ -199,9 +225,167 @@ describe('video library store', () => {
           ],
           limits: { start: 0, end: 25 }
         }
+      },
+      {
+        method: 'VideoLibrary.GetMovies',
+        params: {
+          properties: [
+            'title',
+            'year',
+            'runtime',
+            'thumbnail',
+            'fanart',
+            'art',
+            'playcount',
+            'lastplayed',
+            'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'dateadded', order: 'descending' }
+        }
+      },
+      {
+        method: 'VideoLibrary.GetMovies',
+        params: {
+          properties: [
+            'title',
+            'year',
+            'runtime',
+            'thumbnail',
+            'fanart',
+            'art',
+            'playcount',
+            'lastplayed',
+            'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'lastplayed', order: 'descending' }
+        }
+      },
+      {
+        method: 'VideoLibrary.GetEpisodes',
+        params: {
+          properties: [
+            'title',
+            'showtitle',
+            'season',
+            'episode',
+            'thumbnail',
+            'fanart',
+            'art',
+            'playcount',
+            'lastplayed',
+            'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'dateadded', order: 'descending' }
+        }
+      },
+      {
+        method: 'VideoLibrary.GetEpisodes',
+        params: {
+          properties: [
+            'title',
+            'showtitle',
+            'season',
+            'episode',
+            'thumbnail',
+            'fanart',
+            'art',
+            'playcount',
+            'lastplayed',
+            'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'lastplayed', order: 'descending' }
+        }
       }
     ]);
     expect(JSON.stringify(client.calls)).not.toContain('file');
+  });
+
+  it('normalizes successful recent video snapshots and clones recent arrays on read', async () => {
+    const { client, store } = createHarness();
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    enqueueEmptyTvShows(client);
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 50, label: 'New movie', art: { poster: 'poster.jpg' } }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 51, label: 'Played movie', resume: { position: 4, total: 100 } }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [
+        { episodeid: 60, label: 'Global episode', title: 'No route identity', showtitle: 'Show' }
+      ],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [
+        {
+          episodeid: 61,
+          tvshowid: 7,
+          season: 1,
+          episode: 2,
+          label: 'Played episode',
+          art: { thumb: 'thumb.jpg' },
+          resume: { position: 5, total: 100 }
+        }
+      ],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+
+    await store.refresh('manual');
+
+    const snapshot = store.snapshot;
+    expect(snapshot).toMatchObject({
+      refreshStatus: 'ready',
+      recentlyAddedMovies: [{ movieid: 50, label: 'New movie', art: { poster: 'poster.jpg' } }],
+      recentlyPlayedMovies: [{ movieid: 51, label: 'Played movie', resume: { position: 4 } }],
+      recentlyAddedEpisodes: [
+        { episodeid: 60, label: 'Global episode', title: 'No route identity', showtitle: 'Show' }
+      ],
+      recentlyPlayedEpisodes: [
+        {
+          episodeid: 61,
+          tvshowid: 7,
+          season: 1,
+          episode: 2,
+          label: 'Played episode',
+          art: { thumb: 'thumb.jpg' },
+          resume: { position: 5 }
+        }
+      ],
+      limits: {
+        recentlyAddedMovies: { start: 0, end: 25, total: 1 },
+        recentlyPlayedMovies: { start: 0, end: 25, total: 1 },
+        recentlyAddedEpisodes: { start: 0, end: 25, total: 1 },
+        recentlyPlayedEpisodes: { start: 0, end: 25, total: 1 }
+      },
+      isEmpty: false
+    });
+
+    snapshot.recentlyAddedMovies[0].art!.poster = 'mutated.jpg';
+    snapshot.recentlyPlayedMovies[0].resume!.position = 99;
+    snapshot.recentlyPlayedEpisodes[0].art!.thumb = 'mutated.jpg';
+    snapshot.recentlyPlayedEpisodes[0].resume!.position = 99;
+    snapshot.limits.recentlyAddedMovies.total = 99;
+
+    expect(store.snapshot.recentlyAddedMovies[0].art!.poster).toBe('poster.jpg');
+    expect(store.snapshot.recentlyPlayedMovies[0].resume!.position).toBe(4);
+    expect(store.snapshot.recentlyPlayedEpisodes[0].art!.thumb).toBe('thumb.jpg');
+    expect(store.snapshot.recentlyPlayedEpisodes[0].resume!.position).toBe(5);
+    expect(store.snapshot.limits.recentlyAddedMovies.total).toBe(1);
+    expectSecretSafe(store.snapshot);
   });
 
   it('normalizes successful movie snapshots without leaking raw file fields', async () => {
@@ -287,6 +471,7 @@ describe('video library store', () => {
       })
     );
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
 
     await store.refresh('manual');
 
@@ -299,6 +484,72 @@ describe('video library store', () => {
         { movieid: 43, label: 'Unknown movie' }
       ],
       lastError: { source: 'http', code: 'json-rpc-error' }
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
+  it('preserves prior safe snapshots and sanitizes errors when a recent query fails', async () => {
+    const { client, setNow, store } = createHarness();
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 1, label: 'Base movie' }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    enqueueEmptyTvShows(client);
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 2, label: 'Recent movie' }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 3, label: 'Played movie' }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    await store.refresh('manual');
+
+    setNow(3_500);
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 4, label: 'Replacement base movie' }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+    enqueueEmptyTvShows(client);
+    client.enqueue(
+      'VideoLibrary.GetMovies',
+      new Error('smb://secret/recent Authorization: Basic abc123')
+    );
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+
+    await store.refresh('manual');
+
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'error',
+      lastRefreshReason: 'error:refresh-failed',
+      lastUpdatedAt: new Date(3_500).toISOString(),
+      movies: [{ movieid: 1, label: 'Base movie' }],
+      recentlyAddedMovies: [{ movieid: 2, label: 'Recent movie' }],
+      recentlyPlayedMovies: [{ movieid: 3, label: 'Played movie' }],
+      lastError: {
+        source: 'unknown',
+        code: 'refresh-failed',
+        message: 'redacted-path credentials [redacted]'
+      }
     });
     expectSecretSafe(store.snapshot);
   });
@@ -327,6 +578,7 @@ describe('video library store', () => {
       limits: { start: Number.NaN, end: Number.NaN, total: 'bad' }
     });
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
 
     await store.refresh('manual');
 
@@ -344,11 +596,13 @@ describe('video library store', () => {
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
     client.enqueue('VideoLibrary.GetMovies', {
       movies: [{ movieid: 7, label: 'Fresh movie' }],
       limits: { start: 0, end: 25, total: 1 }
     });
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
@@ -373,11 +627,13 @@ describe('video library store', () => {
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
     client.enqueue('VideoLibrary.GetMovies', {
       movies: [{ movieid: 7, label: 'Fresh movie' }],
       limits: { start: 0, end: 25, total: 1 }
     });
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
@@ -398,6 +654,7 @@ describe('video library store', () => {
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
     enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
 
     const refresh = store.refresh('manual');
     await flushPromises();

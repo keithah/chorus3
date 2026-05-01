@@ -78,7 +78,10 @@
     type VideoMovieDetailStoreSnapshot
   } from '$lib/stores/videoMovieDetailStore.svelte';
   import { videoTvStore, type VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
-  import { videoWriteStore, type VideoWriteStoreSnapshot } from '$lib/stores/videoWriteStore.svelte';
+  import {
+    videoWriteStore,
+    type VideoWriteStoreSnapshot
+  } from '$lib/stores/videoWriteStore.svelte';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {

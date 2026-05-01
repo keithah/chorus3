@@ -277,7 +277,9 @@ describe('createM004BrowserProofAppProps', () => {
       ]
     });
     await expect(
-      props.videoSeasonWriteDispatch.retryFailedVideoWrites([{ episodeid: 6602, label: 'Cold Open' }])
+      props.videoSeasonWriteDispatch.retryFailedVideoWrites([
+        { episodeid: 6602, label: 'Cold Open' }
+      ])
     ).resolves.toMatchObject({ total: 1, succeeded: 1, failed: 0, failedItems: [] });
 
     expect(fetchSpy).not.toHaveBeenCalled();

@@ -1,7 +1,9 @@
 import {
+  getVideoLibraryEpisodes,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
   type KodiJsonRpcHttpClient,
+  type VideoLibraryEpisodePropertyName,
   type VideoLibraryMoviePropertyName,
   type VideoLibraryTvShowPropertyName
 } from '$lib/kodi';
@@ -12,6 +14,7 @@ import {
   createVideoLibrarySafeError,
   normalizeVideoLibraryLimits,
   normalizeVideoMovies,
+  normalizeVideoEpisodes,
   normalizeVideoTvShows,
   type VideoLibraryLimitsSnapshot,
   type VideoLibraryRefreshReason,
@@ -22,6 +25,7 @@ export type {
   VideoLibraryErrorSource,
   VideoLibraryLimitsSnapshot,
   VideoLibraryMovieSnapshot,
+  VideoEpisodeSnapshot,
   VideoLibraryRefreshReason,
   VideoLibraryRefreshStatus,
   VideoLibraryResumeSnapshot,
@@ -62,6 +66,19 @@ const DEFAULT_TV_SHOW_PROPERTIES = [
   'lastplayed',
   'dateadded'
 ] as const satisfies readonly VideoLibraryTvShowPropertyName[];
+const DEFAULT_RECENT_EPISODE_PROPERTIES = [
+  'title',
+  'showtitle',
+  'season',
+  'episode',
+  'thumbnail',
+  'fanart',
+  'art',
+  'playcount',
+  'lastplayed',
+  'resume',
+  'dateadded'
+] as const satisfies readonly VideoLibraryEpisodePropertyName[];
 
 const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
   refreshStatus: 'idle',
@@ -69,7 +86,18 @@ const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
   lastUpdatedAt: null,
   movies: [],
   tvShows: [],
-  limits: { movies: DEFAULT_LIMITS, tvShows: DEFAULT_LIMITS },
+  recentlyAddedMovies: [],
+  recentlyPlayedMovies: [],
+  recentlyAddedEpisodes: [],
+  recentlyPlayedEpisodes: [],
+  limits: {
+    movies: DEFAULT_LIMITS,
+    tvShows: DEFAULT_LIMITS,
+    recentlyAddedMovies: DEFAULT_LIMITS,
+    recentlyPlayedMovies: DEFAULT_LIMITS,
+    recentlyAddedEpisodes: DEFAULT_LIMITS,
+    recentlyPlayedEpisodes: DEFAULT_LIMITS
+  },
   isEmpty: true,
   lastError: null
 };
@@ -105,7 +133,14 @@ export class VideoLibraryStore {
 
     try {
       const client = this.#resolveClient();
-      const [moviesResult, tvShowsResult] = await Promise.all([
+      const [
+        moviesResult,
+        tvShowsResult,
+        recentlyAddedMoviesResult,
+        recentlyPlayedMoviesResult,
+        recentlyAddedEpisodesResult,
+        recentlyPlayedEpisodesResult
+      ] = await Promise.all([
         getVideoLibraryMovies(client, {
           properties: DEFAULT_MOVIE_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
@@ -113,6 +148,26 @@ export class VideoLibraryStore {
         getVideoLibraryTvShows(client, {
           properties: DEFAULT_TV_SHOW_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
+        }),
+        getVideoLibraryMovies(client, {
+          properties: DEFAULT_MOVIE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'dateadded', order: 'descending' }
+        }),
+        getVideoLibraryMovies(client, {
+          properties: DEFAULT_MOVIE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'lastplayed', order: 'descending' }
+        }),
+        getVideoLibraryEpisodes(client, {
+          properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'dateadded', order: 'descending' }
+        }),
+        getVideoLibraryEpisodes(client, {
+          properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'lastplayed', order: 'descending' }
         })
       ]);
 
@@ -122,6 +177,14 @@ export class VideoLibraryStore {
 
       const movies = normalizeVideoMovies(moviesResult.movies);
       const tvShows = normalizeVideoTvShows(tvShowsResult.tvshows);
+      const recentlyAddedMovies = normalizeVideoMovies(recentlyAddedMoviesResult.movies);
+      const recentlyPlayedMovies = normalizeVideoMovies(recentlyPlayedMoviesResult.movies);
+      const recentlyAddedEpisodes = normalizeVideoEpisodes(recentlyAddedEpisodesResult.episodes, {
+        preserveOrder: true
+      });
+      const recentlyPlayedEpisodes = normalizeVideoEpisodes(recentlyPlayedEpisodesResult.episodes, {
+        preserveOrder: true
+      });
 
       this.#snapshot = {
         refreshStatus: 'ready',
@@ -129,11 +192,37 @@ export class VideoLibraryStore {
         lastUpdatedAt: this.#now(),
         movies,
         tvShows,
+        recentlyAddedMovies,
+        recentlyPlayedMovies,
+        recentlyAddedEpisodes,
+        recentlyPlayedEpisodes,
         limits: {
           movies: normalizeVideoLibraryLimits(moviesResult.limits, movies),
-          tvShows: normalizeVideoLibraryLimits(tvShowsResult.limits, tvShows)
+          tvShows: normalizeVideoLibraryLimits(tvShowsResult.limits, tvShows),
+          recentlyAddedMovies: normalizeVideoLibraryLimits(
+            recentlyAddedMoviesResult.limits,
+            recentlyAddedMovies
+          ),
+          recentlyPlayedMovies: normalizeVideoLibraryLimits(
+            recentlyPlayedMoviesResult.limits,
+            recentlyPlayedMovies
+          ),
+          recentlyAddedEpisodes: normalizeVideoLibraryLimits(
+            recentlyAddedEpisodesResult.limits,
+            recentlyAddedEpisodes
+          ),
+          recentlyPlayedEpisodes: normalizeVideoLibraryLimits(
+            recentlyPlayedEpisodesResult.limits,
+            recentlyPlayedEpisodes
+          )
         },
-        isEmpty: movies.length === 0 && tvShows.length === 0,
+        isEmpty:
+          movies.length === 0 &&
+          tvShows.length === 0 &&
+          recentlyAddedMovies.length === 0 &&
+          recentlyPlayedMovies.length === 0 &&
+          recentlyAddedEpisodes.length === 0 &&
+          recentlyPlayedEpisodes.length === 0,
         lastError: null
       };
     } catch (error) {

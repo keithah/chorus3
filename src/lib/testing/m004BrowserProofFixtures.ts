@@ -121,9 +121,17 @@ function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
     lastUpdatedAt: readyAt,
     movies,
     tvShows,
+    recentlyAddedMovies: [],
+    recentlyPlayedMovies: [],
+    recentlyAddedEpisodes: [],
+    recentlyPlayedEpisodes: [],
     limits: {
       movies: { start: 0, end: movies.length, total: movies.length },
-      tvShows: { start: 0, end: tvShows.length, total: tvShows.length }
+      tvShows: { start: 0, end: tvShows.length, total: tvShows.length },
+      recentlyAddedMovies: { start: 0, end: 0, total: 0 },
+      recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
+      recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
+      recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 }
     },
     isEmpty: false,
     lastError: null

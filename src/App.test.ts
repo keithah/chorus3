@@ -359,8 +359,12 @@ function createMediaPlaylistsActionDispatch(
   };
 }
 
+type VideoLibrarySnapshotOverrides = Omit<Partial<VideoLibraryStoreSnapshot>, 'limits'> & {
+  limits?: Partial<VideoLibraryStoreSnapshot['limits']>;
+};
+
 function createVideoLibrarySnapshot(
-  overrides: Partial<VideoLibraryStoreSnapshot> = {}
+  overrides: VideoLibrarySnapshotOverrides = {}
 ): VideoLibraryStoreSnapshot {
   const movies = overrides.movies ?? [
     {
@@ -393,13 +397,22 @@ function createVideoLibrarySnapshot(
     lastUpdatedAt: '2026-05-01T07:00:00.000Z',
     movies,
     tvShows: [],
-    limits: {
-      movies: { start: 0, end: movies.length, total: movies.length },
-      tvShows: { start: 0, end: 0, total: 0 }
-    },
+    recentlyAddedMovies: [],
+    recentlyPlayedMovies: [],
+    recentlyAddedEpisodes: [],
+    recentlyPlayedEpisodes: [],
     isEmpty: movies.length === 0,
     lastError: null,
-    ...overrides
+    ...overrides,
+    limits: {
+      movies: { start: 0, end: movies.length, total: movies.length },
+      tvShows: { start: 0, end: 0, total: 0 },
+      recentlyAddedMovies: { start: 0, end: 0, total: 0 },
+      recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
+      recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
+      recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 },
+      ...overrides.limits
+    }
   };
 }
 
@@ -1372,8 +1385,12 @@ describe('App shell', () => {
   });
 
   it('routes default season batch writes through videoWriteStore and refreshes season episodes after partial writes', async () => {
-    const markEpisodesWatched = vi.spyOn(videoWriteStore, 'markEpisodesWatched').mockResolvedValue();
-    const refreshSeasonEpisodes = vi.spyOn(videoTvStore, 'refreshSeasonEpisodes').mockResolvedValue();
+    const markEpisodesWatched = vi
+      .spyOn(videoWriteStore, 'markEpisodesWatched')
+      .mockResolvedValue();
+    const refreshSeasonEpisodes = vi
+      .spyOn(videoTvStore, 'refreshSeasonEpisodes')
+      .mockResolvedValue();
     const target = renderApp({
       route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
       videoTvSnapshot: createVideoTvSnapshot()
@@ -1384,16 +1401,16 @@ describe('App shell', () => {
     await tick();
 
     expect(markEpisodesWatched).toHaveBeenCalledWith(
-      [
-        { episodeid: 6601, label: 'Signal Mirror' }
-      ],
+      [{ episodeid: 6601, label: 'Signal Mirror' }],
       true
     );
     expect(refreshSeasonEpisodes).toHaveBeenCalledWith(5501, 1, 'command:videoWrite');
   });
 
   it('preserves injected season write dispatches without touching the default video write store', async () => {
-    const markEpisodesWatched = vi.spyOn(videoWriteStore, 'markEpisodesWatched').mockResolvedValue();
+    const markEpisodesWatched = vi
+      .spyOn(videoWriteStore, 'markEpisodesWatched')
+      .mockResolvedValue();
     const videoSeasonWriteDispatch = createSeasonWriteDispatch();
     const target = renderApp({
       route: { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },

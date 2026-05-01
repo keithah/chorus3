@@ -195,9 +195,17 @@ export interface VideoLibraryStoreSnapshot {
   lastUpdatedAt: string | null;
   movies: VideoLibraryMovieSnapshot[];
   tvShows: VideoTvShowSnapshot[];
+  recentlyAddedMovies: VideoLibraryMovieSnapshot[];
+  recentlyPlayedMovies: VideoLibraryMovieSnapshot[];
+  recentlyAddedEpisodes: VideoEpisodeSnapshot[];
+  recentlyPlayedEpisodes: VideoEpisodeSnapshot[];
   limits: {
     movies: VideoLibraryLimitsSnapshot;
     tvShows: VideoLibraryLimitsSnapshot;
+    recentlyAddedMovies: VideoLibraryLimitsSnapshot;
+    recentlyPlayedMovies: VideoLibraryLimitsSnapshot;
+    recentlyAddedEpisodes: VideoLibraryLimitsSnapshot;
+    recentlyPlayedEpisodes: VideoLibraryLimitsSnapshot;
   };
   isEmpty: boolean;
   lastError: VideoLibrarySafeErrorSnapshot | null;
@@ -363,47 +371,52 @@ export function normalizeVideoSeasons(items: unknown): VideoSeasonSnapshot[] {
   });
 }
 
-export function normalizeVideoEpisodes(items: unknown): VideoEpisodeSnapshot[] {
-  return normalizeRecordList(items)
-    .flatMap((item): VideoEpisodeSnapshot[] => {
-      const episodeid = finitePositiveSafeId(item.episodeid);
-      if (episodeid === null) {
-        return [];
-      }
+export function normalizeVideoEpisodes(
+  items: unknown,
+  options: { preserveOrder?: boolean } = {}
+): VideoEpisodeSnapshot[] {
+  const episodes = normalizeRecordList(items).flatMap((item): VideoEpisodeSnapshot[] => {
+    const episodeid = finitePositiveSafeId(item.episodeid);
+    if (episodeid === null) {
+      return [];
+    }
 
-      const season = finiteNonNegativeSafeInteger(item.season);
-      if (item.season !== undefined && season === null) {
-        return [];
-      }
+    const season = finiteNonNegativeSafeInteger(item.season);
+    if (item.season !== undefined && season === null) {
+      return [];
+    }
 
-      const episode = finiteNonNegativeSafeInteger(item.episode);
-      const playcount = finiteNonNegativeNumber(item.playcount);
-      return [
-        {
-          episodeid,
-          ...positiveIdField('tvshowid', item.tvshowid),
-          ...(season === null ? {} : { season }),
-          ...(episode === null ? {} : { episode }),
-          label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? 'Unknown episode',
-          ...stringField('title', item.title),
-          ...stringField('showtitle', item.showtitle),
-          ...numberField('runtime', item.runtime),
-          ...stringField('thumbnail', item.thumbnail),
-          ...stringField('fanart', item.fanart),
-          ...artField(item.art),
-          ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
-          ...stringField('lastplayed', item.lastplayed),
-          ...resumeField(item.resume),
-          ...stringField('dateadded', item.dateadded)
-        }
-      ];
-    })
-    .sort(
-      (left, right) =>
-        (left.season ?? 0) - (right.season ?? 0) ||
-        (left.episode ?? 0) - (right.episode ?? 0) ||
-        left.episodeid - right.episodeid
-    );
+    const episode = finiteNonNegativeSafeInteger(item.episode);
+    const playcount = finiteNonNegativeNumber(item.playcount);
+    return [
+      {
+        episodeid,
+        ...positiveIdField('tvshowid', item.tvshowid),
+        ...(season === null ? {} : { season }),
+        ...(episode === null ? {} : { episode }),
+        label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? 'Unknown episode',
+        ...stringField('title', item.title),
+        ...stringField('showtitle', item.showtitle),
+        ...numberField('runtime', item.runtime),
+        ...stringField('thumbnail', item.thumbnail),
+        ...stringField('fanart', item.fanart),
+        ...artField(item.art),
+        ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
+        ...stringField('lastplayed', item.lastplayed),
+        ...resumeField(item.resume),
+        ...stringField('dateadded', item.dateadded)
+      }
+    ];
+  });
+
+  return options.preserveOrder
+    ? episodes
+    : episodes.sort(
+        (left, right) =>
+          (left.season ?? 0) - (right.season ?? 0) ||
+          (left.episode ?? 0) - (right.episode ?? 0) ||
+          left.episodeid - right.episodeid
+      );
 }
 
 export function normalizeVideoEpisodeDetail(item: unknown): VideoEpisodeDetailSnapshot | null {
@@ -725,10 +738,33 @@ export function cloneVideoLibrarySnapshot(
     ...snapshot,
     movies: cloneVideoLibraryMovieSnapshots(snapshot.movies),
     tvShows: cloneVideoTvShowSnapshots(snapshot.tvShows ?? []),
+    recentlyAddedMovies: cloneVideoLibraryMovieSnapshots(snapshot.recentlyAddedMovies ?? []),
+    recentlyPlayedMovies: cloneVideoLibraryMovieSnapshots(snapshot.recentlyPlayedMovies ?? []),
+    recentlyAddedEpisodes: cloneVideoEpisodeSnapshots(snapshot.recentlyAddedEpisodes ?? []),
+    recentlyPlayedEpisodes: cloneVideoEpisodeSnapshots(snapshot.recentlyPlayedEpisodes ?? []),
     limits: {
       movies: cloneVideoLibraryLimits(snapshot.limits.movies),
-      tvShows: cloneVideoLibraryLimits(snapshot.limits.tvShows ?? { start: 0, end: 0, total: 0 })
+      tvShows: cloneVideoLibraryLimits(snapshot.limits.tvShows ?? { start: 0, end: 0, total: 0 }),
+      recentlyAddedMovies: cloneVideoLibraryLimits(
+        snapshot.limits.recentlyAddedMovies ?? { start: 0, end: 0, total: 0 }
+      ),
+      recentlyPlayedMovies: cloneVideoLibraryLimits(
+        snapshot.limits.recentlyPlayedMovies ?? { start: 0, end: 0, total: 0 }
+      ),
+      recentlyAddedEpisodes: cloneVideoLibraryLimits(
+        snapshot.limits.recentlyAddedEpisodes ?? { start: 0, end: 0, total: 0 }
+      ),
+      recentlyPlayedEpisodes: cloneVideoLibraryLimits(
+        snapshot.limits.recentlyPlayedEpisodes ?? { start: 0, end: 0, total: 0 }
+      )
     },
+    isEmpty:
+      snapshot.movies.length === 0 &&
+      (snapshot.tvShows ?? []).length === 0 &&
+      (snapshot.recentlyAddedMovies ?? []).length === 0 &&
+      (snapshot.recentlyPlayedMovies ?? []).length === 0 &&
+      (snapshot.recentlyAddedEpisodes ?? []).length === 0 &&
+      (snapshot.recentlyPlayedEpisodes ?? []).length === 0,
     lastError: cloneVideoLibrarySafeError(snapshot.lastError)
   };
 }
