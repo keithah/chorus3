@@ -14,6 +14,8 @@
   }
 
   type ListKind = 'artists' | 'albums' | 'songs' | 'genres';
+  type DiscoveryListKind = 'recentlyAddedSongs' | 'recentlyPlayedSongs' | 'mostPlayedSongs';
+  type DiscoveryMetadataKind = 'recentlyAdded' | 'recentlyPlayed' | 'mostPlayed';
 
   let { snapshot, onRefresh }: Props = $props();
   let isRefreshing = $state(false);
@@ -94,6 +96,47 @@
       case 'genres':
         return 'No genres in this snapshot.';
     }
+  }
+
+  function discoveryCountSummary(kind: DiscoveryListKind, count: number): string {
+    const limits = snapshot.limits[kind];
+    return `${count} of ${formatTotal(limits, count)}`;
+  }
+
+  function discoveryEmptyCopy(kind: DiscoveryListKind): string {
+    switch (kind) {
+      case 'recentlyAddedSongs':
+        return 'No recently added songs in this snapshot.';
+      case 'recentlyPlayedSongs':
+        return 'No recently played songs in this snapshot.';
+      case 'mostPlayedSongs':
+        return 'No most-played songs in this snapshot.';
+    }
+  }
+
+  function formatDiscoveryMeta(
+    song: MusicLibrarySongSnapshot,
+    kind: DiscoveryMetadataKind
+  ): string {
+    const values = [joinText(song.artist), textOrNull(song.album), discoveryPrimaryMeta(song, kind)];
+    return values.filter(Boolean).join(' · ');
+  }
+
+  function discoveryPrimaryMeta(
+    song: MusicLibrarySongSnapshot,
+    kind: DiscoveryMetadataKind
+  ): string | null {
+    if (kind === 'recentlyAdded') {
+      const dateadded = textOrNull(song.dateadded);
+      return dateadded ? `Added ${dateadded}` : null;
+    }
+
+    if (kind === 'recentlyPlayed') {
+      const lastplayed = textOrNull(song.lastplayed);
+      return lastplayed ? `Played ${lastplayed}` : null;
+    }
+
+    return formatPlaycount(song.playcount);
   }
 
   function displayText(value: unknown, fallback: string): string {
@@ -330,6 +373,79 @@
       {/if}
     </section>
   </div>
+
+  <section class="discovery-section" aria-labelledby="music-library-discovery-title">
+    <div class="panel-heading">
+      <p class="section-kicker">Discovery</p>
+      <h3 id="music-library-discovery-title">Recent &amp; Top Music</h3>
+      <p class="summary-line">Read-only recently added, recently played, and most-played songs.</p>
+    </div>
+
+    <div class="discovery-grid">
+      <section class="library-section" aria-labelledby="music-library-recently-added-title">
+        <div class="section-heading">
+          <h4 id="music-library-recently-added-title">Recently Added</h4>
+          <p>{discoveryCountSummary('recentlyAddedSongs', snapshot.recentlyAddedSongs.length)}</p>
+        </div>
+        {#if snapshot.recentlyAddedSongs.length === 0}
+          <p class="empty-copy">{discoveryEmptyCopy('recentlyAddedSongs')}</p>
+        {:else}
+          <ul>
+            {#each snapshot.recentlyAddedSongs as song (song.songid)}
+              <li>
+                <span class="item-title">{safeSongLabel(song)}</span>
+                {#if formatDiscoveryMeta(song, 'recentlyAdded')}
+                  <span class="item-meta">{formatDiscoveryMeta(song, 'recentlyAdded')}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <section class="library-section" aria-labelledby="music-library-recently-played-title">
+        <div class="section-heading">
+          <h4 id="music-library-recently-played-title">Recently Played</h4>
+          <p>{discoveryCountSummary('recentlyPlayedSongs', snapshot.recentlyPlayedSongs.length)}</p>
+        </div>
+        {#if snapshot.recentlyPlayedSongs.length === 0}
+          <p class="empty-copy">{discoveryEmptyCopy('recentlyPlayedSongs')}</p>
+        {:else}
+          <ul>
+            {#each snapshot.recentlyPlayedSongs as song (song.songid)}
+              <li>
+                <span class="item-title">{safeSongLabel(song)}</span>
+                {#if formatDiscoveryMeta(song, 'recentlyPlayed')}
+                  <span class="item-meta">{formatDiscoveryMeta(song, 'recentlyPlayed')}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <section class="library-section" aria-labelledby="music-library-most-played-title">
+        <div class="section-heading">
+          <h4 id="music-library-most-played-title">Most Played</h4>
+          <p>{discoveryCountSummary('mostPlayedSongs', snapshot.mostPlayedSongs.length)}</p>
+        </div>
+        {#if snapshot.mostPlayedSongs.length === 0}
+          <p class="empty-copy">{discoveryEmptyCopy('mostPlayedSongs')}</p>
+        {:else}
+          <ul>
+            {#each snapshot.mostPlayedSongs as song (song.songid)}
+              <li>
+                <span class="item-title">{safeSongLabel(song)}</span>
+                {#if formatDiscoveryMeta(song, 'mostPlayed')}
+                  <span class="item-meta">{formatDiscoveryMeta(song, 'mostPlayed')}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    </div>
+  </section>
 </section>
 
 <style>
@@ -340,6 +456,7 @@
   }
 
   .panel-heading,
+  .discovery-section,
   .library-section,
   .section-heading,
   li {
@@ -370,10 +487,15 @@
     text-wrap: balance;
   }
 
-  h3 {
+  h3,
+  h4 {
     font-size: 1rem;
     line-height: 1.2;
     text-wrap: balance;
+  }
+
+  h4 {
+    margin: 0;
   }
 
   .summary-line,
@@ -438,10 +560,15 @@
     box-shadow: var(--shadow-ring);
   }
 
-  .library-grid {
+  .library-grid,
+  .discovery-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-md);
+  }
+
+  .discovery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .library-section {
@@ -492,7 +619,8 @@
   }
 
   @media (max-width: 760px) {
-    .library-grid {
+    .library-grid,
+    .discovery-grid {
       grid-template-columns: 1fr;
     }
 

@@ -83,6 +83,36 @@ function populatedSnapshot(
       },
       { songid: 21, label: 'Unknown song' }
     ],
+    recentlyAddedSongs: [
+      {
+        songid: 22,
+        label: 'Feeling Good',
+        title: 'Feeling Good',
+        artist: ['Nina Simone'],
+        album: 'I Put a Spell on You',
+        dateadded: '2026-04-30 09:15:00'
+      }
+    ],
+    recentlyPlayedSongs: [
+      {
+        songid: 23,
+        label: 'I Put a Spell on You',
+        title: 'I Put a Spell on You',
+        artist: ['Nina Simone'],
+        album: 'I Put a Spell on You',
+        lastplayed: '2026-04-29 22:04:00'
+      }
+    ],
+    mostPlayedSongs: [
+      {
+        songid: 24,
+        label: 'My Baby Just Cares for Me',
+        title: 'My Baby Just Cares for Me',
+        artist: ['Nina Simone'],
+        album: 'Little Girl Blue',
+        playcount: 11
+      }
+    ],
     genres: [
       { genreid: 30, label: 'Jazz', title: 'Jazz' },
       { genreid: 31, label: 'Unknown genre' }
@@ -91,6 +121,9 @@ function populatedSnapshot(
       artists: { start: 0, end: 2, total: 2 },
       albums: { start: 0, end: 2, total: 2 },
       songs: { start: 0, end: 2, total: 2 },
+      recentlyAddedSongs: { start: 0, end: 1, total: 1 },
+      recentlyPlayedSongs: { start: 0, end: 1, total: 1 },
+      mostPlayedSongs: { start: 0, end: 1, total: 1 },
       genres: { start: 0, end: 2, total: 2 }
     },
     ...overrides
@@ -226,6 +259,102 @@ describe('MusicLibraryPanel', () => {
     expect(text).toContain('Played 3 times');
     expect(text).toContain('Jazz');
     expect(text).toContain('2 of 2');
+    expectSecretSafe(text);
+  });
+
+
+  it('renders recent and top music discovery sections with safe metadata', () => {
+    renderPanel({ snapshot: populatedSnapshot() });
+
+    const text = screenText();
+    expect(text).toContain('Recent & Top Music');
+    expect(text).toContain('Recently Added');
+    expect(text).toContain('Recently Played');
+    expect(text).toContain('Most Played');
+    expect(text).toContain('Feeling Good');
+    expect(text).toContain('Added 2026-04-30 09:15:00');
+    expect(text).toContain('I Put a Spell on You');
+    expect(text).toContain('Played 2026-04-29 22:04:00');
+    expect(text).toContain('My Baby Just Cares for Me');
+    expect(text).toContain('Played 11 times');
+    expectSecretSafe(text);
+  });
+
+  it('renders explicit discovery empty states when recent and top lists are empty', () => {
+    renderPanel({
+      snapshot: populatedSnapshot({
+        recentlyAddedSongs: [],
+        recentlyPlayedSongs: [],
+        mostPlayedSongs: [],
+        limits: {
+          recentlyAddedSongs: { start: 0, end: 0, total: 0 },
+          recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
+          mostPlayedSongs: { start: 0, end: 0, total: 0 }
+        }
+      })
+    });
+
+    const text = screenText();
+    expect(text).toContain('No recently added songs in this snapshot.');
+    expect(text).toContain('No recently played songs in this snapshot.');
+    expect(text).toContain('No most-played songs in this snapshot.');
+  });
+
+  it('redacts unsafe discovery labels artists albums and date metadata without throwing', () => {
+    renderPanel({
+      snapshot: createMusicSnapshot({
+        refreshStatus: 'error',
+        isEmpty: false,
+        lastError: {
+          source: 'http',
+          code: 'http/auth',
+          message:
+            'Authorization: Basic abc123 failed at http://admin:p@ssword@example.test/jsonrpc with localStorage raw response body smb://secret/share/song.flac'
+        },
+        recentlyAddedSongs: [
+          {
+            songid: 31,
+            label: 'smb://nas.local/private/song.flac',
+            title: 'https://admin:p@ssword@example.test/private/song.flac',
+            artist: ['C:\\music\\private'],
+            album: '/mnt/media/private',
+            dateadded: 'Authorization: Basic abc123'
+          }
+        ],
+        recentlyPlayedSongs: [
+          {
+            songid: 32,
+            label: 'Safe Recent Play',
+            title: 'Safe Recent Play',
+            artist: ['localStorage'],
+            album: 'https://example.test/private',
+            lastplayed: 'smb://nas.local/private/played.flac'
+          }
+        ],
+        mostPlayedSongs: [
+          {
+            songid: 33,
+            label: 'Safe Top Play',
+            title: 'Safe Top Play',
+            artist: ['Safe Artist'],
+            album: 'C:\\music\\album',
+            playcount: 4
+          }
+        ],
+        limits: {
+          recentlyAddedSongs: { start: 0, end: 1, total: 1 },
+          recentlyPlayedSongs: { start: 0, end: 1, total: 1 },
+          mostPlayedSongs: { start: 0, end: 1, total: 1 }
+        }
+      })
+    });
+
+    const text = screenText();
+    expect(text).toContain('Unknown song');
+    expect(text).toContain('Safe Recent Play');
+    expect(text).toContain('Safe Top Play');
+    expect(text).toContain('Safe Artist');
+    expect(text).toContain('Played 4 times');
     expectSecretSafe(text);
   });
 

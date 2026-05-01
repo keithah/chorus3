@@ -862,7 +862,7 @@ describe('App shell', () => {
     expect(target.textContent).not.toContain('/music/private/arrival.flac');
   });
 
-  it('renders injected Music Library artist, album, song, and genre snapshots', () => {
+  it('renders injected Music Library artist, album, song, genre, recent, and top snapshots', () => {
     const target = renderApp({
       musicLibrarySnapshot: createMusicLibrarySnapshot({
         isEmpty: false,
@@ -888,11 +888,44 @@ describe('App shell', () => {
             playcount: 2
           }
         ],
+        recentlyAddedSongs: [
+          {
+            songid: 5,
+            label: 'Feeling Good',
+            title: 'Feeling Good',
+            artist: ['Nina Simone'],
+            album: 'I Put a Spell on You',
+            dateadded: '2026-04-30 09:15:00'
+          }
+        ],
+        recentlyPlayedSongs: [
+          {
+            songid: 6,
+            label: 'I Put a Spell on You',
+            title: 'I Put a Spell on You',
+            artist: ['Nina Simone'],
+            album: 'I Put a Spell on You',
+            lastplayed: '2026-04-29 22:04:00'
+          }
+        ],
+        mostPlayedSongs: [
+          {
+            songid: 7,
+            label: 'My Baby Just Cares for Me',
+            title: 'My Baby Just Cares for Me',
+            artist: ['Nina Simone'],
+            album: 'Little Girl Blue',
+            playcount: 12
+          }
+        ],
         genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
         limits: {
           artists: { start: 0, end: 1, total: 1 },
           albums: { start: 0, end: 1, total: 1 },
           songs: { start: 0, end: 1, total: 1 },
+          recentlyAddedSongs: { start: 0, end: 1, total: 1 },
+          recentlyPlayedSongs: { start: 0, end: 1, total: 1 },
+          mostPlayedSongs: { start: 0, end: 1, total: 1 },
           genres: { start: 0, end: 1, total: 1 }
         }
       })
@@ -908,6 +941,13 @@ describe('App shell', () => {
     expect(target.textContent).toContain('Soul');
     expect(target.textContent).toContain('10:22');
     expect(target.textContent).toContain('Played 2 times');
+    expect(target.textContent).toContain('Recent & Top Music');
+    expect(target.textContent).toContain('Feeling Good');
+    expect(target.textContent).toContain('Added 2026-04-30 09:15:00');
+    expect(target.textContent).toContain('I Put a Spell on You');
+    expect(target.textContent).toContain('Played 2026-04-29 22:04:00');
+    expect(target.textContent).toContain('My Baby Just Cares for Me');
+    expect(target.textContent).toContain('Played 12 times');
     expect(target.textContent).not.toContain('Library sync');
     expect(target.textContent).not.toContain('paused until a real Kodi endpoint');
   });
