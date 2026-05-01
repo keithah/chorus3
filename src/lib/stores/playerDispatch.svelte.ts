@@ -52,6 +52,7 @@ export type PlayerCommandName =
   | 'setSubtitle'
   | 'playMusicItem'
   | 'playMovieItem'
+  | 'streamMovieItem'
   | 'playFileItem'
   | 'playPlaylistItem'
   | 'startLocalPlayback'
@@ -420,6 +421,10 @@ export class PlayerDispatch {
     });
   }
 
+  streamMovieItem(item: MoviePlaybackItem): Promise<void> {
+    return this.#runStreamMovieItem(item);
+  }
+
   playFileItem(item: FilePlaybackItem): Promise<void> {
     const fileItem = toKodiFilePlaybackItem(item) ?? { file: '' };
 
@@ -594,6 +599,104 @@ export class PlayerDispatch {
 
     this.#snapshot = {
       ...this.#snapshot,
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runStreamMovieItem(item: MoviePlaybackItem): Promise<void> {
+    this.#startCommand('streamMovieItem');
+
+    const validationError = validateMoviePlaybackItem(item);
+    if (validationError) {
+      this.#failCommand(validationError);
+      return;
+    }
+
+    const movieItem = toKodiMoviePlaybackItem(item) ?? { movieid: 0 };
+    const openOptions = item?.resume === true ? { resume: true } : undefined;
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await openPlayerMovieItem(client, movieItem, openOptions);
+    } catch (error) {
+      commandError = createSafeError(error);
+    }
+
+    try {
+      await this.#playerStore.refresh('command:streamMovieItem');
+    } catch {
+      // PlayerStore owns refresh failure diagnostics. Preserve command status.
+    }
+
+    if (commandError) {
+      this.#failCommand(commandError);
+      return;
+    }
+
+    const playerid = this.#resolveSingleVideoPlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    const snapshot = this.#playerStore.snapshot;
+    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+
+    if (!file) {
+      this.#failCommand({
+        source: 'input',
+        code: 'input/missing-file',
+        message: 'Kodi did not expose a playable movie file for browser streaming.'
+      });
+      return;
+    }
+
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await playPausePlayer(client, playerid);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#localPlayerStore.loadAndPlay({
+        source: streamUrl,
+        item: extractMovieLocalItemIdentity(snapshot.item, movieItem.movieid),
+        mediaKind: 'video',
+        kodiWasPaused: true
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
       commandStatus: 'success',
       lastError: null,
       lastCompletedAt: this.#now()
@@ -808,6 +911,39 @@ export class PlayerDispatch {
         source: 'player',
         code: 'player/multiple-active-players',
         message: 'Multiple Kodi players are active. Choose one player before sending commands.'
+      });
+      return null;
+    }
+
+    return snapshot.primaryPlayer.playerid;
+  }
+
+  #resolveSingleVideoPlayerId(): number | null {
+    const snapshot = this.#playerStore.snapshot;
+
+    if (!snapshot.primaryPlayer || snapshot.activePlayers.length === 0) {
+      this.#failCommand({
+        source: 'player',
+        code: 'player/no-active-player',
+        message: 'No active Kodi video player is available for browser streaming.'
+      });
+      return null;
+    }
+
+    if (snapshot.activePlayers.length > 1) {
+      this.#failCommand({
+        source: 'player',
+        code: 'player/multiple-active-players',
+        message: 'Multiple Kodi players are active. Choose one player before browser streaming.'
+      });
+      return null;
+    }
+
+    if (snapshot.primaryPlayer.type !== 'video') {
+      this.#failCommand({
+        source: 'player',
+        code: 'player/no-active-video-player',
+        message: 'Choose a movie with an active Kodi video player before browser streaming.'
       });
       return null;
     }
@@ -1102,6 +1238,29 @@ function extractLocalItemIdentity(item: PlayerStoreSnapshot['item']): {
     ...(typeof candidate.episodeid === 'number' && Number.isFinite(candidate.episodeid)
       ? { episodeid: candidate.episodeid }
       : {})
+  };
+}
+
+function extractMovieLocalItemIdentity(
+  item: PlayerStoreSnapshot['item'],
+  movieid: number
+): {
+  label: string;
+  title: string;
+  type: 'movie';
+  movieid: number;
+} {
+  const candidate = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+  const label =
+    typeof candidate.label === 'string' && candidate.label.length > 0 ? candidate.label : 'Movie';
+  const title =
+    typeof candidate.title === 'string' && candidate.title.length > 0 ? candidate.title : label;
+
+  return {
+    label,
+    title,
+    type: 'movie',
+    movieid
   };
 }
 

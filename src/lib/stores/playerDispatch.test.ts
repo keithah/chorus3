@@ -28,6 +28,10 @@ type PlayerDispatchWithMovies = ReturnType<typeof createPlayerDispatch> & {
   playMovieItem(item: unknown): Promise<void>;
 };
 
+type PlayerDispatchWithMovieStream = ReturnType<typeof createPlayerDispatch> & {
+  streamMovieItem(item: unknown): Promise<void>;
+};
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -63,13 +67,23 @@ class FakePlayerStore implements PlayerDispatchPlayerStore {
     item: { file: 'smb://nas/music/special.mp3', label: 'Special', type: 'song', id: 9 }
   });
   readonly refreshReasons: string[] = [];
+  readonly refreshSnapshots: PlayerStoreSnapshot[] = [];
   refreshError: unknown = null;
+
+  enqueueRefreshSnapshot(snapshot: PlayerStoreSnapshot): void {
+    this.refreshSnapshots.push(snapshot);
+  }
 
   async refresh(reason: Parameters<PlayerDispatchPlayerStore['refresh']>[0]): Promise<void> {
     this.refreshReasons.push(reason);
 
     if (this.refreshError) {
       throw this.refreshError;
+    }
+
+    const nextSnapshot = this.refreshSnapshots.shift();
+    if (nextSnapshot) {
+      this.snapshot = nextSnapshot;
     }
   }
 }
@@ -181,6 +195,25 @@ function expectSecretSafe(value: unknown): void {
   expect(serialized).not.toContain('Basic ');
   expect(serialized).not.toContain('http://admin:p@ssword@kodi.local/jsonrpc');
   expect(serialized).not.toContain('localStorage');
+}
+
+function createMoviePlayerSnapshot(
+  overrides: Partial<PlayerStoreSnapshot> = {}
+): PlayerStoreSnapshot {
+  return createSnapshot({
+    activePlayers: [{ playerid: 7, type: 'video' }],
+    primaryPlayer: { playerid: 7, type: 'video' },
+    playbackStatus: 'active',
+    item: {
+      file: 'smb://nas/movies/arrival.mkv',
+      label: 'Arrival',
+      title: 'Arrival',
+      type: 'movie',
+      movieid: 4401
+    },
+    properties: { speed: 1, type: 'video' },
+    ...overrides
+  });
 }
 
 describe('active Kodi client resolution', () => {
@@ -365,6 +398,224 @@ describe('player dispatch', () => {
       mode: 'local',
       commandStatus: 'error',
       lastCommand: 'playMovieItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('streams a movie through Kodi open, refreshed file resolution, prepared Local URL, and Kodi pause', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/arrival.mkv' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
+
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/movies/arrival.mkv' } },
+      { method: 'Player.PlayPause', params: { playerid: 7 } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:streamMovieItem']);
+    expect(localPlayerStore.calls).toHaveLength(1);
+    expect(localPlayerStore.calls[0]).toEqual({
+      method: 'loadAndPlay',
+      args: {
+        source: 'http://kodi.local:8080/vfs/arrival.mkv',
+        mediaKind: 'video',
+        kodiWasPaused: true,
+        item: { label: 'Arrival', title: 'Arrival', type: 'movie', movieid: 4401 }
+      }
+    });
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'success',
+      lastCommand: 'streamMovieItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+    expectSecretSafe(dispatch.snapshot);
+    expectSecretSafe(localPlayerStore.calls);
+  });
+
+  it('streams a movie with the resume option through the curated movie wrapper', async () => {
+    const { client, dispatch, playerStore } = createHarness();
+    playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/arrival.mkv' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
+
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({
+      movieid: 4401,
+      resume: true
+    });
+
+    expect(client.calls[0]).toEqual({
+      method: 'Player.Open',
+      params: { item: { movieid: 4401 }, options: { resume: true } }
+    });
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'success',
+      lastCommand: 'streamMovieItem'
+    });
+  });
+
+  it('rejects invalid movie stream ids before calling Kodi or Local playback', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidItems = [
+      { movieid: 0 },
+      { movieid: -1 },
+      { movieid: 1.5 },
+      { movieid: Number.POSITIVE_INFINITY },
+      { movieid: Number.NaN },
+      { movieid: '4401' },
+      { movieid: Number.MAX_SAFE_INTEGER + 1 },
+      { movieid: 4401, resume: 'yes' },
+      { movieid: 4401, file: 'smb://nas/movies/leak.mkv' }
+    ];
+
+    for (const item of invalidItems) {
+      await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'streamMovieItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-movie-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active-host client state for movie streaming without Kodi calls or refresh', async () => {
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
+
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'streamMovieItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('requires one active video player and a file after opening a movie for streaming', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidSnapshots = [
+      createSnapshot({ activePlayers: [], primaryPlayer: null }),
+      createSnapshot({
+        playbackStatus: 'multiple',
+        activePlayers: [
+          { playerid: 2, type: 'audio' },
+          { playerid: 7, type: 'video' }
+        ],
+        primaryPlayer: { playerid: 7, type: 'video' }
+      }),
+      createSnapshot({
+        activePlayers: [{ playerid: 2, type: 'audio' }],
+        primaryPlayer: { playerid: 2, type: 'audio' },
+        item: { file: 'smb://nas/music/song.flac', label: 'Song', type: 'song' }
+      }),
+      createMoviePlayerSnapshot({ item: { label: 'Arrival', title: 'Arrival', type: 'movie' } })
+    ];
+
+    for (const snapshot of invalidSnapshots) {
+      playerStore.enqueueRefreshSnapshot(snapshot);
+      client.enqueue('Player.Open', 'OK');
+      await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'streamMovieItem'
+      });
+    }
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } }
+    ]);
+    expect(client.calls.some((call) => call.method === 'Files.PrepareDownload')).toBe(false);
+    expect(client.calls.some((call) => call.method === 'Player.PlayPause')).toBe(false);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:streamMovieItem',
+      'command:streamMovieItem',
+      'command:streamMovieItem',
+      'command:streamMovieItem'
+    ]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('does not pause Kodi when movie stream preparation fails and keeps diagnostics redacted', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue(
+      'Files.PrepareDownload',
+      new Error(
+        'prepare failed for smb://nas/movies/arrival.mkv Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc localStorage'
+      )
+    );
+
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/movies/arrival.mkv' } }
+    ]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'streamMovieItem',
+      lastError: { source: 'command', code: 'command/prepare-download-failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('records Local load failures after pausing Kodi for movie streaming', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
+    client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/arrival.mkv' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
+    localPlayerStore.loadError = new Error(
+      'local load rejected for http://admin:p@ssword@kodi.local/vfs/arrival.mkv Authorization: Basic token localStorage'
+    );
+
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
+
+    expect(client.calls.map((call) => call.method)).toEqual([
+      'Player.Open',
+      'Files.PrepareDownload',
+      'Player.PlayPause'
+    ]);
+    expect(localPlayerStore.calls[0]?.method).toBe('loadAndPlay');
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'error',
+      lastCommand: 'streamMovieItem',
       lastError: { source: 'command', code: 'command/failed' }
     });
     expectSecretSafe(dispatch.snapshot);
