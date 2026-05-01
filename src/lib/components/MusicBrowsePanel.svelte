@@ -5,6 +5,16 @@
     MusicBrowseGenrePick
   } from '$lib/stores/musicBrowse.svelte';
 
+  export type MusicBrowseActionItem =
+    | { kind: 'song'; songid: number }
+    | { kind: 'album'; albumid: number }
+    | { kind: 'artist'; artistid: number };
+
+  export interface MusicBrowseActionDispatch {
+    playMusicItem: (item: MusicBrowseActionItem) => Promise<void> | void;
+    queueMusicItem: (item: MusicBrowseActionItem) => Promise<void> | void;
+  }
+
   export interface MusicBrowsePanelDispatch {
     browseArtist: (artist: MusicBrowseArtistPick) => Promise<void> | void;
     browseAlbum: (album: MusicBrowseAlbumPick) => Promise<void> | void;
@@ -31,16 +41,29 @@
     librarySnapshot: MusicLibraryStoreSnapshot;
     browseSnapshot: MusicBrowseStoreSnapshot;
     dispatch: MusicBrowsePanelDispatch;
+    actionDispatch: MusicBrowseActionDispatch;
   }
 
   type TopLevelKind = 'artists' | 'albums' | 'genres';
   type DetailKind = 'albums' | 'songs';
+  type MusicActionVerb = 'play' | 'queue';
 
-  let { librarySnapshot, browseSnapshot, dispatch }: Props = $props();
+  type PendingMusicAction = {
+    id: string;
+    verb: MusicActionVerb;
+    label: string;
+    item: MusicBrowseActionItem;
+  };
+
+  let { librarySnapshot, browseSnapshot, dispatch, actionDispatch }: Props = $props();
+
+  let pendingAction = $state<PendingMusicAction | null>(null);
+  let actionStatusText = $state<string | null>(null);
+  let actionErrorText = $state<string | null>(null);
 
   const isLoading = $derived(browseSnapshot.refreshStatus === 'loading');
   const hasSelection = $derived(Boolean(browseSnapshot.selection));
-  const statusText = $derived(formatStatus(browseSnapshot));
+  const statusText = $derived(actionStatusText ?? formatStatus(browseSnapshot));
   const selectionTitle = $derived(formatSelectionTitle(browseSnapshot.selection));
   const detailTarget = $derived(formatSelectionTarget(browseSnapshot.selection));
 
@@ -74,6 +97,92 @@
     }
 
     dispatch.clearSelection();
+  }
+
+  async function handleMusicAction(
+    verb: MusicActionVerb,
+    item: MusicBrowseActionItem,
+    label: string
+  ): Promise<void> {
+    if (isLoading || pendingAction) {
+      return;
+    }
+
+    const action = { id: actionId(verb, item), verb, item, label };
+    pendingAction = action;
+    actionErrorText = null;
+    actionStatusText = `${capitalize(verb === 'play' ? 'playing' : 'queueing')} ${label}…`;
+
+    try {
+      if (verb === 'play') {
+        await actionDispatch.playMusicItem(item);
+      } else {
+        await actionDispatch.queueMusicItem(item);
+      }
+      actionStatusText = `${verb === 'play' ? 'Played' : 'Queued'} ${label}.`;
+    } catch (error) {
+      const message = sanitizeUiText(
+        error instanceof Error ? error.message : 'Music action failed.'
+      );
+      actionErrorText = `Could not ${verb} ${label}. ${message}`;
+      actionStatusText = `Could not ${verb} ${label}. ${message}`;
+    } finally {
+      pendingAction = null;
+    }
+  }
+
+  function actionId(verb: MusicActionVerb, item: MusicBrowseActionItem): string {
+    if (item.kind === 'song') {
+      return `${verb}:song:${item.songid}`;
+    }
+
+    if (item.kind === 'album') {
+      return `${verb}:album:${item.albumid}`;
+    }
+
+    return `${verb}:artist:${item.artistid}`;
+  }
+
+  function isActionDisabled(item: MusicBrowseActionItem): boolean {
+    if (isLoading) {
+      return true;
+    }
+
+    if (!pendingAction) {
+      return false;
+    }
+
+    return actionTargetKey(pendingAction.item) === actionTargetKey(item);
+  }
+
+  function actionTargetKey(item: MusicBrowseActionItem): string {
+    if (item.kind === 'song') {
+      return `song:${item.songid}`;
+    }
+
+    if (item.kind === 'album') {
+      return `album:${item.albumid}`;
+    }
+
+    return `artist:${item.artistid}`;
+  }
+
+  function musicActionForArtist(artist: MusicLibraryArtistSnapshot): MusicBrowseActionItem | null {
+    return isPositiveInteger(artist.artistid)
+      ? { kind: 'artist', artistid: artist.artistid }
+      : null;
+  }
+
+  function musicActionForAlbum(album: MusicLibraryAlbumSnapshot): MusicBrowseActionItem | null {
+    return isPositiveInteger(album.albumid) ? { kind: 'album', albumid: album.albumid } : null;
+  }
+
+  function musicActionForSong(song: MusicLibrarySongSnapshot): MusicBrowseActionItem | null {
+    return isPositiveInteger(song.songid) ? { kind: 'song', songid: song.songid } : null;
+  }
+
+  function safeEachKey(prefix: string, id: unknown, index: number): string {
+    return isPositiveInteger(id) ? `${prefix}:${id}` : `${prefix}:invalid:${index}`;
   }
 
   function formatStatus(snapshot: MusicBrowseStoreSnapshot): string {
@@ -185,6 +294,10 @@
 
   function numberOrNull(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  }
+
+  function isPositiveInteger(value: unknown): value is number {
+    return typeof value === 'number' && Number.isInteger(value) && value > 0;
   }
 
   function formatDuration(seconds: unknown): string | null {
@@ -320,8 +433,9 @@
         <p class="empty-copy">{topLevelEmptyCopy('artists')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.artists as artist (artist.artistid)}
+          {#each librarySnapshot.artists as artist, index (safeEachKey('artist', artist.artistid, index))}
             {@const label = safeArtistLabel(artist)}
+            {@const actionItem = musicActionForArtist(artist)}
             <li>
               <button
                 type="button"
@@ -336,6 +450,28 @@
                   <span class="item-meta">{joinText(artist.genre)}</span>
                 {/if}
               </button>
+              {#if actionItem}
+                <div class="action-row" aria-label={`Actions for artist ${label}`}>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Play artist ${label}`}
+                    disabled={isActionDisabled(actionItem)}
+                    onclick={() => handleMusicAction('play', actionItem, `artist ${label}`)}
+                  >
+                    Play
+                  </button>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Queue artist ${label}`}
+                    disabled={isActionDisabled(actionItem)}
+                    onclick={() => handleMusicAction('queue', actionItem, `artist ${label}`)}
+                  >
+                    Queue
+                  </button>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -351,8 +487,9 @@
         <p class="empty-copy">{topLevelEmptyCopy('albums')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.albums as album (album.albumid)}
+          {#each librarySnapshot.albums as album, index (safeEachKey('album', album.albumid, index))}
             {@const label = safeAlbumLabel(album)}
+            {@const actionItem = musicActionForAlbum(album)}
             <li>
               <button
                 type="button"
@@ -367,6 +504,28 @@
                   <span class="item-meta">{albumMeta(album)}</span>
                 {/if}
               </button>
+              {#if actionItem}
+                <div class="action-row" aria-label={`Actions for album ${label}`}>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Play album ${label}`}
+                    disabled={isActionDisabled(actionItem)}
+                    onclick={() => handleMusicAction('play', actionItem, `album ${label}`)}
+                  >
+                    Play
+                  </button>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Queue album ${label}`}
+                    disabled={isActionDisabled(actionItem)}
+                    onclick={() => handleMusicAction('queue', actionItem, `album ${label}`)}
+                  >
+                    Queue
+                  </button>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -382,7 +541,7 @@
         <p class="empty-copy">{topLevelEmptyCopy('genres')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.genres as genre (genre.genreid)}
+          {#each librarySnapshot.genres as genre, index (safeEachKey('genre', genre.genreid, index))}
             {@const label = safeGenreLabel(genre)}
             <li>
               <button
@@ -420,6 +579,9 @@
     </div>
 
     <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
+    {#if actionErrorText}
+      <p class="error-copy" role="alert">{actionErrorText}</p>
+    {/if}
 
     {#if !browseSnapshot.selection}
       <p class="state-copy">No browse selection yet.</p>
@@ -450,11 +612,35 @@
             <p class="empty-copy">{albumDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each browseSnapshot.albums as album (album.albumid)}
+              {#each browseSnapshot.albums as album, index (safeEachKey('detail-album', album.albumid, index))}
+                {@const label = safeAlbumLabel(album)}
+                {@const actionItem = musicActionForAlbum(album)}
                 <li class="result-card">
-                  <span class="item-title">{safeAlbumLabel(album)}</span>
+                  <span class="item-title">{label}</span>
                   {#if albumMeta(album)}
                     <span class="item-meta">{albumMeta(album)}</span>
+                  {/if}
+                  {#if actionItem}
+                    <div class="action-row" aria-label={`Actions for album ${label}`}>
+                      <button
+                        type="button"
+                        class="action-button"
+                        aria-label={`Play album ${label}`}
+                        disabled={isActionDisabled(actionItem)}
+                        onclick={() => handleMusicAction('play', actionItem, `album ${label}`)}
+                      >
+                        Play
+                      </button>
+                      <button
+                        type="button"
+                        class="action-button"
+                        aria-label={`Queue album ${label}`}
+                        disabled={isActionDisabled(actionItem)}
+                        onclick={() => handleMusicAction('queue', actionItem, `album ${label}`)}
+                      >
+                        Queue
+                      </button>
+                    </div>
                   {/if}
                 </li>
               {/each}
@@ -473,12 +659,36 @@
             <p class="empty-copy">{songDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each browseSnapshot.songs as song (song.songid)}
+              {#each browseSnapshot.songs as song, index (safeEachKey('song', song.songid, index))}
+                {@const label = safeSongLabel(song)}
+                {@const actionItem = musicActionForSong(song)}
                 <li class="result-card" data-songid={song.songid}>
-                  <span class="item-title">{safeSongLabel(song)}</span>
+                  <span class="item-title">{label}</span>
                   <span class="identity-chip">Song ID {song.songid}</span>
                   {#if songMeta(song)}
                     <span class="item-meta">{songMeta(song)}</span>
+                  {/if}
+                  {#if actionItem}
+                    <div class="action-row" aria-label={`Actions for song ${label}`}>
+                      <button
+                        type="button"
+                        class="action-button"
+                        aria-label={`Play song ${label}`}
+                        disabled={isActionDisabled(actionItem)}
+                        onclick={() => handleMusicAction('play', actionItem, `song ${label}`)}
+                      >
+                        Play
+                      </button>
+                      <button
+                        type="button"
+                        class="action-button"
+                        aria-label={`Queue song ${label}`}
+                        disabled={isActionDisabled(actionItem)}
+                        onclick={() => handleMusicAction('queue', actionItem, `song ${label}`)}
+                      >
+                        Queue
+                      </button>
+                    </div>
                   {/if}
                 </li>
               {/each}
@@ -607,14 +817,21 @@
   }
 
   .choice-list,
-  .result-list {
+  .result-list,
+  .action-row {
     display: grid;
     gap: var(--space-xs);
     padding: 0;
     list-style: none;
   }
 
+  .action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-block-start: var(--space-xs);
+  }
+
   .choice-button,
+  .action-button,
   .clear-button {
     min-height: 2.5rem;
     font: inherit;
@@ -638,6 +855,15 @@
     border-radius: var(--radius-md);
   }
 
+  .action-button {
+    min-height: 2.25rem;
+    padding: var(--space-2xs, 0.25rem) var(--space-sm);
+    font-size: 0.9rem;
+    font-weight: 800;
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+    border-radius: var(--radius-pill);
+  }
+
   .clear-button {
     min-width: 8.5rem;
     padding: var(--space-xs) var(--space-md);
@@ -647,23 +873,27 @@
   }
 
   .choice-button:hover:not(:disabled),
+  .action-button:hover:not(:disabled),
   .clear-button:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
   }
 
   .choice-button:active:not(:disabled),
+  .action-button:active:not(:disabled),
   .clear-button:active:not(:disabled) {
     transform: scale(0.96);
   }
 
   .choice-button:disabled,
+  .action-button:disabled,
   .clear-button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
   }
 
   .choice-button:focus-visible,
+  .action-button:focus-visible,
   .clear-button:focus-visible {
     outline: none;
     box-shadow: var(--shadow-ring);

@@ -2,7 +2,10 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
-import type { MusicBrowsePanelDispatch } from './lib/components/MusicBrowsePanel.svelte';
+import type {
+  MusicBrowseActionDispatch,
+  MusicBrowsePanelDispatch
+} from './lib/components/MusicBrowsePanel.svelte';
 import type { PlayerControlsDispatch } from './lib/components/PlayerControls.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
@@ -32,6 +35,7 @@ type AppProps = {
   musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
   musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
   musicBrowseDispatch?: MusicBrowsePanelDispatch;
+  musicActionDispatch?: MusicBrowseActionDispatch;
 };
 
 function createMusicLibrarySnapshot(
@@ -85,6 +89,16 @@ function createMusicBrowseDispatch(
     browseAlbum: vi.fn(),
     browseGenre: vi.fn(),
     clearSelection: vi.fn(),
+    ...overrides
+  };
+}
+
+function createMusicActionDispatch(
+  overrides: Partial<MusicBrowseActionDispatch> = {}
+): MusicBrowseActionDispatch {
+  return {
+    playMusicItem: vi.fn(),
+    queueMusicItem: vi.fn(),
     ...overrides
   };
 }
@@ -674,7 +688,7 @@ describe('App shell', () => {
     expect(musicPanelText).not.toContain('http://kodi.local');
   });
 
-  it('renders injected Music Browse artist, album, genre, and song identity details without playback actions', () => {
+  it('renders injected Music Browse artist, album, genre, song identity details, and music actions', () => {
     const target = renderApp({
       musicLibrarySnapshot: createMusicLibrarySnapshot({
         isEmpty: false,
@@ -743,8 +757,12 @@ describe('App shell', () => {
     expect(browseText).toContain('Sinnerman');
     expect(browseText).toContain('Song ID 3');
     expect(browsePanel.querySelector('[data-songid="3"]')?.textContent).toContain('Song ID 3');
-    expect(browsePanel.querySelector('button[aria-label="Play Sinnerman"]')).toBeNull();
-    expect(browsePanel.querySelector('button[aria-label="Queue Sinnerman"]')).toBeNull();
+    expect(browsePanel.querySelector('button[aria-label="Play song Sinnerman"]')).toBeInstanceOf(
+      HTMLButtonElement
+    );
+    expect(browsePanel.querySelector('button[aria-label="Queue song Sinnerman"]')).toBeInstanceOf(
+      HTMLButtonElement
+    );
     expect(browseText).not.toContain('Play or pause');
     expect(browseText).not.toContain('Clear queue');
   });
@@ -853,6 +871,127 @@ describe('App shell', () => {
     expect(musicBrowseDispatch.browseGenre).toHaveBeenCalledTimes(1);
     expect(musicBrowseDispatch.browseGenre).toHaveBeenCalledWith({ genreid: 4, label: 'Soul' });
     expect(musicBrowseDispatch.clearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes Music Browse play and queue controls through injected music action dispatch once', async () => {
+    const musicActionDispatch = createMusicActionDispatch();
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'Nina Simone', genre: ['Soul'] }],
+        albums: [{ albumid: 2, label: 'Pastel Blues', title: 'Pastel Blues' }],
+        genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 1, total: 1 }
+        }
+      }),
+      musicBrowseSnapshot: createMusicBrowseSnapshot({
+        refreshStatus: 'ready',
+        lastRefreshReason: 'artist:1',
+        selection: { kind: 'artist', id: 1, label: 'Nina Simone' },
+        albums: [{ albumid: 2, label: 'Pastel Blues', title: 'Pastel Blues' }],
+        songs: [{ songid: 3, label: 'Sinnerman', title: 'Sinnerman' }],
+        limits: {
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false
+      }),
+      musicActionDispatch
+    });
+
+    getButtonByAria(target, 'Play artist Nina Simone').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue artist Nina Simone').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Play album Pastel Blues').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue album Pastel Blues').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Play song Sinnerman').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue song Sinnerman').click();
+    await tick();
+
+    expect(musicActionDispatch.playMusicItem).toHaveBeenCalledTimes(3);
+    expect(musicActionDispatch.playMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      artistid: 1
+    });
+    expect(musicActionDispatch.playMusicItem).toHaveBeenNthCalledWith(2, {
+      kind: 'album',
+      albumid: 2
+    });
+    expect(musicActionDispatch.playMusicItem).toHaveBeenNthCalledWith(3, {
+      kind: 'song',
+      songid: 3
+    });
+    expect(musicActionDispatch.queueMusicItem).toHaveBeenCalledTimes(3);
+    expect(musicActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      artistid: 1
+    });
+    expect(musicActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(2, {
+      kind: 'album',
+      albumid: 2
+    });
+    expect(musicActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(3, {
+      kind: 'song',
+      songid: 3
+    });
+  });
+
+  it('lets App-level injected music action dispatch override production defaults and redacts action failures', async () => {
+    const musicActionDispatch = createMusicActionDispatch({
+      playMusicItem: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac'
+        );
+      })
+    });
+    const target = renderApp({
+      musicLibrarySnapshot: createMusicLibrarySnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'http://admin:p@ssword@example.test/artist' }],
+        albums: [{ albumid: 2, label: 'Pastel Blues', title: 'Pastel Blues' }],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 0, total: 0 }
+        }
+      }),
+      musicActionDispatch
+    });
+
+    getButtonByAria(target, 'Play album Pastel Blues').click();
+    await tick();
+    await tick();
+
+    const browseText = getMusicBrowsePanelText(target);
+    expect(musicActionDispatch.playMusicItem).toHaveBeenCalledTimes(1);
+    expect(musicActionDispatch.playMusicItem).toHaveBeenCalledWith({ kind: 'album', albumid: 2 });
+    expect(browseText).toContain('Could not play album Pastel Blues');
+    expect(browseText).toContain('credentials [redacted]');
+    expect(browseText).toContain('[redacted-url]');
+    expect(browseText).toContain('response body [redacted]');
+    expect(browseText).toContain('browser storage');
+    expect(browseText).toContain('Unknown artist');
+    expect(browseText).not.toContain('admin:p@ssword');
+    expect(browseText).not.toContain('Authorization');
+    expect(browseText).not.toContain('Basic abc123');
+    expect(browseText).not.toContain('localStorage');
+    expect(browseText).not.toContain('raw response body');
+    expect(browseText).not.toContain('http://admin');
+    expect(browseText).not.toContain('smb://');
   });
 
   it('renders default Music Browse idle prompt without a configured Kodi host', () => {

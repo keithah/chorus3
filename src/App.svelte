@@ -4,6 +4,7 @@
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
   import MusicBrowsePanel, {
+    type MusicBrowseActionDispatch,
     type MusicBrowsePanelDispatch
   } from '$components/MusicBrowsePanel.svelte';
   import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
@@ -39,6 +40,7 @@
     musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
     musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
     musicBrowseDispatch?: MusicBrowsePanelDispatch;
+    musicActionDispatch?: MusicBrowseActionDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -46,6 +48,11 @@
     browseAlbum: (album) => musicBrowseStore.browseAlbum(album),
     browseGenre: (genre) => musicBrowseStore.browseGenre(genre),
     clearSelection: () => musicBrowseStore.clearSelection()
+  };
+
+  const defaultMusicActionDispatch: MusicBrowseActionDispatch = {
+    playMusicItem: (item) => defaultPlayerDispatch.playMusicItem(item),
+    queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(item)
   };
 
   let {
@@ -56,7 +63,8 @@
     queueDispatch = defaultQueueDispatch,
     musicLibrarySnapshot,
     musicBrowseSnapshot,
-    musicBrowseDispatch = defaultMusicBrowseDispatch
+    musicBrowseDispatch = defaultMusicBrowseDispatch,
+    musicActionDispatch = defaultMusicActionDispatch
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
@@ -193,6 +201,7 @@
       librarySnapshot={currentMusicLibrarySnapshot}
       browseSnapshot={currentMusicBrowseSnapshot}
       dispatch={musicBrowseDispatch}
+      actionDispatch={musicActionDispatch}
     />
 
     <LocalMediaRuntime />

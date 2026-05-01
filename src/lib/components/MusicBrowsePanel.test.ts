@@ -1,7 +1,10 @@
-import { mount, unmount } from 'svelte';
+import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import MusicBrowsePanel, { type MusicBrowsePanelDispatch } from './MusicBrowsePanel.svelte';
+import MusicBrowsePanel, {
+  type MusicBrowseActionDispatch,
+  type MusicBrowsePanelDispatch
+} from './MusicBrowsePanel.svelte';
 import type { MusicBrowseStoreSnapshot } from '$lib/stores/musicBrowse.svelte';
 import type { MusicLibraryStoreSnapshot } from '$lib/stores/musicLibrary.svelte';
 
@@ -87,23 +90,36 @@ function createDispatch(
   };
 }
 
+function createActionDispatch(
+  overrides: Partial<MusicBrowseActionDispatch> = {}
+): MusicBrowseActionDispatch {
+  return {
+    playMusicItem: vi.fn(),
+    queueMusicItem: vi.fn(),
+    ...overrides
+  };
+}
+
 function renderPanel(
   props: {
     librarySnapshot?: MusicLibraryStoreSnapshot;
     browseSnapshot?: MusicBrowseStoreSnapshot;
     dispatch?: MusicBrowsePanelDispatch;
+    actionDispatch?: MusicBrowseActionDispatch;
   } = {}
-): MusicBrowsePanelDispatch {
+): { dispatch: MusicBrowsePanelDispatch; actionDispatch: MusicBrowseActionDispatch } {
   const dispatch = props.dispatch ?? createDispatch();
+  const actionDispatch = props.actionDispatch ?? createActionDispatch();
   mounted = mount(MusicBrowsePanel, {
     target: document.body,
     props: {
       librarySnapshot: props.librarySnapshot ?? createLibrarySnapshot(),
       browseSnapshot: props.browseSnapshot ?? createBrowseSnapshot(),
-      dispatch
+      dispatch,
+      actionDispatch
     }
   });
-  return dispatch;
+  return { dispatch, actionDispatch };
 }
 
 function screenText(): string {
@@ -159,7 +175,7 @@ describe('MusicBrowsePanel', () => {
   });
 
   it('renders deterministic selection buttons and calls injected browse callbacks once', () => {
-    const dispatch = renderPanel();
+    const { dispatch } = renderPanel();
 
     button('Browse artist Nina Simone').click();
     button('Browse album Pastel Blues').click();
@@ -174,7 +190,7 @@ describe('MusicBrowsePanel', () => {
   });
 
   it('disables browse controls while detail loading is visible', () => {
-    const dispatch = renderPanel({
+    const { dispatch } = renderPanel({
       browseSnapshot: createBrowseSnapshot({
         refreshStatus: 'loading',
         lastRefreshReason: 'artist:1',
@@ -243,7 +259,7 @@ describe('MusicBrowsePanel', () => {
   });
 
   it('renders album detail as songs-only and calls clear selection from ready state', () => {
-    const dispatch = renderPanel({
+    const { dispatch } = renderPanel({
       browseSnapshot: createBrowseSnapshot({
         refreshStatus: 'ready',
         lastRefreshReason: 'album:10',
@@ -354,5 +370,171 @@ describe('MusicBrowsePanel', () => {
     expect(text).toContain('Genre: Unknown genre');
     expect(text).toContain('Safe Song');
     expectSecretSafe(text);
+  });
+
+  it('renders Play and Queue actions for supported top-level artists and albums', async () => {
+    const { actionDispatch } = renderPanel();
+
+    button('Play artist Nina Simone').click();
+    await tick();
+    await tick();
+    button('Queue artist Nina Simone').click();
+    await tick();
+    await tick();
+    button('Play album Pastel Blues').click();
+    await tick();
+    await tick();
+    button('Queue album Pastel Blues').click();
+    await tick();
+
+    expect(actionDispatch.playMusicItem).toHaveBeenCalledTimes(2);
+    expect(actionDispatch.playMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      artistid: 1
+    });
+    expect(actionDispatch.playMusicItem).toHaveBeenNthCalledWith(2, { kind: 'album', albumid: 10 });
+    expect(actionDispatch.queueMusicItem).toHaveBeenCalledTimes(2);
+    expect(actionDispatch.queueMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      artistid: 1
+    });
+    expect(actionDispatch.queueMusicItem).toHaveBeenNthCalledWith(2, {
+      kind: 'album',
+      albumid: 10
+    });
+  });
+
+  it('renders Play and Queue actions for detail albums and songs', async () => {
+    const { actionDispatch } = renderPanel({
+      browseSnapshot: createBrowseSnapshot({
+        refreshStatus: 'ready',
+        selection: { kind: 'artist', id: 1, label: 'Nina Simone' },
+        albums: [{ albumid: 10, label: 'Pastel Blues', title: 'Pastel Blues' }],
+        songs: [{ songid: 3, label: 'Sinnerman', title: 'Sinnerman' }],
+        limits: {
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false
+      })
+    });
+
+    button('Play album Pastel Blues').click();
+    await tick();
+    await tick();
+    button('Queue album Pastel Blues').click();
+    await tick();
+    await tick();
+    button('Play song Sinnerman').click();
+    await tick();
+    await tick();
+    button('Queue song Sinnerman').click();
+    await tick();
+
+    expect(actionDispatch.playMusicItem).toHaveBeenCalledTimes(2);
+    expect(actionDispatch.playMusicItem).toHaveBeenNthCalledWith(1, { kind: 'album', albumid: 10 });
+    expect(actionDispatch.playMusicItem).toHaveBeenNthCalledWith(2, { kind: 'song', songid: 3 });
+    expect(actionDispatch.queueMusicItem).toHaveBeenCalledTimes(2);
+    expect(actionDispatch.queueMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'album',
+      albumid: 10
+    });
+    expect(actionDispatch.queueMusicItem).toHaveBeenNthCalledWith(2, { kind: 'song', songid: 3 });
+  });
+
+  it('disables matching music action buttons while an action is pending and reports status', async () => {
+    let resolveAction: (() => void) | undefined;
+    const actionDispatch = createActionDispatch({
+      playMusicItem: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveAction = resolve;
+          })
+      )
+    });
+
+    renderPanel({ actionDispatch });
+
+    const playArtist = button('Play artist Nina Simone');
+    const queueArtist = button('Queue artist Nina Simone');
+    playArtist.click();
+    await tick();
+
+    expect(playArtist.disabled).toBe(true);
+    expect(queueArtist.disabled).toBe(true);
+    expect(statusText()).toContain('Playing artist Nina Simone…');
+    playArtist.click();
+    expect(actionDispatch.playMusicItem).toHaveBeenCalledTimes(1);
+
+    resolveAction?.();
+    await tick();
+    await tick();
+
+    expect(playArtist.disabled).toBe(false);
+    expect(statusText()).toContain('Played artist Nina Simone.');
+  });
+
+  it('renders sanitized music action rejection copy and re-enables controls', async () => {
+    const actionDispatch = createActionDispatch({
+      queueMusicItem: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac'
+        );
+      })
+    });
+
+    renderPanel({ actionDispatch });
+
+    button('Queue album Pastel Blues').click();
+    await tick();
+    await tick();
+
+    const text = screenText();
+    expect(statusText()).toContain('Could not queue album Pastel Blues');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('[redacted-url]');
+    expect(text).toContain('response body [redacted]');
+    expect(text).toContain('browser storage');
+    expect(button('Queue album Pastel Blues').disabled).toBe(false);
+    expectSecretSafe(text);
+  });
+
+  it('omits music actions for invalid IDs and keeps hostile labels out of action copy', () => {
+    renderPanel({
+      librarySnapshot: createLibrarySnapshot({
+        artists: [
+          { artistid: Number.NaN, label: 'Nina Simone' },
+          { artistid: 0, label: 'smb://secret/share/artist' }
+        ],
+        albums: [{ albumid: -1, label: 'http://admin:p@ssword@example.test/album' }],
+        limits: {
+          artists: { start: 0, end: 2, total: 2 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 0, total: 0 }
+        }
+      }),
+      browseSnapshot: createBrowseSnapshot({
+        refreshStatus: 'ready',
+        selection: { kind: 'artist', id: 1, label: 'Nina Simone' },
+        albums: [{ albumid: Number.POSITIVE_INFINITY, label: 'Pastel Blues' }],
+        songs: [{ songid: 0, label: 'https://example.test/private/song.mp3' }],
+        limits: {
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 }
+        },
+        isEmpty: false
+      })
+    });
+
+    const labels = Array.from(document.querySelectorAll('button')).map(
+      (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
+    );
+    expect(labels.some((label) => label.startsWith('Play '))).toBe(false);
+    expect(labels.some((label) => label.startsWith('Queue '))).toBe(false);
+    expect(screenText()).toContain('Unknown artist');
+    expect(screenText()).toContain('Unknown album');
+    expect(screenText()).toContain('Unknown song');
+    expectSecretSafe(screenText());
   });
 });
