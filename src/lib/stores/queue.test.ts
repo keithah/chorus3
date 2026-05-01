@@ -11,6 +11,7 @@ import {
   type QueueStorePlayerStore,
   type QueueStoreSnapshot
 } from './index';
+import type { QueueDispatch } from './queue.svelte';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -216,7 +217,168 @@ function expectSecretSafe(value: unknown): void {
   expect(serialized).not.toContain('smb://secret');
 }
 
+type QueueDispatchWithMusic = QueueDispatch & {
+  queueMusicItem(item: unknown): Promise<void>;
+};
+
+function asMusicDispatch(dispatch: QueueDispatch): QueueDispatchWithMusic {
+  return dispatch as QueueDispatchWithMusic;
+}
+
 describe('queue dispatch', () => {
+  it('queues music songs, albums, and artists through audio Playlist.Add without active playlist state', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    const musicDispatch = asMusicDispatch(dispatch);
+
+    await musicDispatch.queueMusicItem({ kind: 'song', songid: 42 });
+    await musicDispatch.queueMusicItem({ kind: 'album', albumid: 7 });
+    await musicDispatch.queueMusicItem({ kind: 'artist', artistid: 3 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { albumid: 7 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { artistid: 3 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual([
+      'command:queueMusicItem',
+      'command:queueMusicItem',
+      'command:queueMusicItem'
+    ]);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:queueMusicItem',
+      'command:queueMusicItem',
+      'command:queueMusicItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMusicItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects invalid music queue inputs before calling Kodi or refreshing stores', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const musicDispatch = asMusicDispatch(dispatch);
+    const invalidInputs = [
+      { kind: 'song', songid: Number.NaN },
+      { kind: 'song', songid: Number.POSITIVE_INFINITY },
+      { kind: 'song', songid: 0 },
+      { kind: 'song', songid: -1 },
+      { kind: 'song', songid: 1.5 },
+      { songid: 42, albumid: 7 },
+      {},
+      { movieid: 9 },
+      { kind: 'song', songid: 42, file: 'smb://secret/song.flac' }
+    ];
+
+    for (const input of invalidInputs) {
+      await musicDispatch.queueMusicItem(input);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'queueMusicItem',
+        lastError: { source: 'input', code: 'input/invalid-music-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active clients for music queue commands without refreshing', async () => {
+    const playerStore = new FakePlayerStore();
+    const queueStore = new FakeQueueDispatchStore();
+    const dispatch = createQueueDispatch({
+      playerStore,
+      queueStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await asMusicDispatch(dispatch).queueMusicItem({ kind: 'song', songid: 42 });
+
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMusicItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('sanitizes music queue command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Add',
+      new Error(
+        'add failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://secret/song.flac from localStorage raw body'
+      )
+    );
+
+    await asMusicDispatch(dispatch).queueMusicItem({ kind: 'song', songid: 42 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMusicItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueMusicItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMusicItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('serializes music queue commands and preserves success when refreshes fail', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const pending = deferred<unknown>();
+    client.enqueue('Playlist.Add', pending);
+    client.enqueue('Playlist.Add', 'OK');
+    queueStore.refreshError = new Error('queue refresh failed with smb://secret/song.flac');
+    playerStore.refreshError = new Error('player refresh failed with Authorization: Basic token');
+    const musicDispatch = asMusicDispatch(dispatch);
+
+    const firstCall = musicDispatch.queueMusicItem({ kind: 'song', songid: 42 });
+    await flushPromises();
+    await musicDispatch.queueMusicItem({ kind: 'album', albumid: 7 });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queueMusicItem',
+      lastError: { code: 'command/already-running' }
+    });
+
+    pending.resolve('OK');
+    await firstCall;
+    await musicDispatch.queueMusicItem({ kind: 'artist', artistid: 3 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { artistid: 3 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMusicItem', 'command:queueMusicItem']);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:queueMusicItem',
+      'command:queueMusicItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMusicItem',
+      lastError: null
+    });
+  });
+
   it('starts with inspectable idle command state', () => {
     const { dispatch } = createDispatchHarness();
 

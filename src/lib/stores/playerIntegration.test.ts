@@ -74,7 +74,7 @@ class FakeLocalPlayerStore {
 }
 
 class FakeQueueStore implements QueueDispatchQueueStore {
-  snapshot = {
+  snapshot: QueueDispatchQueueStore['snapshot'] = {
     playlistid: 1,
     items: [
       { position: 0, label: 'First' },
@@ -221,14 +221,15 @@ describe('integrated player loop store contracts', () => {
     expectSecretSafe(queueDispatch.snapshot);
   });
 
-
-
-  it('opens music through PlayerDispatch while detaching Local playback without leaking the local file', async () => {
+  it('opens and queues music through shared dispatch seams without leaking the local file', async () => {
     const client = new FakeKodiClient();
     client.enqueue('Player.Open', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
 
     const playerStore = new FakePlayerStore();
     playerStore.snapshot = createPlayerSnapshot({ activePlayers: [], primaryPlayer: null });
+    const queueStore = new FakeQueueStore();
+    queueStore.snapshot = { playlistid: null, items: [] };
     const localPlayerStore = new FakeLocalPlayerStore();
     localPlayerStore.snapshot = createLocalSnapshot({
       status: 'playing',
@@ -238,7 +239,7 @@ describe('integrated player loop store contracts', () => {
         songid: 42,
         label: 'Special Track',
         file: 'smb://nas/music/special.flac'
-      } as unknown as LocalPlayerStoreSnapshot['item'], 
+      } as unknown as LocalPlayerStoreSnapshot['item'],
       currentSeconds: 120,
       durationSeconds: 500,
       resumeAvailable: true
@@ -251,19 +252,36 @@ describe('integrated player loop store contracts', () => {
       createClient: () => client,
       now: () => '2026-04-29T20:10:00.000Z'
     });
+    const queueDispatch = createQueueDispatch({
+      queueStore,
+      playerStore,
+      createClient: () => client,
+      now: () => '2026-04-29T20:12:00.000Z'
+    });
 
     await playerDispatch.playMusicItem({ kind: 'song', songid: 42 });
+    await queueDispatch.queueMusicItem({ kind: 'song', songid: 42 });
 
     expect(localPlayerStore.stop).toHaveBeenCalledTimes(1);
-    expect(client.calls).toEqual([{ method: 'Player.Open', params: { item: { songid: 42 } } }]);
-    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem']);
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { songid: 42 } } },
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem', 'command:queueMusicItem']);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMusicItem']);
     expect(playerDispatch.snapshot).toMatchObject({
       mode: 'kodi',
       commandStatus: 'success',
       lastCommand: 'playMusicItem',
       lastError: null
     });
+    expect(queueDispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMusicItem',
+      lastError: null
+    });
     expectSecretSafe(playerDispatch.snapshot);
+    expectSecretSafe(queueDispatch.snapshot);
   });
 
   it('keeps failure snapshots safe across local preparation, scrobble, and queue commands', async () => {

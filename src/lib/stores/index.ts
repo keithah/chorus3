@@ -63,6 +63,7 @@ export {
   type QueueDispatchSafeErrorSnapshot,
   type QueueDispatchSnapshot,
   type QueueErrorSource,
+  type MusicQueueItem,
   type QueueItemSnapshot,
   type QueueLimitsSnapshot,
   type QueueRefreshReason,

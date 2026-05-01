@@ -1,5 +1,6 @@
 import {
   KodiHttpClientError,
+  addMusicPlaylistItem,
   clearPlaylist,
   getPlaylistItems,
   isKodiHttpClientError,
@@ -7,6 +8,7 @@ import {
   swapPlaylistItems,
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
+  type KodiMusicLibraryItem,
   type KodiNotification,
   type PlaylistItemPropertyName
 } from '$lib/kodi';
@@ -16,8 +18,13 @@ import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte';
 
 export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
-export type QueueCommandName = 'removeAt' | 'clear' | 'swap';
+export type QueueCommandName = 'removeAt' | 'clear' | 'swap' | 'queueMusicItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
+
+export type MusicQueueItem =
+  | { kind?: 'song'; songid: number; albumid?: never; artistid?: never; file?: never }
+  | { kind?: 'album'; albumid: number; songid?: never; artistid?: never; file?: never }
+  | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
 
 export interface QueueDispatchSafeErrorSnapshot {
   source: QueueDispatchErrorSource;
@@ -456,6 +463,60 @@ export class QueueDispatch {
     });
   }
 
+  queueMusicItem(item: MusicQueueItem): Promise<void> {
+    return this.#runMusicQueueCommand(item);
+  }
+
+  async #runMusicQueueCommand(item: MusicQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queueMusicItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queueMusicItem');
+
+    const musicItemResult = normalizeMusicQueueItem(item);
+    if (!musicItemResult.ok) {
+      this.#failCommand('queueMusicItem', musicItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queueMusicItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addMusicPlaylistItem(clientResult.client, musicItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queueMusicItem');
+
+    if (commandError) {
+      this.#failCommand('queueMusicItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queueMusicItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
   async #runCommand(input: {
     command: QueueCommandName;
     validate?: (state: {
@@ -613,6 +674,49 @@ function validateQueuePosition(
         'input/invalid-position',
         'Choose a valid queue position from the current playlist.'
       );
+}
+
+function normalizeMusicQueueItem(
+  item: unknown
+): { ok: true; item: KodiMusicLibraryItem } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidMusicItemError() };
+  }
+
+  const idKeys = ['songid', 'albumid', 'artistid'].filter((key) =>
+    Object.prototype.hasOwnProperty.call(item, key)
+  );
+
+  if (idKeys.length !== 1 || Object.prototype.hasOwnProperty.call(item, 'file')) {
+    return { ok: false, error: createInvalidMusicItemError() };
+  }
+
+  const idKey = idKeys[0];
+  const idValue = item[idKey];
+  if (!isPositiveInteger(idValue)) {
+    return { ok: false, error: createInvalidMusicItemError() };
+  }
+
+  if (idKey === 'songid') {
+    return { ok: true, item: { songid: idValue } };
+  }
+
+  if (idKey === 'albumid') {
+    return { ok: true, item: { albumid: idValue } };
+  }
+
+  return { ok: true, item: { artistid: idValue } };
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && typeof value === 'number' && value > 0;
+}
+
+function createInvalidMusicItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-music-item',
+    'Choose a valid song, album, or artist to add to the queue.'
+  );
 }
 
 function createQueueInputError(code: string, message: string): QueueDispatchSafeErrorSnapshot {
