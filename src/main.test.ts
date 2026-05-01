@@ -91,16 +91,19 @@ describe('main entrypoint', () => {
   });
 
   it('mounts populated M004 browser-proof fixtures for direct video grid and detail routes in test mode', async () => {
-    setPathAndSearch('/video/movies', '?m004-browser-proof=1');
+    setPathAndSearch('/video/movies/4401', '?m004-browser-proof=1');
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Video Movies');
     expect(document.body.textContent).toContain('Neon Harbor');
-    expect(document.body.textContent).toContain('Quiet Signal');
-    expect(document.body.textContent).toContain('2 of 2 movies');
-    expect(document.body.textContent).toContain('Resume available');
-    expect(document.body.textContent).not.toContain('Kodi host settings');
+    expect(document.body.textContent).toContain(
+      'A courier crosses a rain-lit city to protect a copied memory.'
+    );
+    expect(document.body.textContent).toContain('Science Fiction, Thriller');
+    expect(document.body.textContent).toContain('2 versions available');
+    expect(document.body.textContent).toContain('Play');
+    expect(document.body.textContent).toContain('Resume');
+    expect(document.body.textContent).toContain('Queue');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -110,6 +113,7 @@ describe('main entrypoint', () => {
 
     expect(document.body.textContent).toContain('Quiet Signal');
     expect(document.body.textContent).toContain('Movie ID 4402');
+    expect(document.body.textContent).toContain('Movie versions unsupported');
     expect(document.body.textContent).toContain('Back to movies');
   });
 

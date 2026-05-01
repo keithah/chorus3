@@ -74,6 +74,7 @@ type AppProps = {
   mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
   route?: VideoRoute;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
+  videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
   videoMovieActionDispatch?: VideoMovieActionDispatch;
 };
 
@@ -848,6 +849,64 @@ describe('App shell', () => {
     expect(videoMovieActionDispatch.queueMovieItem).toHaveBeenCalledWith({ movieid: 4401 });
     expect(playMovieItem).not.toHaveBeenCalled();
     expect(queueMovieItem).not.toHaveBeenCalled();
+  });
+
+  it('renders fixture-style rich movie detail props through the real App route shape', async () => {
+    const videoMovieActionDispatch = createMovieActionDispatch();
+    const target = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4401 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot(),
+      videoMovieDetailSnapshot: {
+        refreshStatus: 'ready',
+        lastRefreshReason: 'manual',
+        lastUpdatedAt: '2026-05-01T07:00:00.000Z',
+        selectedMovieId: 4401,
+        detail: {
+          movieid: 4401,
+          label: 'Neon Harbor',
+          title: 'Neon Harbor',
+          year: 2024,
+          runtime: 6420,
+          plot: 'A courier crosses a rain-lit city to protect a copied memory.',
+          tagline: 'One night can rewrite a city.',
+          genre: ['Science Fiction', 'Thriller'],
+          director: ['Mara Voss'],
+          studio: ['Signal House'],
+          rating: 7.8,
+          userrating: 8,
+          thumbnailAvailable: true,
+          fanartAvailable: true,
+          artwork: { poster: true, fanart: true },
+          playcount: 1,
+          watched: true,
+          resume: { position: 0, total: 6420 },
+          versions: {
+            status: 'ready',
+            selectedId: 2,
+            items: [
+              { id: 1, label: 'Theatrical cut' },
+              { id: 2, label: 'Director commentary cut' }
+            ]
+          }
+        },
+        lastError: null
+      },
+      videoMovieActionDispatch
+    });
+
+    const detailText = getVideoDetailPanelText(target);
+
+    expect(detailText).toContain('Neon Harbor');
+    expect(detailText).toContain('A courier crosses a rain-lit city to protect a copied memory.');
+    expect(detailText).toContain('One night can rewrite a city.');
+    expect(detailText).toContain('Science Fiction, Thriller');
+    expect(detailText).toContain('Poster artwork available');
+    expect(detailText).toContain('2 versions available');
+    expect(target.querySelector('#video-movie-version')).toBeInstanceOf(HTMLSelectElement);
+    getButtonByAria(target, 'Play movie Neon Harbor').click();
+    await tick();
+    await tick();
+    expect(videoMovieActionDispatch.playMovieItem).toHaveBeenCalledWith({ movieid: 4401 });
   });
 
   it('renders unknown video routes as sanitized in-app not found UI with a movies link', () => {

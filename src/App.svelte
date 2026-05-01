@@ -59,6 +59,7 @@
     videoLibraryStore,
     type VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -88,6 +89,7 @@
     mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
     route?: VideoRoute;
     videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
+    videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoNavigationDispatch?: VideoNavigationDispatch;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
   }
@@ -166,6 +168,7 @@
     mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch,
     route = { kind: 'dashboard' },
     videoLibrarySnapshot,
+    videoMovieDetailSnapshot,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch
   }: Props = $props();
   const currentRoute = $derived(route);
@@ -424,6 +427,7 @@
       <VideoMovieDetailShell
         snapshot={currentVideoLibrarySnapshot}
         route={currentRoute}
+        detailSnapshot={videoMovieDetailSnapshot}
         actionDispatch={videoMovieActionDispatch}
       />
     </main>

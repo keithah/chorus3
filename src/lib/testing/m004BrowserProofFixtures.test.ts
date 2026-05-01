@@ -64,6 +64,77 @@ describe('createM004BrowserProofAppProps', () => {
     ).toBe(true);
   });
 
+  test('creates rich safe S02 movie detail fixture props for Neon Harbor', () => {
+    const props = createM004BrowserProofAppProps({
+      pathname: '/video/movies/4401',
+      search: '?m004-browser-proof=1'
+    });
+
+    expect(props.route).toEqual({ kind: 'videoMovieDetail', movieid: 4401 });
+    expect(props.videoMovieDetailSnapshot.refreshStatus).toBe('ready');
+    expect(props.videoMovieDetailSnapshot.lastRefreshReason).toBe('manual');
+    expect(props.videoMovieDetailSnapshot.selectedMovieId).toBe(4401);
+    expect(props.videoMovieDetailSnapshot.detail).toMatchObject({
+      movieid: 4401,
+      label: 'Neon Harbor',
+      title: 'Neon Harbor',
+      year: 2024,
+      runtime: 6420,
+      watched: true,
+      plot: 'A courier crosses a rain-lit city to protect a copied memory.',
+      tagline: 'One night can rewrite a city.',
+      genre: ['Science Fiction', 'Thriller'],
+      director: ['Mara Voss'],
+      studio: ['Signal House'],
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: { poster: true, fanart: true },
+      versions: {
+        status: 'ready',
+        selectedId: 2,
+        items: [
+          { id: 1, label: 'Theatrical cut' },
+          { id: 2, label: 'Director commentary cut' }
+        ]
+      }
+    });
+  });
+
+  test('creates honest unsupported detail fixture props for the second movie', () => {
+    const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4402' });
+
+    expect(props.videoMovieDetailSnapshot.selectedMovieId).toBe(4402);
+    expect(props.videoMovieDetailSnapshot.detail).toMatchObject({
+      movieid: 4402,
+      label: 'Quiet Signal',
+      watched: false,
+      versions: {
+        status: 'unsupported',
+        reason: 'Kodi movie versions are not available through the proven detail fixture.'
+      }
+    });
+  });
+
+  test('uses inert movie action dispatch behavior without unsafe side effects', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
+    const props = createM004BrowserProofAppProps({ pathname: '/video/movies/4401' });
+
+    await expect(
+      props.videoMovieActionDispatch.playMovieItem({ movieid: 4401 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoMovieActionDispatch.resumeMovieItem({ movieid: 4401 })
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoMovieActionDispatch.queueMovieItem({ movieid: 4401 })
+    ).resolves.toBeUndefined();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoMovieActionDispatch)).toBe(true);
+  });
+
   test('creates safe direct detail and unknown route variants from location input', () => {
     expect(createM004BrowserProofAppProps({ pathname: '/video/movies/4402' }).route).toEqual({
       kind: 'videoMovieDetail',
