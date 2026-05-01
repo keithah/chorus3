@@ -48,6 +48,8 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
     expect(document.body.textContent).not.toContain('Neon Harbor');
     expect(document.body.textContent).not.toContain('Quiet Signal');
+    expect(document.body.textContent).not.toContain('Signal Mirror');
+    expect(document.body.textContent).not.toContain('Rain City Thrillers.xsp');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -63,6 +65,8 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
     expect(document.body.textContent).not.toContain('Neon Harbor');
     expect(document.body.textContent).not.toContain('Quiet Signal');
+    expect(document.body.textContent).not.toContain('Signal Mirror');
+    expect(document.body.textContent).not.toContain('Rain City Thrillers.xsp');
   });
 
   it('mounts populated M003 browser-proof fixtures in test mode when explicitly requested', async () => {
@@ -88,6 +92,25 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('cover.jpg');
     expect(document.body.textContent).toContain('Late Night Jazz.xsp');
     expect(document.body.textContent).toContain('Road Trip.m3u');
+  });
+
+  it('mounts populated M004 browser-proof fixtures for direct video grid recent sections and playlists', async () => {
+    setPathAndSearch('/video/movies', '?m004-browser-proof=1');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Video Movies');
+    expect(document.body.textContent).toContain('Recent Video');
+    expect(document.body.textContent).toContain('Recently added movies');
+    expect(document.body.textContent).toContain('Recently played episodes');
+    expect(document.body.textContent).toContain('Signal Mirror');
+    expect(document.body.textContent).toContain('Cold Open');
+    expect(document.body.textContent).toContain('Video playlists');
+    expect(document.body.textContent).toContain('Rain City Thrillers.xsp');
+    expect(document.body.textContent).toContain('Video item is browse-only in this view');
+    expect(document.body.textContent).not.toContain('smb://');
+    expect(document.body.textContent).not.toContain('Authorization');
+    expect(document.body.textContent).not.toContain('localStorage');
   });
 
   it('mounts populated M004 browser-proof fixtures for direct video grid and detail routes in test mode', async () => {
@@ -126,6 +149,8 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('TV Shows');
     expect(document.body.textContent).toContain('Aurora Files');
     expect(document.body.textContent).toContain('3 unwatched episodes');
+    expect(document.body.textContent).toContain('Recent Video');
+    expect(document.body.textContent).toContain('Video playlists');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';

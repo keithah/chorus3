@@ -48,6 +48,32 @@ describe('createM004BrowserProofAppProps', () => {
     const labels = props.videoLibrarySnapshot.movies.map((movie) => movie.label);
     expect(labels).toContain('Neon Harbor');
     expect(labels).toContain('Quiet Signal');
+    expect(props.videoLibrarySnapshot.recentlyAddedMovies.map((movie) => movie.label)).toContain(
+      'Neon Harbor'
+    );
+    expect(props.videoLibrarySnapshot.recentlyPlayedMovies.map((movie) => movie.label)).toContain(
+      'Quiet Signal'
+    );
+    expect(
+      props.videoLibrarySnapshot.recentlyAddedEpisodes.map((episode) => episode.label)
+    ).toContain('Signal Mirror');
+    expect(
+      props.videoLibrarySnapshot.recentlyPlayedEpisodes.map((episode) => episode.label)
+    ).toContain('Cold Open');
+    expect(props.videoLibrarySnapshot.limits.recentlyAddedMovies.total).toBe(2);
+    expect(props.videoLibrarySnapshot.limits.recentlyAddedEpisodes.total).toBe(2);
+    expect(props.videoMediaPlaylistsSnapshot.media).toBe('video');
+    expect(props.videoMediaPlaylistsSnapshot.playlists.map((playlist) => playlist.label)).toContain(
+      'Rain City Thrillers.xsp'
+    );
+    expect(props.videoMediaPlaylistsSnapshot.playlists[0]?.capabilities).toMatchObject({
+      canBrowse: true,
+      canPlay: false,
+      canQueue: false
+    });
+    expect(props.videoMediaPlaylistsSnapshot.entries.map((entry) => entry.mediaKind)).toContain(
+      'video'
+    );
     expect(
       props.videoLibrarySnapshot.movies.some(
         (movie) => movie.watched === true || (movie.playcount ?? 0) > 0
@@ -62,6 +88,44 @@ describe('createM004BrowserProofAppProps', () => {
           typeof (movie as typeof movie & { versionCount?: unknown }).versionCount === 'number'
       )
     ).toBe(true);
+  });
+
+  test('uses inert video playlist dispatch behavior without playable side effects', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
+    const props = createM004BrowserProofAppProps({ pathname: '/video/movies' });
+
+    await expect(props.videoMediaPlaylistsDispatch.refresh()).resolves.toBeUndefined();
+    await expect(
+      props.videoMediaPlaylistsDispatch.openPlaylist('video-playlist:thrillers')
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoMediaPlaylistsDispatch.openBreadcrumb('video-playlist:thrillers')
+    ).resolves.toBeUndefined();
+    await expect(
+      props.videoMediaPlaylistsActionDispatch.playPlaylistItem({
+        id: 'video-playlist:thrillers',
+        label: 'Rain City Thrillers.xsp',
+        media: 'video',
+        kind: 'smart',
+        capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+      })
+    ).rejects.toThrow('Video playlist actions are disabled.');
+    await expect(
+      props.videoMediaPlaylistsActionDispatch.queuePlaylistItem({
+        id: 'video-playlist:thrillers',
+        label: 'Rain City Thrillers.xsp',
+        media: 'video',
+        kind: 'smart',
+        capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+      })
+    ).rejects.toThrow('Video playlist actions are disabled.');
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoMediaPlaylistsSnapshot)).toBe(true);
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoMediaPlaylistsDispatch)).toBe(true);
+    expect(isM004BrowserProofFixtureSecretSafe(props.videoMediaPlaylistsActionDispatch)).toBe(true);
   });
 
   test('creates rich safe S02 movie detail fixture props for Neon Harbor', () => {

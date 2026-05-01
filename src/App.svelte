@@ -28,6 +28,7 @@
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
+  import VideoRecentPanel from '$components/VideoRecentPanel.svelte';
   import VideoMovieDetailShell, {
     type VideoMovieActionDispatch
   } from '$components/VideoMovieDetailShell.svelte';
@@ -52,6 +53,7 @@
     localPlayerStore,
     mediaFilesStore,
     mediaPlaylistsStore,
+    videoMediaPlaylistsStore,
     mediaSearchStore,
     musicBrowseStore,
     musicLibraryStore,
@@ -109,6 +111,9 @@
     mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
     mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
+    videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
+    videoMediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
+    videoMediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
     route?: VideoRoute;
     videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
@@ -165,6 +170,21 @@
     playPlaylistItem: (item) =>
       defaultPlayerDispatch.playPlaylistItem(toPlaylistPlaybackItem(item)),
     queuePlaylistItem: (item) => defaultQueueDispatch.queuePlaylistItem(toPlaylistQueueItem(item))
+  };
+
+  const defaultVideoMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch = {
+    refresh: () => videoMediaPlaylistsStore.refreshPlaylists(),
+    openPlaylist: (id) => videoMediaPlaylistsStore.openPlaylist(id),
+    openBreadcrumb: (id) => videoMediaPlaylistsStore.openPlaylist(id)
+  };
+
+  const defaultVideoMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch = {
+    playPlaylistItem: async () => {
+      throw new Error('Video playlist actions are disabled.');
+    },
+    queuePlaylistItem: async () => {
+      throw new Error('Video playlist actions are disabled.');
+    }
   };
 
   const defaultVideoMovieActionDispatch: VideoMovieActionDispatch = {
@@ -236,6 +256,9 @@
     mediaPlaylistsSnapshot,
     mediaPlaylistsDispatch = defaultMediaPlaylistsDispatch,
     mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch,
+    videoMediaPlaylistsSnapshot,
+    videoMediaPlaylistsDispatch = defaultVideoMediaPlaylistsDispatch,
+    videoMediaPlaylistsActionDispatch = defaultVideoMediaPlaylistsActionDispatch,
     route = { kind: 'dashboard' },
     videoLibrarySnapshot,
     videoMovieDetailSnapshot,
@@ -256,6 +279,9 @@
   const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
   const currentMediaPlaylistsSnapshot = $derived(
     mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
+  );
+  const currentVideoMediaPlaylistsSnapshot = $derived(
+    videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
@@ -563,6 +589,12 @@
   {:else if isVideoMoviesRoute}
     <main class="video-route" aria-label="Video movies route">
       <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
+      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
+      <MediaPlaylistsPanel
+        snapshot={currentVideoMediaPlaylistsSnapshot}
+        dispatch={videoMediaPlaylistsDispatch}
+        actionDispatch={videoMediaPlaylistsActionDispatch}
+      />
     </main>
   {:else if isVideoMovieDetailRoute}
     <main class="video-route" aria-label="Video movie detail route">
@@ -587,6 +619,12 @@
   {:else if isVideoTvShowsRoute}
     <main class="video-route" aria-label="Video TV shows route">
       <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
+      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
+      <MediaPlaylistsPanel
+        snapshot={currentVideoMediaPlaylistsSnapshot}
+        dispatch={videoMediaPlaylistsDispatch}
+        actionDispatch={videoMediaPlaylistsActionDispatch}
+      />
     </main>
   {:else if isVideoTvShowDetailRoute}
     <main class="video-route" aria-label="Video TV show detail route">

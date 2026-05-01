@@ -12,6 +12,11 @@ import type {
   VideoSeasonArtworkDispatch,
   VideoSeasonWriteDispatch
 } from '$lib/components/VideoSeasonDetailShell.svelte';
+import type {
+  MediaPlaylistsActionDispatch,
+  MediaPlaylistsPanelDispatch
+} from '$lib/components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsStoreSnapshot } from '$lib/stores/mediaPlaylists.svelte';
 import { parseVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
 export interface M004BrowserProofLocation {
@@ -37,6 +42,9 @@ export interface M004BrowserProofAppProps {
   videoEpisodeActionDispatch: VideoEpisodeActionDispatch;
   videoSeasonArtworkDispatch: VideoSeasonArtworkDispatch;
   videoSeasonWriteDispatch: VideoSeasonWriteDispatch;
+  videoMediaPlaylistsSnapshot: MediaPlaylistsStoreSnapshot;
+  videoMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch;
+  videoMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch;
 }
 
 export const M004_BROWSER_PROOF_FORBIDDEN_TEXT = [
@@ -75,7 +83,10 @@ export function createM004BrowserProofAppProps(
     videoMovieStreamActionDispatch: createVideoMovieStreamActionDispatch(),
     videoEpisodeActionDispatch: createVideoEpisodeActionDispatch(),
     videoSeasonArtworkDispatch: createVideoSeasonArtworkDispatch(),
-    videoSeasonWriteDispatch: createVideoSeasonWriteDispatch()
+    videoSeasonWriteDispatch: createVideoSeasonWriteDispatch(),
+    videoMediaPlaylistsSnapshot: createVideoMediaPlaylistsSnapshot(),
+    videoMediaPlaylistsDispatch: createVideoMediaPlaylistsDispatch(),
+    videoMediaPlaylistsActionDispatch: createVideoMediaPlaylistsActionDispatch()
   };
 }
 
@@ -121,17 +132,17 @@ function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
     lastUpdatedAt: readyAt,
     movies,
     tvShows,
-    recentlyAddedMovies: [],
-    recentlyPlayedMovies: [],
-    recentlyAddedEpisodes: [],
-    recentlyPlayedEpisodes: [],
+    recentlyAddedMovies: [movies[0], movies[1]],
+    recentlyPlayedMovies: [movies[1], movies[0]],
+    recentlyAddedEpisodes: createAuroraFilesEpisodes(),
+    recentlyPlayedEpisodes: [...createAuroraFilesEpisodes()].reverse(),
     limits: {
       movies: { start: 0, end: movies.length, total: movies.length },
       tvShows: { start: 0, end: tvShows.length, total: tvShows.length },
-      recentlyAddedMovies: { start: 0, end: 0, total: 0 },
-      recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
-      recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
-      recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 }
+      recentlyAddedMovies: { start: 0, end: 2, total: 2 },
+      recentlyPlayedMovies: { start: 0, end: 2, total: 2 },
+      recentlyAddedEpisodes: { start: 0, end: 2, total: 2 },
+      recentlyPlayedEpisodes: { start: 0, end: 2, total: 2 }
     },
     isEmpty: false,
     lastError: null
@@ -424,6 +435,71 @@ function createLocalPlayerSnapshot(route: VideoRoute): LocalPlayerStoreSnapshot 
     kodiPausedForLocal: movieid === 4401,
     resumeAvailable: movieid === 4401,
     lastUpdatedAt: movieid === 4401 ? readyAt : null
+  };
+}
+
+function createVideoMediaPlaylistsSnapshot(): MediaPlaylistsStoreSnapshot {
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'playlist:video-playlist:thrillers',
+    lastUpdatedAt: readyAt,
+    media: 'video',
+    playlists: [
+      {
+        id: 'video-playlist:thrillers',
+        label: 'Rain City Thrillers.xsp',
+        media: 'video',
+        kind: 'smart',
+        extension: 'xsp',
+        capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+      },
+      {
+        id: 'video-playlist:slow-cinema',
+        label: 'Quiet Valley Watchlist.xsp',
+        media: 'video',
+        kind: 'smart',
+        extension: 'xsp',
+        capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+      }
+    ],
+    entries: [
+      {
+        id: 'video-entry:neon-harbor',
+        label: 'Neon Harbor.mkv',
+        mediaKind: 'video',
+        extension: 'mkv',
+        capabilities: { canPlay: false, canQueue: false }
+      },
+      {
+        id: 'video-entry:signal-mirror',
+        label: 'Signal Mirror.mkv',
+        mediaKind: 'video',
+        extension: 'mkv',
+        capabilities: { canPlay: false, canQueue: false }
+      }
+    ],
+    breadcrumbs: [{ id: 'video-playlist:thrillers', label: 'Rain City Thrillers.xsp' }],
+    isEmpty: false,
+    lastError: null
+  };
+}
+
+function createVideoMediaPlaylistsDispatch(): MediaPlaylistsPanelDispatch {
+  return {
+    refresh: noop,
+    openPlaylist: noop,
+    openBreadcrumb: noop
+  };
+}
+
+function createVideoMediaPlaylistsActionDispatch(): MediaPlaylistsActionDispatch {
+  return {
+    playPlaylistItem: async () => {
+      throw new Error('Video playlist actions are disabled.');
+    },
+    queuePlaylistItem: async () => {
+      throw new Error('Video playlist actions are disabled.');
+    }
   };
 }
 

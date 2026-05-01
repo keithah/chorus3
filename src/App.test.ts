@@ -37,6 +37,7 @@ import {
   hostConnectionStore,
   localPlayerStore,
   mediaPlaylistsStore,
+  videoMediaPlaylistsStore,
   playerDispatch as defaultPlayerDispatch,
   queueDispatch as defaultQueueDispatch,
   videoLibraryStore,
@@ -83,6 +84,9 @@ type AppProps = {
   mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
   mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
   mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
+  videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
+  videoMediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
+  videoMediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
   route?: VideoRoute;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
   videoMovieDetailSnapshot?: import('./lib/stores/videoMovieDetailStore.svelte').VideoMovieDetailStoreSnapshot;
@@ -329,6 +333,46 @@ function createMediaPlaylistsSnapshot(
     lastRefreshReason: 'playlist:playlist:1',
     lastUpdatedAt: '2026-04-30T16:00:00.000Z',
     media: 'music',
+    playlists,
+    entries,
+    breadcrumbs,
+    isEmpty: false,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createVideoMediaPlaylistsSnapshot(
+  overrides: Partial<MediaPlaylistsStoreSnapshot> = {}
+): MediaPlaylistsStoreSnapshot {
+  const playlists: MediaPlaylistSnapshot[] = [
+    {
+      id: 'video-playlist:1',
+      label: 'Rain City Thrillers.xsp',
+      media: 'video',
+      kind: 'smart',
+      extension: 'xsp',
+      capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+    }
+  ];
+  const entries: MediaPlaylistEntrySnapshot[] = [
+    {
+      id: 'video-entry:1',
+      label: 'Neon Harbor.mkv',
+      mediaKind: 'video',
+      extension: 'mkv',
+      capabilities: { canPlay: false, canQueue: false }
+    }
+  ];
+  const breadcrumbs: MediaPlaylistsBreadcrumbSnapshot[] = [
+    { id: 'video-playlist:1', label: 'Rain City Thrillers.xsp' }
+  ];
+
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'playlist:video-playlist:1',
+    lastUpdatedAt: '2026-05-01T08:00:00.000Z',
+    media: 'video',
     playlists,
     entries,
     breadcrumbs,
@@ -642,6 +686,20 @@ function getMediaPlaylistsPanel(target: HTMLElement): HTMLElement {
 
 function getMediaPlaylistsPanelText(target: HTMLElement): string {
   return getMediaPlaylistsPanel(target).textContent ?? '';
+}
+
+function getVideoRecentPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.video-recent-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getVideoRecentPanelText(target: HTMLElement): string {
+  return getVideoRecentPanel(target).textContent ?? '';
+}
+
+function getAllMediaPlaylistsPanels(target: HTMLElement): HTMLElement[] {
+  return Array.from(target.querySelectorAll<HTMLElement>('.media-playlists-panel'));
 }
 
 function getMediaFilesPanel(target: HTMLElement): HTMLElement {
@@ -1427,6 +1485,165 @@ describe('App shell', () => {
       true
     );
     expect(markEpisodesWatched).not.toHaveBeenCalled();
+  });
+
+  it('renders recent video sections and browse-only video playlists on video routes from injected snapshots', async () => {
+    const videoMediaPlaylistsDispatch = createMediaPlaylistsDispatch();
+    const videoMediaPlaylistsActionDispatch = createMediaPlaylistsActionDispatch();
+    const videoLibrarySnapshot = createVideoLibrarySnapshot({
+      recentlyAddedMovies: [
+        {
+          movieid: 4401,
+          label: 'Neon Harbor',
+          title: 'Neon Harbor',
+          dateadded: '2026-04-28 10:00:00',
+          watched: true,
+          playcount: 1,
+          art: { poster: 'poster:neon-harbor', fanart: 'fanart:neon-harbor' }
+        }
+      ],
+      recentlyPlayedMovies: [
+        {
+          movieid: 4402,
+          label: 'Quiet Signal',
+          title: 'Quiet Signal',
+          lastplayed: '2026-04-30 21:15:00',
+          resume: { position: 1275, total: 5940 }
+        }
+      ],
+      recentlyAddedEpisodes: [
+        {
+          episodeid: 6601,
+          tvshowid: 5501,
+          season: 1,
+          episode: 1,
+          label: 'Signal Mirror',
+          title: 'Signal Mirror',
+          showtitle: 'Aurora Files',
+          dateadded: '2026-04-30 11:00:00'
+        }
+      ],
+      recentlyPlayedEpisodes: [
+        {
+          episodeid: 6602,
+          label: 'Cold Open',
+          showtitle: 'Aurora Files',
+          lastplayed: '2026-04-29 20:00:00',
+          watched: true
+        }
+      ],
+      limits: {
+        recentlyAddedMovies: { start: 0, end: 1, total: 1 },
+        recentlyPlayedMovies: { start: 0, end: 1, total: 1 },
+        recentlyAddedEpisodes: { start: 0, end: 1, total: 1 },
+        recentlyPlayedEpisodes: { start: 0, end: 1, total: 1 }
+      }
+    });
+    const target = renderApp({
+      route: { kind: 'videoMovies' },
+      videoLibrarySnapshot,
+      videoMediaPlaylistsSnapshot: createVideoMediaPlaylistsSnapshot(),
+      videoMediaPlaylistsDispatch,
+      videoMediaPlaylistsActionDispatch
+    });
+
+    const recentText = getVideoRecentPanelText(target);
+    const playlistsText = getAllMediaPlaylistsPanels(target).at(-1)?.textContent ?? '';
+
+    expect(recentText).toContain('Recently added movies');
+    expect(recentText).toContain('Recently played movies');
+    expect(recentText).toContain('Recently added episodes');
+    expect(recentText).toContain('Recently played episodes');
+    expect(recentText).toContain('Neon Harbor');
+    expect(recentText).toContain('Quiet Signal');
+    expect(recentText).toContain('Signal Mirror');
+    expect(recentText).toContain('Cold Open');
+    expect(getVideoLink(target, 'Signal Mirror').getAttribute('href')).toBe(
+      '/video/tv/5501/seasons/1/episodes/6601'
+    );
+    expect(
+      Array.from(target.querySelectorAll<HTMLAnchorElement>('a')).find(
+        (link) => link.textContent?.trim() === 'Cold Open'
+      )
+    ).toBeUndefined();
+    expect(playlistsText).toContain('Video playlists');
+    expect(playlistsText).toContain('Rain City Thrillers.xsp');
+    expect(playlistsText).toContain('Video item is browse-only in this view');
+    expect(playlistsText).not.toContain('Play playlist Rain City Thrillers.xsp');
+    expect(playlistsText).not.toContain('Queue playlist Rain City Thrillers.xsp');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('Authorization');
+
+    getButtonByAria(target, 'Refresh media playlists').click();
+    await tick();
+    getButtonByAria(target, 'Open playlist Rain City Thrillers.xsp').click();
+    await tick();
+
+    expect(videoMediaPlaylistsDispatch.refresh).toHaveBeenCalledTimes(1);
+    expect(videoMediaPlaylistsDispatch.openPlaylist).toHaveBeenCalledWith('video-playlist:1');
+    expect(videoMediaPlaylistsActionDispatch.playPlaylistItem).not.toHaveBeenCalled();
+    expect(videoMediaPlaylistsActionDispatch.queuePlaylistItem).not.toHaveBeenCalled();
+  });
+
+  it('routes default video playlist browsing through the video playlist singleton only', async () => {
+    const refreshVideoPlaylists = vi
+      .spyOn(videoMediaPlaylistsStore, 'refreshPlaylists')
+      .mockResolvedValue();
+    const openVideoPlaylist = vi
+      .spyOn(videoMediaPlaylistsStore, 'openPlaylist')
+      .mockResolvedValue();
+    const refreshMusicPlaylists = vi.spyOn(mediaPlaylistsStore, 'refreshPlaylists');
+    const openMusicPlaylist = vi.spyOn(mediaPlaylistsStore, 'openPlaylist');
+    const target = renderApp({
+      route: { kind: 'videoTvShows' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot(),
+      videoMediaPlaylistsSnapshot: createVideoMediaPlaylistsSnapshot()
+    });
+
+    getButtonByAria(target, 'Refresh media playlists').click();
+    await tick();
+    getButtonByAria(target, 'Open playlist Rain City Thrillers.xsp').click();
+    await tick();
+
+    expect(refreshVideoPlaylists).toHaveBeenCalledTimes(1);
+    expect(openVideoPlaylist).toHaveBeenCalledWith('video-playlist:1');
+    expect(refreshMusicPlaylists).not.toHaveBeenCalled();
+    expect(openMusicPlaylist).not.toHaveBeenCalled();
+  });
+
+  it('renders sanitized recent-video and video-playlist error snapshots on video routes', () => {
+    const target = renderApp({
+      route: { kind: 'videoMovies' },
+      videoLibrarySnapshot: createVideoLibrarySnapshot({
+        refreshStatus: 'error',
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/movie.mkv'
+        }
+      }),
+      videoMediaPlaylistsSnapshot: createVideoMediaPlaylistsSnapshot({
+        refreshStatus: 'error',
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and special://videoplaylists/private.xsp'
+        }
+      })
+    });
+
+    expect(getVideoRecentPanelText(target)).toContain('credentials');
+    expect(getAllMediaPlaylistsPanels(target).at(-1)?.textContent).toContain('credentials');
+    expect(target.textContent).toContain('browser storage');
+    expect(target.textContent).not.toContain('admin:p@ssword');
+    expect(target.textContent).not.toContain('Authorization');
+    expect(target.textContent).not.toContain('Basic abc123');
+    expect(target.textContent).not.toContain('localStorage');
+    expect(target.textContent).not.toContain('raw response body');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('special://');
   });
 
   it('renders unknown video route recovery links for movies and TV', () => {
