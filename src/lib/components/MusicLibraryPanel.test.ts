@@ -262,7 +262,6 @@ describe('MusicLibraryPanel', () => {
     expectSecretSafe(text);
   });
 
-
   it('renders recent and top music discovery sections with safe metadata', () => {
     renderPanel({ snapshot: populatedSnapshot() });
 

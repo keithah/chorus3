@@ -118,7 +118,11 @@
     song: MusicLibrarySongSnapshot,
     kind: DiscoveryMetadataKind
   ): string {
-    const values = [joinText(song.artist), textOrNull(song.album), discoveryPrimaryMeta(song, kind)];
+    const values = [
+      joinText(song.artist),
+      textOrNull(song.album),
+      discoveryPrimaryMeta(song, kind)
+    ];
     return values.filter(Boolean).join(' · ');
   }
 

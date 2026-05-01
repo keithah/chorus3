@@ -2,18 +2,21 @@
 
 Date: 2026-05-01
 Milestone: M003
-Slice: S07
+Slice: S08
 
 ## Scope
 
 This runbook is the tracked UAT surface for M003 final validation of Music Library, Browse Music, Media Search, Media Files, and Media Playlists. It separates deterministic no-live-Kodi proof from optional live Kodi checks so CI remains safe and repeatable.
 
-M003/S07 proves these assembled surfaces with fixtures and read-only smoke probes:
+M003/S08 proves these assembled surfaces with fixtures, tests, browser diagnostics, and read-only smoke probes:
 
 - artists
 - albums
 - songs
 - genres
+- recently added songs
+- recently played songs
+- most-played songs
 - media search
 - music file sources and directory listing shape
 - smart playlist root listing shape
@@ -32,7 +35,7 @@ npm run build
 npm run verify
 ```
 
-The full S07 final verification gate also includes a redaction grep against this runbook and the browser proof before running the targeted tests, smoke command, typecheck, build, and full verify. Keep the literal forbidden examples out of tracked docs so that gate can inspect the artifacts safely.
+The full S08 final verification gate includes targeted fixture/entrypoint/App tests, no-env smoke, typecheck, build, full verify, and browser assertions against both default and guarded fixture routes. Keep literal secret examples out of tracked docs so documentation can be inspected safely.
 
 ## No-Live Smoke Expectations
 
@@ -42,7 +45,7 @@ With no Kodi environment configured, `npm run smoke:kodi` must exit successfully
 - message says the M003 media smoke was skipped because a Kodi endpoint was not configured
 - message lists optional variable names only
 - no live network call is attempted
-- no play, queue, or library mutation method is called
+- no play, queue, library mutation, or playlist mutation method is called
 
 The no-live smoke result is a CI-safe readiness signal, not proof that a physical Kodi library is reachable.
 
@@ -61,7 +64,7 @@ Supported variable names:
 - `KODI_PASSWORD` — optional password.
 - `KODI_TIMEOUT_MS` — optional positive timeout in milliseconds.
 
-Use either `KODI_HTTP_URL` or `KODI_HOST`/`KODI_PORT`, not both. Keep credentials in `KODI_USERNAME` and `KODI_PASSWORD`; do not embed credentials in URLs.
+Use either `KODI_HTTP_URL` or `KODI_HOST`/`KODI_PORT`, not both. Keep credentials in the dedicated username/password variables; do not embed credentials in URLs.
 
 ## Optional Read-Only Media Smoke Interpretation
 
@@ -70,7 +73,10 @@ When live Kodi variables are present, `npm run smoke:kodi:m003-media` performs b
 - `JSONRPC.Ping`
 - `AudioLibrary.GetArtists`
 - `AudioLibrary.GetAlbums`
-- `AudioLibrary.GetSongs`
+- `AudioLibrary.GetSongs` for the main song list
+- `AudioLibrary.GetSongs` for recently added songs
+- `AudioLibrary.GetSongs` for recently played songs
+- `AudioLibrary.GetSongs` for most-played songs
 - `AudioLibrary.GetGenres`
 - `Files.GetSources` for music
 - `Files.GetDirectory` for the smart playlist root
@@ -97,6 +103,8 @@ Manual check areas:
 
 1. Music Library
    - Confirm artists, albums, songs, and genres render from the configured Kodi library.
+   - Confirm Recently Added, Recently Played, and Most Played sections render bounded lists or understandable empty states.
+   - Confirm date-added, last-played, and playcount metadata is readable when Kodi provides it.
    - Confirm empty-library states remain understandable when Kodi returns no items.
 2. Browse Music
    - Open artist, album, and genre browse actions.
@@ -111,15 +119,17 @@ Manual check areas:
    - Open the smart playlist root when available.
    - Confirm unsupported playlist formats remain visible but non-actionable.
 
-Do not use manual live checks to mutate a real library. S07 smoke and UAT are read-only unless a future milestone adds an explicit write smoke with separate safeguards.
+Do not use manual live checks to mutate a real library. S08 smoke and UAT are read-only unless a future milestone adds an explicit write smoke with separate safeguards.
 
 ## Deterministic Browser Proof
 
-`docs/m003-browser-proof.md` records the required browser-level evidence for M003/S07. It covers:
+`docs/m003-browser-proof.md` records the required browser-level evidence for M003/S08. It covers:
 
 - default no-live-Kodi route
 - guarded fixture route enabled only in development/test mode
+- production/default fixture absence for distinctive proof labels
 - Music Library populated fixture labels
+- Recent & Top Music fixture labels and metadata
 - Browse Music artist/album/genre callbacks
 - Media Search fixture query and clear behavior
 - Media Files source, folder, breadcrumb, play, and queue callbacks
@@ -148,9 +158,9 @@ Prefer category-level statements such as "redaction scan passed for path, creden
 
 ## R015 Reconciliation Note
 
-R015 is only partially validated by M003/S01-S07. The implemented and proven surfaces cover artists, albums, songs, genres, and search through deterministic browser proof, tests, and optional read-only smoke guidance.
+M003/S08 closes the previously documented recent/top browse validation gap for R015 at the CI-safe proof level. The implemented and proven surfaces now cover artists, albums, songs, genres, recently added songs, recently played songs, most-played songs, search, files, and playlists through deterministic browser proof, tests, and optional read-only smoke guidance.
 
-Recently added, recently played, and most-played browse surfaces are not implemented by S01-S07. Before marking R015 or the full milestone success criteria as fully validated, those recent/top-music surfaces must either be remediated in a later slice or formally re-scoped with explicit requirement validation notes.
+Optional live Kodi validation remains useful before final release signoff, but it is no longer required to prove that the app entrypoint and fixture seam expose the recent/top Music Library states safely.
 
 ## Final Validation Checklist
 
@@ -158,6 +168,6 @@ Recently added, recently played, and most-played browse surfaces are not impleme
 - `npm run smoke:kodi` succeeds in no-env mode with skip guidance.
 - Optional live smoke, if run, remains read-only and reports only safe method-level summaries.
 - Manual live browser checks, if run, do not mutate Kodi state.
-- `docs/m003-browser-proof.md` remains present and records deterministic browser assertions.
-- This runbook and browser proof pass redaction grep checks.
-- R015 is not claimed fully validated until the recent/top-music gap is remediated or formally re-scoped.
+- `docs/m003-browser-proof.md` remains present and records deterministic browser assertions for default and fixture routes.
+- This runbook and browser proof remain free of raw path, credential, auth-header, raw-body, browser-storage, and sentinel-secret examples.
+- R015 recent/top Music Library evidence is represented by S08 tests, fixtures, docs, and browser proof.

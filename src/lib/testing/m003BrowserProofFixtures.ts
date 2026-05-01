@@ -111,17 +111,54 @@ function createMusicLibrarySnapshot(): MusicLibraryStoreSnapshot {
         playcount: 2
       }
     ],
-    recentlyAddedSongs: [],
-    recentlyPlayedSongs: [],
-    mostPlayedSongs: [],
+    recentlyAddedSongs: [
+      {
+        songid: 30,
+        label: 'Feeling Good',
+        title: 'Feeling Good',
+        artist: ['Nina Simone'],
+        album: 'I Put a Spell on You',
+        duration: 174,
+        track: 1,
+        playcount: 4,
+        dateadded: '2026-04-29 11:22:33'
+      }
+    ],
+    recentlyPlayedSongs: [
+      {
+        songid: 31,
+        label: 'I Put a Spell on You',
+        title: 'I Put a Spell on You',
+        artist: ['Nina Simone'],
+        album: 'I Put a Spell on You',
+        duration: 155,
+        track: 2,
+        playcount: 7,
+        lastplayed: '2026-04-30 20:15:00'
+      }
+    ],
+    mostPlayedSongs: [
+      {
+        songid: 32,
+        label: 'My Baby Just Cares for Me',
+        title: 'My Baby Just Cares for Me',
+        artist: ['Nina Simone'],
+        album: 'Little Girl Blue',
+        duration: 217,
+        track: 6,
+        playcount: 12,
+        lastplayed: '2026-04-28 09:45:00',
+        dateadded: '2026-04-20 08:00:00'
+      }
+    ],
     genres: [{ genreid: 4, label: 'Soul', title: 'Soul' }],
     limits: {
       artists: { start: 0, end: 1, total: 1 },
       albums: { start: 0, end: 1, total: 1 },
       songs: { start: 0, end: 1, total: 1 },
-      recentlyAddedSongs: { start: 0, end: 0, total: 0 },
-      recentlyPlayedSongs: { start: 0, end: 0, total: 0 },
-      mostPlayedSongs: { start: 0, end: 0, total: 0 },
+      recentlyAddedSongs: { start: 0, end: 1, total: 1 },
+      recentlyPlayedSongs: { start: 0, end: 1, total: 1 },
+      mostPlayedSongs: { start: 0, end: 1, total: 1 },
       genres: { start: 0, end: 1, total: 1 }
     },
     isEmpty: false,

@@ -39,6 +39,9 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Music Library');
     expect(document.body.textContent).not.toContain('Nina Simone');
     expect(document.body.textContent).not.toContain('Pastel Blues');
+    expect(document.body.textContent).not.toContain('Feeling Good');
+    expect(document.body.textContent).not.toContain('I Put a Spell on You');
+    expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -49,6 +52,9 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Music Library');
     expect(document.body.textContent).not.toContain('Nina Simone');
     expect(document.body.textContent).not.toContain('Sinnerman.flac');
+    expect(document.body.textContent).not.toContain('Feeling Good');
+    expect(document.body.textContent).not.toContain('I Put a Spell on You');
+    expect(document.body.textContent).not.toContain('My Baby Just Cares for Me');
   });
 
   it('mounts populated M003 browser-proof fixtures in test mode when explicitly requested', async () => {
@@ -59,6 +65,16 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Nina Simone');
     expect(document.body.textContent).toContain('Pastel Blues');
     expect(document.body.textContent).toContain('Sinnerman');
+    expect(document.body.textContent).toContain('Recent & Top Music');
+    expect(document.body.textContent).toContain('Recently Added');
+    expect(document.body.textContent).toContain('Recently Played');
+    expect(document.body.textContent).toContain('Most Played');
+    expect(document.body.textContent).toContain('Feeling Good');
+    expect(document.body.textContent).toContain('I Put a Spell on You');
+    expect(document.body.textContent).toContain('My Baby Just Cares for Me');
+    expect(document.body.textContent).toContain('Added 2026-04-29 11:22:33');
+    expect(document.body.textContent).toContain('Played 2026-04-30 20:15:00');
+    expect(document.body.textContent).toContain('Played 12 times');
     expect(document.body.textContent).toContain('Albums');
     expect(document.body.textContent).toContain('Sinnerman.flac');
     expect(document.body.textContent).toContain('cover.jpg');

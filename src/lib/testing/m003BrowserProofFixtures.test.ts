@@ -39,6 +39,12 @@ describe('M003 browser proof fixtures', () => {
     expect(props.musicLibrarySnapshot?.artists).toHaveLength(1);
     expect(props.musicLibrarySnapshot?.albums).toHaveLength(1);
     expect(props.musicLibrarySnapshot?.songs).toHaveLength(1);
+    expect(props.musicLibrarySnapshot?.recentlyAddedSongs).toHaveLength(1);
+    expect(props.musicLibrarySnapshot?.recentlyPlayedSongs).toHaveLength(1);
+    expect(props.musicLibrarySnapshot?.mostPlayedSongs).toHaveLength(1);
+    expect(props.musicLibrarySnapshot?.limits.recentlyAddedSongs.total).toBe(1);
+    expect(props.musicLibrarySnapshot?.limits.recentlyPlayedSongs.total).toBe(1);
+    expect(props.musicLibrarySnapshot?.limits.mostPlayedSongs.total).toBe(1);
     expect(props.musicLibrarySnapshot?.genres).toHaveLength(1);
     expect(props.musicBrowseSnapshot?.albums).toHaveLength(1);
     expect(props.musicBrowseSnapshot?.songs).toHaveLength(1);
@@ -56,6 +62,12 @@ describe('M003 browser proof fixtures', () => {
     expect(text).toContain('Nina Simone');
     expect(text).toContain('Pastel Blues');
     expect(text).toContain('Sinnerman');
+    expect(text).toContain('Feeling Good');
+    expect(text).toContain('I Put a Spell on You');
+    expect(text).toContain('My Baby Just Cares for Me');
+    expect(text).toContain('2026-04-29 11:22:33');
+    expect(text).toContain('2026-04-30 20:15:00');
+    expect(text).toContain('playcount: 12');
     expect(text).toContain('Albums');
     expect(text).toContain('Sinnerman.flac');
     expect(text).toContain('cover.jpg');
