@@ -27,11 +27,13 @@ function createVideoSnapshot(overrides: VideoSnapshotOverrides = {}): VideoLibra
     lastRefreshReason: 'manual',
     lastUpdatedAt: null,
     movies: [],
+    tvShows: [],
     isEmpty: true,
     lastError: null,
     ...overrides,
     limits: {
       movies: { start: 0, end: 0, total: 0 },
+      tvShows: { start: 0, end: 0, total: 0 },
       ...overrides.limits
     }
   };

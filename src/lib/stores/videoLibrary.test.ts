@@ -111,10 +111,19 @@ function enqueueSuccessfulMovies(client: FakeKodiClient): void {
     ],
     limits: { start: 0, end: 25, total: 2 }
   });
+  enqueueEmptyTvShows(client);
+}
+
+function enqueueEmptyTvShows(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetTVShows', {
+    tvshows: [],
+    limits: { start: 0, end: 0, total: 0 }
+  });
 }
 
 function enqueueEmptyMovies(client: FakeKodiClient): void {
   client.enqueue('VideoLibrary.GetMovies', { movies: [], limits: { start: 0, end: 0, total: 0 } });
+  enqueueEmptyTvShows(client);
 }
 
 function expectSecretSafe(value: unknown): void {
@@ -141,7 +150,8 @@ describe('video library store', () => {
       lastRefreshReason: 'init',
       lastUpdatedAt: null,
       movies: [],
-      limits: { movies: { start: 0, end: 0, total: 0 } },
+      tvShows: [],
+      limits: { movies: { start: 0, end: 0, total: 0 }, tvShows: { start: 0, end: 0, total: 0 } },
       isEmpty: true,
       lastError: null
     } satisfies VideoLibraryStoreSnapshot);
@@ -167,6 +177,24 @@ describe('video library store', () => {
             'playcount',
             'lastplayed',
             'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 }
+        }
+      },
+      {
+        method: 'VideoLibrary.GetTVShows',
+        params: {
+          properties: [
+            'title',
+            'year',
+            'thumbnail',
+            'fanart',
+            'art',
+            'episode',
+            'watchedepisodes',
+            'playcount',
+            'lastplayed',
             'dateadded'
           ],
           limits: { start: 0, end: 25 }
@@ -258,6 +286,7 @@ describe('video library store', () => {
         }
       })
     );
+    enqueueEmptyTvShows(client);
 
     await store.refresh('manual');
 
@@ -297,6 +326,7 @@ describe('video library store', () => {
       movies: { malformed: true },
       limits: { start: Number.NaN, end: Number.NaN, total: 'bad' }
     });
+    enqueueEmptyTvShows(client);
 
     await store.refresh('manual');
 
@@ -313,10 +343,12 @@ describe('video library store', () => {
     const { client, setNow, store } = createHarness();
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
+    enqueueEmptyTvShows(client);
     client.enqueue('VideoLibrary.GetMovies', {
       movies: [{ movieid: 7, label: 'Fresh movie' }],
       limits: { start: 0, end: 25, total: 1 }
     });
+    enqueueEmptyTvShows(client);
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
@@ -340,10 +372,12 @@ describe('video library store', () => {
     const { client, store } = createHarness();
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
+    enqueueEmptyTvShows(client);
     client.enqueue('VideoLibrary.GetMovies', {
       movies: [{ movieid: 7, label: 'Fresh movie' }],
       limits: { start: 0, end: 25, total: 1 }
     });
+    enqueueEmptyTvShows(client);
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
@@ -363,6 +397,7 @@ describe('video library store', () => {
     const { client, store } = createHarness();
     const slow = deferred<unknown>();
     client.enqueue('VideoLibrary.GetMovies', slow);
+    enqueueEmptyTvShows(client);
 
     const refresh = store.refresh('manual');
     await flushPromises();

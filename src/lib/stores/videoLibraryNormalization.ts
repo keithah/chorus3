@@ -49,6 +49,98 @@ export interface VideoLibraryMovieSnapshot {
   watched?: boolean;
 }
 
+export interface VideoTvShowSnapshot {
+  tvshowid: number;
+  label: string;
+  title?: string;
+  year?: number;
+  thumbnail?: string;
+  fanart?: string;
+  art?: Record<string, string>;
+  episodeCount?: number;
+  watchedEpisodeCount?: number;
+  unwatchedEpisodes?: number;
+  hasUnwatched?: boolean;
+  playcount?: number;
+  lastplayed?: string;
+  dateadded?: string;
+  watched?: boolean;
+}
+
+export interface VideoTvShowDetailSnapshot extends VideoTvShowSnapshot {
+  plot?: string;
+  genre?: string[];
+  studio?: string[];
+  rating?: number;
+  userrating?: number;
+  premiered?: string;
+  uniqueid?: Record<string, string>;
+  thumbnailAvailable: boolean;
+  fanartAvailable: boolean;
+  artwork: Record<string, boolean>;
+}
+
+export interface VideoSeasonSnapshot {
+  tvshowid: number;
+  season: number;
+  label: string;
+  title?: string;
+  showtitle?: string;
+  thumbnail?: string;
+  fanart?: string;
+  art?: Record<string, string>;
+  episodeCount?: number;
+  watchedEpisodeCount?: number;
+  unwatchedEpisodes?: number;
+  hasUnwatched?: boolean;
+  playcount?: number;
+  userrating?: number;
+  watched?: boolean;
+}
+
+export interface VideoEpisodeSnapshot {
+  episodeid: number;
+  tvshowid?: number;
+  season?: number;
+  episode?: number;
+  label: string;
+  title?: string;
+  showtitle?: string;
+  runtime?: number;
+  thumbnail?: string;
+  fanart?: string;
+  art?: Record<string, string>;
+  playcount?: number;
+  lastplayed?: string;
+  resume?: VideoLibraryResumeSnapshot;
+  dateadded?: string;
+  watched?: boolean;
+}
+
+export interface VideoEpisodeDetailSnapshot extends VideoEpisodeSnapshot {
+  plot?: string;
+  director?: string[];
+  writer?: string[];
+  rating?: number;
+  userrating?: number;
+  firstaired?: string;
+  uniqueid?: Record<string, string>;
+  thumbnailAvailable: boolean;
+  fanartAvailable: boolean;
+  artwork: Record<string, boolean>;
+}
+
+export type VideoSeasonArtworkRefreshCapabilitySnapshot =
+  | {
+      status: 'supported';
+      reason: string;
+      availableArtTypes: string[];
+      availableArtwork: Record<string, boolean>;
+    }
+  | { status: 'unsupported'; reason: string }
+  | { status: 'unavailable'; reason: string }
+  | { status: 'error'; message: string };
+
 export interface VideoMovieVersionItemSnapshot {
   id: number;
   label: string;
@@ -102,10 +194,33 @@ export interface VideoLibraryStoreSnapshot {
   lastRefreshReason: VideoLibraryRefreshReason;
   lastUpdatedAt: string | null;
   movies: VideoLibraryMovieSnapshot[];
+  tvShows: VideoTvShowSnapshot[];
   limits: {
     movies: VideoLibraryLimitsSnapshot;
+    tvShows: VideoLibraryLimitsSnapshot;
   };
   isEmpty: boolean;
+  lastError: VideoLibrarySafeErrorSnapshot | null;
+}
+
+export interface VideoTvStoreSnapshot {
+  refreshStatus: VideoLibraryRefreshStatus;
+  lastRefreshReason: VideoLibraryRefreshReason;
+  lastUpdatedAt: string | null;
+  selectedTvShowId: number | null;
+  selectedSeason: number | null;
+  selectedEpisodeId: number | null;
+  tvShows: VideoTvShowSnapshot[];
+  tvShowDetail: VideoTvShowDetailSnapshot | null;
+  seasons: VideoSeasonSnapshot[];
+  episodes: VideoEpisodeSnapshot[];
+  episodeDetail: VideoEpisodeDetailSnapshot | null;
+  limits: {
+    tvShows: VideoLibraryLimitsSnapshot;
+    seasons: VideoLibraryLimitsSnapshot;
+    episodes: VideoLibraryLimitsSnapshot;
+  };
+  seasonArtworkCapability: VideoSeasonArtworkRefreshCapabilitySnapshot;
   lastError: VideoLibrarySafeErrorSnapshot | null;
 }
 
@@ -182,6 +297,170 @@ export function normalizeVideoMovieDetail(item: unknown): VideoMovieDetailSnapsh
     ...resumeField(item.resume),
     ...stringField('dateadded', item.dateadded),
     versions: normalizeVideoMovieVersions(item.versions)
+  };
+}
+
+export function normalizeVideoTvShows(items: unknown): VideoTvShowSnapshot[] {
+  return normalizeRecordList(items).flatMap((item): VideoTvShowSnapshot[] => {
+    const tvshowid = finitePositiveSafeId(item.tvshowid);
+    if (tvshowid === null) {
+      return [];
+    }
+
+    return [normalizeTvShowBase(item, tvshowid, 'Unknown TV show')];
+  });
+}
+
+export function normalizeVideoTvShowDetail(item: unknown): VideoTvShowDetailSnapshot | null {
+  if (!isRecord(item)) {
+    return null;
+  }
+
+  const tvshowid = finitePositiveSafeId(item.tvshowid);
+  if (tvshowid === null) {
+    return null;
+  }
+
+  return {
+    ...normalizeTvShowBase(item, tvshowid, 'Unknown TV show'),
+    ...stringField('plot', item.plot),
+    ...arrayStringField('genre', item.genre),
+    ...arrayStringField('studio', item.studio),
+    ...numberField('rating', item.rating),
+    ...numberField('userrating', item.userrating),
+    ...stringField('premiered', item.premiered),
+    ...uniqueIdField(item.uniqueid),
+    thumbnailAvailable: isSafeArtworkReference(item.thumbnail),
+    fanartAvailable: isSafeArtworkReference(item.fanart),
+    artwork: artworkAvailabilityField(item.art)
+  };
+}
+
+export function normalizeVideoSeasons(items: unknown): VideoSeasonSnapshot[] {
+  return normalizeRecordList(items).flatMap((item): VideoSeasonSnapshot[] => {
+    const tvshowid = finitePositiveSafeId(item.tvshowid);
+    const season = finiteNonNegativeSafeInteger(item.season);
+    if (tvshowid === null || season === null) {
+      return [];
+    }
+
+    const playcount = finiteNonNegativeNumber(item.playcount);
+    return [
+      {
+        tvshowid,
+        season,
+        label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? `Season ${season}`,
+        ...stringField('title', item.title),
+        ...stringField('showtitle', item.showtitle),
+        ...stringField('thumbnail', item.thumbnail),
+        ...stringField('fanart', item.fanart),
+        ...artField(item.art),
+        ...episodeCountFields(item),
+        ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
+        ...numberField('userrating', item.userrating)
+      }
+    ];
+  });
+}
+
+export function normalizeVideoEpisodes(items: unknown): VideoEpisodeSnapshot[] {
+  return normalizeRecordList(items)
+    .flatMap((item): VideoEpisodeSnapshot[] => {
+      const episodeid = finitePositiveSafeId(item.episodeid);
+      if (episodeid === null) {
+        return [];
+      }
+
+      const season = finiteNonNegativeSafeInteger(item.season);
+      if (item.season !== undefined && season === null) {
+        return [];
+      }
+
+      const episode = finiteNonNegativeSafeInteger(item.episode);
+      const playcount = finiteNonNegativeNumber(item.playcount);
+      return [
+        {
+          episodeid,
+          ...positiveIdField('tvshowid', item.tvshowid),
+          ...(season === null ? {} : { season }),
+          ...(episode === null ? {} : { episode }),
+          label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? 'Unknown episode',
+          ...stringField('title', item.title),
+          ...stringField('showtitle', item.showtitle),
+          ...numberField('runtime', item.runtime),
+          ...stringField('thumbnail', item.thumbnail),
+          ...stringField('fanart', item.fanart),
+          ...artField(item.art),
+          ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
+          ...stringField('lastplayed', item.lastplayed),
+          ...resumeField(item.resume),
+          ...stringField('dateadded', item.dateadded)
+        }
+      ];
+    })
+    .sort(
+      (left, right) =>
+        (left.season ?? 0) - (right.season ?? 0) ||
+        (left.episode ?? 0) - (right.episode ?? 0) ||
+        left.episodeid - right.episodeid
+    );
+}
+
+export function normalizeVideoEpisodeDetail(item: unknown): VideoEpisodeDetailSnapshot | null {
+  if (!isRecord(item)) {
+    return null;
+  }
+
+  const episode = normalizeVideoEpisodes([item])[0];
+  if (!episode) {
+    return null;
+  }
+
+  return {
+    ...episode,
+    ...stringField('plot', item.plot),
+    ...arrayStringField('director', item.director),
+    ...arrayStringField('writer', item.writer),
+    ...numberField('rating', item.rating),
+    ...numberField('userrating', item.userrating),
+    ...stringField('firstaired', item.firstaired),
+    ...uniqueIdField(item.uniqueid),
+    thumbnailAvailable: isSafeArtworkReference(item.thumbnail),
+    fanartAvailable: isSafeArtworkReference(item.fanart),
+    artwork: artworkAvailabilityField(item.art)
+  };
+}
+
+export function normalizeSeasonArtworkRefreshCapability(
+  value: unknown
+): VideoSeasonArtworkRefreshCapabilitySnapshot {
+  if (!isRecord(value)) {
+    return { status: 'unavailable', reason: 'Season artwork capability response was malformed.' };
+  }
+
+  if (value.status === 'error') {
+    return {
+      status: 'error',
+      message: sanitizeErrorMessage(
+        typeof value.message === 'string' && value.message.length > 0
+          ? value.message
+          : 'Season artwork capability failed.'
+      )
+    };
+  }
+
+  const availableArtTypes = normalizeSafeArtTypeList(value.availablearttypes);
+  const availableArtwork = normalizeAvailableArtwork(value.availableart, availableArtTypes);
+
+  if (availableArtTypes.length === 0) {
+    return { status: 'unsupported', reason: 'Kodi did not report safe season artwork types.' };
+  }
+
+  return {
+    status: 'supported',
+    reason: 'Season artwork refresh is available.',
+    availableArtTypes,
+    availableArtwork
   };
 }
 
@@ -348,17 +627,202 @@ export function cloneVideoLibrarySafeError(
     : null;
 }
 
+export function cloneVideoTvShowSnapshots(
+  tvShows: readonly VideoTvShowSnapshot[]
+): VideoTvShowSnapshot[] {
+  return tvShows.map((tvShow) => ({
+    ...tvShow,
+    ...(tvShow.art ? { art: { ...tvShow.art } } : {})
+  }));
+}
+
+export function cloneVideoTvShowDetailSnapshot(
+  detail: VideoTvShowDetailSnapshot | null
+): VideoTvShowDetailSnapshot | null {
+  return detail
+    ? {
+        ...detail,
+        ...(detail.art ? { art: { ...detail.art } } : {}),
+        ...(detail.genre ? { genre: [...detail.genre] } : {}),
+        ...(detail.studio ? { studio: [...detail.studio] } : {}),
+        ...(detail.uniqueid ? { uniqueid: { ...detail.uniqueid } } : {}),
+        artwork: { ...detail.artwork }
+      }
+    : null;
+}
+
+export function cloneVideoSeasonSnapshots(
+  seasons: readonly VideoSeasonSnapshot[]
+): VideoSeasonSnapshot[] {
+  return seasons.map((season) => ({
+    ...season,
+    ...(season.art ? { art: { ...season.art } } : {})
+  }));
+}
+
+export function cloneVideoEpisodeSnapshots(
+  episodes: readonly VideoEpisodeSnapshot[]
+): VideoEpisodeSnapshot[] {
+  return episodes.map((episode) => ({
+    ...episode,
+    ...(episode.art ? { art: { ...episode.art } } : {}),
+    ...(episode.resume ? { resume: { ...episode.resume } } : {})
+  }));
+}
+
+export function cloneVideoEpisodeDetailSnapshot(
+  detail: VideoEpisodeDetailSnapshot | null
+): VideoEpisodeDetailSnapshot | null {
+  return detail
+    ? {
+        ...detail,
+        ...(detail.art ? { art: { ...detail.art } } : {}),
+        ...(detail.resume ? { resume: { ...detail.resume } } : {}),
+        ...(detail.director ? { director: [...detail.director] } : {}),
+        ...(detail.writer ? { writer: [...detail.writer] } : {}),
+        ...(detail.uniqueid ? { uniqueid: { ...detail.uniqueid } } : {}),
+        artwork: { ...detail.artwork }
+      }
+    : null;
+}
+
+export function cloneSeasonArtworkRefreshCapabilitySnapshot(
+  capability: VideoSeasonArtworkRefreshCapabilitySnapshot
+): VideoSeasonArtworkRefreshCapabilitySnapshot {
+  return capability.status === 'supported'
+    ? {
+        ...capability,
+        availableArtTypes: [...capability.availableArtTypes],
+        availableArtwork: { ...capability.availableArtwork }
+      }
+    : { ...capability };
+}
+
+export function cloneVideoTvStoreSnapshot(snapshot: VideoTvStoreSnapshot): VideoTvStoreSnapshot {
+  return {
+    ...snapshot,
+    tvShows: cloneVideoTvShowSnapshots(snapshot.tvShows),
+    tvShowDetail: cloneVideoTvShowDetailSnapshot(snapshot.tvShowDetail),
+    seasons: cloneVideoSeasonSnapshots(snapshot.seasons),
+    episodes: cloneVideoEpisodeSnapshots(snapshot.episodes),
+    episodeDetail: cloneVideoEpisodeDetailSnapshot(snapshot.episodeDetail),
+    limits: {
+      tvShows: cloneVideoLibraryLimits(snapshot.limits.tvShows),
+      seasons: cloneVideoLibraryLimits(snapshot.limits.seasons),
+      episodes: cloneVideoLibraryLimits(snapshot.limits.episodes)
+    },
+    seasonArtworkCapability: cloneSeasonArtworkRefreshCapabilitySnapshot(
+      snapshot.seasonArtworkCapability
+    ),
+    lastError: cloneVideoLibrarySafeError(snapshot.lastError)
+  };
+}
+
 export function cloneVideoLibrarySnapshot(
   snapshot: VideoLibraryStoreSnapshot
 ): VideoLibraryStoreSnapshot {
   return {
     ...snapshot,
     movies: cloneVideoLibraryMovieSnapshots(snapshot.movies),
+    tvShows: cloneVideoTvShowSnapshots(snapshot.tvShows ?? []),
     limits: {
-      movies: cloneVideoLibraryLimits(snapshot.limits.movies)
+      movies: cloneVideoLibraryLimits(snapshot.limits.movies),
+      tvShows: cloneVideoLibraryLimits(snapshot.limits.tvShows ?? { start: 0, end: 0, total: 0 })
     },
     lastError: cloneVideoLibrarySafeError(snapshot.lastError)
   };
+}
+
+function normalizeTvShowBase(
+  item: Record<string, unknown>,
+  tvshowid: number,
+  fallbackLabel: string
+): VideoTvShowSnapshot {
+  const playcount = finiteNonNegativeNumber(item.playcount);
+  return {
+    tvshowid,
+    label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? fallbackLabel,
+    ...stringField('title', item.title),
+    ...numberField('year', item.year),
+    ...stringField('thumbnail', item.thumbnail),
+    ...stringField('fanart', item.fanart),
+    ...artField(item.art),
+    ...episodeCountFields(item),
+    ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
+    ...stringField('lastplayed', item.lastplayed),
+    ...stringField('dateadded', item.dateadded)
+  };
+}
+
+function episodeCountFields(
+  item: Record<string, unknown>
+): Pick<
+  VideoTvShowSnapshot,
+  'episodeCount' | 'watchedEpisodeCount' | 'unwatchedEpisodes' | 'hasUnwatched'
+> {
+  const episodeCount = finiteNonNegativeNumber(item.episode);
+  const watchedEpisodeCount = finiteNonNegativeNumber(item.watchedepisodes);
+
+  if (episodeCount === undefined && watchedEpisodeCount === undefined) {
+    return {};
+  }
+
+  const total = episodeCount ?? 0;
+  const watched = watchedEpisodeCount ?? 0;
+  const unwatchedEpisodes = Math.max(total - watched, 0);
+
+  return {
+    ...(episodeCount === undefined ? {} : { episodeCount }),
+    ...(watchedEpisodeCount === undefined ? {} : { watchedEpisodeCount }),
+    unwatchedEpisodes,
+    hasUnwatched: unwatchedEpisodes > 0
+  };
+}
+
+function positiveIdField<Key extends string>(
+  key: Key,
+  value: unknown
+): Partial<Record<Key, number>> {
+  const id = finitePositiveSafeId(value);
+  return id === null ? {} : ({ [key]: id } as Partial<Record<Key, number>>);
+}
+
+function finiteNonNegativeSafeInteger(value: unknown): number | null {
+  return typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+    ? value
+    : null;
+}
+
+function normalizeSafeArtTypeList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (item): item is string => safeStringValue(item) !== undefined && item.toLowerCase() !== 'file'
+  );
+}
+
+function normalizeAvailableArtwork(
+  value: unknown,
+  availableArtTypes: readonly string[]
+): Record<string, boolean> {
+  if (!isRecord(value)) {
+    return Object.fromEntries(availableArtTypes.map((type) => [type, false]));
+  }
+
+  return Object.fromEntries(
+    availableArtTypes.map((type) => {
+      const artValue = value[type];
+      const hasSafeArt = Array.isArray(artValue)
+        ? artValue.some(isSafeArtworkReference)
+        : isSafeArtworkReference(artValue);
+      return [type, hasSafeArt];
+    })
+  );
 }
 
 function normalizeRecordList(items: unknown): Record<string, unknown>[] {

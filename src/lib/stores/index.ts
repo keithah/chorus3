@@ -107,8 +107,22 @@ export {
   type VideoLibraryResumeSnapshot,
   type VideoLibrarySafeErrorSnapshot,
   type VideoLibraryStoreOptions,
-  type VideoLibraryStoreSnapshot
+  type VideoLibraryStoreSnapshot,
+  type VideoTvShowSnapshot
 } from './videoLibrary.svelte';
+
+export {
+  VideoTvStore,
+  createVideoTvStore,
+  videoTvStore,
+  type VideoEpisodeDetailSnapshot,
+  type VideoEpisodeSnapshot,
+  type VideoSeasonArtworkRefreshCapabilitySnapshot,
+  type VideoSeasonSnapshot,
+  type VideoTvShowDetailSnapshot,
+  type VideoTvStoreOptions,
+  type VideoTvStoreSnapshot
+} from './videoTvStore.svelte';
 
 export {
   VideoMovieDetailStore,
@@ -216,11 +230,19 @@ export {
   cloneVideoMovieDetailSnapshot,
   cloneVideoMovieDetailStoreSnapshot,
   cloneVideoMovieVersionsSnapshot,
+  cloneVideoTvStoreSnapshot,
+  cloneVideoTvShowSnapshots,
   createVideoLibrarySafeError,
+  normalizeSeasonArtworkRefreshCapability,
+  normalizeVideoEpisodeDetail,
+  normalizeVideoEpisodes,
   normalizeVideoLibraryLimits,
   normalizeVideoMovieDetail,
   normalizeVideoMovieVersions,
-  normalizeVideoMovies
+  normalizeVideoMovies,
+  normalizeVideoSeasons,
+  normalizeVideoTvShowDetail,
+  normalizeVideoTvShows
 } from './videoLibraryNormalization';
 
 export {

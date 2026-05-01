@@ -378,7 +378,11 @@ function createVideoLibrarySnapshot(
     lastRefreshReason: 'manual',
     lastUpdatedAt: '2026-05-01T07:00:00.000Z',
     movies,
-    limits: { movies: { start: 0, end: movies.length, total: movies.length } },
+    tvShows: [],
+    limits: {
+      movies: { start: 0, end: movies.length, total: movies.length },
+      tvShows: { start: 0, end: 0, total: 0 }
+    },
     isEmpty: movies.length === 0,
     lastError: null,
     ...overrides

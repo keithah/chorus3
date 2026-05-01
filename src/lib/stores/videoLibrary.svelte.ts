@@ -1,7 +1,9 @@
 import {
   getVideoLibraryMovies,
+  getVideoLibraryTvShows,
   type KodiJsonRpcHttpClient,
-  type VideoLibraryMoviePropertyName
+  type VideoLibraryMoviePropertyName,
+  type VideoLibraryTvShowPropertyName
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import {
@@ -10,6 +12,7 @@ import {
   createVideoLibrarySafeError,
   normalizeVideoLibraryLimits,
   normalizeVideoMovies,
+  normalizeVideoTvShows,
   type VideoLibraryLimitsSnapshot,
   type VideoLibraryRefreshReason,
   type VideoLibraryStoreSnapshot
@@ -23,7 +26,8 @@ export type {
   VideoLibraryRefreshStatus,
   VideoLibraryResumeSnapshot,
   VideoLibrarySafeErrorSnapshot,
-  VideoLibraryStoreSnapshot
+  VideoLibraryStoreSnapshot,
+  VideoTvShowSnapshot
 } from './videoLibraryNormalization';
 
 export interface VideoLibraryStoreOptions {
@@ -46,13 +50,26 @@ const DEFAULT_MOVIE_PROPERTIES = [
   'resume',
   'dateadded'
 ] as const satisfies readonly VideoLibraryMoviePropertyName[];
+const DEFAULT_TV_SHOW_PROPERTIES = [
+  'title',
+  'year',
+  'thumbnail',
+  'fanart',
+  'art',
+  'episode',
+  'watchedepisodes',
+  'playcount',
+  'lastplayed',
+  'dateadded'
+] as const satisfies readonly VideoLibraryTvShowPropertyName[];
 
 const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
   refreshStatus: 'idle',
   lastRefreshReason: 'init',
   lastUpdatedAt: null,
   movies: [],
-  limits: { movies: DEFAULT_LIMITS },
+  tvShows: [],
+  limits: { movies: DEFAULT_LIMITS, tvShows: DEFAULT_LIMITS },
   isEmpty: true,
   lastError: null
 };
@@ -88,26 +105,35 @@ export class VideoLibraryStore {
 
     try {
       const client = this.#resolveClient();
-      const moviesResult = await getVideoLibraryMovies(client, {
-        properties: DEFAULT_MOVIE_PROPERTIES,
-        limits: DEFAULT_LIST_LIMIT
-      });
+      const [moviesResult, tvShowsResult] = await Promise.all([
+        getVideoLibraryMovies(client, {
+          properties: DEFAULT_MOVIE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT
+        }),
+        getVideoLibraryTvShows(client, {
+          properties: DEFAULT_TV_SHOW_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT
+        })
+      ]);
 
       if (!this.#isCurrent(requestId)) {
         return;
       }
 
       const movies = normalizeVideoMovies(moviesResult.movies);
+      const tvShows = normalizeVideoTvShows(tvShowsResult.tvshows);
 
       this.#snapshot = {
         refreshStatus: 'ready',
         lastRefreshReason: reason,
         lastUpdatedAt: this.#now(),
         movies,
+        tvShows,
         limits: {
-          movies: normalizeVideoLibraryLimits(moviesResult.limits, movies)
+          movies: normalizeVideoLibraryLimits(moviesResult.limits, movies),
+          tvShows: normalizeVideoLibraryLimits(tvShowsResult.limits, tvShows)
         },
-        isEmpty: movies.length === 0,
+        isEmpty: movies.length === 0 && tvShows.length === 0,
         lastError: null
       };
     } catch (error) {

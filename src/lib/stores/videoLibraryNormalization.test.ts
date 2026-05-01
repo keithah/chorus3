@@ -8,10 +8,16 @@ import {
   cloneVideoLibrarySafeError,
   cloneVideoLibrarySnapshot,
   createVideoLibrarySafeError,
+  normalizeSeasonArtworkRefreshCapability,
+  normalizeVideoEpisodeDetail,
+  normalizeVideoEpisodes,
   normalizeVideoLibraryLimits,
   normalizeVideoMovieDetail,
   normalizeVideoMovieVersions,
   normalizeVideoMovies,
+  normalizeVideoSeasons,
+  normalizeVideoTvShowDetail,
+  normalizeVideoTvShows,
   type VideoLibraryStoreSnapshot
 } from './videoLibraryNormalization';
 
@@ -327,7 +333,8 @@ describe('video library normalization helpers', () => {
       lastRefreshReason: 'manual',
       lastUpdatedAt: '2026-01-01T00:00:00.000Z',
       movies,
-      limits: { movies: limits },
+      tvShows: [],
+      limits: { movies: limits, tvShows: { start: 0, end: 0, total: 0 } },
       isEmpty: false,
       lastError: error
     };
@@ -342,5 +349,228 @@ describe('video library normalization helpers', () => {
     expect(snapshot.movies[0].resume!.total).toBe(7020);
     expect(snapshot.limits.movies.end).toBe(1);
     expect(snapshot.lastError!.endpoint!.path).toBe('/jsonrpc');
+  });
+
+  it('normalizes TV shows and detail snapshots with unwatched counts and safe artwork', () => {
+    const tvShows = normalizeVideoTvShows([
+      'bad',
+      { tvshowid: Number.NaN, label: 'Dropped' },
+      {
+        tvshowid: 7,
+        label: 'Severance',
+        title: 'Severance',
+        year: 2022,
+        thumbnail: 'image://poster.jpg/',
+        fanart: 'image://fanart.jpg/',
+        art: { poster: 'poster.jpg', file: 'smb://secret/poster.jpg', bad: 123 },
+        episode: 9,
+        watchedepisodes: 3,
+        playcount: 0,
+        lastplayed: '',
+        dateadded: '2026-01-01 00:00:00',
+        file: 'http://admin:p@ssword@kodi.local/show'
+      },
+      {
+        tvshowid: 8,
+        label: '',
+        title: '',
+        episode: 2,
+        watchedepisodes: 5,
+        thumbnail: 'smb://secret/poster.jpg'
+      }
+    ]);
+
+    expect(tvShows).toEqual([
+      {
+        tvshowid: 7,
+        label: 'Severance',
+        title: 'Severance',
+        year: 2022,
+        thumbnail: 'image://poster.jpg/',
+        fanart: 'image://fanart.jpg/',
+        art: { poster: 'poster.jpg' },
+        episodeCount: 9,
+        watchedEpisodeCount: 3,
+        unwatchedEpisodes: 6,
+        hasUnwatched: true,
+        playcount: 0,
+        watched: false,
+        dateadded: '2026-01-01 00:00:00'
+      },
+      {
+        tvshowid: 8,
+        label: 'Unknown TV show',
+        episodeCount: 2,
+        watchedEpisodeCount: 5,
+        unwatchedEpisodes: 0,
+        hasUnwatched: false
+      }
+    ]);
+
+    const detail = normalizeVideoTvShowDetail({
+      tvshowid: 7,
+      label: 'Severance',
+      plot: 'Safe plot',
+      genre: ['Drama', 'smb://secret/genre'],
+      studio: ['Apple TV+'],
+      uniqueid: { imdb: 'tt11280740', hostile: 'Authorization: Basic abc123' },
+      thumbnail: 'image://poster.jpg/',
+      fanart: 'https://cdn.example/fanart.jpg',
+      art: { poster: 'poster.jpg', fanart: 'fanart.jpg', file: 'smb://secret/poster.jpg' },
+      episode: 9,
+      watchedepisodes: 3,
+      file: 'smb://secret/show'
+    });
+
+    expect(detail).toMatchObject({
+      tvshowid: 7,
+      label: 'Severance',
+      plot: 'Safe plot',
+      genre: ['Drama'],
+      studio: ['Apple TV+'],
+      uniqueid: { imdb: 'tt11280740' },
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: { poster: true, fanart: true },
+      episodeCount: 9,
+      watchedEpisodeCount: 3,
+      unwatchedEpisodes: 6,
+      hasUnwatched: true
+    });
+    expect(normalizeVideoTvShowDetail({ tvshowid: '7', label: 'Dropped' })).toBeNull();
+    expectSecretSafe([tvShows, detail]);
+  });
+
+  it('normalizes seasons episodes and episode details with safe IDs ordering and resume boundaries', () => {
+    expect(normalizeVideoSeasons(null)).toEqual([]);
+    expect(
+      normalizeVideoSeasons([
+        { tvshowid: 7, season: -1, label: 'Dropped special' },
+        { tvshowid: 7, season: 2, label: 'Season 2', episode: 3, watchedepisodes: 1 },
+        { tvshowid: 'bad', season: 3, label: 'Season 3' }
+      ])
+    ).toEqual([
+      {
+        tvshowid: 7,
+        season: 2,
+        label: 'Season 2',
+        episodeCount: 3,
+        watchedEpisodeCount: 1,
+        unwatchedEpisodes: 2,
+        hasUnwatched: true
+      }
+    ]);
+
+    const episodes = normalizeVideoEpisodes([
+      { episodeid: 12, tvshowid: 7, season: 2, episode: 2, label: 'Second', playcount: 1 },
+      {
+        episodeid: 11,
+        tvshowid: 7,
+        season: 2,
+        episode: 1,
+        title: 'First',
+        playcount: 0,
+        resume: { position: 5000, total: 3600 },
+        file: 'smb://secret/episode.mkv'
+      },
+      { episodeid: 13, tvshowid: 7, season: -1, episode: 3, label: 'Dropped' },
+      { episodeid: Number.NaN, tvshowid: 7, season: 2, episode: 3, label: 'Dropped' }
+    ]);
+
+    expect(episodes).toEqual([
+      {
+        episodeid: 11,
+        tvshowid: 7,
+        season: 2,
+        episode: 1,
+        label: 'First',
+        title: 'First',
+        playcount: 0,
+        watched: false,
+        resume: { position: 5000, total: 3600 }
+      },
+      {
+        episodeid: 12,
+        tvshowid: 7,
+        season: 2,
+        episode: 2,
+        label: 'Second',
+        playcount: 1,
+        watched: true
+      }
+    ]);
+
+    expect(
+      normalizeVideoEpisodeDetail({
+        episodeid: 11,
+        tvshowid: 7,
+        season: 2,
+        episode: 1,
+        title: 'First',
+        plot: 'Safe plot',
+        director: ['Ben Stiller', 'smb://secret/director'],
+        writer: ['Dan Erickson'],
+        uniqueid: { imdb: 'tt123', hostile: 'raw response body' },
+        thumbnail: 'image://episode.jpg/',
+        art: { thumb: 'image://episode.jpg/', file: 'smb://secret/episode.jpg' },
+        playcount: 0,
+        resume: { position: 123, total: 3600 }
+      })
+    ).toMatchObject({
+      episodeid: 11,
+      tvshowid: 7,
+      season: 2,
+      episode: 1,
+      label: 'First',
+      plot: 'Safe plot',
+      director: ['Ben Stiller'],
+      writer: ['Dan Erickson'],
+      uniqueid: { imdb: 'tt123' },
+      thumbnailAvailable: true,
+      artwork: { thumb: true },
+      playcount: 0,
+      watched: false,
+      resume: { position: 123, total: 3600 }
+    });
+    expect(normalizeVideoEpisodeDetail({ episodeid: 0, label: 'Dropped' })).toBeNull();
+    expectSecretSafe(episodes);
+  });
+
+  it('normalizes season artwork refresh capability without overstating support or leaking errors', () => {
+    expect(
+      normalizeSeasonArtworkRefreshCapability({
+        availablearttypes: ['poster', 'fanart', '', 'file'],
+        availableart: {
+          poster: ['image://poster.jpg/'],
+          fanart: [],
+          file: ['smb://secret/art.jpg']
+        }
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'Season artwork refresh is available.',
+      availableArtTypes: ['poster', 'fanart'],
+      availableArtwork: { poster: true, fanart: false }
+    });
+
+    expect(
+      normalizeSeasonArtworkRefreshCapability({ availablearttypes: [], availableart: {} })
+    ).toEqual({
+      status: 'unsupported',
+      reason: 'Kodi did not report safe season artwork types.'
+    });
+    expect(normalizeSeasonArtworkRefreshCapability(null)).toEqual({
+      status: 'unavailable',
+      reason: 'Season artwork capability response was malformed.'
+    });
+    expect(
+      normalizeSeasonArtworkRefreshCapability({
+        status: 'error',
+        message: 'Authorization: Basic abc123 raw response body smb://secret/art'
+      })
+    ).toEqual({
+      status: 'error',
+      message: 'credentials [redacted] response body [redacted] redacted-path'
+    });
   });
 });

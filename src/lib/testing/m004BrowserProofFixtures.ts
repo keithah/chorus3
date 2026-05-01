@@ -102,7 +102,11 @@ function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
     lastRefreshReason: 'manual',
     lastUpdatedAt: readyAt,
     movies,
-    limits: { movies: { start: 0, end: movies.length, total: movies.length } },
+    tvShows: [],
+    limits: {
+      movies: { start: 0, end: movies.length, total: movies.length },
+      tvShows: { start: 0, end: 0, total: 0 }
+    },
     isEmpty: false,
     lastError: null
   };
