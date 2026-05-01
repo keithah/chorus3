@@ -170,6 +170,12 @@ describe('VideoMovieDetailShell', () => {
       )
     ).not.toBeNull();
     expect(document.querySelector('#video-movie-detail-title')?.textContent).toContain('Alien');
+    expect(
+      document.querySelector('.movie-detail-hero[aria-label="Safe movie artwork summary"]')
+    ).not.toBeNull();
+    expect(document.querySelector('.poster-frame[aria-hidden="true"]')).not.toBeNull();
+    expect(document.querySelector('.fanart-wash[aria-hidden="true"]')).not.toBeNull();
+    expect(text).toContain('Poster-led movie detail surface');
     expect(text).toContain('Movie ID 42');
     expect(text).toContain('1979');
     expect(text).toContain('1:57:00');

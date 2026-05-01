@@ -422,7 +422,10 @@
             {#each section.items as item (item.key)}
               <li class={`recent-card ${item.artworkClass}`}>
                 <div class="fanart-wash" aria-hidden="true"></div>
-                <div class={`poster-frame ${item.artworkClass}`} aria-label={`${item.label} artwork availability`}>
+                <div
+                  class={`poster-frame ${item.artworkClass}`}
+                  aria-label={`${item.label} artwork availability`}
+                >
                   <span class="fallback-initials" aria-hidden="true">{item.initials}</span>
                   <span class="artwork-copy">
                     {item.artworkClass === 'no-artwork' ? 'Artwork pending' : 'Poster frame'}
@@ -600,7 +603,11 @@
         color-mix(in srgb, var(--color-accent) 22%, transparent),
         transparent 34%
       ),
-      linear-gradient(145deg, transparent, color-mix(in srgb, var(--color-surface) 64%, transparent));
+      linear-gradient(
+        145deg,
+        transparent,
+        color-mix(in srgb, var(--color-surface) 64%, transparent)
+      );
     opacity: 0.62;
     pointer-events: none;
   }
@@ -623,12 +630,11 @@
     overflow: hidden;
     text-align: center;
     aspect-ratio: 2 / 3;
-    background:
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-accent) 24%, transparent),
-        color-mix(in srgb, var(--color-surface-raised) 86%, transparent)
-      );
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-accent) 24%, transparent),
+      color-mix(in srgb, var(--color-surface-raised) 86%, transparent)
+    );
     border-radius: var(--radius-md);
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
@@ -637,14 +643,26 @@
 
   .poster-frame.has-fanart {
     background:
-      radial-gradient(circle at 26% 18%, color-mix(in srgb, var(--color-accent) 70%, white), transparent 26%),
-      linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 28%, transparent), var(--color-surface));
+      radial-gradient(
+        circle at 26% 18%,
+        color-mix(in srgb, var(--color-accent) 70%, white),
+        transparent 26%
+      ),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-accent) 28%, transparent),
+        var(--color-surface)
+      );
   }
 
   .poster-frame.has-poster,
   .poster-frame.has-thumb {
     background:
-      linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 34%, transparent), transparent 48%),
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 34%, transparent),
+        transparent 48%
+      ),
       color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
   }
 

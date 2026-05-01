@@ -327,12 +327,17 @@
 
   {#if movie && movieid !== null}
     <header class="stream-heading">
-      <p class="section-kicker">Browser stream</p>
-      <h2 id="video-movie-stream-title">{title}</h2>
-      <p class="summary-line">
-        Full-screen browser playback uses the existing Local media runtime and safe dispatch
-        actions.
-      </p>
+      <div class="stream-artwork-frame" aria-label="Safe movie stream artwork summary">
+        <div class="stream-poster-frame" aria-hidden="true"><span>Poster</span></div>
+        <div class="stream-heading-copy">
+          <p class="section-kicker">Browser stream</p>
+          <h2 id="video-movie-stream-title">{title}</h2>
+          <p class="summary-line">
+            Poster-led stream surface with fullscreen browser playback, fallback recovery, and safe
+            dispatch actions.
+          </p>
+        </div>
+      </div>
     </header>
 
     <div
@@ -416,6 +421,7 @@
   }
 
   .stream-heading,
+  .stream-heading-copy,
   .empty-state {
     display: grid;
     gap: var(--space-xs);
@@ -425,6 +431,50 @@
   h2,
   p {
     margin: 0;
+  }
+
+  .stream-artwork-frame {
+    display: grid;
+    grid-template-columns: minmax(6rem, 0.22fr) minmax(0, 1fr);
+    gap: var(--space-md);
+    align-items: end;
+    padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--color-accent) 22%, transparent),
+        transparent 22rem
+      ),
+      color-mix(in srgb, var(--color-surface-raised) 70%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+      0 1.2rem 3rem color-mix(in srgb, black 18%, transparent);
+  }
+
+  .stream-poster-frame {
+    aspect-ratio: 2 / 3;
+    min-height: 8rem;
+    display: grid;
+    place-items: end start;
+    padding: var(--space-sm);
+    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 32%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 88%, black);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      0 1rem 2rem color-mix(in srgb, black 24%, transparent);
   }
 
   .section-kicker {

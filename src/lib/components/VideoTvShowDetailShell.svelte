@@ -209,10 +209,16 @@
 <section class="video-tv-show-detail-shell surface" aria-labelledby="video-tv-show-title">
   <a class="back-link" href={buildVideoRoute({ kind: 'videoTvShows' })}>Back to TV shows</a>
 
-  <div class="panel-heading">
-    <p class="section-kicker">TV show detail</p>
-    <h2 id="video-tv-show-title">{title}</h2>
-    <p class="summary-line">Review safe show metadata and seasons with unwatched counts.</p>
+  <div class="panel-heading tv-show-hero" aria-label="Safe TV show artwork summary">
+    <div class="show-fanart-wash" aria-hidden="true"></div>
+    <div class="show-poster-frame" aria-hidden="true"><span>Poster</span></div>
+    <div class="hero-copy">
+      <p class="section-kicker">TV show detail</p>
+      <h2 id="video-tv-show-title">{title}</h2>
+      <p class="summary-line">
+        Poster-led TV show surface with safe fanart context and season browsing.
+      </p>
+    </div>
   </div>
 
   <div class="status-line" role="status" aria-live="polite" aria-atomic="true">{statusCopy}</div>
@@ -255,17 +261,20 @@
         {#each seasons as season (season.season)}
           {@const href = seasonHref(season)}
           <li class="season-card">
-            {#if href}
-              <a class="season-link" {href}>{safeSeasonLabel(season)}</a>
-            {:else}
-              <span class="season-title">{safeSeasonLabel(season)}</span>
-            {/if}
-            <div class="badge-list" aria-label="Season metadata">
-              <span class="badge">{unwatchedText(season)}</span>
-              {#if isWatched(season)}<span class="badge">Watched</span>{/if}
-              {#if episodeCountText(season.episodeCount)}<span class="badge subtle"
-                  >{episodeCountText(season.episodeCount)}</span
-                >{/if}
+            <div class="season-card-art" aria-hidden="true"></div>
+            <div class="season-card-copy">
+              {#if href}
+                <a class="season-link" {href}>{safeSeasonLabel(season)}</a>
+              {:else}
+                <span class="season-title">{safeSeasonLabel(season)}</span>
+              {/if}
+              <div class="badge-list" aria-label="Season metadata">
+                <span class="badge">{unwatchedText(season)}</span>
+                {#if isWatched(season)}<span class="badge">Watched</span>{/if}
+                {#if episodeCountText(season.episodeCount)}<span class="badge subtle"
+                    >{episodeCountText(season.episodeCount)}</span
+                  >{/if}
+              </div>
             </div>
           </li>
         {/each}
@@ -290,11 +299,72 @@
     padding: clamp(var(--space-lg), 4vw, var(--space-xl));
   }
   .panel-heading,
+  .hero-copy,
   .detail-list,
   .empty-state,
   .season-card {
     display: grid;
     gap: var(--space-xs);
+  }
+  .tv-show-hero {
+    position: relative;
+    grid-template-columns: minmax(6.5rem, 0.3fr) minmax(0, 1fr);
+    align-items: end;
+    overflow: hidden;
+    padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--color-accent) 22%, transparent),
+        transparent 22rem
+      ),
+      color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+      0 1.2rem 3rem color-mix(in srgb, black 16%, transparent);
+  }
+  .show-fanart-wash {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(110deg, color-mix(in srgb, black 36%, transparent), transparent 62%),
+      repeating-linear-gradient(
+        35deg,
+        color-mix(in srgb, var(--color-accent) 8%, transparent) 0 1px,
+        transparent 1px 13px
+      );
+    opacity: 0.75;
+  }
+  .show-poster-frame {
+    position: relative;
+    z-index: 1;
+    aspect-ratio: 2 / 3;
+    min-height: 9rem;
+    display: grid;
+    place-items: end start;
+    padding: var(--space-sm);
+    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 30%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 88%, black);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      0 1rem 2rem color-mix(in srgb, black 24%, transparent);
+  }
+  .hero-copy {
+    position: relative;
+    z-index: 1;
   }
   .section-kicker,
   h2,
@@ -361,6 +431,28 @@
     gap: var(--space-md);
     padding: 0;
     list-style: none;
+  }
+  .season-card {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    align-items: center;
+  }
+  .season-card-art {
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 28%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 86%, black);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 12%, transparent),
+      0 0.7rem 1.4rem color-mix(in srgb, black 18%, transparent);
+  }
+  .season-card-copy {
+    display: grid;
+    gap: var(--space-xs);
   }
   .badge-list {
     display: flex;

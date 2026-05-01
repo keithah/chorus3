@@ -466,10 +466,16 @@
       ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
       : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
   >
-  <div class="panel-heading">
-    <p class="section-kicker">Season detail</p>
-    <h2 id="video-season-title">{title}</h2>
-    <p class="summary-line">Browse ordered episodes and request season artwork refresh feedback.</p>
+  <div class="panel-heading season-hero" aria-label="Safe season artwork summary">
+    <div class="season-poster-frame" aria-hidden="true"><span>Season poster</span></div>
+    <div class="hero-copy">
+      <p class="section-kicker">Season detail</p>
+      <h2 id="video-season-title">{title}</h2>
+      <p class="summary-line">
+        Season poster surface for ordered episodes, artwork refresh feedback, and watched write
+        recovery.
+      </p>
+    </div>
   </div>
 
   {#if season}
@@ -555,12 +561,53 @@
     padding: clamp(var(--space-lg), 4vw, var(--space-xl));
   }
   .panel-heading,
+  .hero-copy,
   .episode-card,
   .empty-state,
   .artwork-actions,
   .season-write-actions {
     display: grid;
     gap: var(--space-xs);
+  }
+  .season-hero {
+    grid-template-columns: minmax(5rem, 0.22fr) minmax(0, 1fr);
+    align-items: end;
+    padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--color-accent) 20%, transparent),
+        transparent 20rem
+      ),
+      color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+      0 1.2rem 3rem color-mix(in srgb, black 14%, transparent);
+  }
+  .season-poster-frame {
+    aspect-ratio: 2 / 3;
+    min-height: 8rem;
+    display: grid;
+    place-items: end start;
+    padding: var(--space-sm);
+    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 30%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 88%, black);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      0 1rem 2rem color-mix(in srgb, black 22%, transparent);
   }
   .section-kicker,
   h2,
@@ -610,6 +657,7 @@
   }
   button {
     min-height: 2.5rem;
+    min-width: 2.5rem;
     justify-self: start;
     padding: 0.65rem 1rem;
     border: 0;
@@ -619,10 +667,24 @@
     font: inherit;
     font-weight: 850;
     cursor: pointer;
+    transition-property: scale, background-color, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
   button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+  button:active:not(:disabled) {
+    scale: 0.96;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition-duration: 0.01ms;
+    }
+    button:active:not(:disabled) {
+      scale: 1;
+    }
   }
   .episode-list {
     display: grid;

@@ -308,10 +308,15 @@
         : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
     >
   </nav>
-  <div class="panel-heading">
-    <p class="section-kicker">Episode detail</p>
-    <h2 id="video-episode-title">{title}</h2>
-    <p class="summary-line">Review safe episode metadata and playback action seams.</p>
+  <div class="panel-heading episode-hero" aria-label="Safe episode artwork summary">
+    <div class="episode-frame" aria-hidden="true"><span>Episode</span></div>
+    <div class="hero-copy">
+      <p class="section-kicker">Episode detail</p>
+      <h2 id="video-episode-title">{title}</h2>
+      <p class="summary-line">
+        Episode artwork surface with safe metadata and playback action seams.
+      </p>
+    </div>
   </div>
 
   {#if episode}
@@ -401,10 +406,51 @@
     padding: clamp(var(--space-lg), 4vw, var(--space-xl));
   }
   .panel-heading,
+  .hero-copy,
   .detail-list,
   .empty-state {
     display: grid;
     gap: var(--space-xs);
+  }
+  .episode-hero {
+    grid-template-columns: minmax(7rem, 0.34fr) minmax(0, 1fr);
+    align-items: end;
+    padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--color-accent) 20%, transparent),
+        transparent 20rem
+      ),
+      color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+      0 1.2rem 3rem color-mix(in srgb, black 14%, transparent);
+  }
+  .episode-frame {
+    aspect-ratio: 16 / 9;
+    min-height: 5.5rem;
+    display: grid;
+    place-items: end start;
+    padding: var(--space-sm);
+    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 30%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 88%, black);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      0 1rem 2rem color-mix(in srgb, black 22%, transparent);
   }
   .section-kicker,
   h2,
@@ -457,6 +503,7 @@
   }
   button {
     min-height: 2.5rem;
+    min-width: 2.5rem;
     padding: 0.65rem 1rem;
     border: 0;
     border-radius: var(--radius-md);
@@ -465,10 +512,24 @@
     font: inherit;
     font-weight: 850;
     cursor: pointer;
+    transition-property: scale, background-color, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
   button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+  button:active:not(:disabled) {
+    scale: 0.96;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button {
+      transition-duration: 0.01ms;
+    }
+    button:active:not(:disabled) {
+      scale: 1;
+    }
   }
   .detail-list {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));

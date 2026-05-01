@@ -131,6 +131,12 @@ describe('VideoTvShowDetailShell', () => {
       document.querySelector('.video-tv-show-detail-shell[aria-labelledby="video-tv-show-title"]')
     ).not.toBeNull();
     expect(document.querySelector('#video-tv-show-title')?.textContent).toContain('Severance');
+    expect(
+      document.querySelector('.tv-show-hero[aria-label="Safe TV show artwork summary"]')
+    ).not.toBeNull();
+    expect(document.querySelector('.show-poster-frame[aria-hidden="true"]')).not.toBeNull();
+    expect(document.querySelector('.show-fanart-wash[aria-hidden="true"]')).not.toBeNull();
+    expect(text).toContain('Poster-led TV show surface');
     expect(document.querySelector('a[href="/video/tv"]')?.textContent).toContain(
       'Back to TV shows'
     );

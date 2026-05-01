@@ -155,6 +155,11 @@ describe('VideoEpisodeDetailShell', () => {
     expect(document.querySelector('#video-episode-title')?.textContent).toContain(
       'Hello, Ms. Cobel'
     );
+    expect(
+      document.querySelector('.episode-hero[aria-label="Safe episode artwork summary"]')
+    ).not.toBeNull();
+    expect(document.querySelector('.episode-frame[aria-hidden="true"]')).not.toBeNull();
+    expect(text).toContain('Episode artwork surface');
     expect(document.querySelector('a[href="/video/tv/11/seasons/2"]')?.textContent).toContain(
       'Back to Season 2'
     );

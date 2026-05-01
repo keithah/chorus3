@@ -227,6 +227,13 @@ describe('VideoMovieStreamShell', () => {
       'Big Buck Bunny'
     );
     expect(
+      document.querySelector(
+        '.stream-artwork-frame[aria-label="Safe movie stream artwork summary"]'
+      )
+    ).not.toBeNull();
+    expect(document.querySelector('.stream-poster-frame[aria-hidden="true"]')).not.toBeNull();
+    expect(text).toContain('Poster-led stream surface');
+    expect(
       document.querySelector<HTMLAnchorElement>('a[href="/video/movies/4401"]')?.textContent
     ).toContain('Back to details');
     expect(document.querySelector('video.local-media-runtime.fullscreen')).not.toBeNull();

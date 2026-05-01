@@ -176,9 +176,9 @@ describe('VideoMoviesPanel', () => {
     expect(document.querySelectorAll('.poster-frame.has-fanart')).toHaveLength(1);
     expect(document.querySelectorAll('.poster-frame.has-poster')).toHaveLength(1);
     expect(document.querySelectorAll('.fanart-wash')).toHaveLength(2);
-    expect(document.querySelector('[aria-label="Alien artwork availability"]')?.textContent).toContain(
-      'Poster frame'
-    );
+    expect(
+      document.querySelector('[aria-label="Alien artwork availability"]')?.textContent
+    ).toContain('Poster frame');
 
     const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.movie-link')).map(
       (link) => link.getAttribute('href')

@@ -187,6 +187,12 @@ describe('VideoSeasonDetailShell', () => {
       document.querySelector('.video-season-detail-shell[aria-labelledby="video-season-title"]')
     ).not.toBeNull();
     expect(document.querySelector('#video-season-title')?.textContent).toContain('Season 2');
+    expect(
+      document.querySelector('.season-hero[aria-label="Safe season artwork summary"]')
+    ).not.toBeNull();
+    expect(document.querySelector('.season-poster-frame[aria-hidden="true"]')).not.toBeNull();
+    expect(document.querySelectorAll('[role="status"]')).toHaveLength(2);
+    expect(text).toContain('Season poster surface');
     expect(document.querySelector('a[href="/video/tv/11"]')?.textContent).toContain(
       'Back to Severance'
     );

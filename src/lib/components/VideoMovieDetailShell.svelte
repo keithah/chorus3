@@ -429,12 +429,19 @@
 <section class="video-movie-detail-shell surface" aria-labelledby="video-movie-detail-title">
   <a class="back-link" href={buildVideoRoute({ kind: 'videoMovies' })}>Back to movies</a>
 
-  <div class="panel-heading">
-    <p class="section-kicker">Movie detail</p>
-    <h2 id="video-movie-detail-title">{title}</h2>
-    <p class="summary-line">
-      Review safe movie metadata, version availability, watched state, and playback actions.
-    </p>
+  <div class="panel-heading movie-detail-hero" aria-label="Safe movie artwork summary">
+    <div class="fanart-wash" aria-hidden="true"></div>
+    <div class="poster-frame" aria-hidden="true">
+      <span>Poster</span>
+    </div>
+    <div class="hero-copy">
+      <p class="section-kicker">Movie detail</p>
+      <h2 id="video-movie-detail-title">{title}</h2>
+      <p class="summary-line">
+        Poster-led movie detail surface with safe fanart context, version availability, watched
+        state, and playback actions.
+      </p>
+    </div>
   </div>
 
   {#if movie}
@@ -566,11 +573,76 @@
   }
 
   .panel-heading,
+  .hero-copy,
   .detail-list,
   .empty-state,
   .version-control {
     display: grid;
     gap: var(--space-xs);
+  }
+
+  .movie-detail-hero {
+    position: relative;
+    grid-template-columns: minmax(6.5rem, 0.34fr) minmax(0, 1fr);
+    align-items: end;
+    overflow: hidden;
+    padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background:
+      radial-gradient(
+        circle at top right,
+        color-mix(in srgb, var(--color-accent) 24%, transparent),
+        transparent 22rem
+      ),
+      color-mix(in srgb, var(--color-surface-raised) 76%, transparent);
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+      0 1.2rem 3rem color-mix(in srgb, black 16%, transparent);
+  }
+
+  .fanart-wash {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(110deg, color-mix(in srgb, black 34%, transparent), transparent 62%),
+      repeating-linear-gradient(
+        -35deg,
+        color-mix(in srgb, var(--color-accent) 9%, transparent) 0 1px,
+        transparent 1px 14px
+      );
+    opacity: 0.75;
+  }
+
+  .poster-frame {
+    position: relative;
+    z-index: 1;
+    aspect-ratio: 2 / 3;
+    min-height: 9rem;
+    display: grid;
+    place-items: end start;
+    padding: var(--space-sm);
+    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 34%, transparent),
+        transparent
+      ),
+      color-mix(in srgb, var(--color-surface) 88%, black);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+      0 1rem 2rem color-mix(in srgb, black 24%, transparent);
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
   }
 
   .section-kicker,
@@ -644,9 +716,13 @@
   button,
   .stream-link {
     min-height: 2.5rem;
+    min-width: 2.5rem;
     padding: 0.65rem 1rem;
     background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
     font-weight: 850;
+    transition-property: scale, background-color, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
   button {
@@ -662,6 +738,23 @@
   button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
+  }
+
+  button:active:not(:disabled),
+  .stream-link:active {
+    scale: 0.96;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    .stream-link {
+      transition-duration: 0.01ms;
+    }
+
+    button:active:not(:disabled),
+    .stream-link:active {
+      scale: 1;
+    }
   }
 
   select {

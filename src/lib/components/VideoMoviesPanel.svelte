@@ -427,7 +427,11 @@
         color-mix(in srgb, var(--color-accent) 24%, transparent),
         transparent 34%
       ),
-      linear-gradient(145deg, transparent, color-mix(in srgb, var(--color-surface) 62%, transparent));
+      linear-gradient(
+        145deg,
+        transparent,
+        color-mix(in srgb, var(--color-surface) 62%, transparent)
+      );
     opacity: 0.68;
     pointer-events: none;
   }
@@ -451,12 +455,11 @@
     color: var(--color-text);
     text-align: center;
     aspect-ratio: 2 / 3;
-    background:
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-accent) 22%, transparent),
-        color-mix(in srgb, var(--color-surface) 92%, transparent)
-      );
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-accent) 22%, transparent),
+      color-mix(in srgb, var(--color-surface) 92%, transparent)
+    );
     border-radius: var(--radius-lg);
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, white 16%, transparent),
@@ -466,14 +469,26 @@
 
   .poster-frame.has-fanart {
     background:
-      radial-gradient(circle at 28% 18%, color-mix(in srgb, var(--color-accent) 76%, white), transparent 24%),
-      linear-gradient(145deg, color-mix(in srgb, var(--color-accent) 30%, transparent), var(--color-surface));
+      radial-gradient(
+        circle at 28% 18%,
+        color-mix(in srgb, var(--color-accent) 76%, white),
+        transparent 24%
+      ),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-accent) 30%, transparent),
+        var(--color-surface)
+      );
   }
 
   .poster-frame.has-poster,
   .poster-frame.has-thumb {
     background:
-      linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 36%, transparent), transparent 48%),
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--color-accent) 36%, transparent),
+        transparent 48%
+      ),
       color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
   }
 
