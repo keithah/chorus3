@@ -172,6 +172,11 @@ describe('VideoMovieDetailShell', () => {
     expect(document.querySelector('a[href="/video/movies"]')?.textContent).toContain(
       'Back to movies'
     );
+    const streamLink = document.querySelector<HTMLAnchorElement>(
+      'a[href="/video/movies/42/stream"]'
+    );
+    expect(streamLink?.textContent).toContain('Stream in browser');
+    expect(streamLink?.getAttribute('aria-label')).toBe('Stream Alien in browser');
     expectSecretSafe(text);
   });
 
@@ -186,7 +191,7 @@ describe('VideoMovieDetailShell', () => {
     expect(document.querySelectorAll('button')).toHaveLength(3);
     expect(
       Array.from(document.querySelectorAll('a')).map((link) => link.textContent?.trim())
-    ).toEqual(['Back to movies']);
+    ).toEqual(['Back to movies', 'Stream in browser']);
     expectSecretSafe(text);
   });
 

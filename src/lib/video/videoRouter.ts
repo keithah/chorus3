@@ -1,12 +1,14 @@
 export type DashboardRoute = { kind: 'dashboard' };
 export type VideoMoviesRoute = { kind: 'videoMovies' };
 export type VideoMovieDetailRoute = { kind: 'videoMovieDetail'; movieid: number };
+export type VideoMovieStreamRoute = { kind: 'videoMovieStream'; movieid: number };
 export type VideoUnknownRoute = { kind: 'videoUnknown'; pathLabel: string };
 
 export type VideoRoute =
   | DashboardRoute
   | VideoMoviesRoute
   | VideoMovieDetailRoute
+  | VideoMovieStreamRoute
   | VideoUnknownRoute;
 
 export interface VideoRouteHistory {
@@ -63,6 +65,12 @@ export function buildVideoRoute(route: VideoRoute): string {
       : UNKNOWN_VIDEO_PATH;
   }
 
+  if (route.kind === 'videoMovieStream') {
+    return isFinitePositiveSafeInteger(route.movieid)
+      ? `${MOVIES_PATH}/${route.movieid}/stream`
+      : UNKNOWN_VIDEO_PATH;
+  }
+
   if (route.kind === 'videoUnknown') {
     return normalizePathLabel(route.pathLabel || UNKNOWN_VIDEO_PATH);
   }
@@ -79,7 +87,10 @@ export function isVideoRoute(route: unknown): route is Exclude<VideoRoute, Dashb
     return true;
   }
 
-  return route.kind === 'videoMovieDetail' && isFinitePositiveSafeInteger(route.movieid);
+  return (
+    (route.kind === 'videoMovieDetail' || route.kind === 'videoMovieStream') &&
+    isFinitePositiveSafeInteger(route.movieid)
+  );
 }
 
 export function navigateVideoRoute(
@@ -109,7 +120,6 @@ function parseVideoPath(path: string): VideoRoute {
     return { kind: 'videoMovies' };
   }
 
-  const hadTrailingSlash = path.endsWith('/');
   const segments = path.split('/').filter(Boolean);
 
   if (
@@ -122,13 +132,13 @@ function parseVideoPath(path: string): VideoRoute {
   }
 
   if (
-    hadTrailingSlash &&
-    segments.length === 3 &&
+    segments.length === 4 &&
     segments[0] === 'video' &&
     segments[1] === 'movies' &&
-    isMovieIdSegment(segments[2])
+    isMovieIdSegment(segments[2]) &&
+    segments[3] === 'stream'
   ) {
-    return { kind: 'videoMovieDetail', movieid: Number(segments[2]) };
+    return { kind: 'videoMovieStream', movieid: Number(segments[2]) };
   }
 
   return { kind: 'videoUnknown', pathLabel: normalizePathLabel(path) };

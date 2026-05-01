@@ -57,6 +57,9 @@
   const movieid = $derived(movie ? safeMovieId(movie.movieid) : null);
   const hasResumeState = $derived(movie ? hasResume(movie) : false);
   const actionDisabled = $derived(actionStatus.kind === 'pending' || movieid === null);
+  const streamHref = $derived(
+    movieid === null ? null : buildVideoRoute({ kind: 'videoMovieStream', movieid })
+  );
   const versionItems = $derived(
     detailMovie?.versions.status === 'ready' ? safeVersionItems(detailMovie.versions) : []
   );
@@ -428,6 +431,11 @@
       >
         Queue
       </button>
+      {#if streamHref}
+        <a class="stream-link" href={streamHref} aria-label={`Stream ${title} in browser`}>
+          Stream in browser
+        </a>
+      {/if}
     </div>
 
     <dl class="detail-list">
@@ -562,6 +570,7 @@
   }
 
   .back-link:focus-visible,
+  .stream-link:focus-visible,
   button:focus-visible,
   select:focus-visible {
     outline: none;
@@ -575,6 +584,7 @@
   }
 
   button,
+  .stream-link,
   select {
     border: 0;
     border-radius: var(--radius-md);
@@ -582,12 +592,22 @@
     font: inherit;
   }
 
-  button {
+  button,
+  .stream-link {
     min-height: 2.5rem;
     padding: 0.65rem 1rem;
     background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
     font-weight: 850;
+  }
+
+  button {
     cursor: pointer;
+  }
+
+  .stream-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
   }
 
   button:disabled {

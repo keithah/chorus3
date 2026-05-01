@@ -36,6 +36,32 @@ describe('parseVideoRoute', () => {
     });
   });
 
+  test('parses finite positive integer movie stream routes with query ignored', () => {
+    expect(parseVideoRoute('/video/movies/42/stream')).toEqual({
+      kind: 'videoMovieStream',
+      movieid: 42
+    });
+    expect(parseVideoRoute('/video/movies/42/stream?m004-browser-proof=1')).toEqual({
+      kind: 'videoMovieStream',
+      movieid: 42
+    });
+    expect(parseVideoRoute('/video/movies/42/stream', '?token=Authorization')).toEqual({
+      kind: 'videoMovieStream',
+      movieid: 42
+    });
+    expect(parseVideoRoute(`/video/movies/${Number.MAX_SAFE_INTEGER}/stream`)).toEqual({
+      kind: 'videoMovieStream',
+      movieid: Number.MAX_SAFE_INTEGER
+    });
+  });
+
+  test('parses a trailing slash movie stream route as the same route identity', () => {
+    expect(parseVideoRoute('/video/movies/42/stream/')).toEqual({
+      kind: 'videoMovieStream',
+      movieid: 42
+    });
+  });
+
   test.each([
     '/video/movies/0',
     '/video/movies/-1',
@@ -44,6 +70,14 @@ describe('parseVideoRoute', () => {
     '/video/movies/not-a-number',
     '/video/movies/%2F42',
     '/video/movies/42/extra',
+    '/video/movies/42/stream/extra',
+    '/video/movies/42/Stream',
+    '/video/movies/42/download',
+    '/video/movies/0/stream',
+    '/video/movies/-1/stream',
+    '/video/movies/NaN/stream',
+    '/video/movies/Infinity/stream',
+    '/video/movies/%2F42/stream',
     '/video/movies/',
     '/video/movies//'
   ])('normalizes malformed movie route %s to a safe unknown video route', (pathname) => {
@@ -84,9 +118,14 @@ describe('buildVideoRoute', () => {
     [{ kind: 'dashboard' }, '/'],
     [{ kind: 'videoMovies' }, '/video/movies'],
     [{ kind: 'videoMovieDetail', movieid: 42 }, '/video/movies/42'],
+    [{ kind: 'videoMovieStream', movieid: 42 }, '/video/movies/42/stream'],
     [
       { kind: 'videoMovieDetail', movieid: Number.MAX_SAFE_INTEGER },
       `/video/movies/${Number.MAX_SAFE_INTEGER}`
+    ],
+    [
+      { kind: 'videoMovieStream', movieid: Number.MAX_SAFE_INTEGER },
+      `/video/movies/${Number.MAX_SAFE_INTEGER}/stream`
     ],
     [{ kind: 'videoUnknown', pathLabel: '/video/tv' }, '/video/tv']
   ])('builds %j as %s', (route, expectedPath) => {
@@ -96,13 +135,15 @@ describe('buildVideoRoute', () => {
   test.each<VideoRoute>([
     { kind: 'dashboard' },
     { kind: 'videoMovies' },
-    { kind: 'videoMovieDetail', movieid: 42 }
+    { kind: 'videoMovieDetail', movieid: 42 },
+    { kind: 'videoMovieStream', movieid: 42 }
   ])('round trips %j through parse/build', (route) => {
     expect(parseVideoRoute(buildVideoRoute(route))).toEqual(route);
   });
 
   test('normalizes invalid detail routes and unsafe unknown labels when building', () => {
     expect(buildVideoRoute({ kind: 'videoMovieDetail', movieid: 0 })).toBe('/video/unknown');
+    expect(buildVideoRoute({ kind: 'videoMovieStream', movieid: 0 })).toBe('/video/unknown');
     expect(buildVideoRoute({ kind: 'videoUnknown', pathLabel: '/video/Authorization/Basic' })).toBe(
       '/video/[redacted]/[redacted]'
     );
@@ -114,6 +155,7 @@ describe('isVideoRoute', () => {
   test.each<VideoRoute>([
     { kind: 'videoMovies' },
     { kind: 'videoMovieDetail', movieid: 1 },
+    { kind: 'videoMovieStream', movieid: 1 },
     { kind: 'videoUnknown', pathLabel: '/video/tv' }
   ])('returns true for video route %j', (route) => {
     expect(isVideoRoute(route)).toBe(true);
@@ -123,6 +165,7 @@ describe('isVideoRoute', () => {
     expect(isVideoRoute({ kind: 'dashboard' })).toBe(false);
     expect(isVideoRoute(null)).toBe(false);
     expect(isVideoRoute({ kind: 'videoMovieDetail', movieid: 0 })).toBe(false);
+    expect(isVideoRoute({ kind: 'videoMovieStream', movieid: 0 })).toBe(false);
   });
 });
 
