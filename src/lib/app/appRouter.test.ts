@@ -18,6 +18,8 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('/settings', '?m005-browser-proof=1')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/addons')).toEqual({ kind: 'addons' });
     expect(parseAppRoute('/addons', '?m005-browser-proof=1')).toEqual({ kind: 'addons' });
+    expect(parseAppRoute('/lab/shortcuts')).toEqual({ kind: 'labShortcuts' });
+    expect(parseAppRoute('/lab/api-browser')).toEqual({ kind: 'labApiBrowser' });
   });
 
   test('delegates video routes to the video router with parity', () => {
@@ -114,12 +116,36 @@ describe('parseAppRoute', () => {
       pathLabel: '/settings/[redacted]/[redacted]/[redacted]/[redacted]'
     });
   });
+
+  test('redacts unsafe unknown lab route labels without throwing', () => {
+    const unsafeInputs = [
+      '/lab/Authorization:Basic',
+      '/lab/admin:p@ssword',
+      '/lab/localStorage',
+      '/lab/%E0%A4%A',
+      '/lab/smb://nas/private',
+      '/lab/CHORUS3_SENTINEL_SECRET'
+    ];
+
+    for (const input of unsafeInputs) {
+      const route = parseAppRoute(input, '?token=Basic');
+
+      expect(route.kind).toBe('labUnknown');
+      expect(JSON.stringify(route)).not.toMatch(
+        /Authorization|Basic|admin:p@ssword|localStorage|CHORUS3_SENTINEL_SECRET|token=|smb:/i
+      );
+      expect(route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
+    }
+  });
 });
 
 describe('buildAppRoute', () => {
   test.each<[AppRoute, string]>([
     [{ kind: 'dashboard' }, '/'],
     [{ kind: 'settings' }, '/settings'],
+    [{ kind: 'labShortcuts' }, '/lab/shortcuts'],
+    [{ kind: 'labApiBrowser' }, '/lab/api-browser'],
+    [{ kind: 'labUnknown', pathLabel: '/lab/Authorization/Basic' }, '/lab/[redacted]/[redacted]'],
     [{ kind: 'addons' }, '/addons'],
     [{ kind: 'addonDetail', addonid: 'plugin.video.youtube' }, '/addons/plugin.video.youtube'],
     [

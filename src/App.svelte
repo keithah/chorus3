@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import AppShell from '$components/AppShell.svelte';
@@ -29,6 +31,7 @@
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
+  import ShortcutsPanel from '$components/ShortcutsPanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import VideoRecentPanel from '$components/VideoRecentPanel.svelte';
@@ -92,6 +95,7 @@
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
   import { buildAppRoute, type AppRoute } from '$lib/app/appRouter';
+  import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -337,6 +341,9 @@
   const isAddonsRoute = $derived(currentRoute.kind === 'addons');
   const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
   const isAddonsUnknownRoute = $derived(currentRoute.kind === 'addonsUnknown');
+  const isLabShortcutsRoute = $derived(currentRoute.kind === 'labShortcuts');
+  const isLabApiBrowserRoute = $derived(currentRoute.kind === 'labApiBrowser');
+  const isLabUnknownRoute = $derived(currentRoute.kind === 'labUnknown');
   const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentVideoRoute?.kind === 'videoMovieDetail');
   const isVideoMovieStreamRoute = $derived(currentVideoRoute?.kind === 'videoMovieStream');
@@ -353,7 +360,10 @@
       input.kind === 'settingsUnknown' ||
       input.kind === 'addons' ||
       input.kind === 'addonDetail' ||
-      input.kind === 'addonsUnknown'
+      input.kind === 'addonsUnknown' ||
+      input.kind === 'labShortcuts' ||
+      input.kind === 'labApiBrowser' ||
+      input.kind === 'labUnknown'
     ) {
       return input;
     }
@@ -363,6 +373,36 @@
     }
 
     return { kind: 'video', route: input };
+  }
+
+  onMount(() => {
+    const handleGlobalKeydown = (event: KeyboardEvent): void => {
+      handlePlaybackShortcut(event, playerDispatch, {
+        playerSnapshot: currentPlayerSnapshot,
+        toggleFullscreen: toggleAppFullscreen
+      });
+    };
+
+    window.addEventListener('keydown', handleGlobalKeydown);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeydown);
+    };
+  });
+
+  function toggleAppFullscreen(): void {
+    const documentElement = document.documentElement;
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.().catch(() => {
+        // Fullscreen support is host-dependent; keyboard handling remains best-effort.
+      });
+      return;
+    }
+
+    void documentElement.requestFullscreen?.().catch(() => {
+      // Fullscreen support is host-dependent; keyboard handling remains best-effort.
+    });
   }
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
@@ -704,6 +744,37 @@
         </nav>
       </section>
     </main>
+  {:else if isLabShortcutsRoute}
+    <main class="lab-route" aria-label="Lab shortcuts">
+      <ShortcutsPanel />
+    </main>
+  {:else if isLabApiBrowserRoute}
+    <main class="lab-route" aria-label="Lab API browser">
+      <section class="lab-api-browser-placeholder surface" aria-labelledby="lab-api-browser-title">
+        <p class="section-kicker">Lab utility</p>
+        <h2 id="lab-api-browser-title">API browser</h2>
+        <p>The guarded Kodi JSON-RPC API browser will render here.</p>
+        <nav class="lab-route-recovery" aria-label="Lab route recovery">
+          <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
+        </nav>
+      </section>
+    </main>
+  {:else if isLabUnknownRoute}
+    <main class="lab-route" aria-label="Unknown Lab route">
+      <section class="lab-route-not-found surface" aria-labelledby="lab-route-not-found-title">
+        <p class="section-kicker">Lab utility</p>
+        <h2 id="lab-route-not-found-title">Lab route not found</h2>
+        <p>
+          The Lab route {currentRoute.kind === 'labUnknown'
+            ? currentRoute.pathLabel
+            : '/lab/[redacted]'} is not available in this app shell.
+        </p>
+        <nav class="lab-route-recovery" aria-label="Lab route recovery">
+          <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
+          <a href={buildAppRoute({ kind: 'labApiBrowser' })}>API browser</a>
+        </nav>
+      </section>
+    </main>
   {:else if isSettingsRoute}
     <main class="settings-route" aria-label="Kodi Settings">
       <SettingsPanel snapshot={currentSettingsSnapshot} dispatch={settingsDispatch} />
@@ -889,7 +960,8 @@
 
   .video-route-recovery,
   .settings-route-recovery,
-  .addons-route-recovery {
+  .addons-route-recovery,
+  .lab-route-recovery {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-sm);

@@ -762,6 +762,18 @@ function getAddonsNotFoundText(target: HTMLElement): string {
   return panel?.textContent ?? '';
 }
 
+function getShortcutsPanelText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.shortcuts-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+function getLabNotFoundText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.lab-route-not-found');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
 function createEpisodeActionDispatch(
   overrides: Partial<VideoEpisodeActionDispatch> = {}
 ): VideoEpisodeActionDispatch {
@@ -1440,6 +1452,73 @@ describe('App shell', () => {
     expect(target.textContent).not.toContain('Basic');
     expect(target.textContent).not.toContain('SENTINEL_SECRET');
     expect(target.textContent).not.toContain('localStorage');
+  });
+
+  it('renders the Lab shortcuts route from shared shortcut documentation', () => {
+    const target = renderApp({ route: { kind: 'labShortcuts' } });
+    const shortcutsText = getShortcutsPanelText(target);
+
+    expect(shortcutsText).toContain('Playback shortcuts');
+    expect(shortcutsText).toContain('Play / pause');
+    expect(shortcutsText).toContain(
+      'Shortcuts are ignored while focus is inside editable controls.'
+    );
+    expect(target.textContent).not.toContain('Kodi host settings');
+    expect(target.textContent).not.toMatch(/Authorization|Basic|localStorage|admin:p@ssword/i);
+  });
+
+  it('renders safe Lab unknown route recovery without raw unsafe path text', () => {
+    const target = renderApp({
+      route: { kind: 'labUnknown', pathLabel: '/lab/[redacted]' },
+      settingsSnapshot: createSettingsSnapshot()
+    });
+    const notFoundText = getLabNotFoundText(target);
+
+    expect(notFoundText).toContain('Lab route not found');
+    expect(notFoundText).toContain('/lab/[redacted]');
+    expect(target.querySelector('.settings-panel')).toBeNull();
+    expect(getVideoLink(target, 'Shortcuts').getAttribute('href')).toBe('/lab/shortcuts');
+    expect(getVideoLink(target, 'API browser').getAttribute('href')).toBe('/lab/api-browser');
+    expect(target.textContent).not.toMatch(/Authorization|Basic|localStorage|admin:p@ssword/i);
+  });
+
+  it('dispatches playback shortcuts globally outside editable controls and removes the listener on unmount', async () => {
+    const playerDispatch = createPlayerDispatch();
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      playerSnapshot: activeVideoSnapshot({ application: { volume: 40, muted: false } }),
+      playerDispatch
+    });
+
+    const played = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', cancelable: true })
+    );
+    const volumeChanged = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', cancelable: true })
+    );
+    const modified = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, cancelable: true })
+    );
+    const editable = target.querySelector<HTMLInputElement>('#host-label');
+    expect(editable).toBeInstanceOf(HTMLInputElement);
+    editable?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true })
+    );
+    await tick();
+
+    expect(played).toBe(false);
+    expect(volumeChanged).toBe(false);
+    expect(modified).toBe(true);
+    expect(playerDispatch.playPause).toHaveBeenCalledTimes(1);
+    expect(playerDispatch.setVolume).toHaveBeenCalledWith(45);
+    expect(playerDispatch.seekRelativeSeconds).not.toHaveBeenCalled();
+    expect(playerDispatch.toggleMute).not.toHaveBeenCalled();
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', cancelable: true }));
+
+    expect(playerDispatch.next).not.toHaveBeenCalled();
   });
 
   it('renders store-backed settings load errors through SettingsPanel by default', () => {
