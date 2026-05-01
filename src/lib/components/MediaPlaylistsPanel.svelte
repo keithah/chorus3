@@ -62,7 +62,9 @@
   let localErrorText = $state<string | null>(null);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
-  const snapshotErrorText = $derived(snapshot.lastError ? sanitizeUiText(snapshot.lastError.message) : null);
+  const snapshotErrorText = $derived(
+    snapshot.lastError ? sanitizeUiText(snapshot.lastError.message) : null
+  );
   const statusText = $derived(localStatusText ?? formatStatus(snapshot));
 
   async function handleRefresh(): Promise<void> {
@@ -232,7 +234,12 @@
     index: number
   ): MediaPlaylistsActionItem | null {
     const id = stringOrNull(playlist.id);
-    if (!id || playlist.kind !== 'smart' || !playlist.capabilities.canPlay || !playlist.capabilities.canQueue) {
+    if (
+      !id ||
+      playlist.kind !== 'smart' ||
+      !playlist.capabilities.canPlay ||
+      !playlist.capabilities.canQueue
+    ) {
       return null;
     }
 
@@ -253,12 +260,16 @@
     return displayText(playlist.label, `Playlist ${index + 1}`);
   }
 
-  function safeBreadcrumbLabel(breadcrumb: MediaPlaylistsBreadcrumbSnapshot, index: number): string {
+  function safeBreadcrumbLabel(
+    breadcrumb: MediaPlaylistsBreadcrumbSnapshot,
+    index: number
+  ): string {
     return displayText(breadcrumb.label, `Location ${index + 1}`);
   }
 
   function safeEntryLabel(entry: MediaPlaylistEntrySnapshot, index: number): string {
-    const fallback = entry.mediaKind === 'audio' ? `Audio entry ${index + 1}` : `Entry ${index + 1}`;
+    const fallback =
+      entry.mediaKind === 'audio' ? `Audio entry ${index + 1}` : `Entry ${index + 1}`;
     return displayText(entry.label, fallback);
   }
 
@@ -360,6 +371,7 @@
       .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
       .replace(/https?:\/\/[^\s]+/gi, '[url]')
       .replace(/smb:\/\/[^\s]+/gi, '[path]')
+      .replace(/special:\/\/(?:music|video)playlists[^\s]*/gi, '[playlist-path]')
       .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
       .replace(/authorization/gi, 'credentials')
       .replace(/basic\s+[a-z0-9+/=]{6,}/gi, 'credentials [redacted]')
@@ -390,7 +402,8 @@
     <p class="section-kicker">Shared Playlists</p>
     <h2 id="media-playlists-title">Media Playlists</h2>
     <p class="summary-line">
-      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and safely play or queue supported playlist IDs.
+      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and safely play or queue supported
+      playlist IDs.
     </p>
   </div>
 

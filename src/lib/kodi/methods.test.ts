@@ -546,7 +546,9 @@ describe('Kodi curated method wrappers', () => {
 
   it('opens a playlist file item preserving the exact smart playlist file payload', async () => {
     const client = createFakeClient(['OK']);
-    const item = { file: 'special://profile/playlists/music/recent.xsp' } as const satisfies KodiPlaylistFileItem;
+    const item = {
+      file: 'special://profile/playlists/music/recent.xsp'
+    } as const satisfies KodiPlaylistFileItem;
 
     await expect(openPlayerPlaylistFile(client, item)).resolves.toBe('OK');
 
@@ -560,7 +562,9 @@ describe('Kodi curated method wrappers', () => {
 
   it('adds a playlist file item preserving playlist id and exact smart playlist file payload', async () => {
     const client = createFakeClient(['OK']);
-    const item = { file: 'special://profile/playlists/music/recent.xsp' } as const satisfies KodiPlaylistFileItem;
+    const item = {
+      file: 'special://profile/playlists/music/recent.xsp'
+    } as const satisfies KodiPlaylistFileItem;
 
     await expect(addPlaylistFileItem(client, 0, item)).resolves.toBe('OK');
 

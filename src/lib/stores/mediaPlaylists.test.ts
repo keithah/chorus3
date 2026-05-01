@@ -247,7 +247,9 @@ describe('media playlists store', () => {
   it('opens smart playlist contents through the private xsp path and exposes safe entries', async () => {
     const { client, setNow, store } = createHarness();
     client.enqueue('Files.GetDirectory', {
-      files: [{ file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }]
+      files: [
+        { file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }
+      ]
     });
     await store.refreshPlaylists();
 
@@ -373,7 +375,9 @@ describe('media playlists store', () => {
   it('preserves previous safe data and exposes sanitized errors when refresh and open fail', async () => {
     const { client, setNow, store } = createHarness();
     client.enqueue('Files.GetDirectory', {
-      files: [{ file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }]
+      files: [
+        { file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }
+      ]
     });
     await store.refreshPlaylists();
     client.enqueue('Files.GetDirectory', {
@@ -402,7 +406,10 @@ describe('media playlists store', () => {
     });
     expectSecretSafe(store.snapshot);
 
-    client.enqueue('Files.GetDirectory', new Error('Authorization Basic p@ssword for /mnt/private'));
+    client.enqueue(
+      'Files.GetDirectory',
+      new Error('Authorization Basic p@ssword for /mnt/private')
+    );
     await store.openPlaylist(playlistId(store.snapshot, 'Favorites'));
 
     expect(store.snapshot).toMatchObject({
@@ -531,7 +538,9 @@ describe('media playlists store', () => {
   it('returns cloned snapshots so callers cannot mutate media playlist internals', async () => {
     const { client, store } = createHarness();
     client.enqueue('Files.GetDirectory', {
-      files: [{ file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }]
+      files: [
+        { file: 'special://musicplaylists/Favorites.xsp', filetype: 'file', label: 'Favorites' }
+      ]
     });
     await store.refreshPlaylists();
     client.enqueue('Files.GetDirectory', {

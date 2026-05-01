@@ -142,7 +142,6 @@ export class MediaPlaylistsStore {
 
   #requestId = 0;
   #playlists = new Map<string, PlaylistRecord>();
-  #entries = new Map<string, EntryRecord>();
   #entryCounter = 0;
 
   constructor(options: MediaPlaylistsStoreOptions = {}) {
@@ -181,7 +180,6 @@ export class MediaPlaylistsStore {
 
       const playlists = this.#normalizePlaylists(result.files);
       this.#playlists = new Map(playlists.map((playlist) => [playlist.record.id, playlist.record]));
-      this.#entries = new Map();
       this.#entryCounter = 0;
 
       this.#snapshot = {
@@ -248,7 +246,6 @@ export class MediaPlaylistsStore {
       }
 
       const entries = this.#normalizeEntries(result.files);
-      this.#entries = new Map(entries.map((entry) => [entry.record.id, entry.record]));
 
       this.#snapshot = {
         refreshStatus: 'ready',
@@ -303,7 +300,6 @@ export class MediaPlaylistsStore {
   clear(): void {
     this.#requestId += 1;
     this.#playlists = new Map();
-    this.#entries = new Map();
     this.#entryCounter = 0;
     this.#snapshot = cloneMediaPlaylistsSnapshot(defaultSnapshot(this.#media));
   }
@@ -375,7 +371,13 @@ export class MediaPlaylistsStore {
       const extension = extensionFromPath(path);
       const playable =
         item.filetype !== 'directory' && extension !== undefined && AUDIO_EXTENSIONS.has(extension);
-      const record: EntryRecord = { id, label, path, playable, ...(extension ? { extension } : {}) };
+      const record: EntryRecord = {
+        id,
+        label,
+        path,
+        playable,
+        ...(extension ? { extension } : {})
+      };
       const snapshot: MediaPlaylistEntrySnapshot = {
         id,
         label,
@@ -529,7 +531,9 @@ function clonePlaylists(playlists: readonly MediaPlaylistSnapshot[]): MediaPlayl
   }));
 }
 
-function cloneEntries(entries: readonly MediaPlaylistEntrySnapshot[]): MediaPlaylistEntrySnapshot[] {
+function cloneEntries(
+  entries: readonly MediaPlaylistEntrySnapshot[]
+): MediaPlaylistEntrySnapshot[] {
   return entries.map((entry) => ({
     ...entry,
     capabilities: { ...entry.capabilities }

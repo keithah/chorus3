@@ -305,7 +305,10 @@ describe('player dispatch', () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     dispatch.setMode('local');
     playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
-    client.enqueue('Player.Open', new Error('Kodi rejected smb://secret/song.flac Authorization: Basic token'));
+    client.enqueue(
+      'Player.Open',
+      new Error('Kodi rejected smb://secret/song.flac Authorization: Basic token')
+    );
 
     await (dispatch as PlayerDispatchWithPlaylists).playPlaylistItem({
       file: 'special://profile/playlists/music/recent.xsp',
@@ -336,10 +339,29 @@ describe('player dispatch', () => {
       { file: '', mediaKind: 'music', playlistKind: 'smart' },
       { file: '   ', mediaKind: 'music', playlistKind: 'smart' },
       { file: 42, mediaKind: 'music', playlistKind: 'smart' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'video', playlistKind: 'smart' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'basic' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart', songid: 42 },
-      { kind: 'song', songid: 42, file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart' }
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'video',
+        playlistKind: 'smart'
+      },
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'basic'
+      },
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'smart',
+        songid: 42
+      },
+      {
+        kind: 'song',
+        songid: 42,
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'smart'
+      }
     ];
 
     for (const item of invalidItems) {

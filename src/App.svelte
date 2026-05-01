@@ -8,6 +8,11 @@
     type MediaFilesActionItem,
     type MediaFilesPanelDispatch
   } from '$components/MediaFilesPanel.svelte';
+  import MediaPlaylistsPanel, {
+    type MediaPlaylistsActionDispatch,
+    type MediaPlaylistsActionItem,
+    type MediaPlaylistsPanelDispatch
+  } from '$components/MediaPlaylistsPanel.svelte';
   import MediaSearchPanel, {
     type MediaSearchActionDispatch,
     type MediaSearchActionItem,
@@ -28,6 +33,7 @@
     connectionStore,
     localPlayerStore,
     mediaFilesStore,
+    mediaPlaylistsStore,
     mediaSearchStore,
     musicBrowseStore,
     musicLibraryStore,
@@ -38,6 +44,7 @@
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
     type MediaFilesStoreSnapshot,
+    type MediaPlaylistsStoreSnapshot,
     type MediaSearchStoreSnapshot,
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
@@ -61,6 +68,9 @@
     mediaFilesSnapshot?: MediaFilesStoreSnapshot;
     mediaFilesDispatch?: MediaFilesPanelDispatch;
     mediaFilesActionDispatch?: MediaFilesActionDispatch;
+    mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
+    mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
+    mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -97,6 +107,18 @@
     queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item))
   };
 
+  const defaultMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch = {
+    refresh: () => mediaPlaylistsStore.refreshPlaylists(),
+    openPlaylist: (id) => mediaPlaylistsStore.openPlaylist(id),
+    openBreadcrumb: (id) => mediaPlaylistsStore.openPlaylist(id)
+  };
+
+  const defaultMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch = {
+    playPlaylistItem: (item) =>
+      defaultPlayerDispatch.playPlaylistItem(toPlaylistPlaybackItem(item)),
+    queuePlaylistItem: (item) => defaultQueueDispatch.queuePlaylistItem(toPlaylistQueueItem(item))
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -112,7 +134,10 @@
     mediaSearchActionDispatch = defaultMediaSearchActionDispatch,
     mediaFilesSnapshot,
     mediaFilesDispatch = defaultMediaFilesDispatch,
-    mediaFilesActionDispatch = defaultMediaFilesActionDispatch
+    mediaFilesActionDispatch = defaultMediaFilesActionDispatch,
+    mediaPlaylistsSnapshot,
+    mediaPlaylistsDispatch = defaultMediaPlaylistsDispatch,
+    mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
@@ -121,6 +146,9 @@
   const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
   const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
   const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
+  const currentMediaPlaylistsSnapshot = $derived(
+    mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
+  );
 
   function openMediaFilesBreadcrumb(id: string): Promise<void> {
     if (id.startsWith('source:')) {
@@ -142,6 +170,32 @@
 
   function toFileQueueItem(item: MediaFilesActionItem): { file: string; mediaKind: 'audio' } {
     return toFilePlaybackItem(item);
+  }
+
+  function toPlaylistPlaybackItem(item: MediaPlaylistsActionItem): {
+    file: string;
+    mediaKind: 'music';
+    playlistKind: 'smart';
+  } {
+    const resolved = mediaPlaylistsStore.getPlayablePlaylist(item.id);
+
+    if (!resolved.ok) {
+      throw new Error(resolved.error.message);
+    }
+
+    return {
+      file: resolved.playlist.file,
+      mediaKind: resolved.playlist.mediaKind,
+      playlistKind: resolved.playlist.playlistKind
+    };
+  }
+
+  function toPlaylistQueueItem(item: MediaPlaylistsActionItem): {
+    file: string;
+    mediaKind: 'music';
+    playlistKind: 'smart';
+  } {
+    return toPlaylistPlaybackItem(item);
   }
 
   function toMusicPlaybackItem(
@@ -310,6 +364,11 @@
       snapshot={currentMediaFilesSnapshot}
       dispatch={mediaFilesDispatch}
       actionDispatch={mediaFilesActionDispatch}
+    />
+    <MediaPlaylistsPanel
+      snapshot={currentMediaPlaylistsSnapshot}
+      dispatch={mediaPlaylistsDispatch}
+      actionDispatch={mediaPlaylistsActionDispatch}
     />
 
     <LocalMediaRuntime />

@@ -15,6 +15,10 @@ import type {
   MediaFilesActionDispatch,
   MediaFilesPanelDispatch
 } from './lib/components/MediaFilesPanel.svelte';
+import type {
+  MediaPlaylistsActionDispatch,
+  MediaPlaylistsPanelDispatch
+} from './lib/components/MediaPlaylistsPanel.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
   configStore,
@@ -22,11 +26,18 @@ import {
   createConfigStore,
   hostConnectionStore,
   localPlayerStore,
+  mediaPlaylistsStore,
+  playerDispatch as defaultPlayerDispatch,
+  queueDispatch as defaultQueueDispatch,
   type MusicBrowseStoreSnapshot,
   type MediaDirectoryEntrySnapshot,
   type MediaFilesBreadcrumbSnapshot,
   type MediaFilesStoreSnapshot,
   type MediaFileSourceSnapshot,
+  type MediaPlaylistEntrySnapshot,
+  type MediaPlaylistSnapshot,
+  type MediaPlaylistsBreadcrumbSnapshot,
+  type MediaPlaylistsStoreSnapshot,
   type MediaSearchStoreSnapshot,
   type MusicLibraryStoreSnapshot,
   type PlayerDispatchSnapshot,
@@ -55,6 +66,9 @@ type AppProps = {
   mediaFilesSnapshot?: MediaFilesStoreSnapshot;
   mediaFilesDispatch?: MediaFilesPanelDispatch;
   mediaFilesActionDispatch?: MediaFilesActionDispatch;
+  mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
+  mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
+  mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
 };
 
 function createMusicLibrarySnapshot(
@@ -233,6 +247,92 @@ function createMediaFilesActionDispatch(
     queueFileItem: vi.fn(),
     ...overrides
   };
+}
+
+function createMediaPlaylistsSnapshot(
+  overrides: Partial<MediaPlaylistsStoreSnapshot> = {}
+): MediaPlaylistsStoreSnapshot {
+  const playlists: MediaPlaylistSnapshot[] = [
+    {
+      id: 'playlist:1',
+      label: 'Late Night Jazz.xsp',
+      media: 'music',
+      kind: 'smart',
+      extension: 'xsp',
+      capabilities: { canBrowse: true, canPlay: true, canQueue: true }
+    },
+    {
+      id: 'playlist:2',
+      label: 'Road Trip.m3u',
+      media: 'music',
+      kind: 'basic',
+      extension: 'm3u',
+      capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+    }
+  ];
+  const entries: MediaPlaylistEntrySnapshot[] = [
+    {
+      id: 'entry:1',
+      label: 'Blue in Green.flac',
+      mediaKind: 'audio',
+      extension: 'flac',
+      capabilities: { canPlay: true, canQueue: true }
+    },
+    {
+      id: 'entry:2',
+      label: 'cover.jpg',
+      mediaKind: 'unsupported',
+      extension: 'jpg',
+      capabilities: { canPlay: false, canQueue: false }
+    }
+  ];
+  const breadcrumbs: MediaPlaylistsBreadcrumbSnapshot[] = [
+    { id: 'playlist:1', label: 'Late Night Jazz.xsp' }
+  ];
+
+  return {
+    refreshStatus: 'ready',
+    lastRefreshReason: 'playlist:playlist:1',
+    lastUpdatedAt: '2026-04-30T16:00:00.000Z',
+    media: 'music',
+    playlists,
+    entries,
+    breadcrumbs,
+    isEmpty: false,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createMediaPlaylistsDispatch(
+  overrides: Partial<MediaPlaylistsPanelDispatch> = {}
+): MediaPlaylistsPanelDispatch {
+  return {
+    refresh: vi.fn(),
+    openPlaylist: vi.fn(),
+    openBreadcrumb: vi.fn(),
+    ...overrides
+  };
+}
+
+function createMediaPlaylistsActionDispatch(
+  overrides: Partial<MediaPlaylistsActionDispatch> = {}
+): MediaPlaylistsActionDispatch {
+  return {
+    playPlaylistItem: vi.fn(),
+    queuePlaylistItem: vi.fn(),
+    ...overrides
+  };
+}
+
+function getMediaPlaylistsPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.media-playlists-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getMediaPlaylistsPanelText(target: HTMLElement): string {
+  return getMediaPlaylistsPanel(target).textContent ?? '';
 }
 
 function getMediaFilesPanel(target: HTMLElement): HTMLElement {
@@ -1446,6 +1546,195 @@ describe('App shell', () => {
     expect(filesText).not.toContain('localStorage');
     expect(filesText).not.toContain('raw response body');
     expect(filesText).not.toContain('smb://');
+  });
+
+  it('renders injected Media Playlists without live Kodi and redacts hostile raw playlist paths', () => {
+    const target = renderApp({
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot({
+        playlists: [
+          {
+            id: 'playlist:1',
+            label: 'smb://nas.local/private/Late Night Jazz.xsp',
+            media: 'music',
+            kind: 'smart',
+            extension: 'xsp',
+            capabilities: { canBrowse: true, canPlay: true, canQueue: true }
+          },
+          {
+            id: 'playlist:2',
+            label: 'http://admin:p@ssword@example.test/private/Road Trip.m3u',
+            media: 'music',
+            kind: 'basic',
+            extension: 'm3u',
+            capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          }
+        ],
+        entries: [
+          {
+            id: 'entry:1',
+            label: 'smb://nas.local/private/Blue in Green.flac',
+            mediaKind: 'audio',
+            extension: 'flac',
+            capabilities: { canPlay: true, canQueue: true }
+          }
+        ],
+        breadcrumbs: [{ id: 'playlist:1', label: '/home/kodi/playlists/Late Night Jazz.xsp' }],
+        lastError: {
+          source: 'http',
+          code: 'auth',
+          message:
+            'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and special://musicplaylists/private.xsp'
+        }
+      }),
+      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch()
+    });
+
+    const playlistsText = getMediaPlaylistsPanelText(target);
+
+    expect(playlistsText).toContain('Media Playlists');
+    expect(playlistsText).toContain('Music playlists');
+    expect(playlistsText).toContain('Smart playlist');
+    expect(playlistsText).toContain('Unsupported playlist');
+    expect(playlistsText).toContain('Playlist 1');
+    expect(playlistsText).toContain('Playlist 2');
+    expect(playlistsText).toContain('Audio entry 1');
+    expect(playlistsText).not.toContain('smb://');
+    expect(playlistsText).not.toContain('admin:p@ssword');
+    expect(playlistsText).not.toContain('Authorization');
+    expect(playlistsText).not.toContain('Basic abc123');
+    expect(playlistsText).not.toContain('localStorage');
+    expect(playlistsText).not.toContain('raw response body');
+    expect(playlistsText).not.toContain('special://');
+    expect(playlistsText).not.toContain('/home/kodi');
+    expect(playlistsText).not.toContain('.xsp');
+  });
+
+  it('routes Media Playlists refresh, open, breadcrumb, play, and queue through injected dispatches once', async () => {
+    const mediaPlaylistsDispatch = createMediaPlaylistsDispatch();
+    const mediaPlaylistsActionDispatch = createMediaPlaylistsActionDispatch();
+    const target = renderApp({
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+      mediaPlaylistsDispatch,
+      mediaPlaylistsActionDispatch
+    });
+
+    getButtonByAria(target, 'Refresh media playlists').click();
+    await tick();
+    getButtonByAria(target, 'Open playlist Late Night Jazz playlist file').click();
+    await tick();
+    getButtonByAria(target, 'Open breadcrumb Late Night Jazz playlist file').click();
+    await tick();
+    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue playlist Late Night Jazz playlist file').click();
+    await tick();
+
+    expect(mediaPlaylistsDispatch.refresh).toHaveBeenCalledTimes(1);
+    expect(mediaPlaylistsDispatch.openPlaylist).toHaveBeenCalledTimes(1);
+    expect(mediaPlaylistsDispatch.openPlaylist).toHaveBeenCalledWith('playlist:1');
+    expect(mediaPlaylistsDispatch.openBreadcrumb).toHaveBeenCalledTimes(1);
+    expect(mediaPlaylistsDispatch.openBreadcrumb).toHaveBeenCalledWith('playlist:1');
+    expect(mediaPlaylistsActionDispatch.playPlaylistItem).toHaveBeenCalledTimes(1);
+    expect(mediaPlaylistsActionDispatch.playPlaylistItem).toHaveBeenCalledWith({
+      id: 'playlist:1',
+      label: 'Late Night Jazz playlist file',
+      media: 'music',
+      kind: 'smart',
+      capabilities: { canBrowse: true, canPlay: true, canQueue: true }
+    });
+    expect(mediaPlaylistsActionDispatch.queuePlaylistItem).toHaveBeenCalledTimes(1);
+    expect(mediaPlaylistsActionDispatch.queuePlaylistItem).toHaveBeenCalledWith({
+      id: 'playlist:1',
+      label: 'Late Night Jazz playlist file',
+      media: 'music',
+      kind: 'smart',
+      capabilities: { canBrowse: true, canPlay: true, canQueue: true }
+    });
+  });
+
+  it('routes default Media Playlists play and queue through playlist-specific dispatch methods', async () => {
+    const getPlayablePlaylist = vi.spyOn(mediaPlaylistsStore, 'getPlayablePlaylist');
+    getPlayablePlaylist.mockReturnValue({
+      ok: true,
+      playlist: {
+        id: 'playlist:1',
+        label: 'Late Night Jazz.xsp',
+        mediaKind: 'music',
+        playlistKind: 'smart',
+        file: 'special://musicplaylists/Late Night Jazz.xsp'
+      }
+    });
+    const playPlaylistItem = vi
+      .spyOn(defaultPlayerDispatch, 'playPlaylistItem')
+      .mockResolvedValue();
+    const playFileItem = vi.spyOn(defaultPlayerDispatch, 'playFileItem').mockResolvedValue();
+    const queuePlaylistItem = vi
+      .spyOn(defaultQueueDispatch, 'queuePlaylistItem')
+      .mockResolvedValue();
+    const queueFileItem = vi.spyOn(defaultQueueDispatch, 'queueFileItem').mockResolvedValue();
+    const target = renderApp({ mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot() });
+
+    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue playlist Late Night Jazz playlist file').click();
+    await tick();
+
+    expect(getPlayablePlaylist).toHaveBeenCalledTimes(2);
+    expect(getPlayablePlaylist).toHaveBeenNthCalledWith(1, 'playlist:1');
+    expect(getPlayablePlaylist).toHaveBeenNthCalledWith(2, 'playlist:1');
+    expect(playPlaylistItem).toHaveBeenCalledTimes(1);
+    expect(playPlaylistItem).toHaveBeenCalledWith({
+      file: 'special://musicplaylists/Late Night Jazz.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+    expect(queuePlaylistItem).toHaveBeenCalledTimes(1);
+    expect(queuePlaylistItem).toHaveBeenCalledWith({
+      file: 'special://musicplaylists/Late Night Jazz.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+    expect(playFileItem).not.toHaveBeenCalled();
+    expect(queueFileItem).not.toHaveBeenCalled();
+    expect(getMediaPlaylistsPanelText(target)).not.toContain('special://musicplaylists');
+  });
+
+  it('renders default Media Playlists resolver failures through sanitized action status', async () => {
+    vi.spyOn(mediaPlaylistsStore, 'getPlayablePlaylist').mockReturnValue({
+      ok: false,
+      error: {
+        source: 'client',
+        code: 'client/unknown-playlist',
+        message:
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and special://musicplaylists/private.xsp'
+      }
+    });
+    const playPlaylistItem = vi
+      .spyOn(defaultPlayerDispatch, 'playPlaylistItem')
+      .mockResolvedValue();
+    const target = renderApp({ mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot() });
+
+    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    await tick();
+    await tick();
+
+    const playlistsText = getMediaPlaylistsPanelText(target);
+    expect(playPlaylistItem).not.toHaveBeenCalled();
+    expect(playlistsText).toContain('Could not play playlist Late Night Jazz playlist file');
+    expect(playlistsText).toContain('credentials [redacted]');
+    expect(playlistsText).toContain('[redacted-url]');
+    expect(playlistsText).toContain('response body [redacted]');
+    expect(playlistsText).toContain('browser storage');
+    expect(playlistsText).not.toContain('admin:p@ssword');
+    expect(playlistsText).not.toContain('Authorization');
+    expect(playlistsText).not.toContain('Basic abc123');
+    expect(playlistsText).not.toContain('localStorage');
+    expect(playlistsText).not.toContain('raw response body');
+    expect(playlistsText).not.toContain('special://');
+    expect(playlistsText).not.toContain('.xsp failed');
   });
 
   it('renders default Music Browse idle prompt without a configured Kodi host', () => {

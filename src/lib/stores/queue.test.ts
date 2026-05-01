@@ -279,10 +279,29 @@ describe('queue dispatch', () => {
       { file: '', mediaKind: 'music', playlistKind: 'smart' },
       { file: '   ', mediaKind: 'music', playlistKind: 'smart' },
       { file: 42, mediaKind: 'music', playlistKind: 'smart' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'video', playlistKind: 'smart' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'basic' },
-      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart', songid: 42 },
-      { kind: 'song', songid: 42, file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart' }
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'video',
+        playlistKind: 'smart'
+      },
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'basic'
+      },
+      {
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'smart',
+        songid: 42
+      },
+      {
+        kind: 'song',
+        songid: 42,
+        file: 'special://profile/playlists/music/recent.xsp',
+        mediaKind: 'music',
+        playlistKind: 'smart'
+      }
     ];
 
     for (const input of invalidInputs) {
