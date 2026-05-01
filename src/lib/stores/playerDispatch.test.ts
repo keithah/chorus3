@@ -209,8 +209,6 @@ describe('player dispatch', () => {
     });
   });
 
-
-
   it('opens song, album, and artist music items through Player.Open without requiring an active player', async () => {
     const { client, dispatch, playerStore } = createHarness();
     playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });

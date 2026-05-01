@@ -742,7 +742,9 @@ function validateSubtitle(subtitle: PlayerSubtitleValue): PlayerDispatchSafeErro
     : createInputError('input/invalid-subtitle', 'Choose a valid subtitle stream.');
 }
 
-function validateMusicPlaybackItem(item: MusicPlaybackItem): PlayerDispatchSafeErrorSnapshot | null {
+function validateMusicPlaybackItem(
+  item: MusicPlaybackItem
+): PlayerDispatchSafeErrorSnapshot | null {
   const musicItem = toKodiMusicLibraryItem(item);
 
   if (!musicItem) {
@@ -763,7 +765,12 @@ function toKodiMusicLibraryItem(item: MusicPlaybackItem): KodiMusicLibraryItem |
   const candidate = item as Record<string, unknown>;
   const keys = Object.keys(candidate).sort();
 
-  if (candidate.kind === 'song' && keys.length === 2 && keys[0] === 'kind' && keys[1] === 'songid') {
+  if (
+    candidate.kind === 'song' &&
+    keys.length === 2 &&
+    keys[0] === 'kind' &&
+    keys[1] === 'songid'
+  ) {
     return isPositiveInteger(candidate.songid) ? { songid: candidate.songid } : null;
   }
 

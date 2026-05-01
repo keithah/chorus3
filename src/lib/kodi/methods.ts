@@ -811,12 +811,7 @@ export function addPlaylistItem(
   params: PlaylistAddParams,
   options?: KodiHttpCallOptions
 ): Promise<PlayerCommandResult> {
-  return callKodi<PlayerCommandResult, PlaylistAddParams>(
-    client,
-    'Playlist.Add',
-    params,
-    options
-  );
+  return callKodi<PlayerCommandResult, PlaylistAddParams>(client, 'Playlist.Add', params, options);
 }
 
 export function addMusicPlaylistItem(
