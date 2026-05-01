@@ -43,7 +43,7 @@ describe('createM004BrowserProofAppProps', () => {
     expect(props.videoLibrarySnapshot.refreshStatus).toBe('ready');
     expect(props.videoLibrarySnapshot.isEmpty).toBe(false);
     expect(props.videoLibrarySnapshot.movies).toHaveLength(2);
-    expect(props.videoLibrarySnapshot.limits.movies.total).toBe(2);
+    expect(props.videoLibrarySnapshot.limits.movies).toEqual({ start: 0, end: 25, total: 503 });
 
     const labels = props.videoLibrarySnapshot.movies.map((movie) => movie.label);
     expect(labels).toContain('Neon Harbor');
@@ -60,8 +60,25 @@ describe('createM004BrowserProofAppProps', () => {
     expect(
       props.videoLibrarySnapshot.recentlyPlayedEpisodes.map((episode) => episode.label)
     ).toContain('Cold Open');
+    expect(props.videoLibrarySnapshot.recentlyPlayedMovies.map((movie) => movie.label)).toEqual([
+      'Quiet Signal',
+      'Neon Harbor'
+    ]);
+    expect(
+      props.videoLibrarySnapshot.recentlyPlayedEpisodes.map((episode) => episode.label)
+    ).toEqual(['Cold Open', 'Signal Mirror']);
     expect(props.videoLibrarySnapshot.limits.recentlyAddedMovies.total).toBe(2);
     expect(props.videoLibrarySnapshot.limits.recentlyAddedEpisodes.total).toBe(2);
+    expect(props.videoLibrarySnapshot.limits.recentlyPlayedMovies).toEqual({
+      start: 0,
+      end: 25,
+      total: 503
+    });
+    expect(props.videoLibrarySnapshot.limits.recentlyPlayedEpisodes).toEqual({
+      start: 0,
+      end: 25,
+      total: 503
+    });
     expect(props.videoMediaPlaylistsSnapshot.media).toBe('video');
     expect(props.videoMediaPlaylistsSnapshot.playlists.map((playlist) => playlist.label)).toContain(
       'Rain City Thrillers.xsp'

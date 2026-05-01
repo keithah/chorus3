@@ -2,15 +2,15 @@
 
 Date: 2026-05-01
 Milestone: M004
-Slice: S07
+Slice: S08
 
 ## Scope
 
-This runbook is the tracked UAT surface for M004 final validation of the video library. It separates deterministic no-live-Kodi proof from optional live Kodi checks so CI remains safe and repeatable.
+This runbook is the tracked UAT surface for M004 final validation of the video library. It separates deterministic no-live-Kodi proof, S08 requirement-reconciliation evidence, and optional live Kodi checks so CI remains safe and repeatable.
 
-M004/S07 proves these assembled surfaces with fixtures, tests, browser diagnostics, and a read-only smoke probe:
+M004/S07 and S08 prove these assembled surfaces with fixtures, tests, browser diagnostics, reconciliation docs, and a read-only smoke probe:
 
-- movie grid and recent movies
+- movie grid and recent movies, including deterministic bounded-count copy for a 25-of-503 large-library policy fixture
 - movie detail metadata, versions, play/resume/queue controls, stream entrypoint, and watched-state controls
 - local movie stream shell as a safe browser runtime proof
 - TV grid and recent episodes
@@ -25,6 +25,8 @@ M004/S07 proves these assembled surfaces with fixtures, tests, browser diagnosti
 Run these commands from the repository root. They do not require a live Kodi instance and are safe for CI.
 
 ```text
+npm run test -- src/lib/testing/m004BrowserProofFixtures.test.ts src/main.test.ts src/App.test.ts
+npm run test -- src/lib/stores/videoLibrary.test.ts src/lib/stores/videoWriteStore.test.ts src/lib/components/VideoRecentPanel.test.ts src/lib/components/VideoSeasonDetailShell.test.ts src/lib/components/VideoMovieDetailShell.test.ts src/App.test.ts src/main.test.ts
 test -s docs/m004-browser-proof.md
 test -s docs/m004-video-uat.md
 npm run test -- scripts/smoke-m004-video.test.ts src/lib/testing/m004BrowserProofFixtures.test.ts src/main.test.ts src/App.test.ts
@@ -34,7 +36,7 @@ npm run build
 npm run verify
 ```
 
-The deterministic browser proof in the M004 browser proof document is also CI-safe when run against the local Vite dev server. It uses fixture data and must not require a live Kodi endpoint.
+The deterministic browser proof in the M004 browser proof document is also CI-safe when run against the local Vite dev server. It uses fixture data and must not require a live Kodi endpoint. S08 adds explicit no-live evidence for the bounded movie-grid count (`2 of 503 movies`), recent-played provider ordering, season artwork unsupported copy, partial season batch retry copy, and movie-version capability copy.
 
 ## Requirement Reconciliation Cross-Reference
 

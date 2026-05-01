@@ -100,6 +100,7 @@ describe('main entrypoint', () => {
     await importMain();
 
     expect(document.body.textContent).toContain('Video Movies');
+    expect(document.body.textContent).toContain('2 of 503 movies');
     expect(document.body.textContent).toContain('Recent Video');
     expect(document.body.textContent).toContain('Recently added movies');
     expect(document.body.textContent).toContain('Recently played episodes');

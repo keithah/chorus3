@@ -137,12 +137,12 @@ function createVideoLibrarySnapshot(): VideoLibraryStoreSnapshot {
     recentlyAddedEpisodes: createAuroraFilesEpisodes(),
     recentlyPlayedEpisodes: [...createAuroraFilesEpisodes()].reverse(),
     limits: {
-      movies: { start: 0, end: movies.length, total: movies.length },
+      movies: { start: 0, end: 25, total: 503 },
       tvShows: { start: 0, end: tvShows.length, total: tvShows.length },
       recentlyAddedMovies: { start: 0, end: 2, total: 2 },
-      recentlyPlayedMovies: { start: 0, end: 2, total: 2 },
+      recentlyPlayedMovies: { start: 0, end: 25, total: 503 },
       recentlyAddedEpisodes: { start: 0, end: 2, total: 2 },
-      recentlyPlayedEpisodes: { start: 0, end: 2, total: 2 }
+      recentlyPlayedEpisodes: { start: 0, end: 25, total: 503 }
     },
     isEmpty: false,
     lastError: null
