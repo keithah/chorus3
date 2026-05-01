@@ -44,6 +44,15 @@ import {
   getVideoLibraryMovieDetails,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
+  getVideoLibraryTvShowDetails,
+  getVideoLibrarySeasons,
+  getVideoLibrarySeasonDetails,
+  getVideoLibraryEpisodeDetails,
+  getVideoLibraryAvailableArt,
+  getVideoLibraryAvailableArtTypes,
+  refreshVideoLibraryTvShow,
+  refreshVideoLibraryEpisode,
+  setSeasonDetails,
   goToPlayerItem,
   openPlayer,
   openPlayerFile,
@@ -792,7 +801,41 @@ describe('Kodi curated method wrappers', () => {
     expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMovieDetails', params }]);
   });
 
-  it('gets video library TV shows preserving requested params', async () => {
+  it('gets video library TV shows with curated default properties that exclude file', async () => {
+    const client = createFakeClient([{ tvshows: [{ tvshowid: 5501, label: 'Severance' }] }]);
+
+    await expect(getVideoLibraryTvShows(client)).resolves.toEqual({
+      tvshows: [{ tvshowid: 5501, label: 'Severance' }]
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetTVShows',
+        params: {
+          properties: [
+            'title',
+            'sorttitle',
+            'thumbnail',
+            'fanart',
+            'art',
+            'year',
+            'plot',
+            'episode',
+            'watchedepisodes',
+            'playcount',
+            'lastplayed',
+            'genre',
+            'studio',
+            'rating',
+            'userrating'
+          ]
+        }
+      }
+    ]);
+    expect((client.calls[0]?.params as { properties: string[] }).properties).not.toContain('file');
+  });
+
+  it('gets video library TV shows preserving explicit requested params', async () => {
     const client = createFakeClient([{ tvshows: [{ tvshowid: 4, label: 'Severance' }] }]);
     const params = { properties: ['episode', 'watchedepisodes'] } as const;
 
@@ -801,6 +844,72 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'VideoLibrary.GetTVShows', params }]);
+  });
+
+  it('gets video library TV show details with exact id and curated default properties', async () => {
+    const client = createFakeClient([
+      { tvshowdetails: { tvshowid: 5501, label: 'Severance', title: 'Severance' } }
+    ]);
+
+    await expect(getVideoLibraryTvShowDetails(client, { tvshowid: 5501 })).resolves.toEqual({
+      tvshowdetails: { tvshowid: 5501, label: 'Severance', title: 'Severance' }
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetTVShowDetails',
+        params: {
+          tvshowid: 5501,
+          properties: [
+            'title',
+            'sorttitle',
+            'thumbnail',
+            'fanart',
+            'art',
+            'year',
+            'plot',
+            'episode',
+            'watchedepisodes',
+            'playcount',
+            'lastplayed',
+            'genre',
+            'studio',
+            'rating',
+            'userrating'
+          ]
+        }
+      }
+    ]);
+    expect((client.calls[0]?.params as { properties: string[] }).properties).not.toContain('file');
+  });
+
+  it('gets video library seasons preserving show id and requested params', async () => {
+    const client = createFakeClient([{ seasons: [{ season: 1, label: 'Season 1' }] }]);
+    const params = {
+      tvshowid: 5501,
+      properties: ['season', 'episode', 'watchedepisodes']
+    } as const;
+
+    await expect(getVideoLibrarySeasons(client, params)).resolves.toEqual({
+      seasons: [{ season: 1, label: 'Season 1' }]
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetSeasons', params }]);
+  });
+
+  it('gets video library season details preserving exact show and season ids', async () => {
+    const client = createFakeClient([{ seasondetails: { season: 1, label: 'Season 1' } }]);
+    const params = {
+      tvshowid: 5501,
+      season: 1,
+      properties: ['season', 'thumbnail', 'art']
+    } as const;
+
+    await expect(getVideoLibrarySeasonDetails(client, params)).resolves.toEqual({
+      seasondetails: { season: 1, label: 'Season 1' }
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetSeasonDetails', params }]);
   });
 
   it('gets video library episodes preserving requested params', async () => {
@@ -812,6 +921,96 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'VideoLibrary.GetEpisodes', params }]);
+  });
+
+  it('gets video library episode details preserving exact episode id and requested properties', async () => {
+    const client = createFakeClient([
+      { episodedetails: { episodeid: 6601, label: 'Hello, Ms. Cobel', season: 1, episode: 1 } }
+    ]);
+    const params = {
+      episodeid: 6601,
+      properties: ['title', 'season', 'episode', 'resume']
+    } as const;
+
+    await expect(getVideoLibraryEpisodeDetails(client, params)).resolves.toEqual({
+      episodedetails: { episodeid: 6601, label: 'Hello, Ms. Cobel', season: 1, episode: 1 }
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetEpisodeDetails', params }]);
+  });
+
+  it('gets available art and art types with raw Kodi result objects', async () => {
+    const client = createFakeClient([
+      { availableart: { poster: [{ url: 'image://poster.jpg/' }] } },
+      { availablearttypes: ['poster', 'fanart'] }
+    ]);
+
+    await expect(
+      getVideoLibraryAvailableArt(client, { media: 'season', tvshowid: 5501, season: 1 })
+    ).resolves.toEqual({ availableart: { poster: [{ url: 'image://poster.jpg/' }] } });
+    await expect(getVideoLibraryAvailableArtTypes(client, { media: 'season' })).resolves.toEqual({
+      availablearttypes: ['poster', 'fanart']
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetAvailableArt',
+        params: { media: 'season', tvshowid: 5501, season: 1 }
+      },
+      { method: 'VideoLibrary.GetAvailableArtTypes', params: { media: 'season' } }
+    ]);
+  });
+
+  it('refreshes TV shows and episodes with exact Kodi method names', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(refreshVideoLibraryTvShow(client, { tvshowid: 5501 })).resolves.toBe('OK');
+    await expect(refreshVideoLibraryEpisode(client, { episodeid: 6601 })).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'VideoLibrary.RefreshTVShow', params: { tvshowid: 5501 } },
+      { method: 'VideoLibrary.RefreshEpisode', params: { episodeid: 6601 } }
+    ]);
+  });
+
+  it('sets video library season details with curated artwork write fields', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setSeasonDetails(client, {
+        tvshowid: 5501,
+        season: 1,
+        art: { poster: 'image://poster.jpg/' }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.SetSeasonDetails',
+        params: { tvshowid: 5501, season: 1, art: { poster: 'image://poster.jpg/' } }
+      }
+    ]);
+  });
+
+  it('propagates TV wrapper transport errors unchanged without leaking raw payloads', async () => {
+    const error = new KodiHttpClientError({
+      code: 'network',
+      endpoint: {
+        protocol: 'http:',
+        host: 'kodi.local',
+        port: 8080,
+        path: '/jsonrpc',
+        timeoutMs: 25,
+        hasCredentials: false
+      },
+      method: 'VideoLibrary.GetTVShows'
+    });
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn().mockRejectedValue(error)
+    };
+
+    await expect(getVideoLibraryTvShows(client)).rejects.toBe(error);
+    expect(JSON.stringify(error)).not.toMatch(/Authorization|Basic|SENTINEL_SECRET|raw/i);
   });
 
   it('propagates Kodi HTTP client errors unchanged', async () => {

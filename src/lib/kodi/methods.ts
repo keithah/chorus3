@@ -372,6 +372,14 @@ export type VideoLibrarySetEpisodeDetailsParams = {
   resume?: VideoResumePosition;
 };
 
+export type VideoLibrarySetSeasonDetailsParams = {
+  tvshowid: number;
+  season: number;
+  title?: string;
+  userrating?: number;
+  art?: Record<string, string>;
+};
+
 export type PlayerPlayPauseParams = {
   playerid: number;
 };
@@ -657,6 +665,19 @@ export type VideoLibraryTvShowPropertyName =
   | 'watchedepisodes'
   | 'year';
 
+export type VideoLibrarySeasonPropertyName =
+  | 'art'
+  | 'episode'
+  | 'fanart'
+  | 'playcount'
+  | 'season'
+  | 'showtitle'
+  | 'thumbnail'
+  | 'title'
+  | 'tvshowid'
+  | 'userrating'
+  | 'watchedepisodes';
+
 export type VideoLibraryEpisodePropertyName =
   | 'art'
   | 'cast'
@@ -712,6 +733,11 @@ export interface VideoLibraryTvShow extends LibraryItem {
   tvshowid: number;
 }
 
+export interface VideoLibrarySeason extends LibraryItem {
+  season: number;
+  tvshowid?: number;
+}
+
 export interface VideoLibraryEpisode extends LibraryItem {
   episodeid: number;
 }
@@ -752,11 +778,66 @@ export interface VideoLibraryTvShowsResult {
   [key: string]: unknown;
 }
 
+export interface VideoLibraryTvShowDetailsResult {
+  tvshowdetails?: VideoLibraryTvShow;
+  [key: string]: unknown;
+}
+
+export interface VideoLibrarySeasonsResult {
+  seasons?: VideoLibrarySeason[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export interface VideoLibrarySeasonDetailsResult {
+  seasondetails?: VideoLibrarySeason;
+  [key: string]: unknown;
+}
+
 export interface VideoLibraryEpisodesResult {
   episodes?: VideoLibraryEpisode[];
   limits?: KodiLimits;
   [key: string]: unknown;
 }
+
+export interface VideoLibraryEpisodeDetailsResult {
+  episodedetails?: VideoLibraryEpisode;
+  [key: string]: unknown;
+}
+
+export type VideoLibraryAvailableArtMedia = 'movie' | 'tvshow' | 'season' | 'episode';
+
+export type VideoLibraryAvailableArtParams = {
+  media: VideoLibraryAvailableArtMedia;
+  movieid?: number;
+  tvshowid?: number;
+  season?: number;
+  episodeid?: number;
+};
+
+export interface VideoLibraryAvailableArtResult {
+  availableart?: unknown;
+  [key: string]: unknown;
+}
+
+export type VideoLibraryAvailableArtTypesParams = {
+  media: VideoLibraryAvailableArtMedia;
+};
+
+export interface VideoLibraryAvailableArtTypesResult {
+  availablearttypes?: unknown;
+  [key: string]: unknown;
+}
+
+export type VideoLibraryRefreshTvShowParams = {
+  tvshowid: number;
+  ignorenfo?: boolean;
+};
+
+export type VideoLibraryRefreshEpisodeParams = {
+  episodeid: number;
+  ignorenfo?: boolean;
+};
 
 export type AudioLibraryArtistsParams = KodiListParams<AudioLibraryArtistPropertyName>;
 export type AudioLibraryAlbumsParams = KodiListParams<AudioLibraryAlbumPropertyName>;
@@ -768,7 +849,26 @@ export type VideoLibraryMovieDetailsParams = {
   properties?: readonly VideoLibraryMoviePropertyName[];
 };
 export type VideoLibraryTvShowsParams = KodiListParams<VideoLibraryTvShowPropertyName>;
-export type VideoLibraryEpisodesParams = KodiListParams<VideoLibraryEpisodePropertyName>;
+export type VideoLibraryTvShowDetailsParams = {
+  tvshowid: number;
+  properties?: readonly VideoLibraryTvShowPropertyName[];
+};
+export type VideoLibrarySeasonsParams = KodiListParams<VideoLibrarySeasonPropertyName> & {
+  tvshowid: number;
+};
+export type VideoLibrarySeasonDetailsParams = {
+  tvshowid: number;
+  season: number;
+  properties?: readonly VideoLibrarySeasonPropertyName[];
+};
+export type VideoLibraryEpisodesParams = KodiListParams<VideoLibraryEpisodePropertyName> & {
+  tvshowid?: number;
+  season?: number;
+};
+export type VideoLibraryEpisodeDetailsParams = {
+  episodeid: number;
+  properties?: readonly VideoLibraryEpisodePropertyName[];
+};
 
 export interface VideoLibraryMovieDetailsResult {
   moviedetails?: VideoLibraryMovie;
@@ -779,6 +879,36 @@ export interface KodiHttpConnectionTestResult {
   ping: string;
   jsonRpcVersion: JsonRpcVersionResult;
   application: ApplicationPropertiesResult;
+}
+
+const DEFAULT_VIDEO_LIBRARY_TV_SHOW_PROPERTIES: readonly VideoLibraryTvShowPropertyName[] = [
+  'title',
+  'sorttitle',
+  'thumbnail',
+  'fanart',
+  'art',
+  'year',
+  'plot',
+  'episode',
+  'watchedepisodes',
+  'playcount',
+  'lastplayed',
+  'genre',
+  'studio',
+  'rating',
+  'userrating'
+];
+
+function withDefaultProperties<
+  TParams extends { properties?: readonly TProperty[] },
+  TProperty extends string
+>(
+  params: TParams,
+  properties: readonly TProperty[]
+): TParams & { properties: readonly TProperty[] } {
+  return params.properties
+    ? (params as TParams & { properties: readonly TProperty[] })
+    : { ...params, properties };
 }
 
 function callKodi<TResult, TParams extends JsonRpcParams = JsonRpcParams>(
@@ -1073,6 +1203,19 @@ export function setEpisodeDetails(
   );
 }
 
+export function setSeasonDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySetSeasonDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibrarySetSeasonDetailsParams>(
+    client,
+    'VideoLibrary.SetSeasonDetails',
+    params,
+    options
+  );
+}
+
 export function playPausePlayer(
   client: KodiJsonRpcHttpClient,
   playerid: number,
@@ -1334,6 +1477,45 @@ export function getVideoLibraryTvShows(
   return callKodi<VideoLibraryTvShowsResult, VideoLibraryTvShowsParams>(
     client,
     'VideoLibrary.GetTVShows',
+    withDefaultProperties(params, DEFAULT_VIDEO_LIBRARY_TV_SHOW_PROPERTIES),
+    options
+  );
+}
+
+export function getVideoLibraryTvShowDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryTvShowDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryTvShowDetailsResult> {
+  return callKodi<VideoLibraryTvShowDetailsResult, VideoLibraryTvShowDetailsParams>(
+    client,
+    'VideoLibrary.GetTVShowDetails',
+    withDefaultProperties(params, DEFAULT_VIDEO_LIBRARY_TV_SHOW_PROPERTIES),
+    options
+  );
+}
+
+export function getVideoLibrarySeasons(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySeasonsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibrarySeasonsResult> {
+  return callKodi<VideoLibrarySeasonsResult, VideoLibrarySeasonsParams>(
+    client,
+    'VideoLibrary.GetSeasons',
+    params,
+    options
+  );
+}
+
+export function getVideoLibrarySeasonDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySeasonDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibrarySeasonDetailsResult> {
+  return callKodi<VideoLibrarySeasonDetailsResult, VideoLibrarySeasonDetailsParams>(
+    client,
+    'VideoLibrary.GetSeasonDetails',
     params,
     options
   );
@@ -1347,6 +1529,71 @@ export function getVideoLibraryEpisodes(
   return callKodi<VideoLibraryEpisodesResult, VideoLibraryEpisodesParams>(
     client,
     'VideoLibrary.GetEpisodes',
+    params,
+    options
+  );
+}
+
+export function getVideoLibraryEpisodeDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryEpisodeDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryEpisodeDetailsResult> {
+  return callKodi<VideoLibraryEpisodeDetailsResult, VideoLibraryEpisodeDetailsParams>(
+    client,
+    'VideoLibrary.GetEpisodeDetails',
+    params,
+    options
+  );
+}
+
+export function getVideoLibraryAvailableArt(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryAvailableArtParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryAvailableArtResult> {
+  return callKodi<VideoLibraryAvailableArtResult, VideoLibraryAvailableArtParams>(
+    client,
+    'VideoLibrary.GetAvailableArt',
+    params,
+    options
+  );
+}
+
+export function getVideoLibraryAvailableArtTypes(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryAvailableArtTypesParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryAvailableArtTypesResult> {
+  return callKodi<VideoLibraryAvailableArtTypesResult, VideoLibraryAvailableArtTypesParams>(
+    client,
+    'VideoLibrary.GetAvailableArtTypes',
+    params,
+    options
+  );
+}
+
+export function refreshVideoLibraryTvShow(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryRefreshTvShowParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibraryRefreshTvShowParams>(
+    client,
+    'VideoLibrary.RefreshTVShow',
+    params,
+    options
+  );
+}
+
+export function refreshVideoLibraryEpisode(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryRefreshEpisodeParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibraryRefreshEpisodeParams>(
+    client,
+    'VideoLibrary.RefreshEpisode',
     params,
     options
   );

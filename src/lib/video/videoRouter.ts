@@ -2,6 +2,19 @@ export type DashboardRoute = { kind: 'dashboard' };
 export type VideoMoviesRoute = { kind: 'videoMovies' };
 export type VideoMovieDetailRoute = { kind: 'videoMovieDetail'; movieid: number };
 export type VideoMovieStreamRoute = { kind: 'videoMovieStream'; movieid: number };
+export type VideoTvShowsRoute = { kind: 'videoTvShows' };
+export type VideoTvShowDetailRoute = { kind: 'videoTvShowDetail'; tvshowid: number };
+export type VideoTvSeasonDetailRoute = {
+  kind: 'videoTvSeasonDetail';
+  tvshowid: number;
+  season: number;
+};
+export type VideoEpisodeDetailRoute = {
+  kind: 'videoEpisodeDetail';
+  tvshowid: number;
+  season: number;
+  episodeid: number;
+};
 export type VideoUnknownRoute = { kind: 'videoUnknown'; pathLabel: string };
 
 export type VideoRoute =
@@ -9,6 +22,10 @@ export type VideoRoute =
   | VideoMoviesRoute
   | VideoMovieDetailRoute
   | VideoMovieStreamRoute
+  | VideoTvShowsRoute
+  | VideoTvShowDetailRoute
+  | VideoTvSeasonDetailRoute
+  | VideoEpisodeDetailRoute
   | VideoUnknownRoute;
 
 export interface VideoRouteHistory {
@@ -21,6 +38,7 @@ export interface NavigateVideoRouteOptions {
 
 const ROOT_PATH = '/';
 const MOVIES_PATH = '/video/movies';
+const TV_PATH = '/video/tv';
 const UNKNOWN_VIDEO_PATH = '/video/unknown';
 const UNSAFE_SEGMENT = '[redacted]';
 const FORBIDDEN_SEGMENT_PATTERN =
@@ -37,6 +55,10 @@ export function parseVideoRoute(pathname: unknown, search?: unknown): VideoRoute
 
   if (path === MOVIES_PATH) {
     return { kind: 'videoMovies' };
+  }
+
+  if (path === TV_PATH) {
+    return { kind: 'videoTvShows' };
   }
 
   if (path.startsWith('/video/')) {
@@ -59,6 +81,10 @@ export function buildVideoRoute(route: VideoRoute): string {
     return MOVIES_PATH;
   }
 
+  if (route.kind === 'videoTvShows') {
+    return TV_PATH;
+  }
+
   if (route.kind === 'videoMovieDetail') {
     return isFinitePositiveSafeInteger(route.movieid)
       ? `${MOVIES_PATH}/${route.movieid}`
@@ -71,6 +97,18 @@ export function buildVideoRoute(route: VideoRoute): string {
       : UNKNOWN_VIDEO_PATH;
   }
 
+  if (route.kind === 'videoTvShowDetail') {
+    return buildVideoTvShowRoute(route.tvshowid);
+  }
+
+  if (route.kind === 'videoTvSeasonDetail') {
+    return buildVideoSeasonRoute(route.tvshowid, route.season);
+  }
+
+  if (route.kind === 'videoEpisodeDetail') {
+    return buildVideoEpisodeRoute(route.tvshowid, route.season, route.episodeid);
+  }
+
   if (route.kind === 'videoUnknown') {
     return normalizePathLabel(route.pathLabel || UNKNOWN_VIDEO_PATH);
   }
@@ -78,13 +116,59 @@ export function buildVideoRoute(route: VideoRoute): string {
   return UNKNOWN_VIDEO_PATH;
 }
 
+export function buildVideoTvRoute(): string {
+  return TV_PATH;
+}
+
+export function buildVideoTvShowRoute(tvshowid: number): string {
+  return isFinitePositiveSafeInteger(tvshowid) ? `${TV_PATH}/${tvshowid}` : UNKNOWN_VIDEO_PATH;
+}
+
+export function buildVideoSeasonRoute(tvshowid: number, season: number): string {
+  return isFinitePositiveSafeInteger(tvshowid) && isFinitePositiveSafeInteger(season)
+    ? `${TV_PATH}/${tvshowid}/seasons/${season}`
+    : UNKNOWN_VIDEO_PATH;
+}
+
+export function buildVideoEpisodeRoute(
+  tvshowid: number,
+  season: number,
+  episodeid: number
+): string {
+  return isFinitePositiveSafeInteger(tvshowid) &&
+    isFinitePositiveSafeInteger(season) &&
+    isFinitePositiveSafeInteger(episodeid)
+    ? `${TV_PATH}/${tvshowid}/seasons/${season}/episodes/${episodeid}`
+    : UNKNOWN_VIDEO_PATH;
+}
+
 export function isVideoRoute(route: unknown): route is Exclude<VideoRoute, DashboardRoute> {
   if (!isRouteLike(route)) {
     return false;
   }
 
-  if (route.kind === 'videoMovies' || route.kind === 'videoUnknown') {
+  if (
+    route.kind === 'videoMovies' ||
+    route.kind === 'videoTvShows' ||
+    route.kind === 'videoUnknown'
+  ) {
     return true;
+  }
+
+  if (route.kind === 'videoTvShowDetail') {
+    return isFinitePositiveSafeInteger(route.tvshowid);
+  }
+
+  if (route.kind === 'videoTvSeasonDetail') {
+    return isFinitePositiveSafeInteger(route.tvshowid) && isFinitePositiveSafeInteger(route.season);
+  }
+
+  if (route.kind === 'videoEpisodeDetail') {
+    return (
+      isFinitePositiveSafeInteger(route.tvshowid) &&
+      isFinitePositiveSafeInteger(route.season) &&
+      isFinitePositiveSafeInteger(route.episodeid)
+    );
   }
 
   return (
@@ -120,13 +204,17 @@ function parseVideoPath(path: string): VideoRoute {
     return { kind: 'videoMovies' };
   }
 
+  if (path === TV_PATH) {
+    return { kind: 'videoTvShows' };
+  }
+
   const segments = path.split('/').filter(Boolean);
 
   if (
     segments.length === 3 &&
     segments[0] === 'video' &&
     segments[1] === 'movies' &&
-    isMovieIdSegment(segments[2])
+    isPositiveSafeIntegerSegment(segments[2])
   ) {
     return { kind: 'videoMovieDetail', movieid: Number(segments[2]) };
   }
@@ -135,10 +223,52 @@ function parseVideoPath(path: string): VideoRoute {
     segments.length === 4 &&
     segments[0] === 'video' &&
     segments[1] === 'movies' &&
-    isMovieIdSegment(segments[2]) &&
+    isPositiveSafeIntegerSegment(segments[2]) &&
     segments[3] === 'stream'
   ) {
     return { kind: 'videoMovieStream', movieid: Number(segments[2]) };
+  }
+
+  if (
+    segments.length === 3 &&
+    segments[0] === 'video' &&
+    segments[1] === 'tv' &&
+    isPositiveSafeIntegerSegment(segments[2])
+  ) {
+    return { kind: 'videoTvShowDetail', tvshowid: Number(segments[2]) };
+  }
+
+  if (
+    segments.length === 5 &&
+    segments[0] === 'video' &&
+    segments[1] === 'tv' &&
+    isPositiveSafeIntegerSegment(segments[2]) &&
+    segments[3] === 'seasons' &&
+    isPositiveSafeIntegerSegment(segments[4])
+  ) {
+    return {
+      kind: 'videoTvSeasonDetail',
+      tvshowid: Number(segments[2]),
+      season: Number(segments[4])
+    };
+  }
+
+  if (
+    segments.length === 7 &&
+    segments[0] === 'video' &&
+    segments[1] === 'tv' &&
+    isPositiveSafeIntegerSegment(segments[2]) &&
+    segments[3] === 'seasons' &&
+    isPositiveSafeIntegerSegment(segments[4]) &&
+    segments[5] === 'episodes' &&
+    isPositiveSafeIntegerSegment(segments[6])
+  ) {
+    return {
+      kind: 'videoEpisodeDetail',
+      tvshowid: Number(segments[2]),
+      season: Number(segments[4]),
+      episodeid: Number(segments[6])
+    };
   }
 
   return { kind: 'videoUnknown', pathLabel: normalizePathLabel(path) };
@@ -177,7 +307,7 @@ function normalizeSearch(search: unknown): URLSearchParams | null {
   }
 }
 
-function isMovieIdSegment(segment: string): boolean {
+function isPositiveSafeIntegerSegment(segment: string): boolean {
   if (!/^\d+$/.test(segment)) {
     return false;
   }

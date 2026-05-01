@@ -1,6 +1,10 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+  buildVideoEpisodeRoute,
   buildVideoRoute,
+  buildVideoSeasonRoute,
+  buildVideoTvRoute,
+  buildVideoTvShowRoute,
   isVideoRoute,
   navigateVideoRoute,
   parseVideoRoute,
@@ -62,6 +66,59 @@ describe('parseVideoRoute', () => {
     });
   });
 
+  test('parses TV show, season, and episode routes with query identity ignored', () => {
+    expect(parseVideoRoute('/video/tv')).toEqual({ kind: 'videoTvShows' });
+    expect(parseVideoRoute('/video/tv?m004-browser-proof=1')).toEqual({ kind: 'videoTvShows' });
+    expect(parseVideoRoute('/video/tv/5501')).toEqual({
+      kind: 'videoTvShowDetail',
+      tvshowid: 5501
+    });
+    expect(parseVideoRoute('/video/tv/5501', '?token=Authorization')).toEqual({
+      kind: 'videoTvShowDetail',
+      tvshowid: 5501
+    });
+    expect(parseVideoRoute('/video/tv/5501/seasons/1')).toEqual({
+      kind: 'videoTvSeasonDetail',
+      tvshowid: 5501,
+      season: 1
+    });
+    expect(parseVideoRoute('/video/tv/5501/seasons/1/episodes/6601')).toEqual({
+      kind: 'videoEpisodeDetail',
+      tvshowid: 5501,
+      season: 1,
+      episodeid: 6601
+    });
+  });
+
+  test.each([
+    '/video/tv/0',
+    '/video/tv/-1',
+    '/video/tv/NaN',
+    '/video/tv/Infinity',
+    `/video/tv/${Number.MAX_SAFE_INTEGER + 1}`,
+    '/video/tv/not-a-number',
+    '/video/tv/%2F5501',
+    '/video/tv/5501/seasons/0',
+    '/video/tv/5501/seasons/-1',
+    '/video/tv/5501/seasons/Infinity',
+    `/video/tv/5501/seasons/${Number.MAX_SAFE_INTEGER + 1}`,
+    '/video/tv/5501/seasons/%2F1',
+    '/video/tv/5501/seasons/1/episodes/0',
+    '/video/tv/5501/seasons/1/episodes/-1',
+    '/video/tv/5501/seasons/1/episodes/Infinity',
+    `/video/tv/5501/seasons/1/episodes/${Number.MAX_SAFE_INTEGER + 1}`,
+    '/video/tv/5501/seasons/1/episodes/%2F6601',
+    '/video/tv/5501/episodes/6601',
+    '/video/tv/5501/seasons/1/episodes/6601/extra'
+  ])('normalizes malformed TV route %s to a safe unknown video route', (pathname) => {
+    const route = parseVideoRoute(pathname, '?token=Authorization%20Basic%20SENTINEL_SECRET');
+
+    expect(route.kind).toBe('videoUnknown');
+    expect(route).toHaveProperty('pathLabel');
+    expect(JSON.stringify(route)).not.toMatch(/Authorization|Basic|SENTINEL_SECRET|token=/i);
+    expect(JSON.stringify(route)).not.toContain('%2F');
+  });
+
   test.each([
     '/video/movies/0',
     '/video/movies/-1',
@@ -119,6 +176,13 @@ describe('buildVideoRoute', () => {
     [{ kind: 'videoMovies' }, '/video/movies'],
     [{ kind: 'videoMovieDetail', movieid: 42 }, '/video/movies/42'],
     [{ kind: 'videoMovieStream', movieid: 42 }, '/video/movies/42/stream'],
+    [{ kind: 'videoTvShows' }, '/video/tv'],
+    [{ kind: 'videoTvShowDetail', tvshowid: 5501 }, '/video/tv/5501'],
+    [{ kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 }, '/video/tv/5501/seasons/1'],
+    [
+      { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
+      '/video/tv/5501/seasons/1/episodes/6601'
+    ],
     [
       { kind: 'videoMovieDetail', movieid: Number.MAX_SAFE_INTEGER },
       `/video/movies/${Number.MAX_SAFE_INTEGER}`
@@ -136,14 +200,37 @@ describe('buildVideoRoute', () => {
     { kind: 'dashboard' },
     { kind: 'videoMovies' },
     { kind: 'videoMovieDetail', movieid: 42 },
-    { kind: 'videoMovieStream', movieid: 42 }
+    { kind: 'videoMovieStream', movieid: 42 },
+    { kind: 'videoTvShows' },
+    { kind: 'videoTvShowDetail', tvshowid: 5501 },
+    { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+    { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
   ])('round trips %j through parse/build', (route) => {
     expect(parseVideoRoute(buildVideoRoute(route))).toEqual(route);
+  });
+
+  test('builds dedicated TV route paths and rejects non-finite IDs', () => {
+    expect(buildVideoTvRoute()).toBe('/video/tv');
+    expect(buildVideoTvShowRoute(5501)).toBe('/video/tv/5501');
+    expect(buildVideoSeasonRoute(5501, 1)).toBe('/video/tv/5501/seasons/1');
+    expect(buildVideoEpisodeRoute(5501, 1, 6601)).toBe('/video/tv/5501/seasons/1/episodes/6601');
+
+    expect(buildVideoTvShowRoute(0)).toBe('/video/unknown');
+    expect(buildVideoTvShowRoute(Infinity)).toBe('/video/unknown');
+    expect(buildVideoSeasonRoute(5501, Number.MAX_SAFE_INTEGER + 1)).toBe('/video/unknown');
+    expect(buildVideoEpisodeRoute(5501, 1, -6601)).toBe('/video/unknown');
   });
 
   test('normalizes invalid detail routes and unsafe unknown labels when building', () => {
     expect(buildVideoRoute({ kind: 'videoMovieDetail', movieid: 0 })).toBe('/video/unknown');
     expect(buildVideoRoute({ kind: 'videoMovieStream', movieid: 0 })).toBe('/video/unknown');
+    expect(buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: 0 })).toBe('/video/unknown');
+    expect(buildVideoRoute({ kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 0 })).toBe(
+      '/video/unknown'
+    );
+    expect(
+      buildVideoRoute({ kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 0 })
+    ).toBe('/video/unknown');
     expect(buildVideoRoute({ kind: 'videoUnknown', pathLabel: '/video/Authorization/Basic' })).toBe(
       '/video/[redacted]/[redacted]'
     );
@@ -156,6 +243,10 @@ describe('isVideoRoute', () => {
     { kind: 'videoMovies' },
     { kind: 'videoMovieDetail', movieid: 1 },
     { kind: 'videoMovieStream', movieid: 1 },
+    { kind: 'videoTvShows' },
+    { kind: 'videoTvShowDetail', tvshowid: 5501 },
+    { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 },
+    { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 },
     { kind: 'videoUnknown', pathLabel: '/video/tv' }
   ])('returns true for video route %j', (route) => {
     expect(isVideoRoute(route)).toBe(true);
@@ -166,6 +257,11 @@ describe('isVideoRoute', () => {
     expect(isVideoRoute(null)).toBe(false);
     expect(isVideoRoute({ kind: 'videoMovieDetail', movieid: 0 })).toBe(false);
     expect(isVideoRoute({ kind: 'videoMovieStream', movieid: 0 })).toBe(false);
+    expect(isVideoRoute({ kind: 'videoTvShowDetail', tvshowid: 0 })).toBe(false);
+    expect(isVideoRoute({ kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 0 })).toBe(false);
+    expect(
+      isVideoRoute({ kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 0 })
+    ).toBe(false);
   });
 });
 
