@@ -95,6 +95,21 @@ export {
 } from './musicLibrary.svelte';
 
 export {
+  VideoLibraryStore,
+  createVideoLibraryStore,
+  videoLibraryStore,
+  type VideoLibraryErrorSource,
+  type VideoLibraryLimitsSnapshot,
+  type VideoLibraryMovieSnapshot,
+  type VideoLibraryRefreshReason,
+  type VideoLibraryRefreshStatus,
+  type VideoLibraryResumeSnapshot,
+  type VideoLibrarySafeErrorSnapshot,
+  type VideoLibraryStoreOptions,
+  type VideoLibraryStoreSnapshot
+} from './videoLibrary.svelte';
+
+export {
   MusicBrowseStore,
   createMusicBrowseStore,
   musicBrowseStore,
@@ -179,6 +194,17 @@ export {
   normalizeMusicLimits,
   normalizeMusicSongs
 } from './musicLibraryNormalization';
+
+export {
+  VideoLibraryClientError,
+  cloneVideoLibraryLimits,
+  cloneVideoLibraryMovieSnapshots,
+  cloneVideoLibrarySafeError,
+  cloneVideoLibrarySnapshot,
+  createVideoLibrarySafeError,
+  normalizeVideoLibraryLimits,
+  normalizeVideoMovies
+} from './videoLibraryNormalization';
 
 export {
   createActiveKodiJsonRpcHttpClient,
