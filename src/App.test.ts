@@ -19,6 +19,7 @@ import type {
   MediaPlaylistsActionDispatch,
   MediaPlaylistsPanelDispatch
 } from './lib/components/MediaPlaylistsPanel.svelte';
+import type { VideoMovieActionDispatch } from './lib/components/VideoMovieDetailShell.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
 import type { VideoRoute } from './lib/video/videoRouter';
@@ -73,6 +74,7 @@ type AppProps = {
   mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
   route?: VideoRoute;
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
+  videoMovieActionDispatch?: VideoMovieActionDispatch;
 };
 
 type MusicLibrarySnapshotOverrides = Omit<Partial<MusicLibraryStoreSnapshot>, 'limits'> & {
@@ -376,6 +378,17 @@ function createVideoLibrarySnapshot(
     limits: { movies: { start: 0, end: movies.length, total: movies.length } },
     isEmpty: movies.length === 0,
     lastError: null,
+    ...overrides
+  };
+}
+
+function createMovieActionDispatch(
+  overrides: Partial<VideoMovieActionDispatch> = {}
+): VideoMovieActionDispatch {
+  return {
+    playMovieItem: vi.fn(),
+    resumeMovieItem: vi.fn(),
+    queueMovieItem: vi.fn(),
     ...overrides
   };
 }
@@ -786,6 +799,55 @@ describe('App shell', () => {
     });
 
     expect(getVideoDetailPanelText(missingTarget)).toContain('Movie ID 9999 is not present');
+  });
+
+  it('routes default movie detail actions through PlayerDispatch and QueueDispatch movie seams', async () => {
+    const playMovieItem = vi.spyOn(defaultPlayerDispatch, 'playMovieItem').mockResolvedValue();
+    const queueMovieItem = vi.spyOn(defaultQueueDispatch, 'queueMovieItem').mockResolvedValue();
+    const target = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4402 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    getButtonByAria(target, 'Play movie Quiet Signal').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Resume movie Quiet Signal').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue movie Quiet Signal').click();
+    await tick();
+    await tick();
+
+    expect(playMovieItem).toHaveBeenCalledTimes(2);
+    expect(playMovieItem).toHaveBeenNthCalledWith(1, { movieid: 4402 });
+    expect(playMovieItem).toHaveBeenNthCalledWith(2, { movieid: 4402, resume: true });
+    expect(queueMovieItem).toHaveBeenCalledTimes(1);
+    expect(queueMovieItem).toHaveBeenCalledWith({ movieid: 4402 });
+    expect(getVideoDetailPanelText(target)).toContain('Queued Quiet Signal.');
+  });
+
+  it('preserves injected movie action dispatches for fixture mode without touching defaults', async () => {
+    const playMovieItem = vi.spyOn(defaultPlayerDispatch, 'playMovieItem').mockResolvedValue();
+    const queueMovieItem = vi.spyOn(defaultQueueDispatch, 'queueMovieItem').mockResolvedValue();
+    const videoMovieActionDispatch = createMovieActionDispatch();
+    const target = renderApp({
+      route: { kind: 'videoMovieDetail', movieid: 4401 },
+      videoLibrarySnapshot: createVideoLibrarySnapshot(),
+      videoMovieActionDispatch
+    });
+
+    getButtonByAria(target, 'Play movie Neon Harbor').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue movie Neon Harbor').click();
+    await tick();
+    await tick();
+
+    expect(videoMovieActionDispatch.playMovieItem).toHaveBeenCalledWith({ movieid: 4401 });
+    expect(videoMovieActionDispatch.queueMovieItem).toHaveBeenCalledWith({ movieid: 4401 });
+    expect(playMovieItem).not.toHaveBeenCalled();
+    expect(queueMovieItem).not.toHaveBeenCalled();
   });
 
   it('renders unknown video routes as sanitized in-app not found UI with a movies link', () => {

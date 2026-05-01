@@ -28,7 +28,9 @@
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
-  import VideoMovieDetailShell from '$components/VideoMovieDetailShell.svelte';
+  import VideoMovieDetailShell, {
+    type VideoMovieActionDispatch
+  } from '$components/VideoMovieDetailShell.svelte';
   import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
   import {
     configStore,
@@ -87,6 +89,7 @@
     route?: VideoRoute;
     videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
     videoNavigationDispatch?: VideoNavigationDispatch;
+    videoMovieActionDispatch?: VideoMovieActionDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -135,6 +138,13 @@
     queuePlaylistItem: (item) => defaultQueueDispatch.queuePlaylistItem(toPlaylistQueueItem(item))
   };
 
+  const defaultVideoMovieActionDispatch: VideoMovieActionDispatch = {
+    playMovieItem: ({ movieid }) => defaultPlayerDispatch.playMovieItem({ movieid }),
+    resumeMovieItem: ({ movieid }) =>
+      defaultPlayerDispatch.playMovieItem({ movieid, resume: true }),
+    queueMovieItem: ({ movieid }) => defaultQueueDispatch.queueMovieItem({ movieid })
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -155,7 +165,8 @@
     mediaPlaylistsDispatch = defaultMediaPlaylistsDispatch,
     mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch,
     route = { kind: 'dashboard' },
-    videoLibrarySnapshot
+    videoLibrarySnapshot,
+    videoMovieActionDispatch = defaultVideoMovieActionDispatch
   }: Props = $props();
   const currentRoute = $derived(route);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
@@ -410,7 +421,11 @@
     </main>
   {:else if isVideoMovieDetailRoute}
     <main class="video-route" aria-label="Video movie detail route">
-      <VideoMovieDetailShell snapshot={currentVideoLibrarySnapshot} route={currentRoute} />
+      <VideoMovieDetailShell
+        snapshot={currentVideoLibrarySnapshot}
+        route={currentRoute}
+        actionDispatch={videoMovieActionDispatch}
+      />
     </main>
   {:else if isVideoUnknownRoute}
     <main class="video-route" aria-label="Unknown video route">
