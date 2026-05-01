@@ -1621,14 +1621,14 @@ describe('App shell', () => {
 
     getButtonByAria(target, 'Refresh media playlists').click();
     await tick();
-    getButtonByAria(target, 'Open playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Open playlist Late Night Jazz.xsp').click();
     await tick();
-    getButtonByAria(target, 'Open breadcrumb Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Open breadcrumb Late Night Jazz.xsp').click();
     await tick();
-    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Play playlist Late Night Jazz.xsp').click();
     await tick();
     await tick();
-    getButtonByAria(target, 'Queue playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Queue playlist Late Night Jazz.xsp').click();
     await tick();
 
     expect(mediaPlaylistsDispatch.refresh).toHaveBeenCalledTimes(1);
@@ -1639,7 +1639,7 @@ describe('App shell', () => {
     expect(mediaPlaylistsActionDispatch.playPlaylistItem).toHaveBeenCalledTimes(1);
     expect(mediaPlaylistsActionDispatch.playPlaylistItem).toHaveBeenCalledWith({
       id: 'playlist:1',
-      label: 'Late Night Jazz playlist file',
+      label: 'Late Night Jazz.xsp',
       media: 'music',
       kind: 'smart',
       capabilities: { canBrowse: true, canPlay: true, canQueue: true }
@@ -1647,7 +1647,7 @@ describe('App shell', () => {
     expect(mediaPlaylistsActionDispatch.queuePlaylistItem).toHaveBeenCalledTimes(1);
     expect(mediaPlaylistsActionDispatch.queuePlaylistItem).toHaveBeenCalledWith({
       id: 'playlist:1',
-      label: 'Late Night Jazz playlist file',
+      label: 'Late Night Jazz.xsp',
       media: 'music',
       kind: 'smart',
       capabilities: { canBrowse: true, canPlay: true, canQueue: true }
@@ -1676,10 +1676,10 @@ describe('App shell', () => {
     const queueFileItem = vi.spyOn(defaultQueueDispatch, 'queueFileItem').mockResolvedValue();
     const target = renderApp({ mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot() });
 
-    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Play playlist Late Night Jazz.xsp').click();
     await tick();
     await tick();
-    getButtonByAria(target, 'Queue playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Queue playlist Late Night Jazz.xsp').click();
     await tick();
 
     expect(getPlayablePlaylist).toHaveBeenCalledTimes(2);
@@ -1717,13 +1717,13 @@ describe('App shell', () => {
       .mockResolvedValue();
     const target = renderApp({ mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot() });
 
-    getButtonByAria(target, 'Play playlist Late Night Jazz playlist file').click();
+    getButtonByAria(target, 'Play playlist Late Night Jazz.xsp').click();
     await tick();
     await tick();
 
     const playlistsText = getMediaPlaylistsPanelText(target);
     expect(playPlaylistItem).not.toHaveBeenCalled();
-    expect(playlistsText).toContain('Could not play playlist Late Night Jazz playlist file');
+    expect(playlistsText).toContain('Could not play playlist Late Night Jazz.xsp');
     expect(playlistsText).toContain('credentials [redacted]');
     expect(playlistsText).toContain('[redacted-url]');
     expect(playlistsText).toContain('response body [redacted]');

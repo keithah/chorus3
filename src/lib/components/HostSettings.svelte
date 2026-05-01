@@ -149,8 +149,8 @@
   {/if}
 
   <p class="warning trusted-warning" id="trusted-device-warning">
-    Only save credentials on a trusted device. Host settings are stored in this browser's
-    localStorage and passwords are never shown again after saving.
+    Only save credentials on a trusted device. Host settings are stored in this browser's storage
+    and passwords are never shown again after saving.
   </p>
 
   <form class="host-form" aria-label="Kodi host settings" novalidate onsubmit={handleSubmit}>

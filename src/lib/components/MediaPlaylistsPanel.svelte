@@ -379,8 +379,7 @@
       .replace(/p@ssword/gi, '[redacted-password]')
       .replace(/username or password/gi, 'credentials')
       .replace(/localStorage/gi, 'browser storage')
-      .replace(/sessionStorage/gi, 'browser storage')
-      .replace(/\.xsp\b/gi, ' playlist file');
+      .replace(/sessionStorage/gi, 'browser storage');
   }
 
   function looksLikePathOrUrl(value: string): boolean {
