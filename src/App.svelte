@@ -3,6 +3,11 @@
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
+  import MediaSearchPanel, {
+    type MediaSearchActionDispatch,
+    type MediaSearchActionItem,
+    type MediaSearchPanelDispatch
+  } from '$components/MediaSearchPanel.svelte';
   import MusicBrowsePanel, {
     type MusicBrowseActionDispatch,
     type MusicBrowsePanelDispatch
@@ -17,6 +22,7 @@
     configStore,
     connectionStore,
     localPlayerStore,
+    mediaSearchStore,
     musicBrowseStore,
     musicLibraryStore,
     playerDispatch as defaultPlayerDispatch,
@@ -25,6 +31,7 @@
     queueStore,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type MediaSearchStoreSnapshot,
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
@@ -41,6 +48,9 @@
     musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
     musicBrowseDispatch?: MusicBrowsePanelDispatch;
     musicActionDispatch?: MusicBrowseActionDispatch;
+    mediaSearchSnapshot?: MediaSearchStoreSnapshot;
+    mediaSearchDispatch?: MediaSearchPanelDispatch;
+    mediaSearchActionDispatch?: MediaSearchActionDispatch;
   }
 
   const defaultMusicBrowseDispatch: MusicBrowsePanelDispatch = {
@@ -55,6 +65,16 @@
     queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(item)
   };
 
+  const defaultMediaSearchDispatch: MediaSearchPanelDispatch = {
+    search: ({ query }) => mediaSearchStore.search(query),
+    clear: () => mediaSearchStore.clear()
+  };
+
+  const defaultMediaSearchActionDispatch: MediaSearchActionDispatch = {
+    playMusicItem: (item) => defaultPlayerDispatch.playMusicItem(toMusicPlaybackItem(item)),
+    queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(toMusicQueueItem(item))
+  };
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -64,13 +84,43 @@
     musicLibrarySnapshot,
     musicBrowseSnapshot,
     musicBrowseDispatch = defaultMusicBrowseDispatch,
-    musicActionDispatch = defaultMusicActionDispatch
+    musicActionDispatch = defaultMusicActionDispatch,
+    mediaSearchSnapshot,
+    mediaSearchDispatch = defaultMediaSearchDispatch,
+    mediaSearchActionDispatch = defaultMediaSearchActionDispatch
   }: Props = $props();
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
   const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
   const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
+  const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
+
+  function toMusicPlaybackItem(
+    item: MediaSearchActionItem
+  ):
+    | { kind: 'artist'; artistid: number }
+    | { kind: 'album'; albumid: number }
+    | { kind: 'song'; songid: number } {
+    if (item.kind === 'artist') {
+      return { kind: 'artist', artistid: item.id };
+    }
+
+    if (item.kind === 'album') {
+      return { kind: 'album', albumid: item.id };
+    }
+
+    return { kind: 'song', songid: item.id };
+  }
+
+  function toMusicQueueItem(
+    item: MediaSearchActionItem
+  ):
+    | { kind: 'artist'; artistid: number }
+    | { kind: 'album'; albumid: number }
+    | { kind: 'song'; songid: number } {
+    return toMusicPlaybackItem(item);
+  }
 
   function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string | null {
     if (version === null) {
@@ -202,6 +252,11 @@
       browseSnapshot={currentMusicBrowseSnapshot}
       dispatch={musicBrowseDispatch}
       actionDispatch={musicActionDispatch}
+    />
+    <MediaSearchPanel
+      snapshot={currentMediaSearchSnapshot}
+      dispatch={mediaSearchDispatch}
+      actionDispatch={mediaSearchActionDispatch}
     />
 
     <LocalMediaRuntime />

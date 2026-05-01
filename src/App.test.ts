@@ -7,6 +7,10 @@ import type {
   MusicBrowsePanelDispatch
 } from './lib/components/MusicBrowsePanel.svelte';
 import type { PlayerControlsDispatch } from './lib/components/PlayerControls.svelte';
+import type {
+  MediaSearchActionDispatch,
+  MediaSearchPanelDispatch
+} from './lib/components/MediaSearchPanel.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
 import {
   configStore,
@@ -15,6 +19,7 @@ import {
   hostConnectionStore,
   localPlayerStore,
   type MusicBrowseStoreSnapshot,
+  type MediaSearchStoreSnapshot,
   type MusicLibraryStoreSnapshot,
   type PlayerDispatchSnapshot,
   type PlayerStoreSnapshot,
@@ -36,6 +41,9 @@ type AppProps = {
   musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
   musicBrowseDispatch?: MusicBrowsePanelDispatch;
   musicActionDispatch?: MusicBrowseActionDispatch;
+  mediaSearchSnapshot?: MediaSearchStoreSnapshot;
+  mediaSearchDispatch?: MediaSearchPanelDispatch;
+  mediaSearchActionDispatch?: MediaSearchActionDispatch;
 };
 
 function createMusicLibrarySnapshot(
@@ -79,6 +87,82 @@ function createMusicBrowseSnapshot(
     lastError: null,
     ...overrides
   };
+}
+
+function createMediaSearchSnapshot(
+  overrides: Partial<MediaSearchStoreSnapshot> = {}
+): MediaSearchStoreSnapshot {
+  return {
+    searchStatus: 'ready',
+    scope: 'music',
+    query: 'nina',
+    lastUpdatedAt: '2026-04-30T12:00:00.000Z',
+    results: {
+      artists: [{ kind: 'artist', artistid: 1, label: 'Nina Simone', genre: ['Soul'] }],
+      albums: [
+        {
+          kind: 'album',
+          albumid: 2,
+          label: 'Pastel Blues',
+          title: 'Pastel Blues',
+          artist: ['Nina Simone'],
+          year: 1965
+        }
+      ],
+      songs: [
+        {
+          kind: 'song',
+          songid: 3,
+          label: 'Sinnerman',
+          title: 'Sinnerman',
+          artist: ['Nina Simone'],
+          album: 'Pastel Blues',
+          duration: 622
+        }
+      ],
+      genres: [{ kind: 'genre', genreid: 4, label: 'Soul', title: 'Soul' }]
+    },
+    limits: {
+      artists: { start: 0, end: 1, total: 1 },
+      albums: { start: 0, end: 1, total: 1 },
+      songs: { start: 0, end: 1, total: 1 },
+      genres: { start: 0, end: 1, total: 1 }
+    },
+    resultCounts: { artists: 1, albums: 1, songs: 1, genres: 1, total: 4 },
+    isEmpty: false,
+    lastError: null,
+    ...overrides
+  };
+}
+
+function createMediaSearchDispatch(
+  overrides: Partial<MediaSearchPanelDispatch> = {}
+): MediaSearchPanelDispatch {
+  return {
+    search: vi.fn(),
+    clear: vi.fn(),
+    ...overrides
+  };
+}
+
+function createMediaSearchActionDispatch(
+  overrides: Partial<MediaSearchActionDispatch> = {}
+): MediaSearchActionDispatch {
+  return {
+    playMusicItem: vi.fn(),
+    queueMusicItem: vi.fn(),
+    ...overrides
+  };
+}
+
+function getMediaSearchPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.media-search-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getMediaSearchPanelText(target: HTMLElement): string {
+  return getMediaSearchPanel(target).textContent ?? '';
 }
 
 function createMusicBrowseDispatch(
@@ -992,6 +1076,148 @@ describe('App shell', () => {
     expect(browseText).not.toContain('raw response body');
     expect(browseText).not.toContain('http://admin');
     expect(browseText).not.toContain('smb://');
+  });
+
+  it('renders injected Media Search results without live Kodi and redacts hostile text', () => {
+    const target = renderApp({
+      mediaSearchSnapshot: createMediaSearchSnapshot({
+        results: {
+          artists: [{ kind: 'artist', artistid: 1, label: 'smb://nas.local/private/artist' }],
+          albums: [
+            {
+              kind: 'album',
+              albumid: 2,
+              label: 'http://admin:p@ssword@example.test/private/album',
+              title: 'Pastel Blues'
+            }
+          ],
+          songs: [{ kind: 'song', songid: 3, label: 'Safe Song', title: 'Safe Song' }],
+          genres: [{ kind: 'genre', genreid: 4, label: 'Authorization: Basic abc123' }]
+        }
+      }),
+      mediaSearchDispatch: createMediaSearchDispatch(),
+      mediaSearchActionDispatch: createMediaSearchActionDispatch()
+    });
+
+    const searchText = getMediaSearchPanelText(target);
+
+    expect(searchText).toContain('Media Search');
+    expect(searchText).toContain('Music results for nina.');
+    expect(searchText).toContain('Artists');
+    expect(searchText).toContain('Albums');
+    expect(searchText).toContain('Songs');
+    expect(searchText).toContain('Genres');
+    expect(searchText).toContain('Unknown artist');
+    expect(searchText).toContain('Pastel Blues');
+    expect(searchText).toContain('Safe Song');
+    expect(searchText).toContain('credentials [redacted]');
+    expect(searchText).not.toContain('smb://');
+    expect(searchText).not.toContain('admin:p@ssword');
+    expect(searchText).not.toContain('Authorization');
+    expect(searchText).not.toContain('Basic abc123');
+  });
+
+  it('routes Media Search submit, clear, play, and queue through injected dispatches once', async () => {
+    const mediaSearchDispatch = createMediaSearchDispatch();
+    const mediaSearchActionDispatch = createMediaSearchActionDispatch();
+    const target = renderApp({
+      mediaSearchSnapshot: createMediaSearchSnapshot(),
+      mediaSearchDispatch,
+      mediaSearchActionDispatch
+    });
+
+    const searchInput = getInput(target, '#media-search-query');
+    changeInputValue(searchInput, '  pastel blues  ');
+    const searchForm = target.querySelector<HTMLFormElement>('form[aria-label="Media search"]');
+    expect(searchForm).toBeInstanceOf(HTMLFormElement);
+    searchForm?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await tick();
+    await tick();
+
+    getButtonByAria(target, 'Play artist Nina Simone').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue artist Nina Simone').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Play album Pastel Blues').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue album Pastel Blues').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Play song Sinnerman').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Queue song Sinnerman').click();
+    await tick();
+    await tick();
+    getButtonByAria(target, 'Clear media search').click();
+    await tick();
+
+    expect(mediaSearchDispatch.search).toHaveBeenCalledTimes(1);
+    expect(mediaSearchDispatch.search).toHaveBeenCalledWith({ query: 'pastel blues' });
+    expect(mediaSearchDispatch.clear).toHaveBeenCalledTimes(1);
+    expect(mediaSearchActionDispatch.playMusicItem).toHaveBeenCalledTimes(3);
+    expect(mediaSearchActionDispatch.playMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      id: 1
+    });
+    expect(mediaSearchActionDispatch.playMusicItem).toHaveBeenNthCalledWith(2, {
+      kind: 'album',
+      id: 2
+    });
+    expect(mediaSearchActionDispatch.playMusicItem).toHaveBeenNthCalledWith(3, {
+      kind: 'song',
+      id: 3
+    });
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenCalledTimes(3);
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(1, {
+      kind: 'artist',
+      id: 1
+    });
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(2, {
+      kind: 'album',
+      id: 2
+    });
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenNthCalledWith(3, {
+      kind: 'song',
+      id: 3
+    });
+  });
+
+  it('renders injected Media Search action rejection through panel status without live Kodi', async () => {
+    const mediaSearchActionDispatch = createMediaSearchActionDispatch({
+      queueMusicItem: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage and smb://nas/private/song.flac'
+        );
+      })
+    });
+    const target = renderApp({
+      mediaSearchSnapshot: createMediaSearchSnapshot(),
+      mediaSearchDispatch: createMediaSearchDispatch(),
+      mediaSearchActionDispatch
+    });
+
+    getButtonByAria(target, 'Queue song Sinnerman').click();
+    await tick();
+    await tick();
+
+    const searchText = getMediaSearchPanelText(target);
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenCalledTimes(1);
+    expect(mediaSearchActionDispatch.queueMusicItem).toHaveBeenCalledWith({ kind: 'song', id: 3 });
+    expect(searchText).toContain('Could not queue song Sinnerman');
+    expect(searchText).toContain('credentials [redacted]');
+    expect(searchText).toContain('[redacted-url]');
+    expect(searchText).toContain('response body [redacted]');
+    expect(searchText).toContain('browser storage');
+    expect(searchText).not.toContain('admin:p@ssword');
+    expect(searchText).not.toContain('Authorization');
+    expect(searchText).not.toContain('Basic abc123');
+    expect(searchText).not.toContain('localStorage');
+    expect(searchText).not.toContain('raw response body');
+    expect(searchText).not.toContain('smb://');
   });
 
   it('renders default Music Browse idle prompt without a configured Kodi host', () => {
