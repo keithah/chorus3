@@ -111,6 +111,17 @@ export {
 } from './videoLibrary.svelte';
 
 export {
+  VideoMovieDetailStore,
+  createVideoMovieDetailStore,
+  videoMovieDetailStore,
+  type VideoMovieDetailSnapshot,
+  type VideoMovieDetailStoreOptions,
+  type VideoMovieDetailStoreSnapshot,
+  type VideoMovieVersionItemSnapshot,
+  type VideoMovieVersionsSnapshot
+} from './videoMovieDetailStore.svelte';
+
+export {
   MusicBrowseStore,
   createMusicBrowseStore,
   musicBrowseStore,
@@ -202,8 +213,13 @@ export {
   cloneVideoLibraryMovieSnapshots,
   cloneVideoLibrarySafeError,
   cloneVideoLibrarySnapshot,
+  cloneVideoMovieDetailSnapshot,
+  cloneVideoMovieDetailStoreSnapshot,
+  cloneVideoMovieVersionsSnapshot,
   createVideoLibrarySafeError,
   normalizeVideoLibraryLimits,
+  normalizeVideoMovieDetail,
+  normalizeVideoMovieVersions,
   normalizeVideoMovies
 } from './videoLibraryNormalization';
 

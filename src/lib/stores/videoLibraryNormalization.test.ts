@@ -9,6 +9,8 @@ import {
   cloneVideoLibrarySnapshot,
   createVideoLibrarySafeError,
   normalizeVideoLibraryLimits,
+  normalizeVideoMovieDetail,
+  normalizeVideoMovieVersions,
   normalizeVideoMovies,
   type VideoLibraryStoreSnapshot
 } from './videoLibraryNormalization';
@@ -111,6 +113,127 @@ describe('video library normalization helpers', () => {
       start: 5,
       end: 10,
       total: 50
+    });
+  });
+
+  it('normalizes safe rich movie detail metadata with watched resume artwork and default unsupported versions', () => {
+    const detail = normalizeVideoMovieDetail({
+      movieid: 42,
+      label: 'Alien',
+      title: 'Alien',
+      year: 1979,
+      runtime: 7020,
+      plot: 'A safe plot.',
+      plotoutline: 'Safe outline.',
+      tagline: 'In space no one can hear you scream.',
+      genre: ['Horror', 'Sci-Fi', '', 'smb://secret/genre'],
+      director: ['Ridley Scott', 'http://admin:p@ssword@kodi.local/director'],
+      studio: ['20th Century Fox'],
+      mpaa: 'R',
+      rating: 8.5,
+      userrating: 9,
+      premiered: '1979-05-25',
+      uniqueid: { imdb: 'tt0078748', hostile: 'smb://secret/id', empty: '' },
+      thumbnail: 'image://poster.jpg/',
+      fanart: 'http://cdn.example/fanart.jpg',
+      art: {
+        poster: 'image://poster.jpg/',
+        fanart: 'https://cdn.example/fanart.jpg',
+        file: 'smb://secret/poster.jpg',
+        bad: 123
+      },
+      playcount: 1,
+      resume: { position: 12.5, total: 7020 },
+      file: 'smb://secret/video/Alien.mkv'
+    });
+
+    expect(detail).toEqual({
+      movieid: 42,
+      label: 'Alien',
+      title: 'Alien',
+      year: 1979,
+      runtime: 7020,
+      plot: 'A safe plot.',
+      plotoutline: 'Safe outline.',
+      tagline: 'In space no one can hear you scream.',
+      genre: ['Horror', 'Sci-Fi'],
+      director: ['Ridley Scott'],
+      studio: ['20th Century Fox'],
+      mpaa: 'R',
+      rating: 8.5,
+      userrating: 9,
+      premiered: '1979-05-25',
+      uniqueid: { imdb: 'tt0078748' },
+      thumbnailAvailable: true,
+      fanartAvailable: true,
+      artwork: { poster: true, fanart: true },
+      playcount: 1,
+      watched: true,
+      resume: { position: 12.5, total: 7020 },
+      versions: {
+        status: 'unsupported',
+        reason: 'Kodi movie versions are not available through a proven JSON-RPC detail API.'
+      }
+    });
+    expectSecretSafe(detail);
+  });
+
+  it('normalizes malformed detail and D030 movie version states without unsafe labels', () => {
+    expect(normalizeVideoMovieDetail(null)).toBeNull();
+    expect(normalizeVideoMovieDetail({ movieid: '42', label: 'Dropped' })).toBeNull();
+    expect(
+      normalizeVideoMovieDetail({
+        movieid: 7,
+        label: '',
+        playcount: 0,
+        resume: { position: 0, total: 0 },
+        genre: 'not-array',
+        uniqueid: ['bad'],
+        thumbnail: 'smb://secret/poster.jpg',
+        fanart: 'https://admin:p@ssword@example/fanart.jpg',
+        art: { poster: 'smb://secret/poster.jpg' },
+        versions: { status: 'ready', items: [{ id: 1, label: 'Unsafe smb://secret/file.mkv' }] }
+      })
+    ).toEqual({
+      movieid: 7,
+      label: 'Unknown movie',
+      playcount: 0,
+      watched: false,
+      resume: { position: 0, total: 0 },
+      thumbnailAvailable: false,
+      fanartAvailable: false,
+      artwork: {},
+      versions: { status: 'unavailable', reason: 'No safe movie versions are available.' }
+    });
+
+    expect(normalizeVideoMovieVersions({ status: 'unsupported', reason: 'not proven' })).toEqual({
+      status: 'unsupported',
+      reason: 'not proven'
+    });
+    expect(
+      normalizeVideoMovieVersions({ status: 'error', message: 'Authorization: Basic abc123' })
+    ).toEqual({
+      status: 'error',
+      message: 'credentials [redacted]'
+    });
+    expect(
+      normalizeVideoMovieVersions({
+        status: 'ready',
+        selectedId: 2,
+        items: [
+          { id: 1, label: 'Theatrical cut' },
+          { id: 2, label: 'Director cut' },
+          { id: 3, label: 'http://admin:p@ssword@example/file.mkv' },
+          { id: Number.NaN, label: 'Bad id' }
+        ]
+      })
+    ).toEqual({
+      status: 'ready',
+      selectedId: 2,
+      items: [
+        { id: 1, label: 'Theatrical cut' },
+        { id: 2, label: 'Director cut' }
+      ]
     });
   });
 
