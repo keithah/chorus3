@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+  FileDirectoryParams,
+  FileDirectoryResult,
+  KodiFileItem,
   KodiMusicLibraryItem,
   PlayerGoToTarget,
   PlayerOpenItem,
@@ -14,6 +17,7 @@ import type {
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
+  addFilePlaylistItem,
   addMusicPlaylistItem,
   addPlaylistItem,
   clearPlaylist,
@@ -23,6 +27,7 @@ import {
   getAudioLibraryArtists,
   getAudioLibraryGenres,
   getAudioLibrarySongs,
+  getFileDirectory,
   getFileSources,
   getJsonRpcVersion,
   getPlayerItem,
@@ -34,6 +39,7 @@ import {
   getVideoLibraryTvShows,
   goToPlayerItem,
   openPlayer,
+  openPlayerFile,
   openPlayerItem,
   pingKodi,
   playPausePlayer,
@@ -66,6 +72,9 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>,
   ExpectTrue<IsNotAssignable<number, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<string, KodiMusicLibraryItem>>,
+  ExpectTrue<IsNotAssignable<number, KodiFileItem>>,
+  ExpectTrue<IsNotAssignable<string, KodiFileItem>>,
+  ExpectTrue<IsNotAssignable<{ songid: number }, KodiFileItem>>,
   ExpectTrue<IsNotAssignable<{ file: string }, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<{ episodeid: number }, PlayerOpenItem>>,
   ExpectTrue<IsNotAssignable<{ item: { file: string } }, PlayerOpenParams>>,
@@ -474,6 +483,60 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'Files.GetSources', params: { media: 'music' } }]);
+  });
+
+  it('gets file directory entries preserving requested directory params', async () => {
+    const client = createFakeClient([
+      {
+        files: [
+          { file: 'smb://nas/music/Album/', filetype: 'directory', label: 'Album' },
+          { file: 'smb://nas/music/song.flac', filetype: 'file', label: 'Song', type: 'unknown' }
+        ],
+        limits: { start: 0, end: 2, total: 2 }
+      }
+    ]);
+    const params = {
+      directory: 'smb://nas/music/',
+      media: 'music',
+      properties: ['file', 'title'],
+      sort: { method: 'label', order: 'ascending' },
+      limits: { start: 0, end: 25 }
+    } as const satisfies FileDirectoryParams;
+
+    await expect(getFileDirectory(client, params)).resolves.toEqual({
+      files: [
+        { file: 'smb://nas/music/Album/', filetype: 'directory', label: 'Album' },
+        { file: 'smb://nas/music/song.flac', filetype: 'file', label: 'Song', type: 'unknown' }
+      ],
+      limits: { start: 0, end: 2, total: 2 }
+    } satisfies FileDirectoryResult);
+
+    expect(client.calls).toEqual([{ method: 'Files.GetDirectory', params }]);
+  });
+
+  it('opens a player file item preserving the exact file payload', async () => {
+    const client = createFakeClient(['OK']);
+    const item = { file: 'smb://nas/music/song.flac' } as const satisfies KodiFileItem;
+
+    await expect(openPlayerFile(client, item)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.Open', params: { item: { file: 'smb://nas/music/song.flac' } } }
+    ]);
+  });
+
+  it('adds a file playlist item preserving playlist id and exact file payload', async () => {
+    const client = createFakeClient(['OK']);
+    const item = { file: 'smb://nas/music/song.flac' } as const satisfies KodiFileItem;
+
+    await expect(addFilePlaylistItem(client, 0, item)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/song.flac' } }
+      }
+    ]);
   });
 
   it('prepares a file download preserving the requested path', async () => {

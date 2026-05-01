@@ -290,6 +290,23 @@ export type PlaylistAddParams = {
   item: KodiMusicLibraryItem;
 };
 
+export type KodiFileItem = {
+  file: string;
+  songid?: never;
+  albumid?: never;
+  artistid?: never;
+  playlistid?: never;
+};
+
+export type PlayerOpenFileParams = {
+  item: KodiFileItem;
+};
+
+export type FilePlaylistAddParams = {
+  playlistid: number;
+  item: KodiFileItem;
+};
+
 export type KodiLibraryWriteResult = 'OK';
 
 export type AudioLibrarySetSongDetailsParams = {
@@ -407,6 +424,30 @@ export interface FileSource {
 
 export interface FileSourcesResult {
   sources?: FileSource[];
+  [key: string]: unknown;
+}
+
+export type FileDirectoryPropertyName = PlayerItemPropertyName;
+
+export type FileDirectoryParams = {
+  directory: string;
+  media?: FileMediaType;
+  properties?: readonly FileDirectoryPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+  sort?: unknown;
+};
+
+export interface FileDirectoryEntry {
+  file: string;
+  filetype?: 'directory' | 'file' | string;
+  label?: string;
+  type?: string;
+  [key: string]: unknown;
+}
+
+export interface FileDirectoryResult {
+  files?: FileDirectoryEntry[];
+  limits?: KodiLimits;
   [key: string]: unknown;
 }
 
@@ -806,6 +847,19 @@ export function openPlayerItem(
   return openPlayer(client, { item }, options);
 }
 
+export function openPlayerFile(
+  client: KodiJsonRpcHttpClient,
+  item: KodiFileItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerOpenFileParams>(
+    client,
+    'Player.Open',
+    { item },
+    options
+  );
+}
+
 export function addPlaylistItem(
   client: KodiJsonRpcHttpClient,
   params: PlaylistAddParams,
@@ -820,6 +874,20 @@ export function addMusicPlaylistItem(
   options?: KodiHttpCallOptions
 ): Promise<PlayerCommandResult> {
   return addPlaylistItem(client, { playlistid: 0, item }, options);
+}
+
+export function addFilePlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  playlistid: number,
+  item: KodiFileItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, FilePlaylistAddParams>(
+    client,
+    'Playlist.Add',
+    { playlistid, item },
+    options
+  );
 }
 
 export function removePlaylistItem(
@@ -1048,6 +1116,19 @@ export function getFileSources(
     client,
     'Files.GetSources',
     { media },
+    options
+  );
+}
+
+export function getFileDirectory(
+  client: KodiJsonRpcHttpClient,
+  params: FileDirectoryParams,
+  options?: KodiHttpCallOptions
+): Promise<FileDirectoryResult> {
+  return callKodi<FileDirectoryResult, FileDirectoryParams>(
+    client,
+    'Files.GetDirectory',
+    params,
     options
   );
 }
