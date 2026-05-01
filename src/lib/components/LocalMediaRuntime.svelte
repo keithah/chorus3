@@ -1,11 +1,15 @@
 <script lang="ts">
   import { localPlayerStore, type LocalPlayerStore } from '$lib/stores/localPlayer.svelte';
 
+  type LocalMediaRuntimeVariant = 'inline' | 'fullscreen';
+
   interface Props {
     store?: LocalPlayerStore;
+    variant?: LocalMediaRuntimeVariant;
+    className?: string;
   }
 
-  let { store = localPlayerStore }: Props = $props();
+  let { store = localPlayerStore, variant = 'inline', className = '' }: Props = $props();
 
   function attachLocalMedia(node: HTMLVideoElement): { destroy: () => void } {
     node.dataset.localMediaAdapter = 'attached';
@@ -22,8 +26,9 @@
 
 <video
   use:attachLocalMedia
-  class="local-media-runtime"
+  class={`local-media-runtime ${variant} ${className}`.trim()}
   data-local-media-adapter="attached"
+  data-local-media-variant={variant}
   aria-label="Local browser media playback runtime"
   preload="metadata"
   playsinline
@@ -37,11 +42,23 @@
     margin-block: var(--space-md);
     color: var(--color-text);
     background: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
+    box-shadow:
+      inset 0 0 0 1px var(--color-border),
+      0 1rem 3rem color-mix(in srgb, black 22%, transparent);
     border-radius: var(--radius-lg);
   }
 
-  .local-media-runtime:not([src]) {
+  .local-media-runtime.fullscreen {
+    display: block;
+    width: 100%;
+    max-height: min(68vh, 48rem);
+    margin-block: 0;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: calc(var(--radius-lg) + var(--space-xs));
+  }
+
+  .local-media-runtime:not([src]):not(.fullscreen) {
     position: absolute;
     width: 1px;
     height: 1px;
