@@ -225,6 +225,10 @@ type QueueDispatchWithFiles = QueueDispatch & {
   queueFileItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithPlaylists = QueueDispatch & {
+  queuePlaylistItem(item: unknown): Promise<void>;
+};
+
 function asMusicDispatch(dispatch: QueueDispatch): QueueDispatchWithMusic {
   return dispatch as QueueDispatchWithMusic;
 }
@@ -233,7 +237,185 @@ function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
   return dispatch as QueueDispatchWithFiles;
 }
 
+function asPlaylistDispatch(dispatch: QueueDispatch): QueueDispatchWithPlaylists {
+  return dispatch as QueueDispatchWithPlaylists;
+}
+
 describe('queue dispatch', () => {
+  it('queues smart playlist files through Playlist.Add with audio playlist id and authoritative refetches', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asPlaylistDispatch(dispatch).queuePlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/recent.xsp' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queuePlaylistItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('rejects invalid playlist queue inputs before calling Kodi or refreshing stores', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const invalidInputs = [
+      { file: '', mediaKind: 'music', playlistKind: 'smart' },
+      { file: '   ', mediaKind: 'music', playlistKind: 'smart' },
+      { file: 42, mediaKind: 'music', playlistKind: 'smart' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'video', playlistKind: 'smart' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'basic' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart', songid: 42 },
+      { kind: 'song', songid: 42, file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart' }
+    ];
+
+    for (const input of invalidInputs) {
+      await asPlaylistDispatch(dispatch).queuePlaylistItem(input);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'queuePlaylistItem',
+        lastError: { source: 'input', code: 'input/invalid-playlist-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('serializes playlist queue commands and preserves success when refreshes fail', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    const pending = deferred<unknown>();
+    client.enqueue('Playlist.Add', pending);
+    client.enqueue('Playlist.Add', 'OK');
+    queueStore.refreshError = new Error('queue refresh failed with smb://secret/song.flac');
+    playerStore.refreshError = new Error('player refresh failed with Authorization: Basic token');
+    const playlistDispatch = asPlaylistDispatch(dispatch);
+
+    const firstCall = playlistDispatch.queuePlaylistItem({
+      file: 'special://profile/playlists/music/first.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+    await flushPromises();
+    await playlistDispatch.queuePlaylistItem({
+      file: 'special://profile/playlists/music/second.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queuePlaylistItem',
+      lastError: { code: 'command/already-running' }
+    });
+
+    pending.resolve('OK');
+    await firstCall;
+    await playlistDispatch.queuePlaylistItem({
+      file: 'special://profile/playlists/music/third.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/first.xsp' } }
+      },
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/third.xsp' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual([
+      'command:queuePlaylistItem',
+      'command:queuePlaylistItem'
+    ]);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:queuePlaylistItem',
+      'command:queuePlaylistItem'
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queuePlaylistItem',
+      lastError: null
+    });
+  });
+
+  it('reports missing active clients for playlist queue commands without refreshing', async () => {
+    const playerStore = new FakePlayerStore();
+    const queueStore = new FakeQueueDispatchStore();
+    const dispatch = createQueueDispatch({
+      playerStore,
+      queueStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await asPlaylistDispatch(dispatch).queuePlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(queueStore.refreshReasons).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queuePlaylistItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
+    });
+  });
+
+  it('sanitizes playlist queue command failures and refreshes after Kodi was reached', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue(
+      'Playlist.Add',
+      new Error(
+        'add failed for Authorization: Basic token http://admin:p@ssword@kodi.local/jsonrpc smb://secret/song.flac from localStorage raw body'
+      )
+    );
+
+    await asPlaylistDispatch(dispatch).queuePlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/recent.xsp' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'queuePlaylistItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
   it('queues audio file items through Playlist.Add with audio playlist id and authoritative refetches', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     queueStore.snapshot = createQueueSnapshot({

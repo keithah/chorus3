@@ -20,6 +20,10 @@ type PlayerDispatchWithFiles = ReturnType<typeof createPlayerDispatch> & {
   playFileItem(item: unknown): Promise<void>;
 };
 
+type PlayerDispatchWithPlaylists = ReturnType<typeof createPlayerDispatch> & {
+  playPlaylistItem(item: unknown): Promise<void>;
+};
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -265,6 +269,114 @@ describe('player dispatch', () => {
       lastCommand: 'playFileItem',
       lastError: null,
       lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('plays smart playlist files through Player.Open without active-player resolution or Local stream preparation', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', 'OK');
+
+    await (dispatch as PlayerDispatchWithPlaylists).playPlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Player.Open',
+        params: { item: { file: 'special://profile/playlists/music/recent.xsp' } }
+      }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playPlaylistItem']);
+    expect(localPlayerStore.calls).toEqual([{ method: 'stop' }]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'kodi',
+      commandStatus: 'success',
+      lastCommand: 'playPlaylistItem',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('stops Local mode only after playlist Player.Open succeeds', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    dispatch.setMode('local');
+    playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
+    client.enqueue('Player.Open', new Error('Kodi rejected smb://secret/song.flac Authorization: Basic token'));
+
+    await (dispatch as PlayerDispatchWithPlaylists).playPlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Player.Open',
+        params: { item: { file: 'special://profile/playlists/music/recent.xsp' } }
+      }
+    ]);
+    expect(playerStore.refreshReasons).toEqual(['command:playPlaylistItem']);
+    expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      mode: 'local',
+      commandStatus: 'error',
+      lastCommand: 'playPlaylistItem',
+      lastError: { source: 'command', code: 'command/failed' }
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('rejects invalid playlist playback inputs before calling Kodi or Local playback', async () => {
+    const { client, dispatch, localPlayerStore, playerStore } = createHarness();
+    const invalidItems = [
+      { file: '', mediaKind: 'music', playlistKind: 'smart' },
+      { file: '   ', mediaKind: 'music', playlistKind: 'smart' },
+      { file: 42, mediaKind: 'music', playlistKind: 'smart' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'video', playlistKind: 'smart' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'basic' },
+      { file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart', songid: 42 },
+      { kind: 'song', songid: 42, file: 'special://profile/playlists/music/recent.xsp', mediaKind: 'music', playlistKind: 'smart' }
+    ];
+
+    for (const item of invalidItems) {
+      await (dispatch as PlayerDispatchWithPlaylists).playPlaylistItem(item);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'error',
+        lastCommand: 'playPlaylistItem',
+        lastCompletedAt: '2026-01-02T00:00:00.000Z',
+        lastError: { source: 'input', code: 'input/invalid-playlist-item' }
+      });
+    }
+
+    expect(client.calls).toEqual([]);
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(localPlayerStore.calls).toEqual([]);
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('reports missing active-host client state for playlist playback without Kodi calls or refresh', async () => {
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      createClient: () => null,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await (dispatch as PlayerDispatchWithPlaylists).playPlaylistItem({
+      file: 'special://profile/playlists/music/recent.xsp',
+      mediaKind: 'music',
+      playlistKind: 'smart'
+    });
+
+    expect(playerStore.refreshReasons).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'playPlaylistItem',
+      lastError: { source: 'config', code: 'config/no-active-host' }
     });
   });
 

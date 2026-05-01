@@ -5,6 +5,7 @@ import type {
   FileDirectoryResult,
   KodiFileItem,
   KodiMusicLibraryItem,
+  KodiPlaylistFileItem,
   PlayerGoToTarget,
   PlayerOpenItem,
   PlayerOpenParams,
@@ -19,6 +20,7 @@ import { KodiHttpClientError, type KodiJsonRpcHttpClient } from './jsonRpc';
 import {
   addFilePlaylistItem,
   addMusicPlaylistItem,
+  addPlaylistFileItem,
   addPlaylistItem,
   clearPlaylist,
   getActivePlayers,
@@ -41,6 +43,7 @@ import {
   openPlayer,
   openPlayerFile,
   openPlayerItem,
+  openPlayerPlaylistFile,
   pingKodi,
   playPausePlayer,
   prepareFileDownload,
@@ -74,6 +77,8 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<string, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<number, KodiFileItem>>,
   ExpectTrue<IsNotAssignable<string, KodiFileItem>>,
+  ExpectTrue<IsNotAssignable<number, KodiPlaylistFileItem>>,
+  ExpectTrue<IsNotAssignable<string, KodiPlaylistFileItem>>,
   ExpectTrue<IsNotAssignable<{ songid: number }, KodiFileItem>>,
   ExpectTrue<IsNotAssignable<{ file: string }, KodiMusicLibraryItem>>,
   ExpectTrue<IsNotAssignable<{ episodeid: number }, PlayerOpenItem>>,
@@ -535,6 +540,34 @@ describe('Kodi curated method wrappers', () => {
       {
         method: 'Playlist.Add',
         params: { playlistid: 0, item: { file: 'smb://nas/music/song.flac' } }
+      }
+    ]);
+  });
+
+  it('opens a playlist file item preserving the exact smart playlist file payload', async () => {
+    const client = createFakeClient(['OK']);
+    const item = { file: 'special://profile/playlists/music/recent.xsp' } as const satisfies KodiPlaylistFileItem;
+
+    await expect(openPlayerPlaylistFile(client, item)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Player.Open',
+        params: { item: { file: 'special://profile/playlists/music/recent.xsp' } }
+      }
+    ]);
+  });
+
+  it('adds a playlist file item preserving playlist id and exact smart playlist file payload', async () => {
+    const client = createFakeClient(['OK']);
+    const item = { file: 'special://profile/playlists/music/recent.xsp' } as const satisfies KodiPlaylistFileItem;
+
+    await expect(addPlaylistFileItem(client, 0, item)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/recent.xsp' } }
       }
     ]);
   });

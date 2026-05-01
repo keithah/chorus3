@@ -2,6 +2,7 @@ import {
   KodiHttpClientError,
   addFilePlaylistItem,
   addMusicPlaylistItem,
+  addPlaylistFileItem,
   clearPlaylist,
   getPlaylistItems,
   isKodiHttpClientError,
@@ -19,7 +20,13 @@ import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte.ts';
 
 export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
-export type QueueCommandName = 'removeAt' | 'clear' | 'swap' | 'queueMusicItem' | 'queueFileItem';
+export type QueueCommandName =
+  | 'removeAt'
+  | 'clear'
+  | 'swap'
+  | 'queueMusicItem'
+  | 'queueFileItem'
+  | 'queuePlaylistItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
 
 export type MusicQueueItem =
@@ -28,6 +35,7 @@ export type MusicQueueItem =
   | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
 
 export type FileQueueItem = { file: string; mediaKind: 'audio' };
+export type PlaylistQueueItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
 
 export interface QueueDispatchSafeErrorSnapshot {
   source: QueueDispatchErrorSource;
@@ -474,6 +482,10 @@ export class QueueDispatch {
     return this.#runFileQueueCommand(item);
   }
 
+  queuePlaylistItem(item: PlaylistQueueItem): Promise<void> {
+    return this.#runPlaylistQueueCommand(item);
+  }
+
   async #runMusicQueueCommand(item: MusicQueueItem): Promise<void> {
     if (this.#snapshot.commandStatus === 'running') {
       this.#failCommand(
@@ -569,6 +581,56 @@ export class QueueDispatch {
       ...this.#snapshot,
       commandStatus: 'success',
       lastCommand: 'queueFileItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runPlaylistQueueCommand(item: PlaylistQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queuePlaylistItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queuePlaylistItem');
+
+    const playlistItemResult = normalizePlaylistQueueItem(item);
+    if (!playlistItemResult.ok) {
+      this.#failCommand('queuePlaylistItem', playlistItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queuePlaylistItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addPlaylistFileItem(clientResult.client, 0, playlistItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queuePlaylistItem');
+
+    if (commandError) {
+      this.#failCommand('queuePlaylistItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queuePlaylistItem',
       lastError: null,
       lastCompletedAt: this.#now()
     };
@@ -788,6 +850,31 @@ function normalizeFileQueueItem(
   return { ok: false, error: createInvalidFileItemError() };
 }
 
+function normalizePlaylistQueueItem(
+  item: unknown
+): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidPlaylistItemError() };
+  }
+
+  const keys = Object.keys(item).sort();
+
+  if (
+    keys.length === 3 &&
+    keys[0] === 'file' &&
+    keys[1] === 'mediaKind' &&
+    keys[2] === 'playlistKind' &&
+    typeof item.file === 'string' &&
+    item.file.trim().length > 0 &&
+    item.mediaKind === 'music' &&
+    item.playlistKind === 'smart'
+  ) {
+    return { ok: true, item: { file: item.file } };
+  }
+
+  return { ok: false, error: createInvalidPlaylistItemError() };
+}
+
 function isPositiveInteger(value: unknown): value is number {
   return Number.isInteger(value) && typeof value === 'number' && value > 0;
 }
@@ -803,6 +890,13 @@ function createInvalidFileItemError(): QueueDispatchSafeErrorSnapshot {
   return createQueueInputError(
     'input/invalid-file-item',
     'Choose a supported audio file to queue.'
+  );
+}
+
+function createInvalidPlaylistItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-playlist-item',
+    'Choose a supported music smart playlist to queue.'
   );
 }
 

@@ -4,6 +4,7 @@ import {
   isKodiHttpClientError,
   openPlayerFile,
   openPlayerItem,
+  openPlayerPlaylistFile,
   playPausePlayer,
   seekPlayer,
   setApplicationMute,
@@ -50,6 +51,7 @@ export type PlayerCommandName =
   | 'setSubtitle'
   | 'playMusicItem'
   | 'playFileItem'
+  | 'playPlaylistItem'
   | 'startLocalPlayback'
   | 'resumeOnKodi';
 export type MusicPlaybackItem =
@@ -57,6 +59,7 @@ export type MusicPlaybackItem =
   | { kind: 'album'; albumid: number }
   | { kind: 'artist'; artistid: number };
 export type FilePlaybackItem = { file: string; mediaKind: 'audio' };
+export type PlaylistPlaybackItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
 
 export type PlayerDispatchErrorSource = 'config' | 'player' | 'mode' | 'input' | 'http' | 'command';
 
@@ -405,6 +408,26 @@ export class PlayerDispatch {
       validate: () => validateFilePlaybackItem(item),
       resolvePlayerid: false,
       execute: (client) => openPlayerFile(client, fileItem)
+    });
+  }
+
+  playPlaylistItem(item: PlaylistPlaybackItem): Promise<void> {
+    const playlistItem = toKodiPlaylistPlaybackItem(item) ?? { file: '' };
+
+    return this.#runCommand({
+      command: 'playPlaylistItem',
+      validate: () => validatePlaylistPlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerPlaylistFile(client, playlistItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
     });
   }
 
@@ -835,6 +858,14 @@ function validateFilePlaybackItem(item: FilePlaybackItem): PlayerDispatchSafeErr
     : createInputError('input/invalid-file-item', 'Choose a supported audio file to play.');
 }
 
+function validatePlaylistPlaybackItem(
+  item: PlaylistPlaybackItem
+): PlayerDispatchSafeErrorSnapshot | null {
+  return toKodiPlaylistPlaybackItem(item)
+    ? null
+    : createInputError('input/invalid-playlist-item', 'Choose a supported music smart playlist.');
+}
+
 function toKodiFilePlaybackItem(item: FilePlaybackItem): { file: string } | null {
   if (!item || typeof item !== 'object') {
     return null;
@@ -850,6 +881,30 @@ function toKodiFilePlaybackItem(item: FilePlaybackItem): { file: string } | null
     typeof candidate.file === 'string' &&
     candidate.file.trim().length > 0 &&
     candidate.mediaKind === 'audio'
+  ) {
+    return { file: candidate.file };
+  }
+
+  return null;
+}
+
+function toKodiPlaylistPlaybackItem(item: PlaylistPlaybackItem): { file: string } | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+
+  if (
+    keys.length === 3 &&
+    keys[0] === 'file' &&
+    keys[1] === 'mediaKind' &&
+    keys[2] === 'playlistKind' &&
+    typeof candidate.file === 'string' &&
+    candidate.file.trim().length > 0 &&
+    candidate.mediaKind === 'music' &&
+    candidate.playlistKind === 'smart'
   ) {
     return { file: candidate.file };
   }
