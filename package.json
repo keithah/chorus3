@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "package:kodi": "npm run build && node scripts/package-kodi-webinterface.mjs",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.app.json",
     "lint": "eslint . && prettier --check .",
