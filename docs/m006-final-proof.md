@@ -2,11 +2,11 @@
 
 Reader: a future maintainer or executor landing cold on M006 closeout.
 
-Post-read action: rerun the closeout commands and browser proof, update only the Awaiting evidence cells produced by S06 T03/T04, understand which requirements are validated or deferred, and avoid overclaiming full Chorus2 parity.
+Post-read action: rerun the closeout commands and browser proof, compare fresh output against the evidence below, understand which requirements are validated or deferred, and avoid overclaiming full Chorus2 parity.
 
 This document intentionally records tracked proof paths because it is a milestone evidence/runbook artifact. It records pass/fail outcomes and redaction categories only; it does not record live credentials, raw transport diagnostics, local ignored corpus paths, or host-specific values.
 
-Pending markers are allowed only for fresh S06 command or browser evidence that later closeout tasks replace.
+S06 closeout replaced every planned command and browser evidence marker with measured outcomes.
 
 ## Scope
 
@@ -26,7 +26,7 @@ M006 does not claim blocking full live-Kodi parity across all Chorus2-equivalent
 
 | Requirement | Closeout status                                   | Evidence boundary                                                                                                                                                                                                                                                             |
 | ----------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R025        | Awaiting S06 T04 browser matrix before validation | Requires browser DOM measurements for no horizontal overflow, reachable primary navigation, Remote touch target sizing, and short-height landscape rail reachability. S06 T01 already added the short-height rail CSS/test guard; final validation waits for the full matrix. |
+| R025        | Validated                                         | S06 T04 browser DOM measurements prove no horizontal overflow at desktop/wide, mobile portrait, and short-height landscape viewports; primary navigation links are individually reachable after rail scroll; Remote buttons remain touch-sized; and Help placeholder recovery remains package-base safe.       |
 | R047        | Validated                                         | `docs/m006-chorus2-parity.md`, `src/lib/app/chorus2ParityLedger.ts`, scanner/verifier tests, and `npm run verify:chorus2-parity` prove the parity ledger is structured, generated, and checked against the scanned Chorus2 inventory.                                         |
 | R048        | Validated                                         | Router/App/package tests prove visible packaged shell/navigation links land on implemented routes or owner-labeled placeholder routes with surface/status/owner copy.                                                                                                         |
 | R049        | Validated                                         | App-router/App/main tests preserve existing Chorus3 routes while adding curated Chorus2-compatible aliases for remote, media, settings, add-ons, help, Lab, PVR, and related surfaces.                                                                                        |
@@ -85,15 +85,15 @@ Required package-shell signals:
 
 ## Responsive Browser Matrix
 
-The final browser matrix is owned by S06 T04. R025 must not be marked validated until those measurements pass.
+The final browser matrix was measured by S06 T04 against Vite dev server `http://127.0.0.1:5173` with `/jsonrpc` mocked before clean diagnostics assertions. R025 is validated by these measured outcomes.
 
-| Viewport or route class      | Required checks                                                                                    | Evidence state                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Package root mobile portrait | no horizontal overflow; shell remains readable; primary navigation remains reachable               | Awaiting S06 T04                                                       |
-| Package root phone landscape | no horizontal overflow; rail can scroll vertically; Help link can become visible after rail scroll | S06 T01 proved the short-height rail guard; full matrix awaits S06 T04 |
-| Package root desktop         | shell, nav, disabled/guarded controls, and placeholders remain truthful                            | Awaiting S06 T04                                                       |
-| Package Remote route         | Remote button sizes, disabled/guarded control state, and real panel visibility                     | Awaiting S06 T04                                                       |
-| Package Help route           | owner-labeled placeholder copy and package-base recovery link                                      | Awaiting S06 T04                                                       |
+| Viewport or route class      | Required checks                                                                                    | Evidence state                                                                                                                                                                                                                   |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Package root mobile portrait | no horizontal overflow; shell remains readable; primary navigation remains reachable               | Pass at 390x844: document and body scroll widths both matched 390px client width; all nine rail links were initially visible with 50x39px bounding boxes.                                                                       |
+| Package root phone landscape | no horizontal overflow; rail can scroll vertically; Help link can become visible after rail scroll | Pass at 740x360 and 844x390: document/body scroll widths matched viewport width; rail was vertically scrollable; Music, Movies, TV shows, Files, Add-ons, Remote, Playlists, Settings, and Help were each individually reachable. |
+| Package root desktop         | shell, nav, disabled/guarded controls, and placeholders remain truthful                            | Pass at 1920x1080: package root rendered `.chorus-app`, no host grid or multi-host setup copy, package-base rail hrefs, one readonly search input, and disabled deferred shell controls.                                         |
+| Package Remote route         | Remote button sizes, disabled/guarded control state, and real panel visibility                     | Pass at 390x844 and 740x360: `.remote-input-panel` rendered with no `.parity-placeholder`; nine command buttons were visible and at least 105x60px portrait / 163x60px landscape; all five power buttons were disabled.          |
+| Package Help route           | owner-labeled placeholder copy and package-base recovery link                                      | Pass at 740x360: `.parity-placeholder` rendered Chorus2 surface, status, owner, and a package-base recovery link to `/addons/webinterface.chorus3`.                                                                             |
 
 Required coverage terms for this matrix: no horizontal overflow, reachable primary navigation, Remote real panel, owner-labeled placeholder, parity ledger, package verifier, console/network diagnostics, and category-level redaction.
 
@@ -115,27 +115,28 @@ If `npm run build` is run before `npm run verify:kodi-package`, the package veri
 
 ## Browser Diagnostics
 
-S06 browser proof must record only outcomes and category names, not raw diagnostic payloads. Browser diagnostics are expected for:
+S06 T04 browser proof recorded only outcomes and category names, not raw diagnostic payloads. Browser diagnostics were measured for:
 
 - DOM measurements: document/body scroll width, viewport width, rail link bounding boxes, rail scrollability, Remote button sizes, disabled/guarded control state, placeholder copy, and package-base recovery links.
-- Console diagnostics: no console errors during package root, Remote, and Help proof flows.
-- Network diagnostics: no failed package assets or unexpected failed fetch/XHR requests in the deterministic no-live proof flow.
-- Redaction scan: visible DOM must be scanned against category-level unsafe evidence classes.
+- Console diagnostics: pass; no console errors during package root, Remote, and Help proof flows after the no-live `/jsonrpc` mock was installed. Vite debug connection logs were non-error development-server noise.
+- Network diagnostics: pass; no failed package assets or failed fetch/XHR requests in the deterministic no-live proof flow.
+- Redaction scan: pass; visible DOM for package root, Remote, and Help routes was scanned against category-level unsafe evidence classes.
 
-The browser proof should name route, viewport, and check on failure so the next executor can reproduce the gap.
+The browser proof names route, viewport, and check on failure so the next executor can reproduce a gap.
 
 ## Visible-DOM Redaction Scan Categories
 
 The final proof and browser evidence use category-level redaction. Do not paste raw live diagnostics, raw request bodies, or storage dumps into this document.
 
-Forbidden visible-DOM/document literal categories:
+Forbidden visible-DOM/document literal categories checked in S06 T04:
 
-- credential-bearing endpoint shapes
-- auth header values
-- browser storage internals
-- raw JSON-RPC request/response/body/payload data
-- SMB/special paths
-- sentinel token values
+- credential-bearing endpoint shapes — pass
+- auth header values — pass
+- browser storage internals — pass
+- raw JSON-RPC request/response/body/payload data — pass
+- SMB/special paths — pass
+- local ignored corpus paths — pass
+- sentinel token values — pass
 
 Allowed evidence form:
 
@@ -161,7 +162,7 @@ Allowed evidence form:
 | Final package/parity command refresh               | `npm run verify:chorus2-parity`, `npm run verify:kodi-package`                                                                                                                                                                                                                                              |             Pass | Parity verifier checked 481 scanned item(s). Package verifier staged 27 entries, checked a 41-entry archive root, confirmed relative assets, and verified package route identities including root, Remote, Help, aliases, and now-playing. |
 | Type/build command refresh                         | `npm run typecheck`, `npm run build`                                                                                                                                                                                                                                                                        |             Pass | Typecheck reported 0 errors plus the known non-fatal CSS `speak` warning. Build transformed 220 modules and retained the known non-fatal large-chunk advisory.                                                                             |
 | Aggregate repository verification                  | `npm run verify`                                                                                                                                                                                                                                                                                            |             Pass | Exit 0 after the S06 T03 proof-doc and guard formatting update; aggregate lint, formatting, typecheck, tests, build, no-Tailwind, i18n, package, and package verifier gates completed.                                                     |
-| Final browser matrix                               | Package root, Remote, Help routes                                                                                                                                                                                                                                                                           | Awaiting S06 T04 | Must include no horizontal overflow, reachable primary navigation, Remote button sizes, placeholder copy, console/network diagnostics, and redaction scan outcomes.                                                                        |
+| Final browser matrix                               | Package root, Remote, Help routes                                                                                                                                                                                                                                                                           |             Pass | S06 T04 measured package root at 1920x1080, 390x844, 740x360, and 844x390; Remote at 390x844 and 740x360; and Help at 740x360. Evidence showed no horizontal overflow, individually reachable primary navigation in landscape rail scroll, Remote touch-sized controls, disabled power controls, owner-labeled Help placeholder copy, clean console/network diagnostics, and category-level redaction pass outcomes.                                                                        |
 
 ## Live Kodi Gap Note
 
