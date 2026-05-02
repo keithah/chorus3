@@ -107,7 +107,12 @@
     videoWriteStore,
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
-  import { buildAppRoute, KODI_WEBINTERFACE_BASE_PATH, type AppRoute } from '$lib/app/appRouter';
+  import {
+    buildAppRoute,
+    getChorus2PlaceholderMetadata,
+    KODI_WEBINTERFACE_BASE_PATH,
+    type AppRoute
+  } from '$lib/app/appRouter';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
@@ -315,6 +320,78 @@
 
   const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
 
+  interface ShellRailItem {
+    readonly title: string;
+    readonly label: string;
+    readonly icon: string;
+    readonly route: AppRoute;
+    readonly activeOnDashboard?: boolean;
+  }
+
+  const shellRailItems: readonly ShellRailItem[] = [
+    {
+      title: 'Music',
+      label: 'Music',
+      icon: 'mdi-av-my-library-music',
+      route: { kind: 'dashboard' },
+      activeOnDashboard: true
+    },
+    {
+      title: 'Movies',
+      label: 'Movies',
+      icon: 'mdi-image-movie-creation',
+      route: { kind: 'video', route: { kind: 'videoMovies' } }
+    },
+    {
+      title: 'TV shows',
+      label: 'TV shows',
+      icon: 'mdi-hardware-tv',
+      route: { kind: 'video', route: { kind: 'videoTvShows' } }
+    },
+    {
+      title: 'Files',
+      label: 'Files',
+      icon: 'mdi-editor-format-list-bulleted',
+      route: chorus2PlaceholderRoute('browser')
+    },
+    {
+      title: 'Add-ons',
+      label: 'Add-ons',
+      icon: 'mdi-action-extension',
+      route: { kind: 'addons' }
+    },
+    {
+      title: 'Remote',
+      label: 'Remote',
+      icon: 'mdi-action-thumb-up',
+      route: chorus2PlaceholderRoute('remote')
+    },
+    {
+      title: 'Playlists',
+      label: 'Playlists',
+      icon: 'mdi-av-playlist-add',
+      route: chorus2PlaceholderRoute('playlists')
+    },
+    {
+      title: 'Settings',
+      label: 'Settings',
+      icon: 'mdi-action-settings',
+      route: { kind: 'settings' }
+    },
+    {
+      title: 'Help',
+      label: 'Help',
+      icon: 'mdi-action-help',
+      route: chorus2PlaceholderRoute('help')
+    }
+  ];
+
+  function chorus2PlaceholderRoute(id: string): AppRoute {
+    const placeholder = getChorus2PlaceholderMetadata(id);
+
+    return placeholder ? { kind: 'chorus2Placeholder', placeholder } : { kind: 'dashboard' };
+  }
+
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
@@ -437,6 +514,12 @@
     }
 
     return { kind: 'video', route: input };
+  }
+
+  function appHref(route: AppRoute): string {
+    return buildAppRoute(route, {
+      packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''
+    });
   }
 
   onMount(() => {
@@ -862,42 +945,17 @@
 
         <aside class="c2-rail" aria-label="Primary navigation">
           <nav aria-label="Kodi sections">
-            <a href="/" class="active" aria-current="page" title="Music">
-              <span class="mdi mdi-av-my-library-music" aria-hidden="true"></span>
-              <span class="visually-hidden">Music</span>
-            </a>
-            <a href="/video/movies" title="Movies">
-              <span class="mdi mdi-image-movie-creation" aria-hidden="true"></span>
-              <span class="visually-hidden">Movies</span>
-            </a>
-            <a href="/video/tv" title="TV shows">
-              <span class="mdi mdi-hardware-tv" aria-hidden="true"></span>
-              <span class="visually-hidden">TV shows</span>
-            </a>
-            <a href="/lab/api-browser" title="Files">
-              <span class="mdi mdi-editor-format-list-bulleted" aria-hidden="true"></span>
-              <span class="visually-hidden">Files</span>
-            </a>
-            <a href="/addons" title="Add-ons">
-              <span class="mdi mdi-action-extension" aria-hidden="true"></span>
-              <span class="visually-hidden">Add-ons</span>
-            </a>
-            <a href="/" title="Remote">
-              <span class="mdi mdi-action-thumb-up" aria-hidden="true"></span>
-              <span class="visually-hidden">Remote</span>
-            </a>
-            <a href="/" title="Playlists">
-              <span class="mdi mdi-av-playlist-add" aria-hidden="true"></span>
-              <span class="visually-hidden">Playlists</span>
-            </a>
-            <a href="/settings" title="Settings">
-              <span class="mdi mdi-action-settings" aria-hidden="true"></span>
-              <span class="visually-hidden">Settings</span>
-            </a>
-            <a href="/" title="Help">
-              <span class="mdi mdi-action-help" aria-hidden="true"></span>
-              <span class="visually-hidden">Help</span>
-            </a>
+            {#each shellRailItems as item}
+              <a
+                href={appHref(item.route)}
+                class:active={item.activeOnDashboard && isDashboardRoute}
+                aria-current={item.activeOnDashboard && isDashboardRoute ? 'page' : undefined}
+                title={item.title}
+              >
+                <span class={`mdi ${item.icon}`} aria-hidden="true"></span>
+                <span class="visually-hidden">{item.label}</span>
+              </a>
+            {/each}
           </nav>
         </aside>
 

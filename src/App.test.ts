@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import App from './App.svelte';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
 import {
+  KODI_WEBINTERFACE_BASE_PATH,
+  buildAppRoute,
   getChorus2PlaceholderMetadata,
   type AppRoute,
   type Chorus2RoutePlaceholder
@@ -1306,6 +1308,45 @@ function renderApp(props: AppProps = {}) {
   return target;
 }
 
+function createPackageMountedHost(): import('./lib/stores').SavedKodiHost {
+  return {
+    id: 'kodi-package-origin',
+    label: 'This Kodi',
+    host: 'kodi.local',
+    port: 8080,
+    useTls: false,
+    useWebSocket: false
+  };
+}
+
+function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement {
+  const link = target.querySelector<HTMLAnchorElement>(
+    `aside[aria-label="Primary navigation"] a[title="${title}"]`
+  );
+  expect(link).toBeInstanceOf(HTMLAnchorElement);
+  return link as HTMLAnchorElement;
+}
+
+function requirePlaceholderRoute(id: string): AppRoute {
+  const placeholder = getChorus2PlaceholderMetadata(id);
+  expect(placeholder).toBeDefined();
+  return { kind: 'chorus2Placeholder', placeholder: placeholder as Chorus2RoutePlaceholder };
+}
+
+function shellRailTargets(): readonly (readonly [string, AppRoute])[] {
+  return [
+    ['Music', { kind: 'dashboard' }],
+    ['Movies', { kind: 'video', route: { kind: 'videoMovies' } }],
+    ['TV shows', { kind: 'video', route: { kind: 'videoTvShows' } }],
+    ['Files', requirePlaceholderRoute('browser')],
+    ['Add-ons', { kind: 'addons' }],
+    ['Remote', requirePlaceholderRoute('remote')],
+    ['Playlists', requirePlaceholderRoute('playlists')],
+    ['Settings', { kind: 'settings' }],
+    ['Help', requirePlaceholderRoute('help')]
+  ] as const satisfies readonly (readonly [string, AppRoute])[];
+}
+
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -1423,14 +1464,7 @@ describe('App shell', () => {
 
     const target = renderApp({
       route: { kind: 'dashboard' },
-      packageMountedHost: {
-        id: 'kodi-package-origin',
-        label: 'This Kodi',
-        host: 'kodi.local',
-        port: 8080,
-        useTls: false,
-        useWebSocket: false
-      }
+      packageMountedHost: createPackageMountedHost()
     });
 
     expect(target.textContent).not.toContain('Multi-host console');
@@ -1443,6 +1477,48 @@ describe('App shell', () => {
     });
 
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://kodi.local:8080/jsonrpc');
+  });
+
+  it('keeps package-mounted Chorus2 shell rail links inside the package base with truthful targets', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost()
+    });
+
+    for (const [title, route] of shellRailTargets()) {
+      const href = requireRailLink(target, title).getAttribute('href');
+      const expectedHref = buildAppRoute(route, {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      });
+
+      expect(href, `${title} href`).toBe(expectedHref);
+      expect(href, `${title} package prefix`).toMatch(/^\/addons\/webinterface\.chorus3(?:\/|$)/u);
+    }
+
+    expect(requireRailLink(target, 'Music').getAttribute('aria-current')).toBe('page');
+    for (const [title] of shellRailTargets().filter(([title]) => title !== 'Music')) {
+      expect(requireRailLink(target, title).getAttribute('aria-current'), `${title} active`).toBe(
+        null
+      );
+    }
+  });
+
+  it('builds Chorus2 shell rail targets as normal app paths outside package mode', () => {
+    expect(
+      Object.fromEntries(shellRailTargets().map(([title, route]) => [title, buildAppRoute(route)]))
+    ).toEqual({
+      Music: '/',
+      Movies: '/video/movies',
+      'TV shows': '/video/tv',
+      Files: '/browser',
+      'Add-ons': '/addons',
+      Remote: '/remote',
+      Playlists: '/playlists',
+      Settings: '/settings',
+      Help: '/help'
+    });
   });
 
   it('renders the standalone now-playing embed route with injected safe host, query, player props, and refresh dispatch', async () => {
