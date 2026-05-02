@@ -256,7 +256,10 @@ describe('VideoMovieStreamShell', () => {
       mounted = null;
     }
 
-    renderShell({ route: { kind: 'videoMovieStream', movieid: 999 }, i18n: createTranslationContext('de') });
+    renderShell({
+      route: { kind: 'videoMovieStream', movieid: 999 },
+      i18n: createTranslationContext('de')
+    });
     text = screenText();
     expect(text).toContain('Filmstream nicht verfügbar');
     expect(text).toContain('Film-ID 999 ist in diesem Snapshot nicht vorhanden.');

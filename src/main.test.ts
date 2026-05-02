@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProofFixtures';
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
 async function importMain(): Promise<typeof import('./main')> {
@@ -125,6 +126,47 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('sessionStorage');
   });
 
+  it('switches M005 Settings browser-proof fixtures from English to German through the real entrypoint without route reload or forbidden tokens', async () => {
+    setPathAndSearch('/settings', '?m005-browser-proof=1');
+
+    await importMain();
+
+    const beforePath = window.location.pathname;
+    const beforeSearch = window.location.search;
+    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).toContain('Settings loaded.');
+    expect(document.body.textContent).toContain(
+      'Read-only: Kodi path settings are not safe to edit here.'
+    );
+    expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
+
+    const select = document.body.querySelector<HTMLSelectElement>('.locale-toggle select');
+    expect(select).toBeInstanceOf(HTMLSelectElement);
+    select!.value = 'de';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Kodi-Einstellungen');
+    });
+
+    expect(window.location.pathname).toBe(beforePath);
+    expect(window.location.search).toBe(beforeSearch);
+    expect(document.body.textContent).toContain('Einstellungen geladen.');
+    expect(document.body.textContent).toContain('Vorheriger Wert: previous safe value');
+    expect(document.body.textContent).toContain('4 versucht, 2 erfolgreich, 1 fehlgeschlagen');
+    expect(document.body.textContent).toContain(
+      'Schreibgeschützt: Kodi-path-Einstellungen können hier nicht sicher bearbeitet werden.'
+    );
+    expect(document.body.textContent).not.toContain('Kodi Settings');
+    expect(document.body.textContent).not.toContain('Settings loaded.');
+    expect(document.body.textContent).not.toContain(
+      'Read-only: Kodi path settings are not safe to edit here.'
+    );
+    for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
+      expect(document.body.textContent).not.toContain(forbidden);
+    }
+  });
+
   it('mounts M005 German settings fixture only when the locale query is valid', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1&locale=de');
 
@@ -135,6 +177,9 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Vorheriger Wert: previous safe value');
     expect(document.body.textContent).toContain('4 versucht, 2 erfolgreich, 1 fehlgeschlagen');
     expect(document.body.textContent).not.toContain('Kodi Settings');
+    for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
+      expect(document.body.textContent).not.toContain(forbidden);
+    }
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -144,6 +189,7 @@ describe('main entrypoint', () => {
 
     expect(document.body.textContent).toContain('Kodi Settings');
     expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
+    expect(window.localStorage.getItem('chorus3.locale')).toBeNull();
   });
 
   it('mounts populated M005 browser-proof fixtures for direct add-ons routes only', async () => {

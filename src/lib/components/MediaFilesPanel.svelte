@@ -51,7 +51,12 @@
     item: MediaFilesActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
+  let {
+    snapshot,
+    dispatch,
+    actionDispatch,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
   let pendingAction = $state<PendingFileAction | null>(null);

@@ -108,7 +108,8 @@
           ? 'HTTPS'
           : 'HTTP'} · {connectionSnapshot.activeHostSummary.useWebSocket
           ? i18n.t('hostSwitcher.summary.websocketEnabled')
-          : i18n.t('hostSwitcher.summary.httpOnly')} · {connectionSnapshot.activeHostSummary.hasCredentials
+          : i18n.t('hostSwitcher.summary.httpOnly')} · {connectionSnapshot.activeHostSummary
+          .hasCredentials
           ? i18n.t('hostSwitcher.summary.credentialsConfigured')
           : i18n.t('hostSwitcher.summary.noCredentials')}
       </p>
@@ -133,7 +134,9 @@
             <p class="host-meta">
               {savedHost.host}{savedHost.port ? `:${savedHost.port}` : ''} · {savedHost.useTls
                 ? 'HTTPS'
-                : 'HTTP'} · {savedHost.useWebSocket ? i18n.t('hostSwitcher.websocket.on') : i18n.t('hostSwitcher.websocket.off')}
+                : 'HTTP'} · {savedHost.useWebSocket
+                ? i18n.t('hostSwitcher.websocket.on')
+                : i18n.t('hostSwitcher.websocket.off')}
             </p>
             <p class="test-result" aria-live="polite">
               <strong>{formatTestStatus(test)}</strong> — {formatTestDetails(test)}
@@ -147,7 +150,9 @@
               disabled={test?.status === 'testing'}
               onclick={() => testHost(savedHost.id)}
             >
-              {test?.status === 'testing' ? i18n.t('hostSwitcher.action.testing') : i18n.t('hostSwitcher.action.test')}
+              {test?.status === 'testing'
+                ? i18n.t('hostSwitcher.action.testing')
+                : i18n.t('hostSwitcher.action.test')}
             </button>
             <button
               type="button"
@@ -155,7 +160,9 @@
               aria-current={configSnapshot.activeHostId === savedHost.id ? 'true' : undefined}
               onclick={() => activateHost(savedHost.id)}
             >
-              {configSnapshot.activeHostId === savedHost.id ? i18n.t('hostSwitcher.action.reconnect') : i18n.t('hostSwitcher.action.activate')}
+              {configSnapshot.activeHostId === savedHost.id
+                ? i18n.t('hostSwitcher.action.reconnect')
+                : i18n.t('hostSwitcher.action.activate')}
             </button>
           </div>
         </li>

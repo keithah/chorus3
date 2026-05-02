@@ -39,8 +39,12 @@
     i18n?: TranslationContext;
   }
 
-  let { snapshot, dispatch, localPlayerSnapshot, i18n = createTranslationContext('en') }: Props =
-    $props();
+  let {
+    snapshot,
+    dispatch,
+    localPlayerSnapshot,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: import('$lib/stores').LocalPlayerStoreSnapshot = {
     status: 'idle',
@@ -173,7 +177,8 @@
 
   function audioLabel(stream: PlayerAudioStream, fallbackIndex: number): string {
     const parts = [
-      textOrNull(stream.name) ?? streamIndexLabel('player.controls.audioStreamFallback', stream.index, fallbackIndex),
+      textOrNull(stream.name) ??
+        streamIndexLabel('player.controls.audioStreamFallback', stream.index, fallbackIndex),
       textOrNull(stream.language),
       typeof stream.channels === 'number' && Number.isFinite(stream.channels)
         ? `${stream.channels}ch`
@@ -186,14 +191,19 @@
 
   function subtitleLabel(stream: PlayerSubtitleStream, fallbackIndex: number): string {
     const parts = [
-      textOrNull(stream.name) ?? streamIndexLabel('player.controls.subtitleStreamFallback', stream.index, fallbackIndex),
+      textOrNull(stream.name) ??
+        streamIndexLabel('player.controls.subtitleStreamFallback', stream.index, fallbackIndex),
       textOrNull(stream.language)
     ].filter((part): part is string => Boolean(part));
 
     return parts.join(' · ');
   }
 
-  function streamIndexLabel(key: 'player.controls.audioStreamFallback' | 'player.controls.subtitleStreamFallback', index: unknown, fallbackIndex: number): string {
+  function streamIndexLabel(
+    key: 'player.controls.audioStreamFallback' | 'player.controls.subtitleStreamFallback',
+    index: unknown,
+    fallbackIndex: number
+  ): string {
     return i18n.t(key, {
       index: typeof index === 'number' && Number.isFinite(index) ? index : fallbackIndex + 1
     });

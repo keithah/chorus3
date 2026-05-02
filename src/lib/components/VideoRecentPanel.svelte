@@ -130,7 +130,10 @@
       subtitle: subtitle || null,
       href,
       dateLabel: formatDateLabel(dateKind, dateValue),
-      badges: [...buildBadges(episode), ...(href === null ? [i18n.t('video.recent.routeUnavailable')] : [])],
+      badges: [
+        ...buildBadges(episode),
+        ...(href === null ? [i18n.t('video.recent.routeUnavailable')] : [])
+      ],
       artworkClass: artworkClass(episode),
       initials: initialsFor(label, 'E')
     };
@@ -213,7 +216,9 @@
 
   function formatStatus(value: VideoLibraryStoreSnapshot): string {
     if (value.refreshStatus === 'loading') {
-      return i18n.t('video.recent.status.loading', { reason: formatReason(value.lastRefreshReason) });
+      return i18n.t('video.recent.status.loading', {
+        reason: formatReason(value.lastRefreshReason)
+      });
     }
 
     if (value.refreshStatus === 'error' && value.lastError) {
@@ -228,7 +233,12 @@
     const updated = textOrNull(value.lastUpdatedAt);
     const updatedCopy = updated ? i18n.t('video.recent.status.updated', { updated }) : '';
 
-    return i18n.t('video.recent.status.showing', { count, itemWord: count === 1 ? i18n.t('video.recent.status.item') : i18n.t('video.recent.status.items'), updated: updatedCopy });
+    return i18n.t('video.recent.status.showing', {
+      count,
+      itemWord:
+        count === 1 ? i18n.t('video.recent.status.item') : i18n.t('video.recent.status.items'),
+      updated: updatedCopy
+    });
   }
 
   function totalFor(
@@ -242,15 +252,21 @@
 
   function formatReason(reason: string): string {
     if (reason.startsWith('notification:')) {
-      return i18n.t('video.common.notificationReason', { reason: sanitizeUiText(reason.slice('notification:'.length)) });
+      return i18n.t('video.common.notificationReason', {
+        reason: sanitizeUiText(reason.slice('notification:'.length))
+      });
     }
 
     if (reason.startsWith('command:')) {
-      return i18n.t('video.common.commandReason', { reason: sanitizeUiText(reason.slice('command:'.length)) });
+      return i18n.t('video.common.commandReason', {
+        reason: sanitizeUiText(reason.slice('command:'.length))
+      });
     }
 
     if (reason.startsWith('error:')) {
-      return i18n.t('video.common.errorReason', { reason: sanitizeUiText(reason.slice('error:'.length)) });
+      return i18n.t('video.common.errorReason', {
+        reason: sanitizeUiText(reason.slice('error:'.length))
+      });
     }
 
     return sanitizeUiText(reason);
@@ -266,7 +282,9 @@
       return null;
     }
 
-    return i18n.t(kind === 'added' ? 'video.recent.date.added' : 'video.recent.date.played', { date: text });
+    return i18n.t(kind === 'added' ? 'video.recent.date.added' : 'video.recent.date.played', {
+      date: text
+    });
   }
 
   function formatEpisodeNumber(season: unknown, episode: unknown): string | null {
@@ -414,7 +432,9 @@
       <section class="recent-section" aria-labelledby={`video-recent-${section.key}`}>
         <div class="section-heading">
           <h3 id={`video-recent-${section.key}`}>{section.title}</h3>
-          <p>{i18n.t('video.recent.countOf', { count: section.items.length, total: section.total })}</p>
+          <p>
+            {i18n.t('video.recent.countOf', { count: section.items.length, total: section.total })}
+          </p>
         </div>
 
         {#if section.items.length === 0}
@@ -430,7 +450,9 @@
                 >
                   <span class="fallback-initials" aria-hidden="true">{item.initials}</span>
                   <span class="artwork-copy">
-                    {item.artworkClass === 'no-artwork' ? i18n.t('video.artwork.pending') : i18n.t('video.recent.posterFrame')}
+                    {item.artworkClass === 'no-artwork'
+                      ? i18n.t('video.artwork.pending')
+                      : i18n.t('video.recent.posterFrame')}
                   </span>
                   {#if item.artworkClass === 'has-fanart'}
                     <span class="artwork-copy muted">{i18n.t('video.recent.fanartWash')}</span>

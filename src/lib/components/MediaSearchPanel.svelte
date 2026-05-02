@@ -45,7 +45,12 @@
     item: MediaSearchActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
+  let {
+    snapshot,
+    dispatch,
+    actionDispatch,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   let inputValue = $state(untrack(() => snapshot.query));
   let pendingOperation = $state<PendingOperation>(null);
@@ -82,7 +87,9 @@
       await dispatch.search({ query });
       localStatusText = null;
     } catch (error) {
-      const message = sanitizeUiText(error instanceof Error ? error.message : i18n.t('media.search.error.searchFailed'));
+      const message = sanitizeUiText(
+        error instanceof Error ? error.message : i18n.t('media.search.error.searchFailed')
+      );
       localErrorText = i18n.t('media.search.error.couldNotSearch', { message });
       localStatusText = localErrorText;
     } finally {
@@ -104,7 +111,9 @@
       inputValue = '';
       localStatusText = null;
     } catch (error) {
-      const message = sanitizeUiText(error instanceof Error ? error.message : i18n.t('media.search.error.clearFailed'));
+      const message = sanitizeUiText(
+        error instanceof Error ? error.message : i18n.t('media.search.error.clearFailed')
+      );
       localErrorText = i18n.t('media.search.error.couldNotClear', { message });
       localStatusText = localErrorText;
     } finally {
@@ -140,7 +149,11 @@
       const message = sanitizeUiText(
         error instanceof Error ? error.message : i18n.t('media.action.errorFallback')
       );
-      localErrorText = i18n.t('media.action.couldNotVerb', { verb: i18n.t(verb === 'play' ? 'media.action.verb.play' : 'media.action.verb.queue'), label, message });
+      localErrorText = i18n.t('media.action.couldNotVerb', {
+        verb: i18n.t(verb === 'play' ? 'media.action.verb.play' : 'media.action.verb.queue'),
+        label,
+        message
+      });
       localStatusText = localErrorText;
     } finally {
       pendingAction = null;
@@ -151,7 +164,9 @@
     const query = displayText(value.query, '');
 
     if (value.searchStatus === 'loading') {
-      return query ? i18n.t('media.search.status.searchingQuery', { query }) : i18n.t('media.search.status.searching');
+      return query
+        ? i18n.t('media.search.status.searchingQuery', { query })
+        : i18n.t('media.search.status.searching');
     }
 
     if (value.searchStatus === 'error' && value.lastError) {
@@ -160,14 +175,23 @@
 
     if (value.searchStatus === 'ready') {
       if (value.isEmpty || value.resultCounts.total === 0) {
-        return query ? i18n.t('media.search.status.noResultsFor', { query }) : i18n.t('media.search.status.noResults');
+        return query
+          ? i18n.t('media.search.status.noResultsFor', { query })
+          : i18n.t('media.search.status.noResults');
       }
 
       const updated = textOrNull(value.lastUpdatedAt);
       const suffix = updated ? i18n.t('media.status.lastUpdated', { updated }) : '';
       return query
-        ? i18n.t('media.search.status.resultsFor', { query, count: resultCountCopy(value.resultCounts.total), suffix })
-        : i18n.t('media.search.status.ready', { count: resultCountCopy(value.resultCounts.total), suffix });
+        ? i18n.t('media.search.status.resultsFor', {
+            query,
+            count: resultCountCopy(value.resultCounts.total),
+            suffix
+          })
+        : i18n.t('media.search.status.ready', {
+            count: resultCountCopy(value.resultCounts.total),
+            suffix
+          });
     }
 
     return i18n.t('media.search.status.idle');
@@ -341,11 +365,15 @@
     }
 
     const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1 ? i18n.t('media.meta.playedOnce') : i18n.t('media.meta.playedTimes', { count: rounded });
+    return rounded === 1
+      ? i18n.t('media.meta.playedOnce')
+      : i18n.t('media.meta.playedTimes', { count: rounded });
   }
 
   function resultCountCopy(count: number): string {
-    return count === 1 ? i18n.t('media.count.result.one') : i18n.t('media.count.result.many', { count });
+    return count === 1
+      ? i18n.t('media.count.result.one')
+      : i18n.t('media.count.result.many', { count });
   }
 
   function itemKindLabel(kind: MediaSearchActionItem['kind']): string {
@@ -393,10 +421,6 @@
   function pad2(value: number): string {
     return value.toString().padStart(2, '0');
   }
-
-  function capitalize(value: string): string {
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  }
 </script>
 
 <section class="media-search-panel surface" aria-labelledby="media-search-title">
@@ -408,7 +432,12 @@
     </p>
   </div>
 
-  <form class="search-form" role="search" aria-label={i18n.t('media.search.formAria')} onsubmit={handleSearch}>
+  <form
+    class="search-form"
+    role="search"
+    aria-label={i18n.t('media.search.formAria')}
+    onsubmit={handleSearch}
+  >
     <div class="search-field">
       <label for="media-search-query">{i18n.t('media.search.label')}</label>
       <input
@@ -483,13 +512,20 @@
                   <span class="item-meta">{artistMeta(artist)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
+                  <div
+                    class="action-row"
+                    aria-label={i18n.t('media.action.actionsFor', {
+                      kind: itemKindLabel(actionItem.kind),
+                      label
+                    })}
+                  >
                     <button
                       type="button"
                       class="action-button"
                       aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
                       {i18n.t('media.action.play')}
                     </button>
@@ -498,7 +534,12 @@
                       class="action-button"
                       aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction(
+                          'queue',
+                          actionItem,
+                          actionTargetLabel(actionItem, label)
+                        )}
                     >
                       {i18n.t('media.action.queue')}
                     </button>
@@ -529,13 +570,20 @@
                   <span class="item-meta">{albumMeta(album)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
+                  <div
+                    class="action-row"
+                    aria-label={i18n.t('media.action.actionsFor', {
+                      kind: itemKindLabel(actionItem.kind),
+                      label
+                    })}
+                  >
                     <button
                       type="button"
                       class="action-button"
                       aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
                       {i18n.t('media.action.play')}
                     </button>
@@ -544,7 +592,12 @@
                       class="action-button"
                       aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction(
+                          'queue',
+                          actionItem,
+                          actionTargetLabel(actionItem, label)
+                        )}
                     >
                       {i18n.t('media.action.queue')}
                     </button>
@@ -576,13 +629,20 @@
                   <span class="item-meta">{songMeta(song)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
+                  <div
+                    class="action-row"
+                    aria-label={i18n.t('media.action.actionsFor', {
+                      kind: itemKindLabel(actionItem.kind),
+                      label
+                    })}
+                  >
                     <button
                       type="button"
                       class="action-button"
                       aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
                       {i18n.t('media.action.play')}
                     </button>
@@ -591,7 +651,12 @@
                       class="action-button"
                       aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
+                      onclick={() =>
+                        handleMusicAction(
+                          'queue',
+                          actionItem,
+                          actionTargetLabel(actionItem, label)
+                        )}
                     >
                       {i18n.t('media.action.queue')}
                     </button>

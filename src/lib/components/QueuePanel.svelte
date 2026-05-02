@@ -113,7 +113,9 @@
         </li>
       {/each}
     </ol>
-    <button disabled={isDisabled} onclick={() => dispatch.clear()}>{i18n.t('queue.panel.clear')}</button>
+    <button disabled={isDisabled} onclick={() => dispatch.clear()}
+      >{i18n.t('queue.panel.clear')}</button
+    >
   {/if}
 </section>
 

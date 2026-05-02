@@ -33,9 +33,7 @@
 </script>
 
 <script lang="ts">
-  import type {
-    TranslationContext
-  } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
   import type {
     VideoEpisodeSnapshot,
     VideoSeasonArtworkRefreshCapabilitySnapshot,
@@ -88,8 +86,7 @@
     snapshot,
     route,
     artworkDispatch = noopArtworkDispatch,
-    writeDispatch = noopWriteDispatch,
-    i18n
+    writeDispatch = noopWriteDispatch
   }: Props = $props();
   let artworkStatusOverride = $state<ArtworkStatus | null>(null);
   let writeStatus = $state<WriteStatus>({

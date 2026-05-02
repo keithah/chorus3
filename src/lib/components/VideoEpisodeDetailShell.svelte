@@ -13,9 +13,7 @@
 </script>
 
 <script lang="ts">
-  import type {
-    TranslationContext
-  } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
   import type {
     VideoEpisodeDetailSnapshot,
     VideoEpisodeSnapshot,
@@ -45,7 +43,7 @@
     markEpisodeWatched: async () => undefined
   };
 
-  let { snapshot, route, actionDispatch = noopActionDispatch, i18n }: Props = $props();
+  let { snapshot, route, actionDispatch = noopActionDispatch }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
 
   const routeTvShowId = $derived(

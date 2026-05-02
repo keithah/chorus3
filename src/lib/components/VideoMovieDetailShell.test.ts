@@ -170,10 +170,14 @@ describe('VideoMovieDetailShell', () => {
         );
       })
     });
-    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 84 }, {
-      actionDispatch,
-      i18n: createTranslationContext('de')
-    });
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoMovieDetail', movieid: 84 },
+      {
+        actionDispatch,
+        i18n: createTranslationContext('de')
+      }
+    );
 
     let text = screenText();
     expect(text).toContain('Zurück zu Filmen');

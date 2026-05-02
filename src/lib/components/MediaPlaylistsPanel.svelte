@@ -56,7 +56,12 @@
     item: MediaPlaylistsActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
+  let {
+    snapshot,
+    dispatch,
+    actionDispatch,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
   let pendingAction = $state<PendingPlaylistAction | null>(null);

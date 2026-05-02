@@ -51,7 +51,13 @@
   };
 
   const defaultI18n = createTranslationContext('en');
-  let { snapshot, route, detailSnapshot, actionDispatch = noopActionDispatch, i18n = defaultI18n }: Props = $props();
+  let {
+    snapshot,
+    route,
+    detailSnapshot,
+    actionDispatch = noopActionDispatch,
+    i18n = defaultI18n
+  }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: '' });
   $effect.pre(() => {
     if (actionStatus.kind === 'idle') {
@@ -112,7 +118,9 @@
       return i18n.t('video.movie.routeUnavailable');
     }
 
-    return movieid === null ? i18n.t('video.movie.routeUnavailable') : i18n.t('video.movie.notFound');
+    return movieid === null
+      ? i18n.t('video.movie.routeUnavailable')
+      : i18n.t('video.movie.notFound');
   }
 
   function safeMovieId(value: unknown): number | null {
@@ -220,7 +228,9 @@
 
     if (versionCount !== null && versionCount > 0) {
       const count = Math.trunc(versionCount);
-      return count === 1 ? i18n.t('video.movie.versionOne') : i18n.t('video.movie.versionMany', { count });
+      return count === 1
+        ? i18n.t('video.movie.versionOne')
+        : i18n.t('video.movie.versionMany', { count });
     }
 
     if (Array.isArray(raw.versions) && raw.versions.length > 0) {
@@ -239,7 +249,9 @@
   function versionStateText(versions: VideoMovieVersionsSnapshot): string {
     if (versions.status === 'ready') {
       const count = safeVersionItems(versions).length;
-      return count === 1 ? i18n.t('video.movie.versionOne') : i18n.t('video.movie.versionMany', { count });
+      return count === 1
+        ? i18n.t('video.movie.versionOne')
+        : i18n.t('video.movie.versionMany', { count });
     }
 
     if (versions.status === 'unsupported') {
@@ -272,12 +284,21 @@
 
     return [
       { label: i18n.t('video.movie.field.tagline'), value: textOrNull(value.tagline) ?? '' },
-      { label: i18n.t('video.movie.field.plot'), value: textOrNull(value.plot) ?? textOrNull(value.plotoutline) ?? '' },
+      {
+        label: i18n.t('video.movie.field.plot'),
+        value: textOrNull(value.plot) ?? textOrNull(value.plotoutline) ?? ''
+      },
       { label: i18n.t('video.movie.field.genres'), value: safeJoin(value.genre) },
       { label: i18n.t('video.movie.field.directors'), value: safeJoin(value.director) },
       { label: i18n.t('video.movie.field.studios'), value: safeJoin(value.studio) },
-      { label: i18n.t('video.movie.field.rating'), value: formatRating(i18n.t('video.movie.field.rating'), value.rating) },
-      { label: i18n.t('video.movie.field.userRating'), value: formatRating(i18n.t('video.movie.field.userRating'), value.userrating) },
+      {
+        label: i18n.t('video.movie.field.rating'),
+        value: formatRating(i18n.t('video.movie.field.rating'), value.rating)
+      },
+      {
+        label: i18n.t('video.movie.field.userRating'),
+        value: formatRating(i18n.t('video.movie.field.userRating'), value.userrating)
+      },
       { label: i18n.t('video.movie.field.certification'), value: textOrNull(value.mpaa) ?? '' },
       { label: i18n.t('video.movie.field.premiered'), value: textOrNull(value.premiered) ?? '' }
     ].filter((field) => field.value.length > 0);
@@ -353,8 +374,10 @@
   }
 
   function actionErrorPrefix(action: ActionKind, label: string): string {
-    if (action === 'mark-watched') return i18n.t('video.movie.action.couldNotMarkWatched', { label });
-    if (action === 'mark-unwatched') return i18n.t('video.movie.action.couldNotMarkUnwatched', { label });
+    if (action === 'mark-watched')
+      return i18n.t('video.movie.action.couldNotMarkWatched', { label });
+    if (action === 'mark-unwatched')
+      return i18n.t('video.movie.action.couldNotMarkUnwatched', { label });
     if (action === 'play') return i18n.t('video.movie.action.couldNotPlay', { label });
     if (action === 'resume') return i18n.t('video.movie.action.couldNotResume', { label });
     return i18n.t('video.movie.action.couldNotQueue', { label });
@@ -362,14 +385,17 @@
 
   function actionPendingMessage(action: ActionKind, label: string): string {
     if (action === 'mark-watched') return i18n.t('video.movie.action.markingWatched', { label });
-    if (action === 'mark-unwatched') return i18n.t('video.movie.action.markingUnwatched', { label });
+    if (action === 'mark-unwatched')
+      return i18n.t('video.movie.action.markingUnwatched', { label });
     if (action === 'play') return i18n.t('video.movie.action.playing', { label });
     if (action === 'resume') return i18n.t('video.movie.action.resuming', { label });
     return i18n.t('video.movie.action.queueing', { label });
   }
 
   function errorMessage(error: unknown): string {
-    return error instanceof Error && error.message.trim() ? error.message : i18n.t('video.movie.actionFailed');
+    return error instanceof Error && error.message.trim()
+      ? error.message
+      : i18n.t('video.movie.actionFailed');
   }
 
   function textOrNull(value: unknown): string | null {
@@ -418,7 +444,9 @@
 </script>
 
 <section class="video-movie-detail-shell surface" aria-labelledby="video-movie-detail-title">
-  <a class="back-link" href={buildVideoRoute({ kind: 'videoMovies' })}>{i18n.t('video.movie.backToMovies')}</a>
+  <a class="back-link" href={buildVideoRoute({ kind: 'videoMovies' })}
+    >{i18n.t('video.movie.backToMovies')}</a
+  >
 
   <div class="panel-heading movie-detail-hero" aria-label={i18n.t('video.movie.artworkAria')}>
     <div class="fanart-wash" aria-hidden="true"></div>
@@ -471,14 +499,23 @@
       </button>
       <button
         type="button"
-        aria-label={i18n.t('video.movie.markAria', { title, state: isWatched(movie) ? i18n.t('video.movie.state.unwatched') : i18n.t('video.movie.state.watched') })}
+        aria-label={i18n.t('video.movie.markAria', {
+          title,
+          state: isWatched(movie)
+            ? i18n.t('video.movie.state.unwatched')
+            : i18n.t('video.movie.state.watched')
+        })}
         disabled={actionDisabled}
         onclick={() => void runAction(isWatched(movie) ? 'mark-unwatched' : 'mark-watched')}
       >
         {isWatched(movie) ? i18n.t('video.movie.markUnwatched') : i18n.t('video.movie.markWatched')}
       </button>
       {#if streamHref}
-        <a class="stream-link" href={streamHref} aria-label={i18n.t('video.movie.streamAria', { title })}>
+        <a
+          class="stream-link"
+          href={streamHref}
+          aria-label={i18n.t('video.movie.streamAria', { title })}
+        >
           {i18n.t('video.movie.streamInBrowser')}
         </a>
       {/if}
@@ -499,11 +536,15 @@
       {/if}
       <div>
         <dt>{i18n.t('video.movie.watchedState')}</dt>
-        <dd>{isWatched(movie) ? i18n.t('video.movie.watched') : i18n.t('video.movie.notWatched')}</dd>
+        <dd>
+          {isWatched(movie) ? i18n.t('video.movie.watched') : i18n.t('video.movie.notWatched')}
+        </dd>
       </div>
       <div>
         <dt>{i18n.t('video.movie.resumeState')}</dt>
-        <dd>{hasResumeState ? i18n.t('video.movie.resumeAvailable') : i18n.t('video.movie.noResume')}</dd>
+        <dd>
+          {hasResumeState ? i18n.t('video.movie.resumeAvailable') : i18n.t('video.movie.noResume')}
+        </dd>
       </div>
       {#if artworkText(movie).length > 0}
         <div>

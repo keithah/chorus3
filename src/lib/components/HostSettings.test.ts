@@ -115,25 +115,44 @@ describe('HostSettings i18n', () => {
     const target = renderHostSettings('de');
 
     expect(target.textContent).toContain('Kodi-Host-Einstellungen');
-    expect(target.textContent).toContain('Zugangsdaten nur auf einem vertrauenswürdigen Gerät speichern.');
+    expect(target.textContent).toContain(
+      'Zugangsdaten nur auf einem vertrauenswürdigen Gerät speichern.'
+    );
     expect(target.textContent).toContain('Noch keine Hosts gespeichert.');
     expect(target.textContent).toContain('0 gespeichert');
-    expect(target.querySelector('form')?.getAttribute('aria-label')).toBe('Kodi-Host-Einstellungen');
+    expect(target.querySelector('form')?.getAttribute('aria-label')).toBe(
+      'Kodi-Host-Einstellungen'
+    );
     expect(target.textContent).toContain('Bezeichnung');
     expect(target.textContent).toContain('HTTP-Port');
     expect(target.textContent).toContain('WebSocket-Benachrichtigungen verwenden');
     expect(target.textContent).not.toContain('Kodi host settings');
 
     setInputValue(target.querySelector<HTMLInputElement>('#host-label')!, 'Geheimer Host');
-    setInputValue(target.querySelector<HTMLInputElement>('#host-address')!, 'https://admin:secret@kodi.local/jsonrpc');
+    setInputValue(
+      target.querySelector<HTMLInputElement>('#host-address')!,
+      'https://admin:secret@kodi.local/jsonrpc'
+    );
     setInputValue(target.querySelector<HTMLInputElement>('#host-port')!, '70000');
-    setInputValue(target.querySelector<HTMLInputElement>('#host-username')!, 'Authorization: Basic secret');
-    setInputValue(target.querySelector<HTMLInputElement>('#host-password')!, 'Authorization: Basic secret');
+    setInputValue(
+      target.querySelector<HTMLInputElement>('#host-username')!,
+      'Authorization: Basic secret'
+    );
+    setInputValue(
+      target.querySelector<HTMLInputElement>('#host-password')!,
+      'Authorization: Basic secret'
+    );
     await submitHostForm(target);
 
-    expect(target.textContent).toContain('Host darf kein Protokoll, keinen Pfad, keine Abfragezeichen und keine Zugangsdaten enthalten.');
-    expect(target.textContent).toContain('HTTP-Port muss eine ganze Zahl zwischen 1 und 65535 sein.');
-    expect(target.textContent).toContain('Benutzername darf keinen Authorization-Header enthalten.');
+    expect(target.textContent).toContain(
+      'Host darf kein Protokoll, keinen Pfad, keine Abfragezeichen und keine Zugangsdaten enthalten.'
+    );
+    expect(target.textContent).toContain(
+      'HTTP-Port muss eine ganze Zahl zwischen 1 und 65535 sein.'
+    );
+    expect(target.textContent).toContain(
+      'Benutzername darf keinen Authorization-Header enthalten.'
+    );
     expect(target.textContent).toContain('Passwort darf keinen Authorization-Header enthalten.');
     expect(target.textContent).not.toContain('admin:secret');
     expect(target.textContent).not.toContain('https://admin:secret@kodi.local/jsonrpc');
@@ -187,7 +206,9 @@ describe('HostSwitcher i18n', () => {
     expect(target.textContent).toContain('Aktiver Endpunkt');
     expect(target.textContent).toContain('Host-Umschalter');
     expect(target.textContent).toContain('Kein aktiver Host ausgewählt');
-    expect(target.textContent).toContain('Noch keine Hosts gespeichert. Host-Wechselsteuerung erscheint nach dem ersten Speichern.');
+    expect(target.textContent).toContain(
+      'Noch keine Hosts gespeichert. Host-Wechselsteuerung erscheint nach dem ersten Speichern.'
+    );
     expect(target.textContent).not.toContain('No active host selected');
   });
 
@@ -200,7 +221,9 @@ describe('HostSwitcher i18n', () => {
     expect(target.textContent).toContain('WebSocket aktiviert');
     expect(target.textContent).toContain('Zugangsdaten konfiguriert');
     expect(target.textContent).toContain('Nicht getestet');
-    expect(target.textContent).toContain('Sichere HTTP-JSON-RPC-Diagnose vor dem Wechsel ausführen');
+    expect(target.textContent).toContain(
+      'Sichere HTTP-JSON-RPC-Diagnose vor dem Wechsel ausführen'
+    );
     expect(target.textContent).toContain('WebSocket an');
     expect(target.textContent).not.toContain('super-secret-password');
     expect(target.querySelector('button[aria-label="Wohnzimmer Kodi testen"]')).toBeInstanceOf(

@@ -30,14 +30,17 @@ export const APPROVED_VISIBLE_COPY_FILE_PATTERNS = [
 ];
 
 export function runI18nVerification(root = cwd()) {
-  const dictionaries = loadDictionaries(root);
-  const parityIssues = validateDictionaryParity(dictionaries, DEFAULT_BASE_LOCALE);
+  const dictionarySource = readFileSync(join(root, DICTIONARY_SOURCE_PATH), 'utf8');
+  const dictionaries = parseDictionaries(dictionarySource);
+  const parityIssues = sortParityIssues(
+    validateDictionaryParity(dictionaries, DEFAULT_BASE_LOCALE)
+  );
   const hardcodedFindings = scanForHardcodedVisibleCopy({ root });
   const lines = [];
 
   if (parityIssues.length > 0) {
     lines.push('Dictionary parity problems were found:');
-    lines.push(...parityIssues.map(formatParityIssue));
+    lines.push(...parityIssues.map((issue) => formatParityIssue(issue, dictionarySource)));
   }
 
   if (hardcodedFindings.length > 0) {
@@ -104,7 +107,19 @@ export function scanForHardcodedVisibleCopy({
       }
     }
 
-    return findings;
+    return dedupeHardcodedFindings(findings);
+  });
+}
+
+function dedupeHardcodedFindings(findings) {
+  const seen = new Set();
+  return findings.filter((finding) => {
+    const key = `${finding.path}:${finding.line}:${finding.text}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
   });
 }
 
@@ -188,6 +203,10 @@ export function validateDictionaryParity(dictionaries, baseLocale = DEFAULT_BASE
 
 export function loadDictionaries(root = cwd()) {
   const source = readFileSync(join(root, DICTIONARY_SOURCE_PATH), 'utf8');
+  return parseDictionaries(source);
+}
+
+function parseDictionaries(source) {
   const literal = extractDictionaryLiteral(source);
 
   return Function(`"use strict"; return (${literal});`)();
@@ -219,6 +238,29 @@ export function extractDictionaryLiteral(source) {
   }
 
   throw new Error(`${DICTIONARY_SOURCE_PATH} has an unterminated DICTIONARIES object`);
+}
+
+function sortParityIssues(issues) {
+  const order = new Map([
+    ['missing-base-locale', 0],
+    ['missing-key', 1],
+    ['extra-key', 2],
+    ['blank-value', 3],
+    ['placeholder-mismatch', 4]
+  ]);
+
+  return [...issues].sort((left, right) => {
+    const leftOrder = order.get(left.type) ?? 99;
+    const rightOrder = order.get(right.type) ?? 99;
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return `${left.locale ?? ''}:${left.key ?? ''}`.localeCompare(
+      `${right.locale ?? ''}:${right.key ?? ''}`
+    );
+  });
 }
 
 function collectFiles(path, root, ignoredSegments) {
@@ -301,9 +343,36 @@ function lineNumberForOffset(contents, offset) {
   return contents.slice(0, offset).split(/\r?\n/).length;
 }
 
-function formatParityIssue(issue) {
+function formatParityIssue(issue, dictionarySource) {
+  const line = issue.key
+    ? lineNumberForDictionaryKey(dictionarySource, issue.locale, issue.key)
+    : 1;
   const key = issue.key ? ` key=${issue.key}` : '';
-  return `${issue.locale}${key}: ${issue.message}`;
+  const locale = issue.locale ? ` locale=${issue.locale}` : '';
+  return `${DICTIONARY_SOURCE_PATH}:${line}${key}${locale} ${issue.type} ${issue.message}`;
+}
+
+function lineNumberForDictionaryKey(source, locale, key) {
+  const localeSectionStart = source.indexOf(`${locale}:`);
+  const quotedKey = JSON.stringify(key).replaceAll('"', "'");
+  const singleQuotedOffset =
+    localeSectionStart === -1 ? -1 : source.indexOf(quotedKey, localeSectionStart);
+
+  if (singleQuotedOffset !== -1) {
+    return lineNumberForOffset(source, singleQuotedOffset);
+  }
+
+  const doubleQuotedKey = JSON.stringify(key);
+  const doubleQuotedOffset =
+    localeSectionStart === -1 ? -1 : source.indexOf(doubleQuotedKey, localeSectionStart);
+
+  if (doubleQuotedOffset !== -1) {
+    return lineNumberForOffset(source, doubleQuotedOffset);
+  }
+
+  const fallbackOffset =
+    source.indexOf(quotedKey) !== -1 ? source.indexOf(quotedKey) : source.indexOf(doubleQuotedKey);
+  return fallbackOffset !== -1 ? lineNumberForOffset(source, fallbackOffset) : 1;
 }
 
 function formatHardcodedFinding(finding) {

@@ -1442,12 +1442,16 @@ describe('App shell', () => {
     expect(settingsDispatch.setValue).toHaveBeenCalledWith('videoplayer.autoplaynextitem', false);
   });
 
-  it('switches app shell and settings copy between English and German without a reload', async () => {
+  it('switches app shell, Settings, Add-ons, and Lab visible copy between English and German without a reload', async () => {
     localeStore.setLocale('en');
     const target = renderApp({
       route: { kind: 'settings' },
       settingsSnapshot: createSettingsSnapshot(),
-      settingsDispatch: createSettingsDispatch()
+      settingsDispatch: createSettingsDispatch(),
+      addonsSnapshot: createAddonsSnapshot(),
+      addonsDispatch: createAddonsDispatch(),
+      labApiBrowserSnapshot: createLabApiBrowserSnapshot(),
+      labApiBrowserDispatch: createLabApiBrowserDispatch()
     });
 
     expect(getSettingsPanelText(target)).toContain('Kodi Settings');
@@ -1462,6 +1466,37 @@ describe('App shell', () => {
     expect(getSettingsPanelText(target)).toContain('Kodi-Einstellungen');
     expect(getSettingsPanelText(target)).toContain('Einstellungen geladen.');
     expect(target.querySelector('#app-title')?.textContent).toBe('chorus3');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const addonsTarget = renderApp({
+      route: { kind: 'addons' },
+      addonsSnapshot: createAddonsSnapshot(),
+      addonsDispatch: createAddonsDispatch()
+    });
+
+    expect(getAddonsPanelText(addonsTarget)).toContain('Kodi-Add-ons');
+    expect(getAddonsPanelText(addonsTarget)).toContain('Add-ons geladen.');
+    expect(getAddonsPanelText(addonsTarget)).not.toContain('Kodi Add-ons');
+    expect(getAddonsPanelText(addonsTarget)).not.toContain('Add-ons loaded.');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const shortcutsTarget = renderApp({ route: { kind: 'labShortcuts' } });
+
+    expect(getShortcutsPanelText(shortcutsTarget)).toContain('Wiedergabe-Kurzbefehle');
+    expect(getShortcutsPanelText(shortcutsTarget)).not.toContain('Playback shortcuts');
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+    const labTarget = renderApp({
+      route: { kind: 'labApiBrowser' },
+      labApiBrowserSnapshot: createLabApiBrowserSnapshot(),
+      labApiBrowserDispatch: createLabApiBrowserDispatch()
+    });
+
+    expect(getLabApiBrowserPanelText(labTarget)).toContain('API-Browser');
+    expect(getLabApiBrowserPanelText(labTarget)).not.toContain('API browser');
   });
 
   it('uses an injected locale snapshot and dispatch boundary for Settings rendering', async () => {

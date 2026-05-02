@@ -12,8 +12,12 @@
     i18n?: TranslationContext;
   }
 
-  let { snapshot, dispatch, localPlayerSnapshot, i18n = createTranslationContext('en') }: Props =
-    $props();
+  let {
+    snapshot,
+    dispatch,
+    localPlayerSnapshot,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: LocalPlayerStoreSnapshot = {
     status: 'idle',
@@ -35,7 +39,10 @@
   const creator = $derived(mediaCreator(snapshot));
   const detail = $derived(mediaDetail(snapshot));
   const typeLabel = $derived(
-    textOrFallback(snapshot.item?.type ?? snapshot.properties?.type, i18n.t('nowPlaying.unknownType'))
+    textOrFallback(
+      snapshot.item?.type ?? snapshot.properties?.type,
+      i18n.t('nowPlaying.unknownType')
+    )
   );
   const currentTime = $derived(formatTime(snapshot.time.currentSeconds));
   const totalTime = $derived(formatTime(snapshot.time.totalSeconds));
@@ -55,7 +62,9 @@
         ? i18n.t('player.controls.shuffle.off')
         : i18n.t('nowPlaying.unknown')
   );
-  const repeat = $derived(textOrFallback(snapshot.properties?.repeat, i18n.t('nowPlaying.unknown')));
+  const repeat = $derived(
+    textOrFallback(snapshot.properties?.repeat, i18n.t('nowPlaying.unknown'))
+  );
   const queueSummary = $derived(formatQueueSummary(snapshot));
   const subtitleSummary = $derived(
     formatSubtitleSummary(
@@ -205,7 +214,9 @@
       return i18n.t('nowPlaying.volume.unknown');
     }
 
-    return i18n.t('nowPlaying.volume.value', { volume: Math.round(Math.min(100, Math.max(0, value))) });
+    return i18n.t('nowPlaying.volume.value', {
+      volume: Math.round(Math.min(100, Math.max(0, value)))
+    });
   }
 
   function formatAudioSummary(stream: PlayerAudioStream | undefined): string {

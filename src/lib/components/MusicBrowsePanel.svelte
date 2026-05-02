@@ -57,7 +57,13 @@
     item: MusicBrowseActionItem;
   };
 
-  let { librarySnapshot, browseSnapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
+  let {
+    librarySnapshot,
+    browseSnapshot,
+    dispatch,
+    actionDispatch,
+    i18n = createTranslationContext('en')
+  }: Props = $props();
 
   let pendingAction = $state<PendingMusicAction | null>(null);
   let actionStatusText = $state<string | null>(null);

@@ -45,7 +45,9 @@
     }
 
     if (value.refreshStatus === 'loading') {
-      return i18n.t('music.library.status.refreshing', { reason: formatReason(value.lastRefreshReason) });
+      return i18n.t('music.library.status.refreshing', {
+        reason: formatReason(value.lastRefreshReason)
+      });
     }
 
     if (value.refreshStatus === 'error' && value.lastError) {
@@ -215,7 +217,9 @@
     }
 
     const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1 ? i18n.t('media.meta.playedOnce') : i18n.t('media.meta.playedTimes', { count: rounded });
+    return rounded === 1
+      ? i18n.t('media.meta.playedOnce')
+      : i18n.t('media.meta.playedTimes', { count: rounded });
   }
 
   function safeArtistLabel(artist: MusicLibraryArtistSnapshot): string {

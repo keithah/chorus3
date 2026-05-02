@@ -624,9 +624,11 @@ export const DICTIONARIES = {
     'media.search.empty.genres': 'No genres in these music results.',
     'music.library.kicker': 'Music Library',
     'music.library.title': 'Music Library',
-    'music.library.description': 'Read-only snapshots from Kodi artists, albums, songs, and genres.',
+    'music.library.description':
+      'Read-only snapshots from Kodi artists, albums, songs, and genres.',
     'music.library.refresh': 'Refresh music library',
-    'music.library.status.refreshRequested': 'Refresh requested. Waiting for the music library snapshot.',
+    'music.library.status.refreshRequested':
+      'Refresh requested. Waiting for the music library snapshot.',
     'music.library.status.refreshing': 'Refreshing music library from {reason}.',
     'music.library.status.empty': 'Music library is empty.',
     'music.library.status.readyUpdated': 'Music library ready. Last updated {updated}.',
@@ -639,7 +641,8 @@ export const DICTIONARIES = {
     'music.library.empty.genres': 'No genres in this snapshot.',
     'music.library.discoveryKicker': 'Discovery',
     'music.library.discoveryTitle': 'Recent & Top Music',
-    'music.library.discoveryDescription': 'Read-only recently added, recently played, and most-played songs.',
+    'music.library.discoveryDescription':
+      'Read-only recently added, recently played, and most-played songs.',
     'music.library.recentlyAdded': 'Recently Added',
     'music.library.recentlyPlayed': 'Recently Played',
     'music.library.mostPlayed': 'Most Played',
@@ -750,7 +753,8 @@ export const DICTIONARIES = {
     'video.stream.localPlaying': 'Local browser playback is playing.',
     'video.stream.localPaused': 'Local browser playback is paused.',
     'video.stream.localLoading': 'Local browser playback is loading.',
-    'video.stream.localEnded': 'Local browser playback ended. Use Retry to start again or Send to Kodi to recover.',
+    'video.stream.localEnded':
+      'Local browser playback ended. Use Retry to start again or Send to Kodi to recover.',
     'video.stream.resumePoint': 'Resume point available at {position}.',
     'video.stream.unavailable': 'Movie stream unavailable',
     'video.stream.openSafeLink': 'Open the movies grid and choose a safe stream link.',
@@ -766,7 +770,8 @@ export const DICTIONARIES = {
     'video.stream.actionFailed': 'Playback action failed.',
     'video.recent.kicker': 'Video Library',
     'video.recent.title': 'Recent Video',
-    'video.recent.description': 'Browse recent movie and episode snapshots without exposing raw Kodi artwork paths.',
+    'video.recent.description':
+      'Browse recent movie and episode snapshots without exposing raw Kodi artwork paths.',
     'video.recent.status.loading': 'Loading recent video from {reason}.',
     'video.recent.status.showing': 'Showing {count} recent video {itemWord}.{updated}',
     'video.recent.status.item': 'item',
@@ -1018,8 +1023,7 @@ export const DICTIONARIES = {
       'Gespeicherte Kodi-Host-Einstellungen konnten nicht geschrieben werden. Änderungen bleiben nur im Arbeitsspeicher.',
     'hostSettings.storage.invalid-storage':
       'Gespeicherte Kodi-Host-Einstellungen wurden zurückgesetzt, weil die gespeicherten Daten ungültig waren.',
-    'hostSettings.validation.id.duplicate':
-      'Für diese ID ist bereits ein Kodi-Host gespeichert.',
+    'hostSettings.validation.id.duplicate': 'Für diese ID ist bereits ein Kodi-Host gespeichert.',
     'hostSettings.validation.id.missing': 'Für diese ID ist kein Kodi-Host gespeichert.',
     'hostSettings.validation.id.required': 'Host-ID ist erforderlich.',
     'hostSettings.validation.label.required': 'Bezeichnung ist erforderlich.',
@@ -1445,9 +1449,11 @@ export const DICTIONARIES = {
     'media.search.empty.genres': 'Keine Genres in diesen Musikergebnissen.',
     'music.library.kicker': 'Musikbibliothek',
     'music.library.title': 'Musikbibliothek',
-    'music.library.description': 'Schreibgeschützte Snapshots von Kodi-Künstlern, Alben, Songs und Genres.',
+    'music.library.description':
+      'Schreibgeschützte Snapshots von Kodi-Künstlern, Alben, Songs und Genres.',
     'music.library.refresh': 'Musikbibliothek aktualisieren',
-    'music.library.status.refreshRequested': 'Aktualisierung angefordert. Warte auf den Musikbibliothek-Snapshot.',
+    'music.library.status.refreshRequested':
+      'Aktualisierung angefordert. Warte auf den Musikbibliothek-Snapshot.',
     'music.library.status.refreshing': 'Musikbibliothek wird von {reason} aktualisiert.',
     'music.library.status.empty': 'Musikbibliothek ist leer.',
     'music.library.status.readyUpdated': 'Musikbibliothek bereit. Zuletzt aktualisiert {updated}.',
@@ -1460,7 +1466,8 @@ export const DICTIONARIES = {
     'music.library.empty.genres': 'Keine Genres in diesem Snapshot.',
     'music.library.discoveryKicker': 'Entdeckung',
     'music.library.discoveryTitle': 'Aktuelle & Top-Musik',
-    'music.library.discoveryDescription': 'Schreibgeschützte zuletzt hinzugefügte, zuletzt gespielte und meistgespielte Songs.',
+    'music.library.discoveryDescription':
+      'Schreibgeschützte zuletzt hinzugefügte, zuletzt gespielte und meistgespielte Songs.',
     'music.library.recentlyAdded': 'Zuletzt hinzugefügt',
     'music.library.recentlyPlayed': 'Zuletzt gespielt',
     'music.library.mostPlayed': 'Meistgespielt',
@@ -1542,7 +1549,8 @@ export const DICTIONARIES = {
     'video.movie.action.couldNotResume': '{label} konnte nicht fortgesetzt werden',
     'video.movie.action.couldNotQueue': '{label} konnte nicht eingereiht werden',
     'video.movie.action.couldNotMarkWatched': '{label} konnte nicht als gesehen markiert werden',
-    'video.movie.action.couldNotMarkUnwatched': '{label} konnte nicht als ungesehen markiert werden',
+    'video.movie.action.couldNotMarkUnwatched':
+      '{label} konnte nicht als ungesehen markiert werden',
     'video.movie.field.tagline': 'Tagline',
     'video.movie.field.plot': 'Handlung',
     'video.movie.field.genres': 'Genres',
@@ -1567,7 +1575,8 @@ export const DICTIONARIES = {
     'video.stream.ready': 'Browser-Stream-Steuerung ist bereit.',
     'video.stream.preparing': 'Browser-Stream wird vorbereitet…',
     'video.stream.needsAttention': 'Browser-Wiedergabe benötigt Aufmerksamkeit.',
-    'video.stream.recoveryHint': 'Nutze Erneut versuchen oder An Kodi senden zur Wiederherstellung.',
+    'video.stream.recoveryHint':
+      'Nutze Erneut versuchen oder An Kodi senden zur Wiederherstellung.',
     'video.stream.localPlaying': 'Lokale Browser-Wiedergabe läuft.',
     'video.stream.localPaused': 'Lokale Browser-Wiedergabe ist pausiert.',
     'video.stream.localLoading': 'Lokale Browser-Wiedergabe wird geladen.',
@@ -1576,15 +1585,18 @@ export const DICTIONARIES = {
     'video.stream.resumePoint': 'Fortsetzungspunkt verfügbar bei {position}.',
     'video.stream.unavailable': 'Filmstream nicht verfügbar',
     'video.stream.openSafeLink': 'Öffne das Filmraster und wähle einen sicheren Stream-Link.',
-    'video.stream.chooseValid': 'Wähle einen gültigen Film, bevor du die Browser-Wiedergabe startest.',
+    'video.stream.chooseValid':
+      'Wähle einen gültigen Film, bevor du die Browser-Wiedergabe startest.',
     'video.stream.starting': 'Browser-Wiedergabe für {label} wird gestartet…',
     'video.stream.resuming': 'Browser-Wiedergabe für {label} wird fortgesetzt…',
     'video.stream.started': 'Browser-Wiedergabe für {label} gestartet.',
     'video.stream.resumed': 'Browser-Wiedergabe für {label} fortgesetzt.',
-    'video.stream.couldNotStart': 'Browser-Wiedergabe für {label} konnte nicht gestartet werden. {message}',
+    'video.stream.couldNotStart':
+      'Browser-Wiedergabe für {label} konnte nicht gestartet werden. {message}',
     'video.stream.sendingToKodi': 'Wiedergabe wird an Kodi zurückgesendet…',
     'video.stream.sentToKodi': 'Wiedergabe an Kodi zurückgesendet.',
-    'video.stream.couldNotSendToKodi': 'Wiedergabe konnte nicht an Kodi zurückgesendet werden. {message}',
+    'video.stream.couldNotSendToKodi':
+      'Wiedergabe konnte nicht an Kodi zurückgesendet werden. {message}',
     'video.stream.actionFailed': 'Wiedergabeaktion fehlgeschlagen.',
     'video.recent.kicker': 'Videobibliothek',
     'video.recent.title': 'Aktuelle Videos',
@@ -1601,10 +1613,14 @@ export const DICTIONARIES = {
     'video.recent.recentlyPlayedMovies': 'Kürzlich wiedergegebene Filme',
     'video.recent.recentlyAddedEpisodes': 'Kürzlich hinzugefügte Episoden',
     'video.recent.recentlyPlayedEpisodes': 'Kürzlich wiedergegebene Episoden',
-    'video.recent.empty.recentlyAddedMovies': 'Keine kürzlich hinzugefügten Filme in diesem Snapshot.',
-    'video.recent.empty.recentlyPlayedMovies': 'Keine kürzlich wiedergegebenen Filme in diesem Snapshot.',
-    'video.recent.empty.recentlyAddedEpisodes': 'Keine kürzlich hinzugefügten Episoden in diesem Snapshot.',
-    'video.recent.empty.recentlyPlayedEpisodes': 'Keine kürzlich wiedergegebenen Episoden in diesem Snapshot.',
+    'video.recent.empty.recentlyAddedMovies':
+      'Keine kürzlich hinzugefügten Filme in diesem Snapshot.',
+    'video.recent.empty.recentlyPlayedMovies':
+      'Keine kürzlich wiedergegebenen Filme in diesem Snapshot.',
+    'video.recent.empty.recentlyAddedEpisodes':
+      'Keine kürzlich hinzugefügten Episoden in diesem Snapshot.',
+    'video.recent.empty.recentlyPlayedEpisodes':
+      'Keine kürzlich wiedergegebenen Episoden in diesem Snapshot.',
     'video.recent.countOf': '{count} von {total}',
     'video.recent.unknownEpisode': 'Unbekannte Episode',
     'video.recent.date.added': 'Hinzugefügt {date}',

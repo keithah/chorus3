@@ -32,7 +32,9 @@
   );
 
   function formatValidationError(field: keyof ConfigValidationErrors, message: string): string {
-    const keyByFieldAndMessage: Partial<Record<keyof ConfigValidationErrors, Record<string, string>>> = {
+    const keyByFieldAndMessage: Partial<
+      Record<keyof ConfigValidationErrors, Record<string, string>>
+    > = {
       id: {
         'A saved Kodi host already exists for this id.': 'hostSettings.validation.id.duplicate',
         'No saved Kodi host exists for this id.': 'hostSettings.validation.id.missing',
@@ -218,7 +220,12 @@
     {i18n.t('hostSettings.trustedWarning')}
   </p>
 
-  <form class="host-form" aria-label={i18n.t('hostSettings.formAria')} novalidate onsubmit={handleSubmit}>
+  <form
+    class="host-form"
+    aria-label={i18n.t('hostSettings.formAria')}
+    novalidate
+    onsubmit={handleSubmit}
+  >
     <div class="field-grid">
       <div class="field">
         <label for="host-label">{i18n.t('hostSettings.field.label')}</label>
@@ -231,7 +238,9 @@
           aria-describedby={descriptionId('label')}
         />
         {#if errors.label}
-          <p id={errorId('label')} class="field-error" role="alert">{formatValidationError('label', errors.label)}</p>
+          <p id={errorId('label')} class="field-error" role="alert">
+            {formatValidationError('label', errors.label)}
+          </p>
         {/if}
       </div>
 
@@ -247,7 +256,9 @@
           aria-describedby={descriptionId('host')}
         />
         {#if errors.host}
-          <p id={errorId('host')} class="field-error" role="alert">{formatValidationError('host', errors.host)}</p>
+          <p id={errorId('host')} class="field-error" role="alert">
+            {formatValidationError('host', errors.host)}
+          </p>
         {/if}
       </div>
 
@@ -264,7 +275,9 @@
           aria-describedby={descriptionId('port')}
         />
         {#if errors.port}
-          <p id={errorId('port')} class="field-error" role="alert">{formatValidationError('port', errors.port)}</p>
+          <p id={errorId('port')} class="field-error" role="alert">
+            {formatValidationError('port', errors.port)}
+          </p>
         {/if}
       </div>
 
@@ -279,7 +292,9 @@
           aria-describedby={descriptionId('username')}
         />
         {#if errors.username}
-          <p id={errorId('username')} class="field-error" role="alert">{formatValidationError('username', errors.username)}</p>
+          <p id={errorId('username')} class="field-error" role="alert">
+            {formatValidationError('username', errors.username)}
+          </p>
         {/if}
       </div>
 
@@ -295,7 +310,9 @@
           aria-describedby={errors.password ? errorId('password') : 'trusted-device-warning'}
         />
         {#if errors.password}
-          <p id={errorId('password')} class="field-error" role="alert">{formatValidationError('password', errors.password)}</p>
+          <p id={errorId('password')} class="field-error" role="alert">
+            {formatValidationError('password', errors.password)}
+          </p>
         {/if}
       </div>
     </div>
@@ -314,7 +331,9 @@
     <div class="form-actions">
       <button type="submit">{submitLabel}</button>
       {#if editingHost}
-        <button class="secondary-button" type="button" onclick={cancelEditing}>{i18n.t('hostSettings.action.cancelEdit')}</button>
+        <button class="secondary-button" type="button" onclick={cancelEditing}
+          >{i18n.t('hostSettings.action.cancelEdit')}</button
+        >
       {/if}
     </div>
   </form>
@@ -336,10 +355,14 @@
               <p class="host-meta">
                 {savedHost.host}{savedHost.port ? `:${savedHost.port}` : ''} · {savedHost.useTls
                   ? 'HTTPS'
-                  : 'HTTP'} · {savedHost.useWebSocket ? i18n.t('hostSettings.websocket.on') : i18n.t('hostSettings.websocket.off')}
+                  : 'HTTP'} · {savedHost.useWebSocket
+                  ? i18n.t('hostSettings.websocket.on')
+                  : i18n.t('hostSettings.websocket.off')}
               </p>
               <p class="credential-note">
-                {savedHost.username ? i18n.t('hostSettings.credentials.saved') : i18n.t('hostSettings.credentials.none')}
+                {savedHost.username
+                  ? i18n.t('hostSettings.credentials.saved')
+                  : i18n.t('hostSettings.credentials.none')}
               </p>
             </div>
             <div class="row-actions">
@@ -347,13 +370,15 @@
                 class="secondary-button"
                 type="button"
                 aria-label={i18n.t('hostSettings.action.editAria', { label: savedHost.label })}
-                onclick={() => startEditing(savedHost.id)}>{i18n.t('hostSettings.action.edit')}</button
+                onclick={() => startEditing(savedHost.id)}
+                >{i18n.t('hostSettings.action.edit')}</button
               >
               <button
                 class="danger-button"
                 type="button"
                 aria-label={i18n.t('hostSettings.action.deleteAria', { label: savedHost.label })}
-                onclick={() => deleteHost(savedHost.id)}>{i18n.t('hostSettings.action.delete')}</button
+                onclick={() => deleteHost(savedHost.id)}
+                >{i18n.t('hostSettings.action.delete')}</button
               >
             </div>
           </li>

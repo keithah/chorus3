@@ -13,7 +13,7 @@
     i18n?: TranslationContext;
   }
 
-  let { snapshot, route, i18n }: Props = $props();
+  let { snapshot, route }: Props = $props();
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvShowDetail' ? safePositiveId(route.tvshowid) : null

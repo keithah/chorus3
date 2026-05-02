@@ -80,7 +80,11 @@ function renderPanel(props: {
 }): void {
   mounted = mount(QueuePanel, {
     target: document.body,
-    props: { snapshot: props.snapshot, dispatch: props.dispatch ?? createFakeDispatch(), i18n: props.i18n }
+    props: {
+      snapshot: props.snapshot,
+      dispatch: props.dispatch ?? createFakeDispatch(),
+      i18n: props.i18n
+    }
   });
 }
 
@@ -273,7 +277,9 @@ describe('QueuePanel', () => {
       i18n: createTranslationContext('de')
     });
 
-    expect(document.querySelector('.queue-panel')?.getAttribute('aria-label')).toBe('Kodi-Warteschlange');
+    expect(document.querySelector('.queue-panel')?.getAttribute('aria-label')).toBe(
+      'Kodi-Warteschlange'
+    );
     expect(screenText()).toContain('clear wird ausgeführt…');
     expect(button('Warteschlange leeren').disabled).toBe(true);
     expect(button('Song B nach oben verschieben').disabled).toBe(true);

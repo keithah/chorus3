@@ -231,7 +231,9 @@ describe('MusicLibraryPanel', () => {
     });
 
     const text = screenText();
-    expect(document.querySelector('#music-library-title')?.textContent).toContain('Musikbibliothek');
+    expect(document.querySelector('#music-library-title')?.textContent).toContain(
+      'Musikbibliothek'
+    );
     expect(statusText()).toContain('Musikbibliothek bereit.');
     expect(text).toContain('Künstler');
     expect(text).toContain('Alben');

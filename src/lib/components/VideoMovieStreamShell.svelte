@@ -233,7 +233,10 @@
       actionStatus = {
         kind: 'error',
         action,
-        message: i18n.t('video.stream.couldNotStart', { label, message: sanitizeUiText(errorMessage(error)) })
+        message: i18n.t('video.stream.couldNotStart', {
+          label,
+          message: sanitizeUiText(errorMessage(error))
+        })
       };
     }
   }
@@ -256,7 +259,9 @@
       actionStatus = {
         kind: 'error',
         action: 'sendToKodi',
-        message: i18n.t('video.stream.couldNotSendToKodi', { message: sanitizeUiText(errorMessage(error)) })
+        message: i18n.t('video.stream.couldNotSendToKodi', {
+          message: sanitizeUiText(errorMessage(error))
+        })
       };
     }
   }
@@ -336,7 +341,9 @@
   {#if movie && movieid !== null}
     <header class="stream-heading">
       <div class="stream-artwork-frame" aria-label={i18n.t('video.stream.artworkAria')}>
-        <div class="stream-poster-frame" aria-hidden="true"><span>{i18n.t('video.movie.poster')}</span></div>
+        <div class="stream-poster-frame" aria-hidden="true">
+          <span>{i18n.t('video.movie.poster')}</span>
+        </div>
         <div class="stream-heading-copy">
           <p class="section-kicker">{i18n.t('video.stream.kicker')}</p>
           <h2 id="video-movie-stream-title">{title}</h2>
