@@ -1,0 +1,51 @@
+name: Release Kodi package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Verify and publish Kodi package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify project
+        run: npm run verify
+
+      - name: Rebuild Kodi package artifact
+        run: npm run package:kodi
+
+      - name: Verify Kodi package artifact
+        run: npm run verify:kodi-package
+
+      - name: Upload Kodi package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodi-webinterface-package
+          path: dist/kodi/webinterface.chorus3-*.zip
+          if-no-files-found: error
+
+      - name: Attach Kodi package to GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/kodi/webinterface.chorus3-*.zip
+          fail_on_unmatched_files: true
