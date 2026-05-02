@@ -21,9 +21,14 @@ const EXPECTED_PLACEHOLDER_IDS = [
   'playlists',
   'help',
   'helpOverview',
+  'helpPage',
   'browser',
+  'files',
+  'browserMedia',
+  'localPlaylist',
   'settingsWeb',
   'settingsKodi',
+  'settingsKodiSection',
   'settingsNav',
   'settingsSearch',
   'settingsAddons',
@@ -32,9 +37,19 @@ const EXPECTED_PLACEHOLDER_IDS = [
   'labIconBrowser',
   'labApiBrowserMethod',
   'addonsVideo',
+  'addonsAudio',
+  'addonsExecutable',
   'addonExecute',
   'search',
-  'searchVideo'
+  'searchVideo',
+  'pvr',
+  'pvrTv',
+  'pvrTvChannel',
+  'pvrRadio',
+  'pvrRadioChannel',
+  'pvrRecordings',
+  'musicVideos',
+  'thumbsup'
 ] as const;
 
 function expectChorus2Placeholder(route: AppRoute, expectedId: string): Chorus2RoutePlaceholder {
@@ -198,9 +213,14 @@ describe('parseAppRoute', () => {
       ['/playlists', 'playlists'],
       ['/help', 'help'],
       ['/help/overview', 'helpOverview'],
+      ['/help/app-readme', 'helpPage'],
       ['/browser', 'browser'],
+      ['/files', 'files'],
+      ['/browser/video/%2Fstorage', 'browserMedia'],
+      ['/localPlaylist', 'localPlaylist'],
       ['/settings/web', 'settingsWeb'],
       ['/settings/kodi', 'settingsKodi'],
+      ['/settings/kodi/player', 'settingsKodiSection'],
       ['/settings/nav', 'settingsNav'],
       ['/settings/search', 'settingsSearch'],
       ['/settings/addons', 'settingsAddons'],
@@ -209,9 +229,19 @@ describe('parseAppRoute', () => {
       ['/lab/icon-browser', 'labIconBrowser'],
       ['/lab/api-browser/JSONRPC.Ping', 'labApiBrowserMethod'],
       ['/addons/video', 'addonsVideo'],
+      ['/addons/audio', 'addonsAudio'],
+      ['/addons/executable', 'addonsExecutable'],
       ['/addon/execute/plugin.video.youtube', 'addonExecute'],
       ['/search', 'search'],
-      ['/search/video/star wars', 'searchVideo']
+      ['/search/video/star wars', 'searchVideo'],
+      ['/pvr', 'pvr'],
+      ['/pvr/tv', 'pvrTv'],
+      ['/pvr/tv/42', 'pvrTvChannel'],
+      ['/pvr/radio', 'pvrRadio'],
+      ['/pvr/radio/99', 'pvrRadioChannel'],
+      ['/pvr/recordings', 'pvrRecordings'],
+      ['/music/videos', 'musicVideos'],
+      ['/thumbsup', 'thumbsup']
     ] as const;
 
     for (const [path, expectedId] of placeholderCases) {
@@ -231,7 +261,8 @@ describe('parseAppRoute', () => {
 
     const packageCases = [
       ['/addons/webinterface.chorus3/help', '/help', 'help'],
-      ['/addons/webinterface.chorus3/playlists', '/playlists', 'playlists']
+      ['/addons/webinterface.chorus3/playlists', '/playlists', 'playlists'],
+      ['/addons/webinterface.chorus3/pvr/tv', '/pvr/tv', 'pvrTv']
     ] as const;
 
     for (const [path, unmountedPath, expectedId] of packageCases) {
@@ -253,11 +284,17 @@ describe('parseAppRoute', () => {
       ['/addon/execute/user:pass@host', 'addonExecute'],
       ['/addon/execute/smb://nas/private', 'addonExecute'],
       ['/addon/execute/special://profile/passwords', 'addonExecute'],
+      ['/pvr/tv/admin:p@ssword', 'pvrTvChannel'],
+      ['/pvr/radio/smb://nas/private', 'pvrRadioChannel'],
+      ['/browser/special://profile/passwords', 'browserMedia'],
+      ['/help/admin:p@ssword', 'helpPage'],
+      ['/settings/kodi/special://profile/passwords', 'settingsKodiSection'],
       ['/search/video/Authorization', 'searchVideo'],
       ['/search/video/Basic', 'searchVideo'],
       ['/search/video/{"jsonrpc":"2.0","method":"Input.SendText"}', 'searchVideo'],
       ['/search/video/localStorage', 'searchVideo'],
       ['/search/video/sessionStorage', 'searchVideo'],
+      ['/search/video/special://profile/passwords', 'searchVideo'],
       ['/lab/api-browser/smb://nas/private', 'labApiBrowserMethod'],
       ['/lab/api-browser/special://profile/passwords', 'labApiBrowserMethod'],
       ['/lab/api-browser/{"method":"JSONRPC.Ping"}', 'labApiBrowserMethod']

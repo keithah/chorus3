@@ -1973,6 +1973,8 @@ describe('App shell', () => {
     ['help', 'Chorus2 Help', 'help', 'M006/S02'],
     ['playlists', 'Chorus2 Playlists', 'playlists', 'R055/M006/S04'],
     ['settingsWeb', 'Web Settings', 'settings/web', 'M006/S02'],
+    ['pvrTv', 'PVR TV', 'pvr/tv', 'R056/M006/S04'],
+    ['addonsAudio', 'Audio Add-ons', 'addons/audio', 'R054/M006/S04'],
     ['labScreenshot', 'Lab Screenshot', 'lab/screenshot', 'M006/S02']
   ])(
     'renders Chorus2 parity placeholder route copy for %s without unsafe text',
@@ -1997,6 +1999,28 @@ describe('App shell', () => {
       expect(panel?.innerHTML).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
     }
   );
+
+  it('renders package-mounted Chorus2 PVR placeholders with package-base recovery links', () => {
+    const target = renderApp({
+      route: parseAppRoute('/addons/webinterface.chorus3/pvr/tv', '?token=Basic', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      }),
+      packageMountedHost: createPackageMountedHost()
+    });
+    const placeholderText = getParityPlaceholderText(target);
+
+    expect(placeholderText).toContain('PVR TV');
+    expect(placeholderText).toContain('pvr/tv');
+    expect(placeholderText).toContain('R056/M006/S04');
+    expect(placeholderText).toContain('not complete');
+    expect(target.querySelector('.parity-placeholder')).toBeInstanceOf(HTMLElement);
+    const recoveryLink = target.querySelector<HTMLAnchorElement>('.parity-placeholder a');
+    expect(recoveryLink).toBeInstanceOf(HTMLAnchorElement);
+    expect(recoveryLink?.getAttribute('href')).toMatch(
+      /^\/addons\/webinterface\.chorus3(?:\/|$)/u
+    );
+    expect(target.textContent).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
+  });
 
   it('renders the Remote/Input route as the real remote panel with injected snapshots instead of a parity placeholder', () => {
     const remoteInputDispatch = createRemoteInputDispatch();

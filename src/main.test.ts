@@ -69,7 +69,8 @@ describe('main entrypoint', () => {
       ['/addons/webinterface.chorus3/help', 'help'],
       ['/addons/webinterface.chorus3/playlists', 'playlists'],
       ['/addons/webinterface.chorus3/settings/web', 'settingsWeb'],
-      ['/addons/webinterface.chorus3/lab/screenshot', 'labScreenshot']
+      ['/addons/webinterface.chorus3/lab/screenshot', 'labScreenshot'],
+      ['/addons/webinterface.chorus3/pvr/tv', 'pvrTv']
     ] as const) {
       const route = resolveEntrypointRoute({ pathname, search: '?token=Basic' });
       expect(route.kind).toBe('chorus2Placeholder');
@@ -105,16 +106,16 @@ describe('main entrypoint', () => {
 
   it('mounts package-mounted Chorus2 placeholders without reflecting unsafe path or query input', async () => {
     setPathAndSearch(
-      '/addons/webinterface.chorus3/help',
+      '/addons/webinterface.chorus3/pvr/tv',
       '?password=CHORUS3_SENTINEL_SECRET&token=Basic&next=smb://admin:p@ssword@nas/private'
     );
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Chorus2 Help');
+    expect(document.body.textContent).toContain('PVR TV');
     expect(document.body.textContent).toContain('Chorus2 surface');
     expect(document.body.textContent).toContain('Future owner');
-    expect(document.body.textContent).toContain('M006/S02');
+    expect(document.body.textContent).toContain('R056/M006/S04');
     expect(document.body.textContent).not.toContain('Settings route not found');
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|smb:\/\/|admin:p@ssword|localStorage|sessionStorage/i

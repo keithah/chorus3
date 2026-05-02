@@ -121,6 +121,17 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     routePath: '/playlists'
   }),
   placeholder({
+    id: 'localPlaylist',
+    ledgerIds: ['route:local-playlist:localplaylist'],
+    surface: 'localPlaylist',
+    title: 'Chorus2 Local Playlist',
+    status: 'deferred',
+    owner: 'R055/M006/S04',
+    description: 'Local playlist parity is deferred to the playlist/local-player parity owner.',
+    recoveryRoute: '/playlists',
+    routePath: '/localPlaylist'
+  }),
+  placeholder({
     id: 'help',
     ledgerIds: ['route:help-overview:help'],
     surface: 'help',
@@ -143,15 +154,48 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     routePath: '/help/overview'
   }),
   placeholder({
+    id: 'helpPage',
+    ledgerIds: ['route:help-page:help-id'],
+    surface: 'help/:id',
+    title: 'Chorus2 Help Page',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 help page routes are tracked without reflecting raw help IDs.',
+    recoveryRoute: '/help',
+    routePath: '/help/[id]'
+  }),
+  placeholder({
     id: 'browser',
-    ledgerIds: ['route:list:browser'],
+    ledgerIds: ['route:browser:browser', 'nav:browser:browser'],
     surface: 'browser',
     title: 'Chorus2 Browser',
     status: 'missing',
-    owner: 'M006/S02',
+    owner: 'M006/S04',
     description: 'Chorus2 browser navigation is visible but awaits file-browser parity work.',
     recoveryRoute: '/',
     routePath: '/browser'
+  }),
+  placeholder({
+    id: 'files',
+    ledgerIds: ['route:browser:files'],
+    surface: 'files',
+    title: 'Chorus2 Files',
+    status: 'missing',
+    owner: 'M006/S04',
+    description: 'Chorus2 files navigation is tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/',
+    routePath: '/files'
+  }),
+  placeholder({
+    id: 'browserMedia',
+    ledgerIds: ['route:view:browser-media-id'],
+    surface: 'browser/:media/:id',
+    title: 'Chorus2 Browser Item',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 browser item routes are tracked without reflecting raw media paths.',
+    recoveryRoute: '/browser',
+    routePath: '/browser/[media]/[id]'
   }),
   placeholder({
     id: 'settingsWeb',
@@ -174,6 +218,17 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     description: 'Chorus2 Kodi settings require a future settings parity implementation.',
     recoveryRoute: '/settings',
     routePath: '/settings/kodi'
+  }),
+  placeholder({
+    id: 'settingsKodiSection',
+    ledgerIds: ['route:kodi:settings-kodi-section'],
+    surface: 'settings/kodi/:section',
+    title: 'Kodi Settings Section',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 Kodi settings subsections are tracked without reflecting raw section IDs.',
+    recoveryRoute: '/settings/kodi',
+    routePath: '/settings/kodi/[section]'
   }),
   placeholder({
     id: 'settingsNav',
@@ -266,6 +321,30 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     routePath: '/addons/video'
   }),
   placeholder({
+    id: 'addonsAudio',
+    ledgerIds: ['nav:addons:addons-audio'],
+    surface: 'addons/audio',
+    title: 'Audio Add-ons',
+    status: 'deferred',
+    owner: 'R054/M006/S04',
+    description:
+      'Chorus2 audio add-on type-filter navigation is deferred to the media parity owner.',
+    recoveryRoute: '/addons',
+    routePath: '/addons/audio'
+  }),
+  placeholder({
+    id: 'addonsExecutable',
+    ledgerIds: ['nav:addons:addons-executable'],
+    surface: 'addons/executable',
+    title: 'Executable Add-ons',
+    status: 'missing',
+    owner: 'M006/S02',
+    description:
+      'Chorus2 executable add-on type-filter navigation is not implemented in the current add-ons shell.',
+    recoveryRoute: '/addons',
+    routePath: '/addons/executable'
+  }),
+  placeholder({
     id: 'addonExecute',
     ledgerIds: ['route:execute:addon-execute-id'],
     surface: 'addon/execute/:id',
@@ -298,6 +377,94 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     description: 'Chorus2 media search routes are tracked without reflecting raw query text.',
     recoveryRoute: '/search',
     routePath: '/search/video/[query]'
+  }),
+  placeholder({
+    id: 'pvr',
+    ledgerIds: ['route:pvr:pvr', 'nav:pvr:pvr'],
+    surface: 'pvr',
+    title: 'Chorus2 PVR',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'PVR parity is deferred to the PVR parity owner.',
+    recoveryRoute: '/',
+    routePath: '/pvr'
+  }),
+  placeholder({
+    id: 'pvrTv',
+    ledgerIds: ['route:tv:pvr-tv'],
+    surface: 'pvr/tv',
+    title: 'PVR TV',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'Chorus2 PVR TV routes are tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/pvr',
+    routePath: '/pvr/tv'
+  }),
+  placeholder({
+    id: 'pvrTvChannel',
+    ledgerIds: ['route:tv:pvr-tv-channelid'],
+    surface: 'pvr/tv/:channelid',
+    title: 'PVR TV Channel',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'Chorus2 PVR TV channel routes are tracked without reflecting raw channel IDs.',
+    recoveryRoute: '/pvr/tv',
+    routePath: '/pvr/tv/[channelid]'
+  }),
+  placeholder({
+    id: 'pvrRadio',
+    ledgerIds: ['route:radio:pvr-radio'],
+    surface: 'pvr/radio',
+    title: 'PVR Radio',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'Chorus2 PVR radio routes are tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/pvr',
+    routePath: '/pvr/radio'
+  }),
+  placeholder({
+    id: 'pvrRadioChannel',
+    ledgerIds: ['route:radio:pvr-radio-channelid'],
+    surface: 'pvr/radio/:channelid',
+    title: 'PVR Radio Channel',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'Chorus2 PVR radio channel routes are tracked without reflecting raw channel IDs.',
+    recoveryRoute: '/pvr/radio',
+    routePath: '/pvr/radio/[channelid]'
+  }),
+  placeholder({
+    id: 'pvrRecordings',
+    ledgerIds: ['route:recordings:pvr-recordings'],
+    surface: 'pvr/recordings',
+    title: 'PVR Recordings',
+    status: 'deferred',
+    owner: 'R056/M006/S04',
+    description: 'Chorus2 PVR recordings are tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/pvr',
+    routePath: '/pvr/recordings'
+  }),
+  placeholder({
+    id: 'musicVideos',
+    ledgerIds: ['route:musicvideo:music-videos'],
+    surface: 'music/videos',
+    title: 'Music Videos',
+    status: 'deferred',
+    owner: 'R054/M006/S04',
+    description: 'Music video parity is deferred to the media parity owner.',
+    recoveryRoute: '/',
+    routePath: '/music/videos'
+  }),
+  placeholder({
+    id: 'thumbsup',
+    ledgerIds: ['route:thumbs:thumbsup', 'nav:thumbsup:thumbsup'],
+    surface: 'thumbsup',
+    title: 'Thumbs Up',
+    status: 'deferred',
+    owner: 'R055/M006/S04',
+    description: 'Thumbs-up playlist parity is deferred to the playlist/local-player parity owner.',
+    recoveryRoute: '/playlists',
+    routePath: '/thumbsup'
   })
 ] as const satisfies readonly Chorus2RoutePlaceholder[];
 
@@ -584,8 +751,32 @@ function parseChorus2PlaceholderRoute(path: string): Chorus2RoutePlaceholder | n
     return CHORUS2_PLACEHOLDERS_BY_ID.get('addonExecute') ?? null;
   }
 
+  if (path.startsWith('/help/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('helpPage') ?? null;
+  }
+
+  if (path.startsWith('/browser/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('browserMedia') ?? null;
+  }
+
+  if (path.startsWith('/files/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('files') ?? null;
+  }
+
+  if (path.startsWith('/settings/kodi/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('settingsKodiSection') ?? null;
+  }
+
   if (path.startsWith('/search/video/')) {
     return CHORUS2_PLACEHOLDERS_BY_ID.get('searchVideo') ?? null;
+  }
+
+  if (path.startsWith('/pvr/tv/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('pvrTvChannel') ?? null;
+  }
+
+  if (path.startsWith('/pvr/radio/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('pvrRadioChannel') ?? null;
   }
 
   if (path.startsWith('/lab/api-browser/')) {
