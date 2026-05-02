@@ -150,6 +150,18 @@ describe('Kodi package staging', () => {
     expect(existsSync(join(result.stageDir, '.gsd/ignored.md'))).toBe(false);
   });
 
+  it('stages a now-playing entrypoint from the SPA index when Vite emits only the app shell', () => {
+    const root = createFixture(baseFiles());
+    rmSync(join(root, 'dist/now-playing'), { force: true, recursive: true });
+
+    const result = stageKodiWebinterfacePackage({ root });
+
+    expect(result.entries).toContain('webinterface.chorus3/now-playing/index.html');
+    expect(readFileSync(join(result.stageDir, 'now-playing/index.html'), 'utf8')).toBe(
+      readFileSync(join(result.stageDir, 'index.html'), 'utf8')
+    );
+  });
+
   it('fails before staging when the Vite build output is missing index.html', () => {
     const root = createFixture(baseFiles({ 'dist/index.html': '' }));
     rmSync(join(root, 'dist/index.html'));

@@ -156,6 +156,8 @@ export function stageKodiWebinterfacePackage({ root = cwd() } = {}) {
     entries.push(`${addonId}/${relativeToDist}`);
   }
 
+  ensureNowPlayingEntrypoint({ addonId, entries, stageDir: paths.stageDir });
+
   entries.sort((left, right) => left.localeCompare(right));
   normalizeTimestamps(paths.stageDir);
 
@@ -357,6 +359,20 @@ function collectBuildFiles(distDir, packageRoot, root) {
   return files.sort((left, right) =>
     toPosixPath(relative(root, left)).localeCompare(toPosixPath(relative(root, right)))
   );
+}
+
+function ensureNowPlayingEntrypoint({ addonId, entries, stageDir }) {
+  const nowPlayingEntry = `${addonId}/now-playing/index.html`;
+
+  if (entries.includes(nowPlayingEntry)) {
+    return;
+  }
+
+  const source = join(stageDir, 'index.html');
+  const target = join(stageDir, 'now-playing/index.html');
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(source, target);
+  entries.push(nowPlayingEntry);
 }
 
 function normalizeTimestamps(path) {
