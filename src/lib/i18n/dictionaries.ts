@@ -91,6 +91,15 @@ export const DICTIONARIES = {
     'app.route.video.notFoundDescription':
       'The video route {path} is not available in this app shell.',
     'app.route.video.recoveryAria': 'Video route recovery',
+    'parity.placeholder.kicker': 'Chorus2 parity placeholder',
+    'parity.placeholder.incomplete':
+      'This Chorus2 surface is not complete in Chorus3 yet; use the recovery path below.',
+    'parity.placeholder.factsAria': 'Chorus2 placeholder parity facts',
+    'parity.placeholder.surface': 'Chorus2 surface',
+    'parity.placeholder.status': 'Parity status',
+    'parity.placeholder.owner': 'Future owner',
+    'parity.placeholder.recoveryPath': 'Recovery path',
+    'parity.placeholder.openRecovery': 'Open recovery path',
     'settings.panel.eyebrow': 'Kodi JSON-RPC',
     'settings.panel.title': 'Kodi Settings',
     'settings.panel.description':
@@ -933,6 +942,15 @@ export const DICTIONARIES = {
     'app.route.video.notFoundDescription':
       'Die Videoroute {path} ist in dieser App-Shell nicht verfügbar.',
     'app.route.video.recoveryAria': 'Video-Routenwiederherstellung',
+    'parity.placeholder.kicker': 'Chorus2-Paritätsplatzhalter',
+    'parity.placeholder.incomplete':
+      'Diese Chorus2-Oberfläche ist in Chorus3 noch nicht vollständig; nutze den Wiederherstellungspfad unten.',
+    'parity.placeholder.factsAria': 'Chorus2-Platzhalter-Paritätsfakten',
+    'parity.placeholder.surface': 'Chorus2-Oberfläche',
+    'parity.placeholder.status': 'Paritätsstatus',
+    'parity.placeholder.owner': 'Zukünftiger Owner',
+    'parity.placeholder.recoveryPath': 'Wiederherstellungspfad',
+    'parity.placeholder.openRecovery': 'Wiederherstellungspfad öffnen',
     'settings.panel.eyebrow': 'Kodi JSON-RPC',
     'settings.panel.title': 'Kodi-Einstellungen',
     'settings.panel.description':
