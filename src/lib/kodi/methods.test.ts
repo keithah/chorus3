@@ -16,6 +16,7 @@ import type {
   KodiPlaylistFileItem,
   PlayerGoToTarget,
   PlayerOpenItem,
+  RemoteInputCommand,
   PlayerOpenMovieParams,
   PlayerOpenParams,
   PlayerRepeatValue,
@@ -82,6 +83,7 @@ import {
   prepareFileDownload,
   removePlaylistItem,
   seekPlayer,
+  sendInputCommand,
   setAddonEnabled,
   setApplicationMute,
   setApplicationVolume,
@@ -103,6 +105,9 @@ type IsNotAssignable<TValue, TTarget> = [TValue] extends [TTarget] ? false : tru
 
 export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<number, PlayerSeekValue>>,
+  ExpectTrue<IsNotAssignable<string, RemoteInputCommand>>,
+  ExpectTrue<IsNotAssignable<'sendText', RemoteInputCommand>>,
+  ExpectTrue<IsNotAssignable<'power', RemoteInputCommand>>,
   ExpectTrue<IsNotAssignable<string, PlayerSeekValue>>,
   ExpectTrue<IsNotAssignable<'invalid-repeat', PlayerRepeatValue>>,
   ExpectTrue<IsNotAssignable<'invalid-shuffle', PlayerShuffleValue>>,
@@ -261,6 +266,27 @@ describe('Kodi curated method wrappers', () => {
     await expect(
       setAddonEnabled(client, { addonid: 'plugin.video.youtube', enabled: true })
     ).rejects.toBe(error);
+  });
+
+  it('sends bounded remote input commands as exact zero-param Input method calls', async () => {
+    const commandToMethod = [
+      ['left', 'Input.Left'],
+      ['up', 'Input.Up'],
+      ['right', 'Input.Right'],
+      ['down', 'Input.Down'],
+      ['back', 'Input.Back'],
+      ['select', 'Input.Select'],
+      ['contextMenu', 'Input.ContextMenu'],
+      ['info', 'Input.Info'],
+      ['home', 'Input.Home']
+    ] as const satisfies readonly (readonly [RemoteInputCommand, string])[];
+    const client = createFakeClient(commandToMethod.map(() => 'OK'));
+
+    for (const [command] of commandToMethod) {
+      await expect(sendInputCommand(client, command)).resolves.toBe('OK');
+    }
+
+    expect(client.calls).toEqual(commandToMethod.map(([, method]) => ({ method })));
   });
 
   it('pings Kodi without params', async () => {

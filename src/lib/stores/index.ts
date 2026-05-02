@@ -284,6 +284,17 @@ export {
 } from './playerDispatch.svelte';
 
 export {
+  RemoteInputDispatch,
+  createRemoteInputDispatch,
+  remoteInputDispatch,
+  type RemoteInputCommandStatus,
+  type RemoteInputDispatchErrorSource,
+  type RemoteInputDispatchOptions,
+  type RemoteInputDispatchSafeErrorSnapshot,
+  type RemoteInputDispatchSnapshot
+} from './remoteInputDispatch.svelte';
+
+export {
   LocalPlayerStore,
   createLocalPlayerStore,
   localPlayerStore,

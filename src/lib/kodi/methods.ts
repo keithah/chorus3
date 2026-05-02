@@ -413,6 +413,32 @@ export type PlaylistSwapParams = {
 
 export type PlayerCommandResult = 'OK';
 
+export const REMOTE_INPUT_COMMANDS = [
+  'left',
+  'up',
+  'right',
+  'down',
+  'back',
+  'select',
+  'contextMenu',
+  'info',
+  'home'
+] as const;
+
+export type RemoteInputCommand = (typeof REMOTE_INPUT_COMMANDS)[number];
+
+const REMOTE_INPUT_METHODS: Record<RemoteInputCommand, string> = {
+  left: 'Input.Left',
+  up: 'Input.Up',
+  right: 'Input.Right',
+  down: 'Input.Down',
+  back: 'Input.Back',
+  select: 'Input.Select',
+  contextMenu: 'Input.ContextMenu',
+  info: 'Input.Info',
+  home: 'Input.Home'
+};
+
 export type KodiMusicLibraryItem =
   | { songid: number; albumid?: never; artistid?: never; playlistid?: never; file?: never }
   | { albumid: number; songid?: never; artistid?: never; playlistid?: never; file?: never }
@@ -1082,6 +1108,14 @@ function callKodi<TResult, TParams extends JsonRpcParams = JsonRpcParams>(
   options?: KodiHttpCallOptions
 ): Promise<TResult> {
   return client.call<TResult, TParams>(method, params, options);
+}
+
+export function sendInputCommand(
+  client: KodiJsonRpcHttpClient,
+  command: RemoteInputCommand,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult>(client, REMOTE_INPUT_METHODS[command], undefined, options);
 }
 
 export function pingKodi(
