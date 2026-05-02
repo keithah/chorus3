@@ -21,6 +21,9 @@ export const DICTIONARIES = {
     'app.locale.english': 'English',
     'app.locale.german': 'German',
     'app.locale.switchLabel': 'Language',
+    'app.theme.toggle': 'Switch to {theme} theme',
+    'app.theme.light': 'light',
+    'app.theme.dark': 'dark',
 
     'app.shell.eyebrow': 'Multi-host console',
     'app.shell.lede':
@@ -833,6 +836,9 @@ export const DICTIONARIES = {
     'app.locale.english': 'Englisch',
     'app.locale.german': 'Deutsch',
     'app.locale.switchLabel': 'Sprache',
+    'app.theme.toggle': 'Zum {theme} Theme wechseln',
+    'app.theme.light': 'hellen',
+    'app.theme.dark': 'dunklen',
 
     'app.shell.eyebrow': 'Multi-Host-Konsole',
     'app.shell.lede':

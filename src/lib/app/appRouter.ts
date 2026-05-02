@@ -14,6 +14,7 @@ export type AddonsUnknownRoute = { kind: 'addonsUnknown'; pathLabel: string };
 export type LabShortcutsRoute = { kind: 'labShortcuts' };
 export type LabApiBrowserRoute = { kind: 'labApiBrowser' };
 export type LabUnknownRoute = { kind: 'labUnknown'; pathLabel: string };
+export type NowPlayingRoute = { kind: 'nowPlaying' };
 export type DelegatedVideoRoute = { kind: 'video'; route: Exclude<VideoRoute, DashboardRoute> };
 
 export type AppRoute =
@@ -26,6 +27,7 @@ export type AppRoute =
   | LabShortcutsRoute
   | LabApiBrowserRoute
   | LabUnknownRoute
+  | NowPlayingRoute
   | DelegatedVideoRoute;
 
 export interface AppRouteHistory {
@@ -42,6 +44,7 @@ const ADDONS_PATH = '/addons';
 const LAB_PATH = '/lab';
 const LAB_SHORTCUTS_PATH = '/lab/shortcuts';
 const LAB_API_BROWSER_PATH = '/lab/api-browser';
+const NOW_PLAYING_PATH = '/now-playing';
 const UNKNOWN_SETTINGS_PATH = '/settings/unknown';
 const UNKNOWN_ADDONS_PATH = '/addons/[redacted]';
 const UNKNOWN_LAB_PATH = '/lab/[redacted]';
@@ -85,6 +88,17 @@ export function parseAppRoute(pathname: unknown, search?: unknown): AppRoute {
 
   if (path === LAB_API_BROWSER_PATH) {
     return { kind: 'labApiBrowser' };
+  }
+
+  if (path === NOW_PLAYING_PATH) {
+    return { kind: 'nowPlaying' };
+  }
+
+  if (path.startsWith(`${NOW_PLAYING_PATH}/`)) {
+    return {
+      kind: 'settingsUnknown',
+      pathLabel: normalizeUnknownNowPlayingPathLabel(path)
+    };
   }
 
   if (path === LAB_PATH || path.startsWith(`${LAB_PATH}/`)) {
@@ -138,6 +152,10 @@ export function buildAppRoute(route: AppRoute): string {
 
   if (route.kind === 'labApiBrowser') {
     return LAB_API_BROWSER_PATH;
+  }
+
+  if (route.kind === 'nowPlaying') {
+    return NOW_PLAYING_PATH;
   }
 
   if (route.kind === 'labUnknown') {
@@ -235,6 +253,24 @@ function normalizeUnknownLabPathLabel(pathname: string): string {
   );
 
   return hasUnsafePayload ? UNKNOWN_LAB_PATH : normalizePathLabel(normalized, UNKNOWN_LAB_PATH);
+}
+
+function normalizeUnknownNowPlayingPathLabel(pathname: string): string {
+  const normalized = normalizePathnameInput(pathname);
+  const segments = normalized.split('/').filter(Boolean);
+
+  if (segments.length <= 1) {
+    return `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`;
+  }
+
+  const nowPlayingPayloadSegments = segments.slice(1);
+  const hasUnsafePayload = nowPlayingPayloadSegments.some(
+    (segment) => sanitizePathSegment(segment) === UNSAFE_SEGMENT
+  );
+
+  return hasUnsafePayload
+    ? `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`
+    : normalizePathLabel(normalized, `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`);
 }
 
 function sanitizePathSegment(segment: string): string {

@@ -399,7 +399,8 @@
       input.kind === 'addonsUnknown' ||
       input.kind === 'labShortcuts' ||
       input.kind === 'labApiBrowser' ||
-      input.kind === 'labUnknown'
+      input.kind === 'labUnknown' ||
+      input.kind === 'nowPlaying'
     ) {
       return input;
     }
@@ -698,7 +699,7 @@
         i18n={currentI18n}
         dispatch={localeDispatch}
       />
-      <ThemeToggle />
+      <ThemeToggle i18n={currentI18n} />
     </div>
   </header>
 

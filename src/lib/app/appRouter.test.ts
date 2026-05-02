@@ -20,6 +20,10 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('/addons', '?m005-browser-proof=1')).toEqual({ kind: 'addons' });
     expect(parseAppRoute('/lab/shortcuts')).toEqual({ kind: 'labShortcuts' });
     expect(parseAppRoute('/lab/api-browser')).toEqual({ kind: 'labApiBrowser' });
+    expect(parseAppRoute('/now-playing')).toEqual({ kind: 'nowPlaying' });
+    expect(parseAppRoute('/now-playing', '?theme=light&username=admin')).toEqual({
+      kind: 'nowPlaying'
+    });
   });
 
   test('delegates video routes to the video router with parity', () => {
@@ -117,6 +121,26 @@ describe('parseAppRoute', () => {
     });
   });
 
+  test('redacts unsafe now-playing subpaths without letting query identity change the route', () => {
+    const unsafeInputs = [
+      '/now-playing/Authorization/Basic',
+      '/now-playing/admin:p@ssword',
+      '/now-playing/CHORUS3_SENTINEL_SECRET',
+      '/now-playing/https://host.example/path',
+      '/now-playing/user:pass@host'
+    ];
+
+    for (const input of unsafeInputs) {
+      const route = parseAppRoute(input, '?password=CHORUS3_SENTINEL_SECRET&theme=light');
+
+      expect(route.kind).toBe('settingsUnknown');
+      expect(JSON.stringify(route)).not.toMatch(
+        /Authorization|Basic|admin:p@ssword|CHORUS3_SENTINEL_SECRET|password=|theme=|https:|user:pass@host/i
+      );
+      expect(route).toEqual({ kind: 'settingsUnknown', pathLabel: '/now-playing/[redacted]' });
+    }
+  });
+
   test('redacts unsafe unknown lab route labels without throwing', () => {
     const unsafeInputs = [
       '/lab/Authorization:Basic',
@@ -143,6 +167,7 @@ describe('buildAppRoute', () => {
   test.each<[AppRoute, string]>([
     [{ kind: 'dashboard' }, '/'],
     [{ kind: 'settings' }, '/settings'],
+    [{ kind: 'nowPlaying' }, '/now-playing'],
     [{ kind: 'labShortcuts' }, '/lab/shortcuts'],
     [{ kind: 'labApiBrowser' }, '/lab/api-browser'],
     [{ kind: 'labUnknown', pathLabel: '/lab/Authorization/Basic' }, '/lab/[redacted]/[redacted]'],

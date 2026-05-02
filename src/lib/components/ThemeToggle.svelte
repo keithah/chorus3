@@ -1,7 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  import { createTranslationContext, DEFAULT_LOCALE, type TranslationContext } from '$lib/i18n';
   import { DEFAULT_THEME, isThemeName, toggleTheme, type ThemeName } from '$lib/theme/theme';
+
+  interface Props {
+    i18n?: TranslationContext;
+  }
+
+  let { i18n = createTranslationContext(DEFAULT_LOCALE) }: Props = $props();
 
   let currentTheme: ThemeName = $state(DEFAULT_THEME);
 
@@ -19,16 +26,15 @@
   }
 
   const nextThemeLabel = $derived(currentTheme === 'dark' ? 'light' : 'dark');
+  const nextThemeText = $derived(
+    i18n.t(nextThemeLabel === 'light' ? 'app.theme.light' : 'app.theme.dark')
+  );
+  const toggleLabel = $derived(i18n.t('app.theme.toggle', { theme: nextThemeText }));
 </script>
 
-<button
-  class="theme-toggle"
-  type="button"
-  aria-label={`Switch to ${nextThemeLabel} theme`}
-  onclick={handleToggle}
->
+<button class="theme-toggle" type="button" aria-label={toggleLabel} onclick={handleToggle}>
   <span class="toggle-orb" aria-hidden="true">{currentTheme === 'dark' ? '☾' : '☼'}</span>
-  <span>Switch to {nextThemeLabel} theme</span>
+  <span>{toggleLabel}</span>
 </button>
 
 <style>
