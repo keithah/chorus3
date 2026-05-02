@@ -531,6 +531,28 @@ export const DICTIONARIES = {
     'nowPlaying.label.queue': 'Queue',
     'nowPlaying.label.subtitle': 'Subtitle',
     'nowPlaying.label.audio': 'Audio',
+    'nowPlayingEmbed.kicker': 'Iframe Now Playing',
+    'nowPlayingEmbed.title': 'Now playing embed',
+    'nowPlayingEmbed.description':
+      'A compact, iframe-safe view of the current Kodi player using saved Chorus configuration only.',
+    'nowPlayingEmbed.refresh.label': 'Refresh player state',
+    'nowPlayingEmbed.refresh.aria': 'Refresh player state',
+    'nowPlayingEmbed.host.kicker': 'Saved host',
+    'nowPlayingEmbed.host.title': 'Using saved host',
+    'nowPlayingEmbed.host.status': 'Using saved host {label}. Credentials saved: {credentials}.',
+    'nowPlayingEmbed.host.fallback': 'Saved Kodi host',
+    'nowPlayingEmbed.host.factsAria': 'Now Playing embed host summary',
+    'nowPlayingEmbed.host.label': 'Host label',
+    'nowPlayingEmbed.host.credentials': 'Credentials',
+    'nowPlayingEmbed.host.credentialsValue': 'Credentials saved: {value}',
+    'nowPlayingEmbed.setup.title': 'Setup required',
+    'nowPlayingEmbed.setup.status': 'Setup required before the Now Playing embed can connect.',
+    'nowPlayingEmbed.setup.description':
+      'Open Chorus settings and save a trusted Kodi host before embedding this view.',
+    'nowPlayingEmbed.queryRejected.singular': '{count} unsafe URL parameter was blocked.',
+    'nowPlayingEmbed.queryRejected.plural': '{count} unsafe URL parameters were blocked.',
+    'nowPlayingEmbed.queryRejected.description':
+      'For safety, credential-like data cannot be configured in the URL. Use saved host settings instead.',
     'shortcuts.eyebrow': 'Lab utility',
     'shortcuts.panel.title': 'Playback shortcuts',
     'shortcuts.panel.description':
@@ -1359,6 +1381,30 @@ export const DICTIONARIES = {
     'nowPlaying.label.queue': 'Warteschlange',
     'nowPlaying.label.subtitle': 'Untertitel',
     'nowPlaying.label.audio': 'Audio',
+    'nowPlayingEmbed.kicker': 'Iframe: Aktuelle Wiedergabe',
+    'nowPlayingEmbed.title': 'Aktuelle Wiedergabe einbetten',
+    'nowPlayingEmbed.description':
+      'Eine kompakte, iframe-sichere Ansicht des aktuellen Kodi-Players, die nur gespeicherte Chorus-Konfiguration nutzt.',
+    'nowPlayingEmbed.refresh.label': 'Player-Status aktualisieren',
+    'nowPlayingEmbed.refresh.aria': 'Player-Status aktualisieren',
+    'nowPlayingEmbed.host.kicker': 'Gespeicherter Host',
+    'nowPlayingEmbed.host.title': 'Gespeicherten Host verwenden',
+    'nowPlayingEmbed.host.status':
+      'Gespeicherter Host {label} wird verwendet. Zugangsdaten gespeichert: {credentials}.',
+    'nowPlayingEmbed.host.fallback': 'Gespeicherter Kodi-Host',
+    'nowPlayingEmbed.host.factsAria': 'Host-Zusammenfassung für die Aktuelle-Wiedergabe-Einbettung',
+    'nowPlayingEmbed.host.label': 'Host-Label',
+    'nowPlayingEmbed.host.credentials': 'Zugangsdaten',
+    'nowPlayingEmbed.host.credentialsValue': 'Zugangsdaten gespeichert: {value}',
+    'nowPlayingEmbed.setup.title': 'Einrichtung erforderlich',
+    'nowPlayingEmbed.setup.status':
+      'Einrichtung erforderlich, bevor die Aktuelle-Wiedergabe-Einbettung verbinden kann.',
+    'nowPlayingEmbed.setup.description':
+      'Speichere zuerst einen vertrauenswürdigen Kodi-Host in den Chorus-Einstellungen, bevor du diese Ansicht einbettest.',
+    'nowPlayingEmbed.queryRejected.singular': '{count} unsicherer URL-Parameter wurde blockiert.',
+    'nowPlayingEmbed.queryRejected.plural': '{count} unsichere URL-Parameter wurden blockiert.',
+    'nowPlayingEmbed.queryRejected.description':
+      'Aus Sicherheitsgründen können zugangsdatenähnliche Daten nicht in der URL konfiguriert werden. Nutze stattdessen gespeicherte Host-Einstellungen.',
     'shortcuts.eyebrow': 'Labor-Werkzeug',
     'shortcuts.panel.title': 'Wiedergabe-Kurzbefehle',
     'shortcuts.panel.description':
