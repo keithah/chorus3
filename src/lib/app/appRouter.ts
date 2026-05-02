@@ -338,6 +338,12 @@ export function parseAppRoute(
     return { kind: 'remote' };
   }
 
+  const chorus2VideoAlias = parseChorus2VideoAliasRoute(path);
+
+  if (chorus2VideoAlias) {
+    return chorus2VideoAlias;
+  }
+
   const chorus2Placeholder = parseChorus2PlaceholderRoute(path);
 
   if (chorus2Placeholder) {
@@ -500,6 +506,71 @@ export function navigateAppRoute(route: AppRoute, options: NavigateAppRouteOptio
   } catch {
     return false;
   }
+}
+
+function parseChorus2VideoAliasRoute(path: string): AppRoute | null {
+  const segments = path.split('/').filter(Boolean);
+
+  if (segments.length === 2 && segments[0] === 'movies' && segments[1] === 'recent') {
+    return { kind: 'video', route: { kind: 'videoMovies' } };
+  }
+
+  if (segments.length === 2 && segments[0] === 'tvshows' && segments[1] === 'recent') {
+    return { kind: 'video', route: { kind: 'videoTvShows' } };
+  }
+
+  if (segments[0] === 'movie') {
+    const movieid = parseSafeIntegerSegment(segments[1]);
+
+    return segments.length === 2 && movieid !== null
+      ? { kind: 'video', route: { kind: 'videoMovieDetail', movieid } }
+      : malformedChorus2VideoAliasRoute();
+  }
+
+  if (segments[0] === 'tvshow') {
+    const tvshowid = parseSafeIntegerSegment(segments[1]);
+    const season = parseSafeIntegerSegment(segments[2]);
+    const episodeid = parseSafeIntegerSegment(segments[3]);
+
+    if (segments.length === 2 && tvshowid !== null) {
+      return { kind: 'video', route: { kind: 'videoTvShowDetail', tvshowid } };
+    }
+
+    if (segments.length === 3 && tvshowid !== null && season !== null) {
+      return { kind: 'video', route: { kind: 'videoTvSeasonDetail', tvshowid, season } };
+    }
+
+    if (segments.length === 4 && tvshowid !== null && season !== null && episodeid !== null) {
+      return {
+        kind: 'video',
+        route: { kind: 'videoEpisodeDetail', tvshowid, season, episodeid }
+      };
+    }
+
+    return malformedChorus2VideoAliasRoute();
+  }
+
+  return null;
+}
+
+function malformedChorus2VideoAliasRoute(): AppRoute {
+  return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
+}
+
+function parseSafeIntegerSegment(segment: string | undefined): number | null {
+  if (typeof segment !== 'string') {
+    return null;
+  }
+
+  const decoded = safeDecode(segment).trim();
+
+  if (decoded !== segment || !/^\d+$/u.test(segment)) {
+    return null;
+  }
+
+  const parsed = Number(segment);
+
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parseChorus2PlaceholderRoute(path: string): Chorus2RoutePlaceholder | null {

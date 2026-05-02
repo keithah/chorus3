@@ -124,6 +124,69 @@ describe('parseAppRoute', () => {
     }
   });
 
+  test.each<[string, VideoRoute]>([
+    ['/movies/recent', { kind: 'videoMovies' }],
+    ['/tvshows/recent', { kind: 'videoTvShows' }],
+    ['/movie/4401', { kind: 'videoMovieDetail', movieid: 4401 }],
+    ['/tvshow/5501', { kind: 'videoTvShowDetail', tvshowid: 5501 }],
+    ['/tvshow/5501/1', { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 }],
+    [
+      '/tvshow/5501/1/6601',
+      { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
+    ]
+  ])('promotes safe Chorus2 video alias %s to an existing video route', (path, videoRoute) => {
+    expect(parseAppRoute(path, '?Authorization=Basic&ignored=1')).toEqual({
+      kind: 'video',
+      route: videoRoute
+    });
+    expect(unwrapVideoRoute(parseAppRoute(path))).toEqual(videoRoute);
+  });
+
+  test('parses package-mounted Chorus2 video aliases to the same promoted route identity', () => {
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/movie/4401', '?token=secret', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 4401 } });
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/tvshow/5501/1/6601', '?token=secret', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({
+      kind: 'video',
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
+    });
+  });
+
+  test('rejects malformed Chorus2 video aliases without leaking raw path or query payloads', () => {
+    const unsafeCases = [
+      '/movie/0',
+      '/movie/-1',
+      '/movie/1.5',
+      '/movie/9007199254740992',
+      '/movie/4401/stream',
+      '/movie/4401%2Fstream',
+      '/tvshow/5501/0',
+      '/tvshow/5501/-1',
+      '/tvshow/5501/1.5',
+      '/tvshow/5501/1/0',
+      '/tvshow/5501%2F1',
+      '/movie/Authorization',
+      '/movie/admin:p@ssword'
+    ];
+
+    for (const path of unsafeCases) {
+      expect(() => parseAppRoute(path, '?token=secret&Authorization=Basic')).not.toThrow();
+      const route = parseAppRoute(path, '?token=secret&Authorization=Basic');
+      const serialized = JSON.stringify(route);
+
+      expect(route.kind).not.toBe('video');
+      expect(serialized).not.toMatch(
+        /Authorization|Basic|admin:p@ssword|token=|secret|9007199254740992|4401%2Fstream|5501%2F1/i
+      );
+    }
+  });
+
   test('parses curated Chorus2 URLs to implemented routes or safe placeholders', () => {
     expect(parseAppRoute('/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
     expect(parseAppRoute('/tvshows')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
@@ -132,8 +195,6 @@ describe('parseAppRoute', () => {
     });
 
     const placeholderCases = [
-      ['/movies/recent', 'moviesRecent'],
-      ['/tvshows/recent', 'tvShowsRecent'],
       ['/playlists', 'playlists'],
       ['/help', 'help'],
       ['/help/overview', 'helpOverview'],

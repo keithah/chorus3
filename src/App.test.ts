@@ -7,6 +7,7 @@ import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
   getChorus2PlaceholderMetadata,
+  parseAppRoute,
   type AppRoute,
   type Chorus2RoutePlaceholder
 } from './lib/app/appRouter';
@@ -953,6 +954,8 @@ function createRemoteInputDispatch(
 
 const CHORUS2_PLACEHOLDER_FORBIDDEN_COPY =
   /Authorization|Basic|CHORUS3_SENTINEL_SECRET|sentinel_secret|admin:p@ssword|password|token|smb:\/\/|special:\/\/|https?:\/\/|localStorage|sessionStorage|JSONRPC\.Ping|jsonrpc|endpoint|body/i;
+const CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY =
+  /Authorization|Basic|CHORUS3_SENTINEL_SECRET|sentinel_secret|admin:p@ssword|token=|secret|smb:\/\/|special:\/\/|localStorage|sessionStorage|jsonrpc/i;
 
 function createEpisodeActionDispatch(
   overrides: Partial<VideoEpisodeActionDispatch> = {}
@@ -2157,6 +2160,51 @@ describe('App shell', () => {
     expect(target.querySelector('.settings-panel')).toBeNull();
     expect(target.textContent).toContain('Settings route not found');
     expect(target.textContent).not.toContain('Autoplay next item');
+  });
+
+  it('renders Chorus2 video aliases through existing video surfaces instead of parity placeholders', () => {
+    const moviesTarget = renderApp({
+      route: parseAppRoute('/movies/recent?Authorization=Basic'),
+      videoLibrarySnapshot: createVideoLibrarySnapshot({
+        recentlyAddedMovies: [createVideoLibrarySnapshot().movies[0]],
+        limits: {
+          recentlyAddedMovies: { start: 0, end: 1, total: 1 }
+        }
+      })
+    });
+
+    expect(getVideoMoviesPanelText(moviesTarget)).toContain('Video Movies');
+    expect(getVideoRecentPanelText(moviesTarget)).toContain('Recently added movies');
+    expect(moviesTarget.querySelector('.parity-placeholder')).toBeNull();
+    expect(moviesTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+
+    const movieDetailTarget = renderApp({
+      route: parseAppRoute('/addons/webinterface.chorus3/movie/4401?token=secret', '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      }),
+      videoLibrarySnapshot: createVideoLibrarySnapshot()
+    });
+
+    expect(getVideoDetailPanelText(movieDetailTarget)).toContain('Neon Harbor');
+    expect(getVideoDetailPanelText(movieDetailTarget)).toContain('Movie ID 4401');
+    expect(movieDetailTarget.querySelector('.parity-placeholder')).toBeNull();
+    expect(movieDetailTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);
+
+    unmount(mountedComponent!);
+    mountedComponent = undefined;
+
+    const episodeTarget = renderApp({
+      route: parseAppRoute('/tvshow/5501/1/6601?Authorization=Basic'),
+      videoTvSnapshot: createVideoTvSnapshot()
+    });
+
+    expect(getVideoEpisodeDetailText(episodeTarget)).toContain('Signal Mirror');
+    expect(getVideoEpisodeDetailText(episodeTarget)).toContain('Episode ID 6601');
+    expect(episodeTarget.querySelector('.parity-placeholder')).toBeNull();
+    expect(episodeTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);
   });
 
   it('renders the routed video movies grid with safe href detail links', () => {
