@@ -215,6 +215,70 @@ describe('Kodi package structural verification', () => {
     );
   });
 
+  it('rejects package-escaping Chorus2 asset references in staged HTML without echoing raw content', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]:
+          '<!doctype html><meta name="chorus3:kodi-webinterface" content="webinterface.chorus3"><script type="module" src="./assets/app.js"></script><img src="/chorus2-assets/themes/base/images/logo.png?token=secret-value">'
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[html-assets] dist/kodi/webinterface.chorus3/index.html must not reference root-absolute /chorus2-assets package-escaping assets.'
+    );
+    expect(result.lines.join('\n')).not.toContain('secret-value');
+    expect(result.lines.join('\n')).not.toContain('logo.png?token');
+  });
+
+  it('rejects package-escaping asset references in staged JavaScript and CSS while allowing relative Vite assets', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]:
+          'const logo = "/chorus2-assets/themes/base/images/logo.png"; const ok = "./assets/chunk.js";',
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]:
+          '@font-face { src: url("/fonts/opensans.woff2"); } .ok { background: url("../assets/bg.png"); }'
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.js must not reference root-absolute /chorus2-assets package-escaping assets.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.css must not reference root-absolute /fonts package-escaping assets.'
+    );
+    expect(result.lines.join('\n')).not.toContain('opensans.woff2');
+    expect(result.lines.join('\n')).not.toContain('logo.png');
+  });
+
+  it('rejects root-absolute image and theme references in staged bundles with package-relative diagnostics', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]:
+          'const legacyImage = "/images/fallback.png";',
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]:
+          '.legacy { background-image: url(/themes/base/images/backdrop.jpg); }'
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.js must not reference root-absolute /images package-escaping assets.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.css must not reference root-absolute /themes package-escaping assets.'
+    );
+    expect(result.lines.join('\n')).not.toContain('fallback.png');
+    expect(result.lines.join('\n')).not.toContain('backdrop.jpg');
+  });
+
   it('rejects missing Kodi webinterface marker in index.html', async () => {
     const root = createFixture(
       baseFiles({
@@ -298,7 +362,7 @@ describe('Kodi package structural verification', () => {
     );
   });
 
-  it('validates real app route support for packaged now-playing and remote paths', () => {
+  it('validates real app route support for packaged shell routes and placeholder identities', () => {
     const result = validatePackageRouteSupport({
       addonId: DEFAULT_PACKAGE_ROOT,
       parsePackageRoute: (path, packageBasePath) => parseAppRoute(path, '', { packageBasePath })
@@ -306,11 +370,37 @@ describe('Kodi package structural verification', () => {
 
     expect(KODI_WEBINTERFACE_BASE_PATH).toBe('/addons/webinterface.chorus3');
     expect(result.ok).toBe(true);
-    expect(result.lines).toContain(
-      '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
+    expect(result.lines).toEqual(
+      expect.arrayContaining([
+        '[route] /addons/webinterface.chorus3/ resolves to dashboard.',
+        '[route] /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
+        '[route] /addons/webinterface.chorus3/video/tv resolves to video/videoTvShows.',
+        '[route] /addons/webinterface.chorus3/browser resolves to chorus2Placeholder/browser.',
+        '[route] /addons/webinterface.chorus3/addons resolves to addons.',
+        '[route] /addons/webinterface.chorus3/remote resolves to remote.',
+        '[route] /addons/webinterface.chorus3/playlists resolves to chorus2Placeholder/playlists.',
+        '[route] /addons/webinterface.chorus3/settings resolves to settings.',
+        '[route] /addons/webinterface.chorus3/help resolves to chorus2Placeholder/help.',
+        '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
+      ])
     );
-    expect(result.lines).toContain(
-      '[route] /addons/webinterface.chorus3/remote resolves to remote.'
+  });
+
+  it('names expected nested route identity when a packaged shell route resolves incorrectly', () => {
+    const result = validatePackageRouteSupport({
+      addonId: DEFAULT_PACKAGE_ROOT,
+      parsePackageRoute: (path, packageBasePath) => {
+        if (path === `${packageBasePath}/playlists`) {
+          return { kind: 'chorus2Placeholder', placeholder: { id: 'help' } };
+        }
+
+        return parseAppRoute(path, '', { packageBasePath });
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route] /addons/webinterface.chorus3/playlists must resolve to chorus2Placeholder/playlists.'
     );
   });
 });

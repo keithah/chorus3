@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
 import { packageKodiWebinterface } from './package-kodi-webinterface.mjs';
@@ -59,6 +59,10 @@ const FORBIDDEN_BASENAMES = new Set([
 const FORBIDDEN_EXTENSIONS = /\.(?:svelte|ts|tsx)$/i;
 const TEST_FILE_PATTERN = /(?:^|[/.])(?:test|spec)\.[cm]?[jt]sx?$/i;
 const ROOT_ABSOLUTE_ASSET_PATTERN = /\b(?:src|href)=(['"])\/assets\//i;
+const PACKAGE_ESCAPING_ASSET_ROOTS = ['chorus2-assets', 'images', 'themes', 'fonts'];
+const PACKAGE_ESCAPING_ASSET_PATTERN =
+  /(?:["'(=:\s]|url\(\s*)(\/(?:chorus2-assets|images|themes|fonts)(?=\/|["')?\s]))/gi;
+const SCANNED_BUNDLE_EXTENSIONS = new Set(['.html', '.js', '.css']);
 const KODI_WEBINTERFACE_MARKER_PATTERN =
   /<meta\s+[^>]*name=(['"])chorus3:kodi-webinterface\1[^>]*content=(['"])webinterface\.chorus3\2/i;
 const CREDENTIAL_DOC_PATTERN =
@@ -93,6 +97,7 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
 
   validateManifest({ root, addonId, packageVersion, metadata, lines });
   validateHtmlAssets({ root, addonId, lines });
+  validateStagedBundleAssetReferences({ root, addonId, lines });
 
   const entries = Array.isArray(zipEntries)
     ? zipEntries
@@ -106,7 +111,7 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
   lines.push(...validateKodiPackageDocs({ root }).lines);
 
   const ok = !lines.some((line) =>
-    /^\[(?:metadata|manifest|html-assets|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
+    /^\[(?:metadata|manifest|html-assets|bundle-assets|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
       line
     )
   );
@@ -175,8 +180,16 @@ export function validatePackageRouteSupport({
 } = {}) {
   const packageBasePath = `/addons/${addonId}`;
   const routeChecks = [
-    { path: '/now-playing', kind: 'nowPlaying' },
-    { path: '/remote', kind: 'remote' }
+    { path: '/', expected: { kind: 'dashboard' } },
+    { path: '/video/movies', expected: { kind: 'video', routeKind: 'videoMovies' } },
+    { path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
+    { path: '/browser', expected: { kind: 'chorus2Placeholder', placeholderId: 'browser' } },
+    { path: '/addons', expected: { kind: 'addons' } },
+    { path: '/remote', expected: { kind: 'remote' } },
+    { path: '/playlists', expected: { kind: 'chorus2Placeholder', placeholderId: 'playlists' } },
+    { path: '/settings', expected: { kind: 'settings' } },
+    { path: '/help', expected: { kind: 'chorus2Placeholder', placeholderId: 'help' } },
+    { path: '/now-playing', expected: { kind: 'nowPlaying' } }
   ];
   const lines = [];
 
@@ -185,13 +198,14 @@ export function validatePackageRouteSupport({
     const route = parsePackageRoute
       ? parsePackageRoute(mountedPath, packageBasePath)
       : defaultPackageRouteParser(mountedPath, packageBasePath);
+    const expectedLabel = formatExpectedRouteIdentity(check.expected);
 
-    if (!route || route.kind !== check.kind) {
-      lines.push(`[route] ${mountedPath} must resolve to ${check.kind}.`);
+    if (!routeMatchesExpectedDescriptor(route, check.expected)) {
+      lines.push(`[route] ${mountedPath} must resolve to ${expectedLabel}.`);
       continue;
     }
 
-    lines.push(`[route] ${mountedPath} resolves to ${check.kind}.`);
+    lines.push(`[route] ${mountedPath} resolves to ${expectedLabel}.`);
   }
 
   return {
@@ -328,6 +342,66 @@ function validateHtmlAssets({ root, addonId, lines }) {
   lines.push('[html-assets] index.html uses relative asset URLs and Kodi webinterface marker.');
 }
 
+function validateStagedBundleAssetReferences({ root, addonId, lines }) {
+  const stageRoot = join(root, PACKAGE_ROOT, addonId);
+
+  if (!existsSync(stageRoot) || !statSync(stageRoot).isDirectory()) {
+    return;
+  }
+
+  const files = collectScannableBundleFiles(stageRoot);
+
+  for (const file of files) {
+    const relativePath = toPosixPath(relative(root, file));
+    const packageRelativePath = toPosixPath(relative(stageRoot, file));
+    const phase = packageRelativePath === 'index.html' ? 'html-assets' : 'bundle-assets';
+    const contents = readFileSync(file, 'utf8');
+    const escapingRoots = findPackageEscapingAssetRoots(contents);
+
+    for (const rootName of escapingRoots) {
+      lines.push(
+        `[${phase}] ${relativePath} must not reference root-absolute /${rootName} package-escaping assets.`
+      );
+    }
+  }
+}
+
+function collectScannableBundleFiles(stageRoot) {
+  const files = [];
+
+  function visit(path) {
+    const stats = statSync(path);
+
+    if (stats.isDirectory()) {
+      for (const entry of readdirSync(path).sort((left, right) => left.localeCompare(right))) {
+        visit(join(path, entry));
+      }
+      return;
+    }
+
+    if (stats.isFile() && SCANNED_BUNDLE_EXTENSIONS.has(getExtension(path))) {
+      files.push(path);
+    }
+  }
+
+  visit(stageRoot);
+  return files;
+}
+
+function findPackageEscapingAssetRoots(contents) {
+  const roots = new Set();
+
+  for (const match of contents.matchAll(PACKAGE_ESCAPING_ASSET_PATTERN)) {
+    const matchedRoot = match[1]?.slice(1);
+
+    if (PACKAGE_ESCAPING_ASSET_ROOTS.includes(matchedRoot)) {
+      roots.add(matchedRoot);
+    }
+  }
+
+  return [...roots];
+}
+
 function validateArchiveEntries({ entries, addonId, lines }) {
   const normalizedEntries = entries.map(normalizeArchiveEntry).filter(Boolean);
   const rootPrefix = `${addonId}/`;
@@ -439,11 +513,72 @@ function defaultPackageRouteParser(path, packageBasePath) {
   const normalizedPath = normalizePath(path);
   const stripped =
     normalizedPath === normalizedBase ? '/' : normalizedPath.slice(normalizedBase.length);
-  return stripped === '/now-playing'
-    ? { kind: 'nowPlaying' }
-    : stripped === '/remote'
-      ? { kind: 'remote' }
-      : { kind: 'dashboard' };
+
+  switch (stripped) {
+    case '/':
+      return { kind: 'dashboard' };
+    case '/video/movies':
+      return { kind: 'video', route: { kind: 'videoMovies' } };
+    case '/video/tv':
+      return { kind: 'video', route: { kind: 'videoTvShows' } };
+    case '/browser':
+      return { kind: 'chorus2Placeholder', placeholder: { id: 'browser' } };
+    case '/addons':
+      return { kind: 'addons' };
+    case '/remote':
+      return { kind: 'remote' };
+    case '/playlists':
+      return { kind: 'chorus2Placeholder', placeholder: { id: 'playlists' } };
+    case '/settings':
+      return { kind: 'settings' };
+    case '/help':
+      return { kind: 'chorus2Placeholder', placeholder: { id: 'help' } };
+    case '/now-playing':
+      return { kind: 'nowPlaying' };
+    default:
+      return { kind: 'dashboard' };
+  }
+}
+
+function routeMatchesExpectedDescriptor(route, expected) {
+  if (!route || typeof route !== 'object' || route.kind !== expected.kind) {
+    return false;
+  }
+
+  if (expected.routeKind) {
+    return (
+      route.route && typeof route.route === 'object' && route.route.kind === expected.routeKind
+    );
+  }
+
+  if (expected.placeholderId) {
+    return (
+      route.placeholder &&
+      typeof route.placeholder === 'object' &&
+      route.placeholder.id === expected.placeholderId
+    );
+  }
+
+  return true;
+}
+
+function formatExpectedRouteIdentity(expected) {
+  if (expected.routeKind) {
+    return `${expected.kind}/${expected.routeKind}`;
+  }
+
+  if (expected.placeholderId) {
+    return `${expected.kind}/${expected.placeholderId}`;
+  }
+
+  return expected.kind;
+}
+
+function getExtension(path) {
+  const name = String(path).split(/[\\/]/).at(-1) ?? '';
+  const dotIndex = name.lastIndexOf('.');
+
+  return dotIndex === -1 ? '' : name.slice(dotIndex).toLowerCase();
 }
 
 function normalizePath(path) {
