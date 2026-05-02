@@ -89,7 +89,7 @@ const FORBIDDEN_LITERAL_PATTERNS = [
   },
   {
     label: 'browser storage object internals',
-    pattern: /\b(?:localStorage|sessionStorage)\s*[\[.]/
+    pattern: /\b(?:localStorage|sessionStorage)\s*[[.]/
   },
   {
     label: 'raw JSON-RPC object literals',
@@ -145,7 +145,9 @@ describe('M006 final proof documentation contract', () => {
     }
 
     for (const requirementId of REQUIRED_REQUIREMENTS) {
-      expect(doc, `${DOC_PATH} must include requirement ${requirementId}.`).toContain(requirementId);
+      expect(doc, `${DOC_PATH} must include requirement ${requirementId}.`).toContain(
+        requirementId
+      );
     }
 
     for (const term of REQUIRED_COVERAGE_TERMS) {
