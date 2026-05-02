@@ -2021,4 +2021,26 @@
       display: none;
     }
   }
+
+  @media (max-height: 420px) {
+    .c2-rail {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      scrollbar-width: none;
+    }
+
+    .c2-rail::-webkit-scrollbar {
+      display: none;
+    }
+
+    .c2-rail nav {
+      padding-block: 0;
+    }
+
+    .c2-rail a:hover::after,
+    .c2-rail a.active::after {
+      display: none;
+    }
+  }
 </style>

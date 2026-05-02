@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -1725,6 +1727,27 @@ describe('App shell', () => {
       Settings: '/settings',
       Help: '/help'
     });
+  });
+
+  it('keeps package shell rail vertically reachable on short landscape viewports', () => {
+    const source = readFileSync('src/App.svelte', 'utf8');
+    const mediaStart = source.indexOf('@media (max-height: 420px)');
+    const nextMediaStart = source.indexOf('@media', mediaStart + 1);
+    const shortHeightRule =
+      mediaStart >= 0
+        ? source.slice(mediaStart, nextMediaStart >= 0 ? nextMediaStart : undefined)
+        : '';
+
+    expect(shortHeightRule, 'short-height package shell media query').toContain('.c2-rail');
+    expect(shortHeightRule, 'rail scrolls instead of being clipped').toMatch(
+      /overflow-y\s*:\s*auto/u
+    );
+    expect(shortHeightRule, 'rail scroll gestures stay contained').toMatch(
+      /overscroll-behavior(?:-y)?\s*:\s*contain/u
+    );
+    expect(shortHeightRule, 'hover labels cannot widen phone landscape layouts').toMatch(
+      /\.c2-rail\s+a(?::hover|\.active)::after[\s\S]*display\s*:\s*none/u
+    );
   });
 
   it('renders the standalone now-playing embed route with injected safe host, query, player props, and refresh dispatch', async () => {
