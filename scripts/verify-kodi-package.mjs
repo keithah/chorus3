@@ -81,9 +81,10 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
   }
 
   validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines });
+  lines.push(...validateKodiPackageDocs({ root }).lines);
 
   const ok = !lines.some((line) =>
-    /^\[(?:metadata|manifest|html-assets|archive|forbidden|zip-listing|now-playing|route)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
+    /^\[(?:metadata|manifest|html-assets|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
       line
     )
   );

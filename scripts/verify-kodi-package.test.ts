@@ -48,6 +48,13 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]: ':root { color-scheme: dark; }',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`]:
       '<!doctype html><main>Now playing</main>',
+    [DEFAULT_DOC_PATH]: [
+      '# M005 Kodi package UAT',
+      'Run `npm run verify`, `npm run package:kodi`, and `npm run verify:kodi-package`.',
+      'The zip is `dist/kodi/webinterface.chorus3-<version>.zip`.',
+      'See docs/m005-now-playing-uat.md for packaged /now-playing checks.',
+      'Use http://kodi.local:8080/addons/webinterface.chorus3/ without URL credentials.'
+    ].join('\n'),
     ...overrides
   };
 }
