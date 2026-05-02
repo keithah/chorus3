@@ -63,7 +63,6 @@ afterEach(() => {
 
 describe('ParityPlaceholder', () => {
   it.each([
-    ['remote', 'Chorus2 Remote', 'remote', 'missing', 'M006/S02'],
     ['help', 'Chorus2 Help', 'help', 'missing', 'M006/S02'],
     ['playlists', 'Chorus2 Playlists', 'playlists', 'deferred', 'R055/M006/S04'],
     [
@@ -102,8 +101,8 @@ describe('ParityPlaceholder', () => {
 
   it('ignores unsafe diagnostic-shaped fields that are not part of the curated component contract', () => {
     const unsafePlaceholder = {
-      ...requirePlaceholder('remote'),
-      pathname: '/remote?token=CHORUS3_SENTINEL_SECRET',
+      ...requirePlaceholder('help'),
+      pathname: '/help?token=CHORUS3_SENTINEL_SECRET',
       search: '?password=admin:p@ssword&url=smb://nas/private',
       endpoint: 'http://admin:p@ssword@kodi.local/jsonrpc',
       body: '{"jsonrpc":"2.0","method":"JSONRPC.Ping"}',

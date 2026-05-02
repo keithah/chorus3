@@ -184,7 +184,13 @@ describe('createM005BrowserProofAppProps', () => {
     expect(apiBrowser.labApiBrowserSnapshot?.rawRequestJson).toContain('Player.Open');
     expect(apiBrowser.labApiBrowserSnapshot?.rawResponseJson).toContain('redactedField1');
     expect(apiBrowser.labApiBrowserSnapshot?.lastError?.message).toContain('Confirm this mutating');
-    expect(unsafe.route.kind).toBe('labUnknown');
+    expect(unsafe.route.kind).toBe('chorus2Placeholder');
+    expect(unsafe.route).toMatchObject({
+      placeholder: {
+        id: 'labApiBrowserMethod',
+        surface: 'lab/api-browser/:method'
+      }
+    });
     expect(unsafe.labApiBrowserSnapshot).toBeUndefined();
     expect(JSON.stringify(unsafe.route)).not.toMatch(
       /admin:p@ssword|Authorization|Basic|SENTINEL_SECRET|token=/i

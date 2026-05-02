@@ -11,18 +11,18 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | kind | implemented | missing | deferred | out-of-scope | total |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| route | 9 | 30 | 39 | 0 | 78 |
+| route | 11 | 28 | 39 | 0 | 78 |
 | nav | 1 | 49 | 33 | 0 | 83 |
-| control | 0 | 23 | 0 | 0 | 23 |
-| action | 2 | 115 | 115 | 0 | 232 |
-| jsonrpc | 22 | 50 | 70 | 0 | 142 |
+| control | 10 | 13 | 0 | 0 | 23 |
+| action | 3 | 114 | 115 | 0 | 232 |
+| jsonrpc | 31 | 41 | 70 | 0 | 142 |
 
 ## Totals by Status
 
 | status | count |
 | --- | ---: |
-| implemented | 34 |
-| missing | 267 |
+| implemented | 56 |
+| missing | 245 |
 | deferred | 257 |
 | out-of-scope | 0 |
 
@@ -541,26 +541,26 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:input:input-textbox-close` | action | `input:textbox:close` | missing | M006/S03 | `src/js/apps/input/input_app.js.coffee:135` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:action` | jsonrpc | `Input.Action` | missing | M006/S03 | `src/js/apps/input/input_app.js.coffee:24` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:all` | jsonrpc | `Input.all` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
-| `jsonrpc:input:back` | jsonrpc | `Input.Back` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `jsonrpc:input:context-menu` | jsonrpc | `Input.ContextMenu` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `jsonrpc:input:down` | jsonrpc | `Input.Down` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `jsonrpc:input:back` | jsonrpc | `Input.Back` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
+| `jsonrpc:input:context-menu` | jsonrpc | `Input.ContextMenu` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
+| `jsonrpc:input:down` | jsonrpc | `Input.Down` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
 | `jsonrpc:input:execute-action` | jsonrpc | `Input.ExecuteAction` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `jsonrpc:input:google` | jsonrpc | `Input.google` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
-| `jsonrpc:input:home` | jsonrpc | `Input.Home` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `jsonrpc:input:home` | jsonrpc | `Input.Home` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
 | `jsonrpc:input:imdb` | jsonrpc | `Input.imdb` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
-| `jsonrpc:input:info` | jsonrpc | `Input.Info` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `jsonrpc:input:left` | jsonrpc | `Input.Left` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `jsonrpc:input:info` | jsonrpc | `Input.Info` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
+| `jsonrpc:input:left` | jsonrpc | `Input.Left` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
 | `jsonrpc:input:on-input-finished` | jsonrpc | `Input.OnInputFinished` | missing | M006/S03 | `src/js/apps/state/kodi/notifications.js.coffee:215` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:on-input-requested` | jsonrpc | `Input.OnInputRequested` | missing | M006/S03 | `src/js/apps/state/kodi/notifications.js.coffee:197` | Remote/Input parity backlog from Chorus2 source scan. |
-| `jsonrpc:input:right` | jsonrpc | `Input.Right` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `jsonrpc:input:select` | jsonrpc | `Input.Select` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `jsonrpc:input:right` | jsonrpc | `Input.Right` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
+| `jsonrpc:input:select` | jsonrpc | `Input.Select` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
 | `jsonrpc:input:send-text` | jsonrpc | `Input.SendText` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `jsonrpc:input:soundcloud` | jsonrpc | `Input.soundcloud` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:stop` | jsonrpc | `Input.Stop` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:tmdb` | jsonrpc | `Input.tmdb` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
 | `jsonrpc:input:tvdb` | jsonrpc | `Input.tvdb` | missing | M006/S03 | `src/js/apps/command/kodi/helpers/input.js.coffee:7` | Remote/Input parity backlog from Chorus2 source scan. |
-| `jsonrpc:input:up` | jsonrpc | `Input.Up` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `route:input:remote` | route | `remote` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `jsonrpc:input:up` | jsonrpc | `Input.Up` | implemented | M006/S03 | `src/lib/kodi/methods.test.ts`<br>`src/lib/kodi/methods.ts`<br>`src/lib/stores/remoteInputDispatch.svelte.ts`<br>`src/lib/stores/remoteInputDispatch.test.ts` |  |
+| `route:input:remote` | route | `remote` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/lib/components/RemoteInputPanel.svelte` | Remote/Input route renders the bounded remote panel and is package-base aware. |
 
 ## Family: introspect
 
@@ -890,28 +890,28 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `action:remote:input-remote-controls` | action | `input remote controls` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `action:remote:input-remote-controls` | action | `input remote controls` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/stores/remoteInputDispatch.svelte.ts` | Remote/Input controls dispatch through the bounded command snapshot store. |
 | `control:remote:all` | control | `all` | missing | M006/S03 | `src/js/helpers/entities.js.coffee:74` | Remote/Input parity backlog from Chorus2 source scan. |
-| `control:remote:back` | control | `back` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `control:remote:context-menu` | control | `ContextMenu` | missing | M006/S03 | `src/js/apps/input/remote/tpl/remote_control.jst.eco:19` | Remote/Input parity backlog from Chorus2 source scan. |
-| `control:remote:contextmenu` | control | `contextmenu` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `control:remote:down` | control | `down` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `control:remote:back` | control | `back` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
+| `control:remote:context-menu` | control | `ContextMenu` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input context menu command rendered and tested on the real remote panel. |
+| `control:remote:contextmenu` | control | `contextmenu` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
+| `control:remote:down` | control | `down` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
 | `control:remote:executeaction` | control | `executeaction` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `control:remote:google` | control | `google` | missing | M006/S03 | `src/js/apps/album/show/tpl/details_meta.jst.eco:47`<br>`src/js/apps/artist/show/tpl/details_meta.jst.eco:51`<br>`src/js/apps/movie/show/tpl/details_meta.jst.eco:77`<br>`src/js/apps/musicvideo/show/tpl/details_meta.jst.eco:50`<br>`src/js/apps/tvshow/episode/tpl/details_meta.jst.eco:83`<br>`src/js/apps/tvshow/show/tpl/details_meta.jst.eco:45` | Remote/Input parity backlog from Chorus2 source scan. |
-| `control:remote:home` | control | `home` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `control:remote:home` | control | `home` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
 | `control:remote:imdb` | control | `imdb` | missing | M006/S03 | `src/js/apps/movie/show/tpl/details_meta.jst.eco:78`<br>`src/js/apps/tvshow/episode/tpl/details_meta.jst.eco:84`<br>`src/js/apps/tvshow/show/tpl/details_meta.jst.eco:46` | Remote/Input parity backlog from Chorus2 source scan. |
-| `control:remote:info` | control | `info` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `control:remote:left` | control | `left` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `control:remote:info` | control | `info` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
+| `control:remote:left` | control | `left` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
 | `control:remote:osd` | control | `osd` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `control:remote:playpause` | control | `playpause` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `control:remote:right` | control | `right` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
-| `control:remote:select` | control | `select` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `control:remote:right` | control | `right` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
+| `control:remote:select` | control | `select` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
 | `control:remote:sendtext` | control | `sendtext` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `control:remote:soundcloud` | control | `soundcloud` | missing | M006/S03 | `src/js/apps/album/show/tpl/details_meta.jst.eco:48`<br>`src/js/apps/artist/show/tpl/details_meta.jst.eco:52` | Remote/Input parity backlog from Chorus2 source scan. |
 | `control:remote:stop` | control | `stop` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `control:remote:tmdb` | control | `tmdb` | missing | M006/S03 | `src/js/apps/movie/show/tpl/details_meta.jst.eco:79`<br>`src/js/apps/tvshow/episode/tpl/details_meta.jst.eco:86`<br>`src/js/apps/tvshow/show/tpl/details_meta.jst.eco:48` | Remote/Input parity backlog from Chorus2 source scan. |
 | `control:remote:tvdb` | control | `tvdb` | missing | M006/S03 | `src/js/apps/tvshow/episode/tpl/details_meta.jst.eco:85`<br>`src/js/apps/tvshow/show/tpl/details_meta.jst.eco:47` | Remote/Input parity backlog from Chorus2 source scan. |
-| `control:remote:up` | control | `up` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
+| `control:remote:up` | control | `up` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/components/RemoteInputPanel.svelte`<br>`src/lib/components/RemoteInputPanel.test.ts` | Bounded Remote/Input command rendered and tested on the real remote panel. |
 | `control:remote:volumedown` | control | `volumedown` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 | `control:remote:volumeup` | control | `volumeup` | missing | M006/S03 | `scripts/scan-chorus2-parity.mjs` |  |
 
@@ -919,7 +919,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:remote-page:remote` | route | `remote` | missing | M006/S02 | `src/js/apps/input/input_app.js.coffee:6` | Route/menu alias backlog from Chorus2 source scan. |
+| `route:remote-page:remote` | route | `remote` | implemented | M006/S03 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/lib/components/RemoteInputPanel.svelte` | Chorus2 remote page alias is now the bounded Remote/Input route. |
 
 ## Family: screen-shot
 

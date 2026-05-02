@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
+import { packageKodiWebinterface } from './package-kodi-webinterface.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -62,6 +63,25 @@ const KODI_WEBINTERFACE_MARKER_PATTERN =
   /<meta\s+[^>]*name=(['"])chorus3:kodi-webinterface\1[^>]*content=(['"])webinterface\.chorus3\2/i;
 const CREDENTIAL_DOC_PATTERN =
   /(?:\b(?:username|password|token)=|:\/\/[^\s/@]+:[^\s/@]+@|\bAuthorization\b|\bBasic\s+)/i;
+
+export async function runKodiPackageVerification({
+  root = cwd(),
+  packageBeforeValidate = packageKodiWebinterface,
+  validate = validateKodiPackage
+} = {}) {
+  const packageResult = await packageBeforeValidate({ root });
+
+  if (!packageResult.ok) {
+    return packageResult;
+  }
+
+  const validationResult = await validate({ root });
+
+  return {
+    ok: validationResult.ok,
+    lines: [...packageResult.lines, ...validationResult.lines]
+  };
+}
 
 export async function validateKodiPackage({ root = cwd(), zipEntries, parsePackageRoute } = {}) {
   const lines = [];
@@ -154,18 +174,30 @@ export function validatePackageRouteSupport({
   parsePackageRoute
 } = {}) {
   const packageBasePath = `/addons/${addonId}`;
-  const route = parsePackageRoute
-    ? parsePackageRoute(`${packageBasePath}/now-playing`, packageBasePath)
-    : defaultPackageRouteParser(`${packageBasePath}/now-playing`, packageBasePath);
+  const routeChecks = [
+    { path: '/now-playing', kind: 'nowPlaying' },
+    { path: '/remote', kind: 'remote' }
+  ];
+  const lines = [];
 
-  if (!route || route.kind !== 'nowPlaying') {
-    return {
-      ok: false,
-      lines: [`[route] ${packageBasePath}/now-playing must resolve to nowPlaying.`]
-    };
+  for (const check of routeChecks) {
+    const mountedPath = `${packageBasePath}${check.path}`;
+    const route = parsePackageRoute
+      ? parsePackageRoute(mountedPath, packageBasePath)
+      : defaultPackageRouteParser(mountedPath, packageBasePath);
+
+    if (!route || route.kind !== check.kind) {
+      lines.push(`[route] ${mountedPath} must resolve to ${check.kind}.`);
+      continue;
+    }
+
+    lines.push(`[route] ${mountedPath} resolves to ${check.kind}.`);
   }
 
-  return { ok: true, lines: [`[route] ${packageBasePath}/now-playing resolves to nowPlaying.`] };
+  return {
+    ok: lines.every((line) => !line.includes(' must ')),
+    lines
+  };
 }
 
 export function validateKodiPackageDocs({ root = cwd(), docPath = DEFAULT_DOC_PATH } = {}) {
@@ -407,7 +439,11 @@ function defaultPackageRouteParser(path, packageBasePath) {
   const normalizedPath = normalizePath(path);
   const stripped =
     normalizedPath === normalizedBase ? '/' : normalizedPath.slice(normalizedBase.length);
-  return stripped === '/now-playing' ? { kind: 'nowPlaying' } : { kind: 'dashboard' };
+  return stripped === '/now-playing'
+    ? { kind: 'nowPlaying' }
+    : stripped === '/remote'
+      ? { kind: 'remote' }
+      : { kind: 'dashboard' };
 }
 
 function normalizePath(path) {
@@ -460,7 +496,7 @@ const invokedPath = argv[1] ? pathToFileURL(argv[1]).href : undefined;
 const modulePath = pathToFileURL(fileURLToPath(import.meta.url)).href;
 
 if (invokedPath === modulePath) {
-  const result = await validateKodiPackage();
+  const result = await runKodiPackageVerification();
   const output = result.ok ? console.log : console.error;
 
   for (const line of result.lines) {

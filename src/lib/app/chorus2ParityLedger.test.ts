@@ -182,7 +182,15 @@ describe('CHORUS2_PARITY_LEDGER', () => {
     expect(getChorus2ParityRowById('route:addon:addons-addonid')?.status).toBe('implemented');
     expect(getChorus2ParityRowById('route:movie:movies')?.status).not.toBe('implemented');
     expect(getChorus2ParityRowById('route:tvshow:tvshows')?.status).not.toBe('implemented');
-    expect(getChorus2ParityRowById('route:input:remote')?.status).toBe('missing');
+    const remoteRoute = getChorus2ParityRowById('route:input:remote');
+    expect(remoteRoute?.status).toBe('implemented');
+    expect(remoteRoute?.evidence).toEqual(
+      expect.arrayContaining([
+        'src/lib/app/appRouter.ts',
+        'src/lib/components/RemoteInputPanel.svelte',
+        'src/App.test.ts'
+      ])
+    );
   });
 
   test('covers required nav/menu surfaces', () => {
@@ -201,7 +209,7 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       );
     }
 
-    for (const control of [
+    const implementedRemoteControls = [
       'left',
       'up',
       'right',
@@ -211,12 +219,62 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       'contextmenu',
       'info',
       'home'
-    ]) {
+    ];
+
+    for (const control of implementedRemoteControls) {
+      const row = rowsForSurface('control', control)[0];
+      expect(row, `missing remote control ${control}`).toBeDefined();
+      expect(row?.status, `remote control ${control} status`).toBe('implemented');
+      expect(row?.owner, `remote control ${control} owner`).toBe('M006/S03');
+      expect(row?.evidence, `remote control ${control} evidence`).toEqual(
+        expect.arrayContaining([
+          'src/lib/components/RemoteInputPanel.svelte',
+          'src/lib/components/RemoteInputPanel.test.ts',
+          'src/App.test.ts'
+        ])
+      );
+    }
+
+    for (const control of ['sendtext', 'executeaction', 'osd', 'playpause', 'stop', 'volumeup', 'volumedown']) {
       const row = rowsForSurface('control', control)[0];
       expect(row, `missing remote control ${control}`).toBeDefined();
       expect(row?.status, `remote control ${control} status`).toBe('missing');
       expect(row?.owner, `remote control ${control} owner`).toBe('M006/S03');
     }
+
+    for (const method of implementedRemoteControls.map((control) =>
+      control === 'contextmenu'
+        ? 'Input.ContextMenu'
+        : `Input.${control.charAt(0).toUpperCase()}${control.slice(1)}`
+    )) {
+      const row = rowsForSurface('jsonrpc', method)[0];
+      expect(row, `${method} row`).toBeDefined();
+      expect(row?.status, `${method} status`).toBe('implemented');
+      expect(row?.evidence, `${method} evidence`).toEqual(
+        expect.arrayContaining([
+          'src/lib/kodi/methods.ts',
+          'src/lib/kodi/methods.test.ts',
+          'src/lib/stores/remoteInputDispatch.svelte.ts',
+          'src/lib/stores/remoteInputDispatch.test.ts'
+        ])
+      );
+    }
+
+    for (const method of ['Input.SendText', 'Input.ExecuteAction']) {
+      const row = rowsForSurface('jsonrpc', method)[0];
+      expect(row?.status, `${method} status`).toBe('missing');
+      expect(row?.owner, `${method} owner`).toBe('M006/S03');
+    }
+
+    const inputRemoteAction = getChorus2ParityRowById('action:remote:input-remote-controls');
+    expect(inputRemoteAction?.status).toBe('implemented');
+    expect(inputRemoteAction?.evidence).toEqual(
+      expect.arrayContaining([
+        'src/lib/components/RemoteInputPanel.svelte',
+        'src/lib/stores/remoteInputDispatch.svelte.ts',
+        'src/App.test.ts'
+      ])
+    );
 
     for (const method of [
       'Application.Quit',

@@ -11,7 +11,8 @@ import {
   listZipEntries,
   validateKodiPackage,
   validateKodiPackageDocs,
-  validatePackageRouteSupport
+  validatePackageRouteSupport,
+  runKodiPackageVerification
 } from './verify-kodi-package.mjs';
 
 const testRoots: string[] = [];
@@ -105,6 +106,48 @@ afterEach(() => {
 });
 
 describe('Kodi package structural verification', () => {
+  it('packages built dist artifacts before validating the CLI verification contract', async () => {
+    const packageBeforeValidate = vi.fn(async () => ({
+      ok: true,
+      lines: ['[staging] staged package from dist.']
+    }));
+    const validate = vi.fn(async () => ({
+      ok: true,
+      lines: ['[route] /addons/webinterface.chorus3/remote resolves to remote.']
+    }));
+
+    const result = await runKodiPackageVerification({
+      root: '/fixture-root',
+      packageBeforeValidate,
+      validate
+    });
+
+    expect(result.ok).toBe(true);
+    expect(packageBeforeValidate).toHaveBeenCalledWith({ root: '/fixture-root' });
+    expect(validate).toHaveBeenCalledWith({ root: '/fixture-root' });
+    expect(result.lines).toEqual([
+      '[staging] staged package from dist.',
+      '[route] /addons/webinterface.chorus3/remote resolves to remote.'
+    ]);
+  });
+
+  it('fails before validation when package staging cannot be created from build output', async () => {
+    const packageBeforeValidate = vi.fn(async () => ({
+      ok: false,
+      lines: ['[build-output] missing required build output dist/index.html; run npm run build before packaging.']
+    }));
+    const validate = vi.fn(async () => ({ ok: true, lines: [] }));
+
+    const result = await runKodiPackageVerification({
+      root: '/fixture-root',
+      packageBeforeValidate,
+      validate
+    });
+
+    expect(result.ok).toBe(false);
+    expect(validate).not.toHaveBeenCalled();
+    expect(result.lines.join('\n')).toContain('run npm run build before packaging');
+  });
   it('accepts a staged package and zip listing with manifest, relative assets, and now-playing output', async () => {
     const root = createFixture(baseFiles());
 
@@ -253,7 +296,7 @@ describe('Kodi package structural verification', () => {
     );
   });
 
-  it('validates real app route support for packaged now-playing paths', () => {
+  it('validates real app route support for packaged now-playing and remote paths', () => {
     const result = validatePackageRouteSupport({
       addonId: DEFAULT_PACKAGE_ROOT,
       parsePackageRoute: (path, packageBasePath) => parseAppRoute(path, '', { packageBasePath })
@@ -261,6 +304,10 @@ describe('Kodi package structural verification', () => {
 
     expect(KODI_WEBINTERFACE_BASE_PATH).toBe('/addons/webinterface.chorus3');
     expect(result.ok).toBe(true);
+    expect(result.lines).toContain(
+      '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
+    );
+    expect(result.lines).toContain('[route] /addons/webinterface.chorus3/remote resolves to remote.');
   });
 });
 

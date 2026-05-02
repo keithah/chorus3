@@ -26,6 +26,23 @@ type RowInput = Omit<Chorus2ParityRow, 'evidence'> & {
 };
 
 const APP_ROUTER_EVIDENCE = ['src/lib/app/appRouter.ts'];
+const APP_REMOTE_ROUTE_EVIDENCE = [
+  'src/App.test.ts',
+  'src/lib/app/appRouter.ts',
+  'src/lib/app/appRouter.test.ts',
+  'src/lib/components/RemoteInputPanel.svelte'
+];
+const REMOTE_INPUT_PANEL_EVIDENCE = [
+  'src/App.test.ts',
+  'src/lib/components/RemoteInputPanel.svelte',
+  'src/lib/components/RemoteInputPanel.test.ts'
+];
+const REMOTE_INPUT_DISPATCH_EVIDENCE = [
+  'src/lib/kodi/methods.ts',
+  'src/lib/kodi/methods.test.ts',
+  'src/lib/stores/remoteInputDispatch.svelte.ts',
+  'src/lib/stores/remoteInputDispatch.test.ts'
+];
 const VIDEO_ROUTER_EVIDENCE = ['src/lib/video/videoRouter.ts'];
 const KODI_METHODS_EVIDENCE = ['src/lib/kodi/methods.ts'];
 const SCANNER_EVIDENCE = ['scripts/scan-chorus2-parity.mjs'];
@@ -153,8 +170,10 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'input',
     surface: 'remote',
-    status: 'missing',
-    owner: 'M006/S03'
+    status: 'implemented',
+    owner: 'M006/S03',
+    evidence: APP_REMOTE_ROUTE_EVIDENCE,
+    notes: 'Remote/Input route renders the bounded remote panel and is package-base aware.'
   }),
   row({
     id: 'route:lab:lab-shortcuts',
@@ -337,15 +356,32 @@ const CONTROL_SURFACES = [
   'volumedown'
 ] as const;
 
+const IMPLEMENTED_REMOTE_CONTROL_SURFACES = new Set<string>([
+  'left',
+  'up',
+  'right',
+  'down',
+  'back',
+  'select',
+  'contextmenu',
+  'info',
+  'home'
+]);
+
 const CONTROL_ROWS = CONTROL_SURFACES.map((surface) =>
   row({
     id: `control:remote:${surface}`,
     kind: 'control',
     family: 'remote',
     surface,
-    status: 'missing',
+    status: IMPLEMENTED_REMOTE_CONTROL_SURFACES.has(surface) ? 'implemented' : 'missing',
     owner: 'M006/S03',
-    evidence: SCANNER_EVIDENCE
+    evidence: IMPLEMENTED_REMOTE_CONTROL_SURFACES.has(surface)
+      ? REMOTE_INPUT_PANEL_EVIDENCE
+      : SCANNER_EVIDENCE,
+    notes: IMPLEMENTED_REMOTE_CONTROL_SURFACES.has(surface)
+      ? 'Bounded Remote/Input command rendered and tested on the real remote panel.'
+      : undefined
   })
 );
 
@@ -355,8 +391,14 @@ const ACTION_ROWS = [
     kind: 'action',
     family: 'remote',
     surface: 'input remote controls',
-    status: 'missing',
-    owner: 'M006/S03'
+    status: 'implemented',
+    owner: 'M006/S03',
+    evidence: [
+      'src/App.test.ts',
+      'src/lib/components/RemoteInputPanel.svelte',
+      'src/lib/stores/remoteInputDispatch.svelte.ts'
+    ],
+    notes: 'Remote/Input controls dispatch through the bounded command snapshot store.'
   }),
   row({
     id: 'action:player:playback-commands',
@@ -403,16 +445,28 @@ const ACTION_ROWS = [
   })
 ] as const;
 
+const IMPLEMENTED_REMOTE_INPUT_METHODS = new Set<string>([
+  'Input.Left',
+  'Input.Up',
+  'Input.Right',
+  'Input.Down',
+  'Input.Back',
+  'Input.Select',
+  'Input.ContextMenu',
+  'Input.Info',
+  'Input.Home'
+]);
+
 const JSON_RPC_METHODS = [
-  ['Input.Left', 'missing', 'M006/S03'],
-  ['Input.Up', 'missing', 'M006/S03'],
-  ['Input.Right', 'missing', 'M006/S03'],
-  ['Input.Down', 'missing', 'M006/S03'],
-  ['Input.Back', 'missing', 'M006/S03'],
-  ['Input.Select', 'missing', 'M006/S03'],
-  ['Input.ContextMenu', 'missing', 'M006/S03'],
-  ['Input.Info', 'missing', 'M006/S03'],
-  ['Input.Home', 'missing', 'M006/S03'],
+  ['Input.Left', 'implemented', 'M006/S03'],
+  ['Input.Up', 'implemented', 'M006/S03'],
+  ['Input.Right', 'implemented', 'M006/S03'],
+  ['Input.Down', 'implemented', 'M006/S03'],
+  ['Input.Back', 'implemented', 'M006/S03'],
+  ['Input.Select', 'implemented', 'M006/S03'],
+  ['Input.ContextMenu', 'implemented', 'M006/S03'],
+  ['Input.Info', 'implemented', 'M006/S03'],
+  ['Input.Home', 'implemented', 'M006/S03'],
   ['Input.SendText', 'missing', 'M006/S03'],
   ['Input.ExecuteAction', 'missing', 'M006/S03'],
   ['Player.PlayPause', 'implemented', 'M006/S01'],
@@ -469,7 +523,11 @@ const JSON_RPC_ROWS = JSON_RPC_METHODS.map(([surface, status, owner]) => {
     surface,
     status,
     owner,
-    evidence: implemented ? KODI_METHODS_EVIDENCE : SCANNER_EVIDENCE,
+    evidence: IMPLEMENTED_REMOTE_INPUT_METHODS.has(surface)
+      ? REMOTE_INPUT_DISPATCH_EVIDENCE
+      : implemented
+        ? KODI_METHODS_EVIDENCE
+        : SCANNER_EVIDENCE,
     notes: owner.startsWith('D043')
       ? 'Guarded destructive method; do not expose without confirmation.'
       : undefined
@@ -2765,10 +2823,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'ContextMenu',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
-    evidence: ['src/js/apps/input/remote/tpl/remote_control.jst.eco:19'],
-    notes: 'Remote/Input parity backlog from Chorus2 source scan.'
+    evidence: REMOTE_INPUT_PANEL_EVIDENCE,
+    notes: 'Bounded Remote/Input context menu command rendered and tested on the real remote panel.'
   }),
   row({
     id: 'control:remote:google',
@@ -4839,10 +4897,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'remote-page',
     surface: 'remote',
-    status: 'missing',
-    owner: 'M006/S02',
-    evidence: ['src/js/apps/input/input_app.js.coffee:6'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S03',
+    evidence: APP_REMOTE_ROUTE_EVIDENCE,
+    notes: 'Chorus2 remote page alias is now the bounded Remote/Input route.'
   }),
   row({
     id: 'route:screen-shot:lab-screenshot',
