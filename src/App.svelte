@@ -32,6 +32,7 @@
   import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
   import NowPlayingEmbedRoute from '$components/NowPlayingEmbedRoute.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
+  import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
@@ -106,7 +107,7 @@
     videoWriteStore,
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
-  import { buildAppRoute, type AppRoute } from '$lib/app/appRouter';
+  import { buildAppRoute, KODI_WEBINTERFACE_BASE_PATH, type AppRoute } from '$lib/app/appRouter';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
@@ -398,6 +399,9 @@
   const isAddonsRoute = $derived(currentRoute.kind === 'addons');
   const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
   const isAddonsUnknownRoute = $derived(currentRoute.kind === 'addonsUnknown');
+  const currentChorus2Placeholder = $derived(
+    currentRoute.kind === 'chorus2Placeholder' ? currentRoute.placeholder : null
+  );
   const isLabShortcutsRoute = $derived(currentRoute.kind === 'labShortcuts');
   const isLabApiBrowserRoute = $derived(currentRoute.kind === 'labApiBrowser');
   const isLabUnknownRoute = $derived(currentRoute.kind === 'labUnknown');
@@ -1038,6 +1042,14 @@
           i18n={currentI18n}
         />
         <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
+      </main>
+    {:else if currentChorus2Placeholder}
+      <main class="parity-route" aria-label="Chorus2 parity placeholder">
+        <ParityPlaceholder
+          placeholder={currentChorus2Placeholder}
+          packageBasePath={isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''}
+          i18n={currentI18n}
+        />
       </main>
     {:else if isAddonsRoute}
       <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>

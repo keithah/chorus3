@@ -55,6 +55,66 @@ describe('main entrypoint', () => {
     ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
   });
 
+  it('resolves package-mounted Chorus2 parity URLs to typed placeholder routes', async () => {
+    const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
+
+    for (const [pathname, expectedId] of [
+      ['/addons/webinterface.chorus3/remote', 'remote'],
+      ['/addons/webinterface.chorus3/help', 'help'],
+      ['/addons/webinterface.chorus3/playlists', 'playlists'],
+      ['/addons/webinterface.chorus3/settings/web', 'settingsWeb'],
+      ['/addons/webinterface.chorus3/lab/screenshot', 'labScreenshot']
+    ] as const) {
+      const route = resolveEntrypointRoute({ pathname, search: '?token=Basic' });
+      expect(route.kind).toBe('chorus2Placeholder');
+      if (route.kind !== 'chorus2Placeholder') {
+        throw new Error(`Expected placeholder route for ${pathname}`);
+      }
+      expect(route.placeholder.id).toBe(expectedId);
+      expect(JSON.stringify(route)).not.toMatch(
+        /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|localStorage|sessionStorage/i
+      );
+    }
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/addons/webinterface.chorus3/remote',
+        search: '?password=CHORUS3_SENTINEL_SECRET&token=Basic',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toMatchObject({
+      route: { kind: 'chorus2Placeholder', placeholder: { id: 'remote' } },
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'kodi.local',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
+  });
+
+  it('mounts package-mounted Chorus2 placeholders without reflecting unsafe path or query input', async () => {
+    setPathAndSearch(
+      '/addons/webinterface.chorus3/help',
+      '?password=CHORUS3_SENTINEL_SECRET&token=Basic&next=smb://admin:p@ssword@nas/private'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Chorus2 Help');
+    expect(document.body.textContent).toContain('Chorus2 surface');
+    expect(document.body.textContent).toContain('Future owner');
+    expect(document.body.textContent).toContain('M006/S02');
+    expect(document.body.textContent).not.toContain('Settings route not found');
+    expect(document.body.textContent).not.toMatch(
+      /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|smb:\/\/|admin:p@ssword|localStorage|sessionStorage/i
+    );
+  });
+
   it('derives a local-only Kodi host from package-mounted entrypoint origins', async () => {
     const { resolveEntrypointAppProps } = await importMain();
 
@@ -426,8 +486,8 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab route not found');
-    expect(document.body.textContent).toContain('/lab/[redacted]');
+    expect(document.body.textContent).toContain('Lab API Browser Method');
+    expect(document.body.textContent).toContain('lab/api-browser/:method');
     expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('Basic');

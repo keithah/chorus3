@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 
 import App from './App.svelte';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
-import type { AppRoute } from './lib/app/appRouter';
+import {
+  getChorus2PlaceholderMetadata,
+  type AppRoute,
+  type Chorus2RoutePlaceholder
+} from './lib/app/appRouter';
 import type { NowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type {
   MusicBrowseActionDispatch,
@@ -897,6 +901,21 @@ function getLabNotFoundText(target: HTMLElement): string {
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
 }
+
+function requireChorus2Placeholder(id: string): Chorus2RoutePlaceholder {
+  const placeholder = getChorus2PlaceholderMetadata(id);
+  expect(placeholder).toBeDefined();
+  return placeholder as Chorus2RoutePlaceholder;
+}
+
+function getParityPlaceholderText(target: HTMLElement): string {
+  const panel = target.querySelector<HTMLElement>('.parity-placeholder');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel?.textContent ?? '';
+}
+
+const CHORUS2_PLACEHOLDER_FORBIDDEN_COPY =
+  /Authorization|Basic|CHORUS3_SENTINEL_SECRET|sentinel_secret|admin:p@ssword|password|token|smb:\/\/|special:\/\/|https?:\/\/|localStorage|sessionStorage|JSONRPC\.Ping|jsonrpc|endpoint|body/i;
 
 function createEpisodeActionDispatch(
   overrides: Partial<VideoEpisodeActionDispatch> = {}
@@ -1835,6 +1854,36 @@ describe('App shell', () => {
     expect(getVideoLink(target, 'API browser').getAttribute('href')).toBe('/lab/api-browser');
     expect(target.textContent).not.toMatch(/Authorization|Basic|localStorage|admin:p@ssword/i);
   });
+
+  it.each([
+    ['remote', 'Chorus2 Remote', 'remote', 'M006/S02'],
+    ['help', 'Chorus2 Help', 'help', 'M006/S02'],
+    ['playlists', 'Chorus2 Playlists', 'playlists', 'R055/M006/S04'],
+    ['settingsWeb', 'Web Settings', 'settings/web', 'M006/S02'],
+    ['labScreenshot', 'Lab Screenshot', 'lab/screenshot', 'M006/S02']
+  ])(
+    'renders Chorus2 parity placeholder route copy for %s without unsafe text',
+    (id, title, surface, owner) => {
+      const target = renderApp({
+        route: { kind: 'chorus2Placeholder', placeholder: requireChorus2Placeholder(id) }
+      });
+      const placeholderText = getParityPlaceholderText(target);
+
+      expect(placeholderText).toContain(title);
+      expect(placeholderText).toContain('Chorus2 surface');
+      expect(placeholderText).toContain(surface);
+      expect(placeholderText).toContain('Parity status');
+      expect(placeholderText).toContain('Future owner');
+      expect(placeholderText).toContain(owner);
+      expect(placeholderText).toContain('not complete');
+      expect(target.querySelector('.settings-route-not-found')).toBeNull();
+      expect(target.querySelector('.lab-route-not-found')).toBeNull();
+      const panel = target.querySelector<HTMLElement>('.parity-placeholder');
+      expect(panel).toBeInstanceOf(HTMLElement);
+      expect(panel?.textContent).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
+      expect(panel?.innerHTML).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
+    }
+  );
 
   it('dispatches playback shortcuts globally outside editable controls and removes the listener on unmount', async () => {
     const playerDispatch = createPlayerDispatch();
