@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { KODI_WEBINTERFACE_BASE_PATH } from './lib/app/appRouter';
 import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProofFixtures';
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
@@ -178,6 +179,68 @@ describe('main entrypoint', () => {
         useTls: false,
         useWebSocket: false
       }
+    });
+  });
+
+  it('supplies package host props only for package-mounted paths or marker-backed root', async () => {
+    const { resolveEntrypointAppProps } = await importMain();
+    const expectedHost = {
+      id: 'kodi-package-origin',
+      label: 'This Kodi',
+      host: 'kodi.local',
+      port: 8080,
+      useTls: false,
+      useWebSocket: false
+    };
+
+    for (const [pathname, expectedRoute] of [
+      [`${KODI_WEBINTERFACE_BASE_PATH}/`, { kind: 'dashboard' }],
+      [`${KODI_WEBINTERFACE_BASE_PATH}/remote`, { kind: 'remote' }],
+      [
+        `${KODI_WEBINTERFACE_BASE_PATH}/help`,
+        { kind: 'chorus2Placeholder', placeholder: expect.objectContaining({ id: 'help' }) }
+      ]
+    ] as const) {
+      expect(
+        resolveEntrypointAppProps({
+          pathname,
+          search: '?password=CHORUS3_SENTINEL_SECRET&token=Basic',
+          protocol: 'http:',
+          hostname: 'kodi.local',
+          port: '8080'
+        })
+      ).toMatchObject({
+        route: expectedRoute,
+        packageMountedHost: expectedHost
+      });
+    }
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/',
+        search: '?password=CHORUS3_SENTINEL_SECRET&token=Basic',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({ route: { kind: 'dashboard' } });
+
+    document.head.insertAdjacentHTML(
+      'beforeend',
+      '<meta name="chorus3:kodi-webinterface" content="webinterface.chorus3">'
+    );
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/',
+        search: '?password=CHORUS3_SENTINEL_SECRET&token=Basic',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({
+      route: { kind: 'dashboard' },
+      packageMountedHost: expectedHost
     });
   });
 

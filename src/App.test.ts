@@ -1365,6 +1365,37 @@ function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement 
   return link as HTMLAnchorElement;
 }
 
+function requirePackageShellButtonByAria(target: HTMLElement, ariaLabel: string): HTMLButtonElement {
+  const button = target.querySelector<HTMLButtonElement>(`.chorus-app button[aria-label="${ariaLabel}"]`);
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
+
+function requirePackageShellButtonByText(target: HTMLElement, text: string): HTMLButtonElement {
+  const button = Array.from(target.querySelectorAll<HTMLButtonElement>('.chorus-app button')).find(
+    (candidate) => candidate.textContent?.trim() === text
+  );
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
+
+function isDisabledOrGuarded(control: HTMLButtonElement | HTMLInputElement): boolean {
+  if (control.disabled || control.readOnly || control.getAttribute('aria-disabled') === 'true') {
+    return true;
+  }
+
+  return [
+    control.getAttribute('aria-label'),
+    control.getAttribute('title'),
+    control.getAttribute('placeholder'),
+    control.getAttribute('aria-description'),
+    control.closest('[title]')?.getAttribute('title'),
+    control.closest('[aria-description]')?.getAttribute('aria-description')
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .some((value) => /not yet|deferred|disabled|guarded|placeholder|future owner|unsupported/i.test(value));
+}
+
 function requirePlaceholderRoute(id: string): AppRoute {
   const placeholder = getChorus2PlaceholderMetadata(id);
   expect(placeholder).toBeDefined();
@@ -1517,13 +1548,23 @@ describe('App shell', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://kodi.local:8080/jsonrpc');
   });
 
-  it('keeps package-mounted Chorus2 shell rail links inside the package base with truthful targets', () => {
+  it('keeps package-mounted Chorus2 shell logo and rail links inside the package base with truthful targets', () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
 
     const target = renderApp({
       route: { kind: 'dashboard' },
       packageMountedHost: createPackageMountedHost()
     });
+
+    const logo = target.querySelector<HTMLAnchorElement>('.c2-logo');
+    expect(logo).toBeInstanceOf(HTMLAnchorElement);
+    expect(logo?.getAttribute('href')).toBe(
+      buildAppRoute({ kind: 'dashboard' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    );
+
+    const logoImage = logo?.querySelector<HTMLImageElement>('img');
+    expect(logoImage).toBeInstanceOf(HTMLImageElement);
+    expect(logoImage?.getAttribute('src')).not.toMatch(/^\/chorus2-assets(?:\/|$)/u);
 
     for (const [title, route] of shellRailTargets()) {
       const href = requireRailLink(target, title).getAttribute('href');
@@ -1535,11 +1576,119 @@ describe('App shell', () => {
       expect(href, `${title} package prefix`).toMatch(/^\/addons\/webinterface\.chorus3(?:\/|$)/u);
     }
 
+    expect(target.querySelector('.host-grid')).toBeNull();
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
     expect(requireRailLink(target, 'Music').getAttribute('aria-current')).toBe('page');
     for (const [title] of shellRailTargets().filter(([title]) => title !== 'Music')) {
       expect(requireRailLink(target, title).getAttribute('aria-current'), `${title} active`).toBe(
         null
       );
+    }
+  });
+
+  it('guards package-mounted broad and deferred controls while keeping wired playback controls enabled', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch: createPlayerDispatch()
+    });
+
+    const searchInput = target.querySelector<HTMLInputElement>('.c2-search input[type="search"]');
+    expect(searchInput).toBeInstanceOf(HTMLInputElement);
+    expect(isDisabledOrGuarded(searchInput as HTMLInputElement), 'shell search').toBe(true);
+
+    for (const label of ['Local', 'Playlist menu', 'Collapse playlist']) {
+      const button =
+        label === 'Local'
+          ? requirePackageShellButtonByText(target, label)
+          : requirePackageShellButtonByAria(target, label);
+      expect(isDisabledOrGuarded(button), `${label} should be disabled or guarded`).toBe(true);
+    }
+
+    for (const label of ['Audio', 'Video', 'Party mode', 'Save Kodi playlist']) {
+      const button = requirePackageShellButtonByText(target, label);
+      expect(isDisabledOrGuarded(button), `${label} should be disabled or guarded`).toBe(true);
+    }
+
+    expect(requirePackageShellButtonByText(target, 'Clear playlist').disabled).toBe(true);
+    expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'Shuffle')), 'Shuffle').toBe(
+      true
+    );
+    expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'More')), 'More').toBe(true);
+
+    for (const label of ['Previous', 'Play or pause', 'Next', 'Toggle mute', 'Fullscreen']) {
+      expect(requirePackageShellButtonByAria(target, label).disabled, `${label} enabled`).toBe(false);
+    }
+  });
+
+  it('routes package-mounted Remote and representative placeholder rail targets to real or owner-labeled surfaces', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const railTarget = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost()
+    });
+
+    expect(requireRailLink(railTarget, 'Remote').getAttribute('href')).toBe(
+      buildAppRoute({ kind: 'remote' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    );
+    expect(requireRailLink(railTarget, 'Files').getAttribute('href')).toBe(
+      buildAppRoute(requirePlaceholderRoute('browser'), {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    );
+    expect(requireRailLink(railTarget, 'Playlists').getAttribute('href')).toBe(
+      buildAppRoute(requirePlaceholderRoute('playlists'), {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    );
+    expect(requireRailLink(railTarget, 'Help').getAttribute('href')).toBe(
+      buildAppRoute(requirePlaceholderRoute('help'), {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    );
+
+    unmount(mountedComponent);
+    mountedComponent = undefined;
+
+    const remoteInputDispatch = createRemoteInputDispatch();
+    const remoteTarget = renderApp({
+      route: { kind: 'remote' },
+      packageMountedHost: createPackageMountedHost(),
+      remoteSnapshot: remoteInputDispatch.snapshot,
+      remoteInputDispatch,
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch: createPlayerDispatch()
+    });
+    expect(getRemoteInputPanelText(remoteTarget)).toContain('Remote');
+    expect(remoteTarget.querySelector('.parity-placeholder')).toBeNull();
+    expect(remoteTarget.querySelector('.host-grid')).toBeNull();
+
+    for (const [id, title, owner] of [
+      ['browser', 'Chorus2 Browser', 'M006/S04'],
+      ['playlists', 'Chorus2 Playlists', 'R055/M006/S04'],
+      ['help', 'Chorus2 Help', 'M006/S02']
+    ] as const) {
+      unmount(mountedComponent);
+      mountedComponent = undefined;
+
+      const placeholderTarget = renderApp({
+        route: requirePlaceholderRoute(id),
+        packageMountedHost: createPackageMountedHost()
+      });
+      const placeholderText = getParityPlaceholderText(placeholderTarget);
+      expect(placeholderText).toContain(title);
+      expect(placeholderText).toContain('Future owner');
+      expect(placeholderText).toContain(owner);
+      const recoveryLink = placeholderTarget.querySelector<HTMLAnchorElement>('.parity-placeholder a');
+      expect(recoveryLink?.getAttribute('href')).toMatch(
+        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
+      );
+      expect(placeholderTarget.textContent).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
     }
   });
 
