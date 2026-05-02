@@ -1346,6 +1346,13 @@ function renderApp(props: AppProps = {}) {
   return target;
 }
 
+function unmountCurrentApp(): void {
+  if (mountedComponent) {
+    unmount(mountedComponent);
+    mountedComponent = undefined;
+  }
+}
+
 function createPackageMountedHost(): import('./lib/stores').SavedKodiHost {
   return {
     id: 'kodi-package-origin',
@@ -1380,7 +1387,11 @@ function requirePackageShellButtonByText(target: HTMLElement, text: string): HTM
 }
 
 function isDisabledOrGuarded(control: HTMLButtonElement | HTMLInputElement): boolean {
-  if (control.disabled || control.readOnly || control.getAttribute('aria-disabled') === 'true') {
+  if (
+    control.disabled ||
+    (control instanceof HTMLInputElement && control.readOnly) ||
+    control.getAttribute('aria-disabled') === 'true'
+  ) {
     return true;
   }
 
@@ -1652,8 +1663,7 @@ describe('App shell', () => {
       })
     );
 
-    unmount(mountedComponent);
-    mountedComponent = undefined;
+    unmountCurrentApp();
 
     const remoteInputDispatch = createRemoteInputDispatch();
     const remoteTarget = renderApp({
@@ -1673,8 +1683,7 @@ describe('App shell', () => {
       ['playlists', 'Chorus2 Playlists', 'R055/M006/S04'],
       ['help', 'Chorus2 Help', 'M006/S02']
     ] as const) {
-      unmount(mountedComponent);
-      mountedComponent = undefined;
+      unmountCurrentApp();
 
       const placeholderTarget = renderApp({
         route: requirePlaceholderRoute(id),

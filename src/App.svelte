@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  import chorus2FanartUrl from '$lib/assets/chorus2/tweeter.jpg';
+  import chorus2LogoUrl from '$lib/assets/chorus2/logo.png';
+  import chorus2ThumbnailUrl from '$lib/assets/chorus2/thumbnail_default.png';
   import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import AppShell from '$components/AppShell.svelte';
@@ -943,31 +946,51 @@
     {/if}
 
     {#if isDashboardRoute && isPackageMounted}
-      <div class="chorus-app" aria-label="Chorus media controller">
+      <div
+        class="chorus-app"
+        aria-label="Chorus media controller"
+        style={`--c2-stage-art-url: url('${chorus2FanartUrl}'); --c2-thumb-url: url('${chorus2ThumbnailUrl}')`}
+      >
         <header class="c2-topbar" aria-label="Chorus header">
-          <a class="c2-logo" href="/" aria-label="Kodi home">
-            <img src="/chorus2-assets/themes/base/images/logo.png" alt="" />
+          <a class="c2-logo" href={appHref({ kind: 'dashboard' })} aria-label="Kodi home">
+            <img src={chorus2LogoUrl} alt="" />
           </a>
 
-          <label class="c2-search">
+          <label class="c2-search" title="Search is deferred to the search route owner for the packaged shell.">
             <span class="mdi mdi-action-search" aria-hidden="true"></span>
             <span class="visually-hidden">Search Kodi</span>
-            <input type="search" />
+            <input
+              type="search"
+              placeholder="Search deferred"
+              aria-label="Search Kodi deferred"
+              readonly
+            />
           </label>
 
           <div class="c2-destination-tabs" aria-label="Playback destination">
-            <button type="button" class="active">
+            <button
+              type="button"
+              class="active"
+              aria-label="Kodi playback destination selected"
+              aria-disabled="true"
+              disabled
+            >
               <span class="c2-kodi-mark" aria-hidden="true">✣</span>
               Kodi
             </button>
-            <button type="button">
+            <button type="button" title="Local playback destination is deferred." disabled>
               <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
               Local
             </button>
-            <button type="button" aria-label="Playlist menu">
+            <button type="button" aria-label="Playlist menu" title="Playlist menu is deferred." disabled>
               <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="Collapse playlist">
+            <button
+              type="button"
+              aria-label="Collapse playlist"
+              title="Playlist collapse is deferred."
+              disabled
+            >
               <span class="mdi mdi-hardware-keyboard-arrow-right" aria-hidden="true"></span>
             </button>
           </div>
@@ -995,17 +1018,35 @@
 
         <aside class="c2-playlist" aria-label="Current playlist">
           <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
-            <button type="button" class="active">Audio</button>
-            <button type="button">Video</button>
+            <button type="button" role="tab" class="active" aria-selected="true" disabled>Audio</button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected="false"
+              title="Video playlists are deferred."
+              disabled
+            >
+              Video
+            </button>
           </div>
 
           <div class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
-            <button type="button" role="menuitem">Current playlist</button>
+            <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
+              Current playlist
+            </button>
             <button type="button" role="menuitem" disabled>Clear playlist</button>
-            <button type="button" role="menuitem">Refresh playlist</button>
-            <button type="button" role="menuitem">Party mode</button>
-            <button type="button" role="menuitem" class="selected">Kodi</button>
-            <button type="button" role="menuitem">Save Kodi playlist</button>
+            <button type="button" role="menuitem" title="Playlist refresh is deferred." disabled>
+              Refresh playlist
+            </button>
+            <button type="button" role="menuitem" title="Party mode is deferred." disabled>
+              Party mode
+            </button>
+            <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
+              Kodi
+            </button>
+            <button type="button" role="menuitem" title="Saving Kodi playlists is deferred." disabled>
+              Save Kodi playlist
+            </button>
           </div>
         </aside>
 
@@ -1045,13 +1086,13 @@
             >
               <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="Shuffle">
+            <button type="button" aria-label="Shuffle" title="Shuffle is deferred for package proof." disabled>
               <span class="mdi mdi-av-shuffle" aria-hidden="true"></span>
             </button>
             <button type="button" aria-label="Fullscreen" onclick={toggleAppFullscreen}>
               <span class="mdi mdi-navigation-fullscreen" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="More">
+            <button type="button" aria-label="More" title="More playback actions are deferred." disabled>
               <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
             </button>
           </div>
@@ -1465,8 +1506,7 @@
 
   @font-face {
     font-family: 'Open Sans Chorus';
-    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-light-webfont.woff2')
-      format('woff2');
+    src: url('./lib/assets/chorus2/fonts/opensans/opensans-light-webfont.woff2') format('woff2');
     font-weight: 300;
     font-style: normal;
     font-display: swap;
@@ -1474,8 +1514,7 @@
 
   @font-face {
     font-family: 'Open Sans Chorus';
-    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-regular-webfont.woff2')
-      format('woff2');
+    src: url('./lib/assets/chorus2/fonts/opensans/opensans-regular-webfont.woff2') format('woff2');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -1483,8 +1522,7 @@
 
   @font-face {
     font-family: 'Open Sans Chorus';
-    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-semibold-webfont.woff2')
-      format('woff2');
+    src: url('./lib/assets/chorus2/fonts/opensans/opensans-semibold-webfont.woff2') format('woff2');
     font-weight: 600;
     font-style: normal;
     font-display: swap;
@@ -1492,7 +1530,7 @@
 
   @font-face {
     font-family: 'Material-Design-Icons';
-    src: url('/chorus2-assets/themes/base/fonts/material/Material-Design-Icons.woff') format('woff');
+    src: url('./lib/assets/chorus2/fonts/material/Material-Design-Icons.woff') format('woff');
     font-weight: 400;
     font-style: normal;
     font-display: block;
@@ -1658,6 +1696,13 @@
     cursor: pointer;
   }
 
+  .c2-destination-tabs button:disabled,
+  .c2-media-tabs button:disabled,
+  .c2-playlist-menu button:disabled,
+  .c2-player button:disabled {
+    cursor: default;
+  }
+
   .c2-destination-tabs button {
     display: inline-grid;
     grid-auto-flow: column;
@@ -1751,7 +1796,7 @@
     inset: 0;
     background:
       linear-gradient(180deg, rgb(20 22 23 / 0.36), rgb(20 22 23 / 0.18) 52%, rgb(20 22 23 / 0.04)),
-      url('/chorus2-assets/images/fanart_default/tweeter.jpg') center bottom / cover no-repeat;
+      var(--c2-stage-art-url) center bottom / cover no-repeat;
   }
 
   .c2-playlist {
@@ -1838,9 +1883,13 @@
     background: transparent;
   }
 
-  .c2-player button:hover {
+  .c2-player button:hover:not(:disabled) {
     color: #fff;
     background: #35393a;
+  }
+
+  .c2-player button:disabled {
+    opacity: 0.55;
   }
 
   .c2-player-controls button {
@@ -1854,7 +1903,7 @@
   .c2-thumb {
     background:
       linear-gradient(rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.14)),
-      url('/chorus2-assets/images/thumbnail_default.png') center / cover no-repeat;
+      var(--c2-thumb-url) center / cover no-repeat;
   }
 
   .c2-nowline {
