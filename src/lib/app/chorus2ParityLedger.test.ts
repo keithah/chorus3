@@ -180,8 +180,27 @@ describe('CHORUS2_PARITY_LEDGER', () => {
     expect(getChorus2ParityRowById('route:shell:root')?.status).toBe('implemented');
     expect(getChorus2ParityRowById('route:settings:settings')?.status).toBe('implemented');
     expect(getChorus2ParityRowById('route:addon:addons-addonid')?.status).toBe('implemented');
-    expect(getChorus2ParityRowById('route:movie:movies')?.status).not.toBe('implemented');
-    expect(getChorus2ParityRowById('route:tvshow:tvshows')?.status).not.toBe('implemented');
+    const movieAlias = getChorus2ParityRowById('route:movie:movies');
+    expect(movieAlias?.status).toBe('implemented');
+    expect(movieAlias?.owner).toBe('M006/S04');
+    expect(movieAlias?.evidence).toEqual(
+      expect.arrayContaining([
+        'src/lib/app/appRouter.ts',
+        'src/lib/app/appRouter.test.ts',
+        'src/App.test.ts'
+      ])
+    );
+
+    const tvAlias = getChorus2ParityRowById('route:tvshow:tvshows');
+    expect(tvAlias?.status).toBe('implemented');
+    expect(tvAlias?.owner).toBe('M006/S04');
+    expect(tvAlias?.evidence).toEqual(
+      expect.arrayContaining([
+        'src/lib/app/appRouter.ts',
+        'src/lib/app/appRouter.test.ts',
+        'src/App.test.ts'
+      ])
+    );
     const remoteRoute = getChorus2ParityRowById('route:input:remote');
     expect(remoteRoute?.status).toBe('implemented');
     expect(remoteRoute?.evidence).toEqual(
@@ -235,7 +254,15 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       );
     }
 
-    for (const control of ['sendtext', 'executeaction', 'osd', 'playpause', 'stop', 'volumeup', 'volumedown']) {
+    for (const control of [
+      'sendtext',
+      'executeaction',
+      'osd',
+      'playpause',
+      'stop',
+      'volumeup',
+      'volumedown'
+    ]) {
       const row = rowsForSurface('control', control)[0];
       expect(row, `missing remote control ${control}`).toBeDefined();
       expect(row?.status, `remote control ${control} status`).toBe('missing');

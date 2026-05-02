@@ -226,7 +226,8 @@ const CHORUS2_PLACEHOLDER_DEFINITIONS = [
     title: 'Kodi Settings Section',
     status: 'missing',
     owner: 'M006/S02',
-    description: 'Chorus2 Kodi settings subsections are tracked without reflecting raw section IDs.',
+    description:
+      'Chorus2 Kodi settings subsections are tracked without reflecting raw section IDs.',
     recoveryRoute: '/settings/kodi',
     routePath: '/settings/kodi/[section]'
   }),

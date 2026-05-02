@@ -1143,9 +1143,9 @@
       <main class="remote-route" aria-label="Kodi Remote">
         <RemoteInputPanel
           remoteSnapshot={currentRemoteSnapshot}
-          remoteInputDispatch={remoteInputDispatch}
+          {remoteInputDispatch}
           playerSnapshot={currentPlayerSnapshot}
-          playerDispatch={playerDispatch}
+          {playerDispatch}
           i18n={currentI18n}
         />
       </main>

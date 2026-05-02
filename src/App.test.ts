@@ -2016,9 +2016,7 @@ describe('App shell', () => {
     expect(target.querySelector('.parity-placeholder')).toBeInstanceOf(HTMLElement);
     const recoveryLink = target.querySelector<HTMLAnchorElement>('.parity-placeholder a');
     expect(recoveryLink).toBeInstanceOf(HTMLAnchorElement);
-    expect(recoveryLink?.getAttribute('href')).toMatch(
-      /^\/addons\/webinterface\.chorus3(?:\/|$)/u
-    );
+    expect(recoveryLink?.getAttribute('href')).toMatch(/^\/addons\/webinterface\.chorus3(?:\/|$)/u);
     expect(target.textContent).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
   });
 
@@ -2092,7 +2090,9 @@ describe('App shell', () => {
     );
     const search = document.createElement('input');
     target.append(search);
-    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    search.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
     await tick();
 
     expect(moved).toBe(false);

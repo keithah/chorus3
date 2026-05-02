@@ -16,7 +16,7 @@ import { getChorus2ParityRowById } from './chorus2ParityLedger';
 import { buildVideoRoute, type VideoRoute } from '../video/videoRouter';
 
 const EXPECTED_PLACEHOLDER_IDS = [
-  'moviesRecent', 
+  'moviesRecent',
   'tvShowsRecent',
   'playlists',
   'help',

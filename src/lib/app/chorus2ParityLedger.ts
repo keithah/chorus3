@@ -44,6 +44,17 @@ const REMOTE_INPUT_DISPATCH_EVIDENCE = [
   'src/lib/stores/remoteInputDispatch.test.ts'
 ];
 const VIDEO_ROUTER_EVIDENCE = ['src/lib/video/videoRouter.ts'];
+const CHORUS2_VIDEO_ALIAS_EVIDENCE = [
+  'src/App.test.ts',
+  'src/lib/app/appRouter.ts',
+  'src/lib/app/appRouter.test.ts'
+];
+const CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE = [
+  'src/App.test.ts',
+  'src/main.test.ts',
+  'src/lib/app/appRouter.ts',
+  'src/lib/app/appRouter.test.ts'
+];
 const KODI_METHODS_EVIDENCE = ['src/lib/kodi/methods.ts'];
 const SCANNER_EVIDENCE = ['scripts/scan-chorus2-parity.mjs'];
 
@@ -223,10 +234,10 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'movie',
     surface: 'movies',
-    status: 'missing',
-    owner: 'M006/S02',
-    evidence: VIDEO_ROUTER_EVIDENCE,
-    notes: 'Current parser supports video/movies, not the Chorus2 movies alias.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 movies alias is promoted to the existing video movies route.'
   }),
   row({
     id: 'route:movie:video-movies',
@@ -282,10 +293,10 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'tvshow',
     surface: 'tvshows',
-    status: 'missing',
-    owner: 'M006/S02',
-    evidence: VIDEO_ROUTER_EVIDENCE,
-    notes: 'Current parser supports video/tv, not the Chorus2 tvshows alias.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 TV shows alias is promoted to the existing video TV route.'
   }),
   row({
     id: 'route:tvshow:video-tv',
@@ -306,9 +317,9 @@ const NAV_SURFACES = [
   ['music', 'music/albums', 'deferred', 'R054/M006/S04'],
   ['musicvideo', 'music/videos', 'deferred', 'R054/M006/S04'],
   ['movie', 'movies/recent', 'missing', 'M006/S02'],
-  ['movie', 'movies', 'missing', 'M006/S02'],
+  ['movie', 'movies', 'implemented', 'M006/S04'],
   ['tvshow', 'tvshows/recent', 'missing', 'M006/S02'],
-  ['tvshow', 'tvshows', 'missing', 'M006/S02'],
+  ['tvshow', 'tvshows', 'implemented', 'M006/S04'],
   ['browser', 'browser', 'missing', 'M006/S04'],
   ['pvr', 'pvr/tv', 'deferred', 'R056/M006/S04'],
   ['pvr', 'pvr/radio', 'deferred', 'R056/M006/S04'],
@@ -333,7 +344,12 @@ const NAV_ROWS = NAV_SURFACES.map(([family, surface, status, owner]) =>
     surface,
     status,
     owner,
-    evidence: SCANNER_EVIDENCE
+    evidence:
+      status === 'implemented' && owner === 'M006/S04'
+        ? CHORUS2_VIDEO_ALIAS_EVIDENCE
+        : owner === 'M006/S04' && family === 'browser' && surface === 'browser'
+          ? CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE
+          : SCANNER_EVIDENCE
   })
 );
 
@@ -4276,23 +4292,20 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'movies',
     surface: 'movies',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/entities/nav/navMain.js.coffee:29'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 movies nav alias is promoted to the existing video movies route.'
   }),
   row({
     id: 'nav:movies:movies-recent',
     kind: 'nav',
     family: 'movies',
     surface: 'movies/recent',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: [
-      'src/js/entities/nav/navMain.js.coffee:27',
-      'src/js/entities/nav/navMain.js.coffee:28'
-    ],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 recent movies nav alias is promoted to the existing video movies route.'
   }),
   row({
     id: 'nav:music:music-videos',
@@ -4344,7 +4357,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'playlists',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/entities/nav/navMain.js.coffee:58'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4354,12 +4367,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'PVR',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: [
-      'src/js/apps/epg/list/list_controller.js.coffee:53',
-      'src/js/apps/pvr/channelList/channel_list_controller.js.coffee:34',
-      'src/js/apps/pvr/channelList/channel_list_controller.js.coffee:40',
-      'src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:38'
-    ],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4463,7 +4471,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'thumbsup',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/entities/nav/navMain.js.coffee:55'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4484,23 +4492,20 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'tvshows',
     surface: 'tvshows',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/entities/nav/navMain.js.coffee:34'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 TV shows nav alias is promoted to the existing video TV route.'
   }),
   row({
     id: 'nav:tvshows:tvshows-recent',
     kind: 'nav',
     family: 'tvshows',
     surface: 'tvshows/recent',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: [
-      'src/js/entities/nav/navMain.js.coffee:32',
-      'src/js/entities/nav/navMain.js.coffee:33'
-    ],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 recent TV nav alias is promoted to the existing video TV route.'
   }),
   row({
     id: 'nav:unknown:root',
@@ -4557,10 +4562,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'episode',
     surface: 'tvshow/:tvshowid/:season/:episodeid',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:8'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 episode route is promoted to the existing video episode route.'
   }),
   row({
     id: 'route:execute:addon-execute-id',
@@ -4677,10 +4682,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'landing-page',
     surface: 'movies/recent',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/landing/landing_app.js.coffee:7'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 recent movies landing alias is promoted to the existing video movies route.'
   }),
   row({
     id: 'route:landing-page:music',
@@ -4707,10 +4712,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'landing-page',
     surface: 'tvshows/recent',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/landing/landing_app.js.coffee:8'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 recent TV landing alias is promoted to the existing video TV route.'
   }),
   row({
     id: 'route:list:addons-type',
@@ -4737,10 +4742,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'movies',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/movie/movie_app.js.coffee:5'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 movie list route is promoted to the existing video movies route.'
   }),
   row({
     id: 'route:list:music-albums',
@@ -4769,7 +4774,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'music/videos',
     status: 'deferred',
     owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/musicvideo/musicvideo_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Media parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4779,7 +4784,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'playlist',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/apps/playlist/playlist_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4789,7 +4794,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'playlist/:id',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:6'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4799,7 +4804,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'playlists',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4819,7 +4824,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'thumbsup',
     status: 'deferred',
     owner: 'R055/M006/S04',
-    evidence: ['src/js/apps/thumbs/thumbs_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4827,10 +4832,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'tvshows',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:5'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 TV list route is promoted to the existing video TV route.'
   }),
   row({
     id: 'route:local:settings-web',
@@ -4869,7 +4874,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'pvr/radio',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/apps/pvr/pvr_app.js.coffee:6'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4879,7 +4884,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'pvr/radio/:channelid',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/apps/epg/epg_app.js.coffee:6'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4889,7 +4894,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'pvr/recordings',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/apps/pvr/pvr_app.js.coffee:7'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4927,10 +4932,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'season',
     surface: 'tvshow/:tvshowid/:season',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:7'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 TV season route is promoted to the existing video season route.'
   }),
   row({
     id: 'route:tv:pvr-tv',
@@ -4939,7 +4944,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'pvr/tv',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/apps/pvr/pvr_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4949,7 +4954,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'pvr/tv/:channelid',
     status: 'deferred',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/apps/epg/epg_app.js.coffee:5'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4959,7 +4964,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     surface: 'browser/:media/:id',
     status: 'missing',
     owner: 'M006/S02',
-    evidence: ['src/js/apps/browser/browser_app.js.coffee:6'],
+    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
   row({
@@ -4967,10 +4972,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'movie/:id',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/movie/movie_app.js.coffee:6'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 movie detail route is promoted to the existing video movie detail route.'
   }),
   row({
     id: 'route:view:music-album-id',
@@ -5017,10 +5022,10 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'tvshow/:tvshowid',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
-    evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:6'],
-    notes: 'Media parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: CHORUS2_VIDEO_ALIAS_EVIDENCE,
+    notes: 'Chorus2 TV show detail route is promoted to the existing video TV show detail route.'
   })
 ] as const;
 export const CHORUS2_PARITY_LEDGER = [

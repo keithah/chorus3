@@ -134,7 +134,9 @@ describe('Kodi package structural verification', () => {
   it('fails before validation when package staging cannot be created from build output', async () => {
     const packageBeforeValidate = vi.fn(async () => ({
       ok: false,
-      lines: ['[build-output] missing required build output dist/index.html; run npm run build before packaging.']
+      lines: [
+        '[build-output] missing required build output dist/index.html; run npm run build before packaging.'
+      ]
     }));
     const validate = vi.fn(async () => ({ ok: true, lines: [] }));
 
@@ -307,7 +309,9 @@ describe('Kodi package structural verification', () => {
     expect(result.lines).toContain(
       '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
     );
-    expect(result.lines).toContain('[route] /addons/webinterface.chorus3/remote resolves to remote.');
+    expect(result.lines).toContain(
+      '[route] /addons/webinterface.chorus3/remote resolves to remote.'
+    );
   });
 });
 

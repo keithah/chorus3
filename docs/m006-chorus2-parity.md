@@ -11,8 +11,8 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | kind | implemented | missing | deferred | out-of-scope | total |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| route | 11 | 28 | 39 | 0 | 78 |
-| nav | 1 | 49 | 33 | 0 | 83 |
+| route | 21 | 26 | 31 | 0 | 78 |
+| nav | 7 | 47 | 29 | 0 | 83 |
 | control | 10 | 13 | 0 | 0 | 23 |
 | action | 3 | 114 | 115 | 0 | 232 |
 | jsonrpc | 31 | 41 | 70 | 0 | 142 |
@@ -21,9 +21,9 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | status | count |
 | --- | ---: |
-| implemented | 56 |
-| missing | 245 |
-| deferred | 257 |
+| implemented | 72 |
+| missing | 241 |
+| deferred | 245 |
 | out-of-scope | 0 |
 
 ## Family: add-on
@@ -203,7 +203,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | --- | --- | --- | --- | --- | --- | --- |
 | `action:browser:browser-directory-view` | action | `browser:directory:view` | missing | M006/S04 | `src/js/apps/browser/list/list_controller.js.coffee:172` | Command/action parity backlog from Chorus2 source scan. |
 | `action:browser:browser-file-view` | action | `browser:file:view` | missing | M006/S04 | `src/js/apps/browser/list/list_controller.js.coffee:168` | Command/action parity backlog from Chorus2 source scan. |
-| `nav:browser:browser` | nav | `browser` | missing | M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
+| `nav:browser:browser` | nav | `browser` | missing | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` |  |
 | `route:browser:browser` | route | `browser` | missing | M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
 | `route:browser:files` | route | `files` | missing | M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
 
@@ -348,7 +348,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:episode:episode-fields` | action | `episode:fields` | deferred | R054/M006/S04 | `src/js/entities/kodi/episode.js.coffee:90` | Media parity backlog from Chorus2 source scan. |
 | `action:episode:episode-list-view` | action | `episode:list:view` | deferred | R054/M006/S04 | `src/js/apps/tvshow/episode/episode_controller.js.coffee:101` | Media parity backlog from Chorus2 source scan. |
 | `action:episode:episode-tvshow-entities` | action | `episode:tvshow:entities` | deferred | R054/M006/S04 | `src/js/entities/kodi/episode.js.coffee:78` | Media parity backlog from Chorus2 source scan. |
-| `route:episode:tvshow-tvshowid-season-episodeid` | route | `tvshow/:tvshowid/:season/:episodeid` | deferred | R054/M006/S04 | `src/js/apps/tvshow/tvshow_app.js.coffee:8` | Media parity backlog from Chorus2 source scan. |
+| `route:episode:tvshow-tvshowid-season-episodeid` | route | `tvshow/:tvshowid/:season/:episodeid` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 episode route is promoted to the existing video episode route. |
 
 ## Family: execute
 
@@ -611,10 +611,10 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:landing-page:movies-recent` | route | `movies/recent` | deferred | R054/M006/S04 | `src/js/apps/landing/landing_app.js.coffee:7` | Media parity backlog from Chorus2 source scan. |
+| `route:landing-page:movies-recent` | route | `movies/recent` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 recent movies landing alias is promoted to the existing video movies route. |
 | `route:landing-page:music` | route | `music` | deferred | R054/M006/S04 | `src/js/apps/landing/landing_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
 | `route:landing-page:music-top` | route | `music/top` | deferred | R054/M006/S04 | `src/js/apps/landing/landing_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
-| `route:landing-page:tvshows-recent` | route | `tvshows/recent` | deferred | R054/M006/S04 | `src/js/apps/landing/landing_app.js.coffee:8` | Media parity backlog from Chorus2 source scan. |
+| `route:landing-page:tvshows-recent` | route | `tvshows/recent` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 recent TV landing alias is promoted to the existing video TV route. |
 
 ## Family: landing-set-more
 
@@ -634,16 +634,16 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | --- | --- | --- | --- | --- | --- | --- |
 | `route:list:addons-type` | route | `addons/:type` | missing | M006/S02 | `src/js/apps/addon/addon_app.js.coffee:5` | Route/menu alias backlog from Chorus2 source scan. |
 | `route:list:browser` | route | `browser` | missing | M006/S02 | `src/js/apps/browser/browser_app.js.coffee:5` | Route/menu alias backlog from Chorus2 source scan. |
-| `route:list:movies` | route | `movies` | deferred | R054/M006/S04 | `src/js/apps/movie/movie_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
+| `route:list:movies` | route | `movies` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 movie list route is promoted to the existing video movies route. |
 | `route:list:music-albums` | route | `music/albums` | deferred | R054/M006/S04 | `src/js/apps/album/album_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
 | `route:list:music-artists` | route | `music/artists` | deferred | R054/M006/S04 | `src/js/apps/artist/artist_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
-| `route:list:music-videos` | route | `music/videos` | deferred | R054/M006/S04 | `src/js/apps/musicvideo/musicvideo_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
-| `route:list:playlist` | route | `playlist` | deferred | R055/M006/S04 | `src/js/apps/playlist/playlist_app.js.coffee:5` | Playlist/local-player parity backlog from Chorus2 source scan. |
-| `route:list:playlist-id` | route | `playlist/:id` | deferred | R055/M006/S04 | `src/js/apps/localPlaylist/localPlaylist_app.js.coffee:6` | Playlist/local-player parity backlog from Chorus2 source scan. |
-| `route:list:playlists` | route | `playlists` | deferred | R055/M006/S04 | `src/js/apps/localPlaylist/localPlaylist_app.js.coffee:5` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `route:list:music-videos` | route | `music/videos` | deferred | R054/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Media parity backlog from Chorus2 source scan. |
+| `route:list:playlist` | route | `playlist` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `route:list:playlist-id` | route | `playlist/:id` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `route:list:playlists` | route | `playlists` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
 | `route:list:search-media-query` | route | `search/:media/:query` | missing | M006/S02 | `src/js/apps/search/search_app.js.coffee:6` | Route/menu alias backlog from Chorus2 source scan. |
-| `route:list:thumbsup` | route | `thumbsup` | deferred | R055/M006/S04 | `src/js/apps/thumbs/thumbs_app.js.coffee:5` | Playlist/local-player parity backlog from Chorus2 source scan. |
-| `route:list:tvshows` | route | `tvshows` | deferred | R054/M006/S04 | `src/js/apps/tvshow/tvshow_app.js.coffee:5` | Media parity backlog from Chorus2 source scan. |
+| `route:list:thumbsup` | route | `thumbsup` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `route:list:tvshows` | route | `tvshows` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 TV list route is promoted to the existing video TV route. |
 
 ## Family: loading
 
@@ -703,17 +703,17 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:movie:movie-entity` | action | `movie:entity` | deferred | R054/M006/S04 | `src/js/entities/kodi/movie.js.coffee:64` | Media parity backlog from Chorus2 source scan. |
 | `action:movie:movie-fields` | action | `movie:fields` | deferred | R054/M006/S04 | `src/js/entities/kodi/movie.js.coffee:76` | Media parity backlog from Chorus2 source scan. |
 | `action:movie:movie-list-view` | action | `movie:list:view` | deferred | R054/M006/S04 | `src/js/apps/movie/list/list_controller.js.coffee:77` | Media parity backlog from Chorus2 source scan. |
-| `nav:movie:movies` | nav | `movies` | missing | M006/S02 | `scripts/scan-chorus2-parity.mjs` |  |
+| `nav:movie:movies` | nav | `movies` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` |  |
 | `nav:movie:movies-recent` | nav | `movies/recent` | missing | M006/S02 | `scripts/scan-chorus2-parity.mjs` |  |
-| `route:movie:movies` | route | `movies` | missing | M006/S02 | `src/lib/video/videoRouter.ts` | Current parser supports video/movies, not the Chorus2 movies alias. |
+| `route:movie:movies` | route | `movies` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 movies alias is promoted to the existing video movies route. |
 | `route:movie:video-movies` | route | `video/movies` | implemented | M006/S01 | `src/lib/video/videoRouter.ts` |  |
 
 ## Family: movies
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `nav:movies:movies` | nav | `movies` | deferred | R054/M006/S04 | `src/js/entities/nav/navMain.js.coffee:29` | Media parity backlog from Chorus2 source scan. |
-| `nav:movies:movies-recent` | nav | `movies/recent` | deferred | R054/M006/S04 | `src/js/entities/nav/navMain.js.coffee:27`<br>`src/js/entities/nav/navMain.js.coffee:28` | Media parity backlog from Chorus2 source scan. |
+| `nav:movies:movies` | nav | `movies` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 movies nav alias is promoted to the existing video movies route. |
+| `nav:movies:movies-recent` | nav | `movies/recent` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 recent movies nav alias is promoted to the existing video movies route. |
 
 ## Family: music
 
@@ -833,7 +833,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `nav:playlists:playlists` | nav | `playlists` | deferred | R055/M006/S04 | `src/js/entities/nav/navMain.js.coffee:58` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `nav:playlists:playlists` | nav | `playlists` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
 
 ## Family: pvr
 
@@ -854,7 +854,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `jsonrpc:pvr:recording-list-controller` | jsonrpc | `PVR.RecordingList.Controller` | deferred | R056/M006/S04 | `src/js/apps/pvr/pvr_app.js.coffee:20` | PVR parity backlog from Chorus2 source scan. |
 | `jsonrpc:pvr:router` | jsonrpc | `PVR.Router` | deferred | R056/M006/S04 | `src/js/apps/pvr/pvr_app.js.coffee:24`<br>`src/js/apps/pvr/pvr_app.js.coffee:3` | PVR parity backlog from Chorus2 source scan. |
 | `jsonrpc:pvr:toggle-timer` | jsonrpc | `PVR.ToggleTimer` | deferred | R056/M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
-| `nav:pvr:pvr` | nav | `PVR` | deferred | R056/M006/S04 | `src/js/apps/epg/list/list_controller.js.coffee:53`<br>`src/js/apps/pvr/channelList/channel_list_controller.js.coffee:34`<br>`src/js/apps/pvr/channelList/channel_list_controller.js.coffee:40`<br>`src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:38` | PVR parity backlog from Chorus2 source scan. |
+| `nav:pvr:pvr` | nav | `PVR` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
 | `nav:pvr:pvr-radio` | nav | `pvr/radio` | deferred | R056/M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
 | `nav:pvr:pvr-recordings` | nav | `pvr/recordings` | deferred | R056/M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
 | `nav:pvr:pvr-tv` | nav | `pvr/tv` | deferred | R056/M006/S04 | `scripts/scan-chorus2-parity.mjs` |  |
@@ -864,8 +864,8 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:radio:pvr-radio` | route | `pvr/radio` | deferred | R056/M006/S04 | `src/js/apps/pvr/pvr_app.js.coffee:6` | PVR parity backlog from Chorus2 source scan. |
-| `route:radio:pvr-radio-channelid` | route | `pvr/radio/:channelid` | deferred | R056/M006/S04 | `src/js/apps/epg/epg_app.js.coffee:6` | PVR parity backlog from Chorus2 source scan. |
+| `route:radio:pvr-radio` | route | `pvr/radio` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
+| `route:radio:pvr-radio-channelid` | route | `pvr/radio/:channelid` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
 
 ## Family: record
 
@@ -884,7 +884,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:recordings:pvr-recordings` | route | `pvr/recordings` | deferred | R056/M006/S04 | `src/js/apps/pvr/pvr_app.js.coffee:7` | PVR parity backlog from Chorus2 source scan. |
+| `route:recordings:pvr-recordings` | route | `pvr/recordings` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
 
 ## Family: remote
 
@@ -951,7 +951,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:season:season-entity` | action | `season:entity` | deferred | R054/M006/S04 | `src/js/entities/kodi/season.js.coffee:59` | Media parity backlog from Chorus2 source scan. |
 | `action:season:season-fields` | action | `season:fields` | deferred | R054/M006/S04 | `src/js/entities/kodi/season.js.coffee:68` | Media parity backlog from Chorus2 source scan. |
 | `action:season:season-list-view` | action | `season:list:view` | deferred | R054/M006/S04 | `src/js/apps/tvshow/season/season_controller.js.coffee:82` | Media parity backlog from Chorus2 source scan. |
-| `route:season:tvshow-tvshowid-season` | route | `tvshow/:tvshowid/:season` | deferred | R054/M006/S04 | `src/js/apps/tvshow/tvshow_app.js.coffee:7` | Media parity backlog from Chorus2 source scan. |
+| `route:season:tvshow-tvshowid-season` | route | `tvshow/:tvshowid/:season` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 TV season route is promoted to the existing video season route. |
 
 ## Family: sections
 
@@ -1074,7 +1074,7 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:thumbsup:thumbsup-check` | action | `thumbsup:check` | deferred | R055/M006/S04 | `src/js/entities/localPlaylist/localPlaylist.js.coffee:188` | Playlist/local-player parity backlog from Chorus2 source scan. |
 | `action:thumbsup:thumbsup-get-entities` | action | `thumbsup:get:entities` | deferred | R055/M006/S04 | `src/js/entities/localPlaylist/localPlaylist.js.coffee:184` | Playlist/local-player parity backlog from Chorus2 source scan. |
 | `action:thumbsup:thumbsup-toggle-entity` | action | `thumbsup:toggle:entity` | deferred | R055/M006/S04 | `src/js/entities/localPlaylist/localPlaylist.js.coffee:173` | Playlist/local-player parity backlog from Chorus2 source scan. |
-| `nav:thumbsup:thumbsup` | nav | `thumbsup` | deferred | R055/M006/S04 | `src/js/entities/nav/navMain.js.coffee:55` | Playlist/local-player parity backlog from Chorus2 source scan. |
+| `nav:thumbsup:thumbsup` | nav | `thumbsup` | deferred | R055/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Playlist/local-player parity backlog from Chorus2 source scan. |
 
 ## Family: timer
 
@@ -1086,8 +1086,8 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:tv:pvr-tv` | route | `pvr/tv` | deferred | R056/M006/S04 | `src/js/apps/pvr/pvr_app.js.coffee:5` | PVR parity backlog from Chorus2 source scan. |
-| `route:tv:pvr-tv-channelid` | route | `pvr/tv/:channelid` | deferred | R056/M006/S04 | `src/js/apps/epg/epg_app.js.coffee:5` | PVR parity backlog from Chorus2 source scan. |
+| `route:tv:pvr-tv` | route | `pvr/tv` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
+| `route:tv:pvr-tv-channelid` | route | `pvr/tv/:channelid` | deferred | R056/M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | PVR parity backlog from Chorus2 source scan. |
 
 ## Family: tvshow
 
@@ -1101,17 +1101,17 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 | `action:tvshow:tvshow-entity` | action | `tvshow:entity` | deferred | R054/M006/S04 | `src/js/entities/kodi/tvshow.js.coffee:61` | Media parity backlog from Chorus2 source scan. |
 | `action:tvshow:tvshow-fields` | action | `tvshow:fields` | deferred | R054/M006/S04 | `src/js/entities/kodi/tvshow.js.coffee:69` | Media parity backlog from Chorus2 source scan. |
 | `action:tvshow:tvshow-list-view` | action | `tvshow:list:view` | deferred | R054/M006/S04 | `src/js/apps/tvshow/list/list_controller.js.coffee:78` | Media parity backlog from Chorus2 source scan. |
-| `nav:tvshow:tvshows` | nav | `tvshows` | missing | M006/S02 | `scripts/scan-chorus2-parity.mjs` |  |
+| `nav:tvshow:tvshows` | nav | `tvshows` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` |  |
 | `nav:tvshow:tvshows-recent` | nav | `tvshows/recent` | missing | M006/S02 | `scripts/scan-chorus2-parity.mjs` |  |
-| `route:tvshow:tvshows` | route | `tvshows` | missing | M006/S02 | `src/lib/video/videoRouter.ts` | Current parser supports video/tv, not the Chorus2 tvshows alias. |
+| `route:tvshow:tvshows` | route | `tvshows` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 TV shows alias is promoted to the existing video TV route. |
 | `route:tvshow:video-tv` | route | `video/tv` | implemented | M006/S01 | `src/lib/video/videoRouter.ts` |  |
 
 ## Family: tvshows
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `nav:tvshows:tvshows` | nav | `tvshows` | deferred | R054/M006/S04 | `src/js/entities/nav/navMain.js.coffee:34` | Media parity backlog from Chorus2 source scan. |
-| `nav:tvshows:tvshows-recent` | nav | `tvshows/recent` | deferred | R054/M006/S04 | `src/js/entities/nav/navMain.js.coffee:32`<br>`src/js/entities/nav/navMain.js.coffee:33` | Media parity backlog from Chorus2 source scan. |
+| `nav:tvshows:tvshows` | nav | `tvshows` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 TV shows nav alias is promoted to the existing video TV route. |
+| `nav:tvshows:tvshows-recent` | nav | `tvshows/recent` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 recent TV nav alias is promoted to the existing video TV route. |
 
 ## Family: ui
 
@@ -1185,13 +1185,13 @@ Later slices own route aliases, Remote/Input, media alias bridges, packaged shel
 
 | ID | kind | surface | status | owner | evidence | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `route:view:browser-media-id` | route | `browser/:media/:id` | missing | M006/S02 | `src/js/apps/browser/browser_app.js.coffee:6` | Route/menu alias backlog from Chorus2 source scan. |
-| `route:view:movie-id` | route | `movie/:id` | deferred | R054/M006/S04 | `src/js/apps/movie/movie_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
+| `route:view:browser-media-id` | route | `browser/:media/:id` | missing | M006/S02 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts`<br>`src/main.test.ts` | Route/menu alias backlog from Chorus2 source scan. |
+| `route:view:movie-id` | route | `movie/:id` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 movie detail route is promoted to the existing video movie detail route. |
 | `route:view:music-album-id` | route | `music/album/:id` | deferred | R054/M006/S04 | `src/js/apps/album/album_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
 | `route:view:music-artist-id` | route | `music/artist/:id` | deferred | R054/M006/S04 | `src/js/apps/artist/artist_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
 | `route:view:music-video-id` | route | `music/video/:id` | deferred | R054/M006/S04 | `src/js/apps/musicvideo/musicvideo_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
 | `route:view:search` | route | `search` | missing | M006/S02 | `src/js/apps/search/search_app.js.coffee:5` | Route/menu alias backlog from Chorus2 source scan. |
-| `route:view:tvshow-tvshowid` | route | `tvshow/:tvshowid` | deferred | R054/M006/S04 | `src/js/apps/tvshow/tvshow_app.js.coffee:6` | Media parity backlog from Chorus2 source scan. |
+| `route:view:tvshow-tvshowid` | route | `tvshow/:tvshowid` | implemented | M006/S04 | `src/App.test.ts`<br>`src/lib/app/appRouter.test.ts`<br>`src/lib/app/appRouter.ts` | Chorus2 TV show detail route is promoted to the existing video TV show detail route. |
 
 ## Family: when
 

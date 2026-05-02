@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { KodiHttpClientError, type KodiJsonRpcHttpClient, type RemoteInputCommand } from '$lib/kodi';
+import {
+  KodiHttpClientError,
+  type KodiJsonRpcHttpClient,
+  type RemoteInputCommand
+} from '$lib/kodi';
 import { createRemoteInputDispatch } from './remoteInputDispatch.svelte';
 
 type CallRecord = {
@@ -35,7 +39,9 @@ class FakeKodiClient implements KodiJsonRpcHttpClient {
   }
 }
 
-function createHarness(options: { client?: FakeKodiClient | null; createClientThrows?: unknown } = {}) {
+function createHarness(
+  options: { client?: FakeKodiClient | null; createClientThrows?: unknown } = {}
+) {
   const client = options.client === undefined ? new FakeKodiClient() : options.client;
   let createClientCalls = 0;
   const dispatch = createRemoteInputDispatch({
