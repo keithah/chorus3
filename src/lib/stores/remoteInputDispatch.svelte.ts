@@ -63,12 +63,19 @@ export class RemoteInputDispatch {
     this.#client = options.client ?? null;
     this.#createClient =
       options.createClient ??
-      (() => createActiveKodiJsonRpcHttpClient({ configStore: options.configStore ?? defaultConfigStore }));
+      (() =>
+        createActiveKodiJsonRpcHttpClient({
+          configStore: options.configStore ?? defaultConfigStore
+        }));
     this.#now = options.now ?? (() => new Date().toISOString());
   }
 
   get snapshot(): RemoteInputDispatchSnapshot {
     return cloneSnapshot(this.#snapshot);
+  }
+
+  sendInput(command: RemoteInputCommand): Promise<void> {
+    return this.send(command);
   }
 
   async send(command: RemoteInputCommand): Promise<void> {
@@ -188,7 +195,9 @@ function createSafeError(error: unknown): RemoteInputDispatchSafeErrorSnapshot {
   return {
     source: 'command',
     code: 'command/failed',
-    message: sanitizeErrorMessage(error instanceof Error ? error.message : 'Remote input command failed.')
+    message: sanitizeErrorMessage(
+      error instanceof Error ? error.message : 'Remote input command failed.'
+    )
   };
 }
 
