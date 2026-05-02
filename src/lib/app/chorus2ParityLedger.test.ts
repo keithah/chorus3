@@ -157,7 +157,9 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       expect(row.evidence.length, `${rowLabel(row)} evidence`).toBeGreaterThan(0);
       for (const evidence of row.evidence) {
         expect(evidence.trim(), `${rowLabel(row)} blank evidence`).not.toBe('');
-        expect(evidence, `${rowLabel(row)} absolute evidence`).not.toMatch(ABSOLUTE_EVIDENCE_PATTERN);
+        expect(evidence, `${rowLabel(row)} absolute evidence`).not.toMatch(
+          ABSOLUTE_EVIDENCE_PATTERN
+        );
         expect(evidence, `${rowLabel(row)} ignored evidence`).not.toMatch(IGNORED_EVIDENCE_PATTERN);
         expect(evidence, `${rowLabel(row)} unsafe evidence`).not.toMatch(UNSAFE_TEXT_PATTERN);
       }
@@ -185,16 +187,31 @@ describe('CHORUS2_PARITY_LEDGER', () => {
 
   test('covers required nav/menu surfaces', () => {
     for (const surface of REQUIRED_NAV_SURFACES) {
-      expect(rowsForSurface('nav', surface).length, `missing nav surface ${surface}`).toBeGreaterThan(0);
+      expect(
+        rowsForSurface('nav', surface).length,
+        `missing nav surface ${surface}`
+      ).toBeGreaterThan(0);
     }
   });
 
   test('covers visible remote controls and command/json-rpc families with conservative ownership', () => {
     for (const method of REQUIRED_JSON_RPC_METHODS) {
-      expect(rowsForSurface('jsonrpc', method).length, `missing jsonrpc ${method}`).toBeGreaterThan(0);
+      expect(rowsForSurface('jsonrpc', method).length, `missing jsonrpc ${method}`).toBeGreaterThan(
+        0
+      );
     }
 
-    for (const control of ['left', 'up', 'right', 'down', 'back', 'select', 'contextmenu', 'info', 'home']) {
+    for (const control of [
+      'left',
+      'up',
+      'right',
+      'down',
+      'back',
+      'select',
+      'contextmenu',
+      'info',
+      'home'
+    ]) {
       const row = rowsForSurface('control', control)[0];
       expect(row, `missing remote control ${control}`).toBeDefined();
       expect(row?.status, `remote control ${control} status`).toBe('missing');
@@ -217,12 +234,16 @@ describe('CHORUS2_PARITY_LEDGER', () => {
   test('lookup helpers are deterministic and do not expose mutable ledger arrays', () => {
     const missingRows = getChorus2ParityRowsByStatus('missing');
     expect(missingRows.length).toBeGreaterThan(0);
-    expect(missingRows).toEqual([...missingRows].sort((left, right) => left.id.localeCompare(right.id)));
+    expect(missingRows).toEqual(
+      [...missingRows].sort((left, right) => left.id.localeCompare(right.id))
+    );
     expect(missingRows).not.toBe(CHORUS2_PARITY_LEDGER);
 
     const remoteRows = getChorus2ParityRowsByFamily('remote');
     expect(remoteRows.every((row) => row.family === 'remote')).toBe(true);
-    expect(remoteRows).toEqual([...remoteRows].sort((left, right) => left.id.localeCompare(right.id)));
+    expect(remoteRows).toEqual(
+      [...remoteRows].sort((left, right) => left.id.localeCompare(right.id))
+    );
     expect(remoteRows).not.toBe(CHORUS2_PARITY_LEDGER);
 
     const knownRow = getChorus2ParityRowById('jsonrpc:player:play-pause');

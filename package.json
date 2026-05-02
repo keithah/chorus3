@@ -25,6 +25,7 @@
     "verify:no-tailwind": "node scripts/verify-no-tailwind.mjs",
     "verify:i18n": "node scripts/verify-i18n.mjs",
     "verify:kodi-package": "node scripts/verify-kodi-package.mjs",
+    "verify:chorus2-parity": "node scripts/verify-chorus2-parity.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:no-tailwind && npm run verify:i18n && npm run package:kodi && npm run verify:kodi-package"
   },
   "dependencies": {
