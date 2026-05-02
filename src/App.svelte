@@ -30,6 +30,7 @@
     type MusicBrowsePanelDispatch
   } from '$components/MusicBrowsePanel.svelte';
   import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
+  import NowPlayingEmbedRoute from '$components/NowPlayingEmbedRoute.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
@@ -61,6 +62,7 @@
     addonsStore,
     configStore,
     connectionStore,
+    hostConnectionStore,
     localPlayerStore,
     labApiBrowserStore,
     mediaFilesStore,
@@ -76,6 +78,7 @@
     settingsStore,
     localeStore,
     type AddonsStoreSnapshot,
+    type ActiveHostSummary,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
     type LabApiBrowserStoreSnapshot,
@@ -103,6 +106,7 @@
     type VideoWriteStoreSnapshot
   } from '$lib/stores/videoWriteStore.svelte';
   import { buildAppRoute, type AppRoute } from '$lib/app/appRouter';
+  import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
@@ -148,6 +152,9 @@
     addonDetailDispatch?: AddonDetailDispatch;
     labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
     labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
+    nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
+    nowPlayingHostSummary?: ActiveHostSummary | null;
+    nowPlayingRefreshDispatch?: () => Promise<void> | void;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -339,6 +346,9 @@
     addonDetailDispatch = defaultAddonDetailDispatch,
     labApiBrowserSnapshot,
     labApiBrowserDispatch = defaultLabApiBrowserDispatch,
+    nowPlayingEmbedQuery,
+    nowPlayingHostSummary,
+    nowPlayingRefreshDispatch,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -370,6 +380,11 @@
   const currentLabApiBrowserSnapshot = $derived(
     labApiBrowserSnapshot ?? labApiBrowserStore.snapshot
   );
+  const currentNowPlayingHostSummary = $derived(
+    nowPlayingHostSummary === undefined
+      ? hostConnectionStore.snapshot.activeHostSummary
+      : nowPlayingHostSummary
+  );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
@@ -380,6 +395,7 @@
   const isLabShortcutsRoute = $derived(currentRoute.kind === 'labShortcuts');
   const isLabApiBrowserRoute = $derived(currentRoute.kind === 'labApiBrowser');
   const isLabUnknownRoute = $derived(currentRoute.kind === 'labUnknown');
+  const isNowPlayingRoute = $derived(currentRoute.kind === 'nowPlaying');
   const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentVideoRoute?.kind === 'videoMovieDetail');
   const isVideoMovieStreamRoute = $derived(currentVideoRoute?.kind === 'videoMovieStream');
@@ -426,6 +442,15 @@
       window.removeEventListener('keydown', handleGlobalKeydown);
     };
   });
+
+  async function refreshNowPlayingEmbed(): Promise<void> {
+    if (nowPlayingRefreshDispatch) {
+      await nowPlayingRefreshDispatch();
+      return;
+    }
+
+    await playerStore.refresh('manual');
+  }
 
   function toggleAppFullscreen(): void {
     const documentElement = document.documentElement;
@@ -686,280 +711,308 @@
   }
 </script>
 
-<AppShell>
-  <header class="hero" aria-labelledby="app-title">
-    <div class="hero-copy">
-      <p class="eyebrow">{currentI18n.t('app.shell.eyebrow')}</p>
-      <h1 id="app-title">{currentI18n.t('app.name')}</h1>
-      <p class="lede">{currentI18n.t('app.shell.lede')}</p>
-    </div>
-    <div class="hero-actions">
-      <LocaleToggle
-        locale={currentLocaleSnapshot.locale}
-        i18n={currentI18n}
-        dispatch={localeDispatch}
-      />
-      <ThemeToggle i18n={currentI18n} />
-    </div>
-  </header>
-
-  {#if isDashboardRoute}
-    <main class="dashboard" aria-label={currentI18n.t('app.dashboard.aria')}>
-      <section class="mission surface" aria-labelledby="mission-title">
-        <p class="section-kicker">{currentI18n.t('app.mission.kicker')}</p>
-        <h2 id="mission-title">
-          {configStore.snapshot.activeHost?.label ?? currentI18n.t('app.mission.noHost')}
-        </h2>
-        <p>
-          {currentI18n.t('app.mission.description')}
-        </p>
-      </section>
-
-      <div class="host-grid">
-        <HostSettings i18n={currentI18n} />
-        <HostSwitcher i18n={currentI18n} />
+{#if isNowPlayingRoute}
+  <NowPlayingEmbedRoute
+    snapshot={currentPlayerSnapshot}
+    dispatch={playerDispatch}
+    localPlayerSnapshot={currentLocalSnapshot}
+    hostSummary={currentNowPlayingHostSummary}
+    query={nowPlayingEmbedQuery}
+    i18n={currentI18n}
+    onRefresh={refreshNowPlayingEmbed}
+  />
+{:else}
+  <AppShell>
+    <header class="hero" aria-labelledby="app-title">
+      <div class="hero-copy">
+        <p class="eyebrow">{currentI18n.t('app.shell.eyebrow')}</p>
+        <h1 id="app-title">{currentI18n.t('app.name')}</h1>
+        <p class="lede">{currentI18n.t('app.shell.lede')}</p>
       </div>
-
-      <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
-        <StatusCard
-          title={currentI18n.t('app.connection.title')}
-          status={connectionStatusText(connectionStore.snapshot)}
-          tone={connectionTone(connectionStore.snapshot)}
-          description={connectionDescription(connectionStore.snapshot)}
+      <div class="hero-actions">
+        <LocaleToggle
+          locale={currentLocaleSnapshot.locale}
+          i18n={currentI18n}
+          dispatch={localeDispatch}
         />
-        <StatusCard
-          title={currentI18n.t('app.themeContract.title')}
-          status={currentI18n.t('app.themeContract.status')}
-          tone="success"
-          description={currentI18n.t('app.themeContract.description')}
+        <ThemeToggle i18n={currentI18n} />
+      </div>
+    </header>
+
+    {#if isDashboardRoute}
+      <main class="dashboard" aria-label={currentI18n.t('app.dashboard.aria')}>
+        <section class="mission surface" aria-labelledby="mission-title">
+          <p class="section-kicker">{currentI18n.t('app.mission.kicker')}</p>
+          <h2 id="mission-title">
+            {configStore.snapshot.activeHost?.label ?? currentI18n.t('app.mission.noHost')}
+          </h2>
+          <p>
+            {currentI18n.t('app.mission.description')}
+          </p>
+        </section>
+
+        <div class="host-grid">
+          <HostSettings i18n={currentI18n} />
+          <HostSwitcher i18n={currentI18n} />
+        </div>
+
+        <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
+          <StatusCard
+            title={currentI18n.t('app.connection.title')}
+            status={connectionStatusText(connectionStore.snapshot)}
+            tone={connectionTone(connectionStore.snapshot)}
+            description={connectionDescription(connectionStore.snapshot)}
+          />
+          <StatusCard
+            title={currentI18n.t('app.themeContract.title')}
+            status={currentI18n.t('app.themeContract.status')}
+            tone="success"
+            description={currentI18n.t('app.themeContract.description')}
+          />
+        </section>
+
+        <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} i18n={currentI18n} />
+        <MusicBrowsePanel
+          librarySnapshot={currentMusicLibrarySnapshot}
+          browseSnapshot={currentMusicBrowseSnapshot}
+          dispatch={musicBrowseDispatch}
+          actionDispatch={musicActionDispatch}
+          i18n={currentI18n}
         />
-      </section>
+        <MediaSearchPanel
+          snapshot={currentMediaSearchSnapshot}
+          dispatch={mediaSearchDispatch}
+          actionDispatch={mediaSearchActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaFilesPanel
+          snapshot={currentMediaFilesSnapshot}
+          dispatch={mediaFilesDispatch}
+          actionDispatch={mediaFilesActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaPlaylistsPanel
+          snapshot={currentMediaPlaylistsSnapshot}
+          dispatch={mediaPlaylistsDispatch}
+          actionDispatch={mediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
 
-      <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} i18n={currentI18n} />
-      <MusicBrowsePanel
-        librarySnapshot={currentMusicLibrarySnapshot}
-        browseSnapshot={currentMusicBrowseSnapshot}
-        dispatch={musicBrowseDispatch}
-        actionDispatch={musicActionDispatch}
-        i18n={currentI18n}
-      />
-      <MediaSearchPanel
-        snapshot={currentMediaSearchSnapshot}
-        dispatch={mediaSearchDispatch}
-        actionDispatch={mediaSearchActionDispatch}
-        i18n={currentI18n}
-      />
-      <MediaFilesPanel
-        snapshot={currentMediaFilesSnapshot}
-        dispatch={mediaFilesDispatch}
-        actionDispatch={mediaFilesActionDispatch}
-        i18n={currentI18n}
-      />
-      <MediaPlaylistsPanel
-        snapshot={currentMediaPlaylistsSnapshot}
-        dispatch={mediaPlaylistsDispatch}
-        actionDispatch={mediaPlaylistsActionDispatch}
-        i18n={currentI18n}
-      />
-
-      <LocalMediaRuntime />
-      <NowPlayingPanel
-        snapshot={currentPlayerSnapshot}
-        dispatch={playerDispatch}
-        localPlayerSnapshot={currentLocalSnapshot}
-        i18n={currentI18n}
-      />
-      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
-    </main>
-  {:else if isAddonsRoute}
-    <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
-      <AddonsPanel snapshot={currentAddonsSnapshot} dispatch={addonsDispatch} i18n={currentI18n} />
-    </main>
-  {:else if isAddonDetailRoute}
-    <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
-      <AddonDetailShell
-        snapshot={currentAddonsSnapshot}
-        dispatch={addonDetailDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isAddonsUnknownRoute}
-    <main class="addons-route" aria-label={currentI18n.t('app.route.addonsUnknown.aria')}>
-      <section
-        class="addons-route-not-found surface"
-        aria-labelledby="addons-route-not-found-title"
+        <LocalMediaRuntime />
+        <NowPlayingPanel
+          snapshot={currentPlayerSnapshot}
+          dispatch={playerDispatch}
+          localPlayerSnapshot={currentLocalSnapshot}
+          i18n={currentI18n}
+        />
+        <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
+      </main>
+    {:else if isAddonsRoute}
+      <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
+        <AddonsPanel
+          snapshot={currentAddonsSnapshot}
+          dispatch={addonsDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isAddonDetailRoute}
+      <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
+        <AddonDetailShell
+          snapshot={currentAddonsSnapshot}
+          dispatch={addonDetailDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isAddonsUnknownRoute}
+      <main class="addons-route" aria-label={currentI18n.t('app.route.addonsUnknown.aria')}>
+        <section
+          class="addons-route-not-found surface"
+          aria-labelledby="addons-route-not-found-title"
+        >
+          <p class="section-kicker">{currentI18n.t('app.route.addons.kicker')}</p>
+          <h2 id="addons-route-not-found-title">
+            {currentI18n.t('app.route.addons.notFoundTitle')}
+          </h2>
+          <p>
+            {currentI18n.t('app.route.addons.notFoundDescription', {
+              path:
+                currentRoute.kind === 'addonsUnknown'
+                  ? currentRoute.pathLabel
+                  : '/addons/[redacted]'
+            })}
+          </p>
+          <nav
+            class="addons-route-recovery"
+            aria-label={currentI18n.t('app.route.addons.recoveryAria')}
+          >
+            <a href={buildAppRoute({ kind: 'addons' })}>Add-ons</a>
+          </nav>
+        </section>
+      </main>
+    {:else if isLabShortcutsRoute}
+      <main class="lab-route" aria-label={currentI18n.t('app.route.labShortcuts.aria')}>
+        <ShortcutsPanel i18n={currentI18n} />
+      </main>
+    {:else if isLabApiBrowserRoute}
+      <main class="lab-route" aria-label={currentI18n.t('app.route.labApiBrowser.aria')}>
+        <LabApiBrowserPanel
+          snapshot={currentLabApiBrowserSnapshot}
+          dispatch={labApiBrowserDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isLabUnknownRoute}
+      <main class="lab-route" aria-label={currentI18n.t('app.route.labUnknown.aria')}>
+        <section class="lab-route-not-found surface" aria-labelledby="lab-route-not-found-title">
+          <p class="section-kicker">{currentI18n.t('app.route.lab.kicker')}</p>
+          <h2 id="lab-route-not-found-title">{currentI18n.t('app.route.lab.notFoundTitle')}</h2>
+          <p>
+            {currentI18n.t('app.route.lab.notFoundDescription', {
+              path: currentRoute.kind === 'labUnknown' ? currentRoute.pathLabel : '/lab/[redacted]'
+            })}
+          </p>
+          <nav class="lab-route-recovery" aria-label={currentI18n.t('app.route.lab.recoveryAria')}>
+            <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
+            <a href={buildAppRoute({ kind: 'labApiBrowser' })}>API browser</a>
+          </nav>
+        </section>
+      </main>
+    {:else if isSettingsRoute}
+      <main class="settings-route" aria-label={currentI18n.t('app.route.settings.aria')}>
+        <SettingsPanel
+          snapshot={currentSettingsSnapshot}
+          dispatch={settingsDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isSettingsUnknownRoute}
+      <main class="settings-route" aria-label={currentI18n.t('app.route.settingsUnknown.aria')}>
+        <section
+          class="settings-route-not-found surface"
+          aria-labelledby="settings-route-not-found-title"
+        >
+          <p class="section-kicker">{currentI18n.t('app.route.settings.kicker')}</p>
+          <h2 id="settings-route-not-found-title">
+            {currentI18n.t('app.route.settings.notFoundTitle')}
+          </h2>
+          <p>
+            {currentI18n.t('app.route.settings.notFoundDescription', {
+              path:
+                currentRoute.kind === 'settingsUnknown'
+                  ? currentRoute.pathLabel
+                  : '/settings/unknown'
+            })}
+          </p>
+          <nav
+            class="settings-route-recovery"
+            aria-label={currentI18n.t('app.route.settings.recoveryAria')}
+          >
+            <a href="/settings">Settings</a>
+          </nav>
+        </section>
+      </main>
+    {:else if isVideoMoviesRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
+        <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
+        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
+        <MediaPlaylistsPanel
+          snapshot={currentVideoMediaPlaylistsSnapshot}
+          dispatch={videoMediaPlaylistsDispatch}
+          actionDispatch={videoMediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoMovieDetailRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoMovieDetail.aria')}>
+        <VideoMovieDetailShell
+          snapshot={currentVideoLibrarySnapshot}
+          route={currentRenderableVideoRoute}
+          detailSnapshot={videoMovieDetailSnapshot}
+          actionDispatch={videoMovieActionDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoMovieStreamRoute}
+      <main
+        class="video-stream-route"
+        aria-label={currentI18n.t('app.route.videoMovieStream.aria')}
       >
-        <p class="section-kicker">{currentI18n.t('app.route.addons.kicker')}</p>
-        <h2 id="addons-route-not-found-title">{currentI18n.t('app.route.addons.notFoundTitle')}</h2>
-        <p>
-          {currentI18n.t('app.route.addons.notFoundDescription', {
-            path:
-              currentRoute.kind === 'addonsUnknown' ? currentRoute.pathLabel : '/addons/[redacted]'
-          })}
-        </p>
-        <nav
-          class="addons-route-recovery"
-          aria-label={currentI18n.t('app.route.addons.recoveryAria')}
+        <VideoMovieStreamShell
+          snapshot={currentVideoLibrarySnapshot}
+          route={currentRenderableVideoRoute}
+          detailSnapshot={videoMovieDetailSnapshot}
+          localPlayerSnapshot={currentLocalSnapshot}
+          dispatchSnapshot={playerDispatch.snapshot}
+          actionDispatch={videoMovieStreamActionDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoTvShowsRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
+        <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
+        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
+        <MediaPlaylistsPanel
+          snapshot={currentVideoMediaPlaylistsSnapshot}
+          dispatch={videoMediaPlaylistsDispatch}
+          actionDispatch={videoMediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoTvShowDetailRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShowDetail.aria')}>
+        <VideoTvShowDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoTvSeasonDetailRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoTvSeasonDetail.aria')}>
+        <VideoSeasonDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          artworkDispatch={videoSeasonArtworkDispatch}
+          writeDispatch={videoSeasonWriteDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoEpisodeDetailRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoEpisodeDetail.aria')}>
+        <VideoEpisodeDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          actionDispatch={videoEpisodeActionDispatch}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isVideoUnknownRoute}
+      <main class="video-route" aria-label={currentI18n.t('app.route.videoUnknown.aria')}>
+        <section
+          class="video-route-not-found surface"
+          aria-labelledby="video-route-not-found-title"
         >
-          <a href={buildAppRoute({ kind: 'addons' })}>Add-ons</a>
-        </nav>
-      </section>
-    </main>
-  {:else if isLabShortcutsRoute}
-    <main class="lab-route" aria-label={currentI18n.t('app.route.labShortcuts.aria')}>
-      <ShortcutsPanel i18n={currentI18n} />
-    </main>
-  {:else if isLabApiBrowserRoute}
-    <main class="lab-route" aria-label={currentI18n.t('app.route.labApiBrowser.aria')}>
-      <LabApiBrowserPanel
-        snapshot={currentLabApiBrowserSnapshot}
-        dispatch={labApiBrowserDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isLabUnknownRoute}
-    <main class="lab-route" aria-label={currentI18n.t('app.route.labUnknown.aria')}>
-      <section class="lab-route-not-found surface" aria-labelledby="lab-route-not-found-title">
-        <p class="section-kicker">{currentI18n.t('app.route.lab.kicker')}</p>
-        <h2 id="lab-route-not-found-title">{currentI18n.t('app.route.lab.notFoundTitle')}</h2>
-        <p>
-          {currentI18n.t('app.route.lab.notFoundDescription', {
-            path: currentRoute.kind === 'labUnknown' ? currentRoute.pathLabel : '/lab/[redacted]'
-          })}
-        </p>
-        <nav class="lab-route-recovery" aria-label={currentI18n.t('app.route.lab.recoveryAria')}>
-          <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
-          <a href={buildAppRoute({ kind: 'labApiBrowser' })}>API browser</a>
-        </nav>
-      </section>
-    </main>
-  {:else if isSettingsRoute}
-    <main class="settings-route" aria-label={currentI18n.t('app.route.settings.aria')}>
-      <SettingsPanel
-        snapshot={currentSettingsSnapshot}
-        dispatch={settingsDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isSettingsUnknownRoute}
-    <main class="settings-route" aria-label={currentI18n.t('app.route.settingsUnknown.aria')}>
-      <section
-        class="settings-route-not-found surface"
-        aria-labelledby="settings-route-not-found-title"
-      >
-        <p class="section-kicker">{currentI18n.t('app.route.settings.kicker')}</p>
-        <h2 id="settings-route-not-found-title">
-          {currentI18n.t('app.route.settings.notFoundTitle')}
-        </h2>
-        <p>
-          {currentI18n.t('app.route.settings.notFoundDescription', {
-            path:
-              currentRoute.kind === 'settingsUnknown' ? currentRoute.pathLabel : '/settings/unknown'
-          })}
-        </p>
-        <nav
-          class="settings-route-recovery"
-          aria-label={currentI18n.t('app.route.settings.recoveryAria')}
-        >
-          <a href="/settings">Settings</a>
-        </nav>
-      </section>
-    </main>
-  {:else if isVideoMoviesRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
-      <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
-      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
-      <MediaPlaylistsPanel
-        snapshot={currentVideoMediaPlaylistsSnapshot}
-        dispatch={videoMediaPlaylistsDispatch}
-        actionDispatch={videoMediaPlaylistsActionDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoMovieDetailRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoMovieDetail.aria')}>
-      <VideoMovieDetailShell
-        snapshot={currentVideoLibrarySnapshot}
-        route={currentRenderableVideoRoute}
-        detailSnapshot={videoMovieDetailSnapshot}
-        actionDispatch={videoMovieActionDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoMovieStreamRoute}
-    <main class="video-stream-route" aria-label={currentI18n.t('app.route.videoMovieStream.aria')}>
-      <VideoMovieStreamShell
-        snapshot={currentVideoLibrarySnapshot}
-        route={currentRenderableVideoRoute}
-        detailSnapshot={videoMovieDetailSnapshot}
-        localPlayerSnapshot={currentLocalSnapshot}
-        dispatchSnapshot={playerDispatch.snapshot}
-        actionDispatch={videoMovieStreamActionDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoTvShowsRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
-      <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
-      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
-      <MediaPlaylistsPanel
-        snapshot={currentVideoMediaPlaylistsSnapshot}
-        dispatch={videoMediaPlaylistsDispatch}
-        actionDispatch={videoMediaPlaylistsActionDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoTvShowDetailRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShowDetail.aria')}>
-      <VideoTvShowDetailShell
-        snapshot={currentVideoTvSnapshot}
-        route={currentRenderableVideoRoute}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoTvSeasonDetailRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoTvSeasonDetail.aria')}>
-      <VideoSeasonDetailShell
-        snapshot={currentVideoTvSnapshot}
-        route={currentRenderableVideoRoute}
-        artworkDispatch={videoSeasonArtworkDispatch}
-        writeDispatch={videoSeasonWriteDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoEpisodeDetailRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoEpisodeDetail.aria')}>
-      <VideoEpisodeDetailShell
-        snapshot={currentVideoTvSnapshot}
-        route={currentRenderableVideoRoute}
-        actionDispatch={videoEpisodeActionDispatch}
-        i18n={currentI18n}
-      />
-    </main>
-  {:else if isVideoUnknownRoute}
-    <main class="video-route" aria-label={currentI18n.t('app.route.videoUnknown.aria')}>
-      <section class="video-route-not-found surface" aria-labelledby="video-route-not-found-title">
-        <p class="section-kicker">{currentI18n.t('app.route.video.kicker')}</p>
-        <h2 id="video-route-not-found-title">{currentI18n.t('app.route.video.notFoundTitle')}</h2>
-        <p>
-          {currentI18n.t('app.route.video.notFoundDescription', {
-            path:
-              currentVideoRoute?.kind === 'videoUnknown'
-                ? currentVideoRoute.pathLabel
-                : '/video/unknown'
-          })}
-        </p>
-        <nav
-          class="video-route-recovery"
-          aria-label={currentI18n.t('app.route.video.recoveryAria')}
-        >
-          <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
-          <a href={buildVideoRoute({ kind: 'videoTvShows' })}>TV shows</a>
-        </nav>
-      </section>
-    </main>
-  {/if}
-</AppShell>
+          <p class="section-kicker">{currentI18n.t('app.route.video.kicker')}</p>
+          <h2 id="video-route-not-found-title">{currentI18n.t('app.route.video.notFoundTitle')}</h2>
+          <p>
+            {currentI18n.t('app.route.video.notFoundDescription', {
+              path:
+                currentVideoRoute?.kind === 'videoUnknown'
+                  ? currentVideoRoute.pathLabel
+                  : '/video/unknown'
+            })}
+          </p>
+          <nav
+            class="video-route-recovery"
+            aria-label={currentI18n.t('app.route.video.recoveryAria')}
+          >
+            <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
+            <a href={buildVideoRoute({ kind: 'videoTvShows' })}>TV shows</a>
+          </nav>
+        </section>
+      </main>
+    {/if}
+  </AppShell>
+{/if}
 
 <style>
   .hero {

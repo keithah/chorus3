@@ -38,6 +38,60 @@ describe('main entrypoint', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
+  it('mounts direct now-playing M005 browser-proof fixtures with query theme and German locale without persisting theme or exposing forbidden text', async () => {
+    setPathAndSearch('/now-playing', '?m005-browser-proof=1&theme=light&locale=de');
+
+    await importMain();
+
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    expect(document.body.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    expect(document.body.textContent).toContain('Safe Room Kodi');
+    expect(document.body.textContent).toContain('Aurora Signal');
+    expect(document.body.textContent).not.toContain('Now playing embed');
+    expect(document.body.textContent).not.toContain('Music Library');
+    for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
+      expect(document.body.textContent).not.toContain(forbidden);
+    }
+  });
+
+  it('mounts direct now-playing setup fixtures and keeps M005 now-playing fixtures off unrelated routes', async () => {
+    setPathAndSearch('/now-playing', '?m005-browser-proof=1&embed-state=setup&locale=de');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Einrichtung erforderlich');
+    expect(document.body.textContent).toContain(
+      'Einrichtung erforderlich, bevor die Aktuelle-Wiedergabe-Einbettung verbinden kann.'
+    );
+    expect(document.body.textContent).not.toContain('Aurora Signal');
+
+    vi.resetModules();
+    document.body.innerHTML = '<div id="app"></div>';
+    setPathAndSearch('/settings', '?m005-browser-proof=1&embed-state=setup');
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).not.toContain('Aurora Signal');
+    expect(document.body.textContent).not.toContain('Now playing embed');
+  });
+
+  it('rejects credential-bearing now-playing query values through the real entrypoint without reflecting secrets', async () => {
+    setPathAndSearch(
+      '/now-playing',
+      '?m005-browser-proof=1&username=admin&password=CHORUS3_SENTINEL_SECRET&token=Basic'
+    );
+
+    await importMain();
+
+    expect(document.body.textContent).toContain('unsafe URL parameters were blocked');
+    expect(document.body.textContent).toContain('Aurora Signal');
+    expect(document.body.textContent).not.toMatch(
+      /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password=|token=|username|password|token|localStorage|sessionStorage|https?:\/\//i
+    );
+  });
+
   it('keeps default and disabled fixture query modes on the live/default app props', async () => {
     await importMain();
 

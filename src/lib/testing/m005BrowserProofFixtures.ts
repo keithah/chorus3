@@ -2,10 +2,19 @@ import type { AddonDetailDispatch } from '$lib/components/AddonDetailShell.svelt
 import type { AddonsPanelDispatch } from '$lib/components/AddonsPanel.svelte';
 import type { SettingsPanelDispatch } from '$lib/components/SettingsPanel.svelte';
 import type { LabApiBrowserPanelDispatch } from '$lib/components/LabApiBrowserPanel.svelte';
+import type { PlayerControlsDispatch } from '$lib/components/PlayerControls.svelte';
 import { parseAppRoute, type AppRoute } from '$lib/app/appRouter';
+import {
+  parseNowPlayingEmbedQuery,
+  type NowPlayingEmbedQuery
+} from '$lib/app/nowPlayingEmbedQuery';
 import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
 import type { LabApiBrowserStoreSnapshot } from '$lib/stores/labApiBrowser.svelte';
+import type { ActiveHostSummary } from '$lib/stores/hostConnection.svelte';
+import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
+import type { PlayerDispatchSnapshot } from '$lib/stores/playerDispatch.svelte';
+import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
 import { isLocale, type Locale } from '$lib/i18n';
 import type { LocaleStoreSnapshot } from '$lib/stores/locale.svelte';
 
@@ -23,6 +32,12 @@ export interface M005BrowserProofAppProps {
   addonDetailDispatch?: AddonDetailDispatch;
   labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
   labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
+  playerSnapshot?: PlayerStoreSnapshot;
+  playerDispatch?: PlayerControlsDispatch;
+  localPlayerSnapshot?: LocalPlayerStoreSnapshot;
+  nowPlayingHostSummary?: ActiveHostSummary | null;
+  nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
+  nowPlayingRefreshDispatch?: () => Promise<void>;
   localeSnapshot?: LocaleStoreSnapshot;
 }
 
@@ -88,6 +103,24 @@ export function createM005BrowserProofAppProps(
     };
   }
 
+  if (route.kind === 'nowPlaying') {
+    const query = parseNowPlayingEmbedQuery(readSearch(location));
+    const setupMode = readNowPlayingEmbedState(location) === 'setup';
+
+    return {
+      route,
+      playerSnapshot: setupMode
+        ? createNowPlayingSetupPlayerSnapshot()
+        : createNowPlayingPlayerSnapshot(),
+      playerDispatch: createNowPlayingDispatch(),
+      localPlayerSnapshot: createNowPlayingLocalPlayerSnapshot(),
+      nowPlayingHostSummary: setupMode ? null : createNowPlayingHostSummary(),
+      nowPlayingEmbedQuery: query,
+      nowPlayingRefreshDispatch: noop,
+      ...(query.locale ? { localeSnapshot: { locale: query.locale } } : {})
+    };
+  }
+
   return { route };
 }
 
@@ -120,6 +153,132 @@ function readLocaleQuery(location: M005BrowserProofLocation | null | undefined):
   } catch {
     return null;
   }
+}
+
+function readNowPlayingEmbedState(
+  location: M005BrowserProofLocation | null | undefined
+): 'active' | 'setup' {
+  const search = readSearch(location);
+  if (typeof search !== 'string' || search.length === 0) {
+    return 'active';
+  }
+
+  try {
+    return new URLSearchParams(search).get('embed-state') === 'setup' ? 'setup' : 'active';
+  } catch {
+    return 'active';
+  }
+}
+
+function createNowPlayingHostSummary(): ActiveHostSummary {
+  return {
+    id: 'm005-now-playing-host',
+    label: 'Safe Room Kodi',
+    host: 'fixture-host',
+    port: 8080,
+    useTls: false,
+    useWebSocket: false,
+    hasCredentials: false
+  };
+}
+
+function createNowPlayingPlayerSnapshot(): PlayerStoreSnapshot {
+  return {
+    refreshStatus: 'ready',
+    playbackStatus: 'active',
+    lastRefreshReason: 'manual',
+    lastQueueRefreshReason: null,
+    lastUpdatedAt: fixtureTime,
+    activePlayers: [{ playerid: 1, type: 'video' }],
+    primaryPlayer: { playerid: 1, type: 'video' },
+    item: {
+      label: 'Aurora Signal',
+      title: 'Aurora Signal',
+      showtitle: 'Fixture Series',
+      season: 1,
+      episode: 2,
+      file: 'opaque-media-token',
+      thumbnail: 'poster:aurora-signal'
+    },
+    properties: {
+      type: 'video',
+      percentage: 37.5,
+      shuffled: false,
+      repeat: 'off',
+      subtitleenabled: false,
+      subtitles: [],
+      currentaudiostream: { index: 0, name: 'Main mix', language: 'eng', channels: 2 },
+      audiostreams: [{ index: 0, name: 'Main mix', language: 'eng', channels: 2, codec: 'aac' }]
+    },
+    application: { volume: 64, muted: false },
+    queue: { playlistid: 1, position: 3 },
+    time: { currentSeconds: 45, totalSeconds: 120 },
+    lastError: null
+  };
+}
+
+function createNowPlayingSetupPlayerSnapshot(): PlayerStoreSnapshot {
+  return {
+    refreshStatus: 'idle',
+    playbackStatus: 'none',
+    lastRefreshReason: 'init',
+    lastQueueRefreshReason: null,
+    lastUpdatedAt: null,
+    activePlayers: [],
+    primaryPlayer: null,
+    item: null,
+    properties: null,
+    application: { volume: null, muted: null },
+    queue: { playlistid: null, position: null },
+    time: { currentSeconds: null, totalSeconds: null },
+    lastError: null
+  };
+}
+
+function createNowPlayingLocalPlayerSnapshot(): LocalPlayerStoreSnapshot {
+  return {
+    status: 'idle',
+    mediaKind: 'video',
+    item: null,
+    currentSeconds: 0,
+    durationSeconds: null,
+    volume: 100,
+    muted: false,
+    lastError: null,
+    kodiPausedForLocal: false,
+    resumeAvailable: false,
+    lastUpdatedAt: null
+  };
+}
+
+function createNowPlayingDispatch(): PlayerControlsDispatch {
+  return {
+    snapshot: createNowPlayingDispatchSnapshot(),
+    playPause: noop,
+    stop: noop,
+    previous: noop,
+    next: noop,
+    seekPercentage: noop,
+    seekRelativeSeconds: noop,
+    setVolume: noop,
+    toggleMute: noop,
+    setShuffle: noop,
+    setRepeat: noop,
+    setSubtitle: noop,
+    setAudioStream: noop,
+    startLocalPlayback: noop,
+    resumeOnKodi: noop
+  };
+}
+
+function createNowPlayingDispatchSnapshot(): PlayerDispatchSnapshot {
+  return {
+    mode: 'kodi',
+    commandStatus: 'idle',
+    lastCommand: null,
+    lastError: null,
+    lastCompletedAt: null
+  };
 }
 
 function createLabApiBrowserSnapshot(): LabApiBrowserStoreSnapshot {

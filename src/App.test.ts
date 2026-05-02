@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import App from './App.svelte';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
 import type { AppRoute } from './lib/app/appRouter';
+import type { NowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type {
   MusicBrowseActionDispatch,
   MusicBrowsePanelDispatch
@@ -66,7 +67,8 @@ import {
   type QueueDispatchSnapshot,
   type QueueStoreSnapshot,
   type AddonsStoreSnapshot,
-  type LabApiBrowserStoreSnapshot
+  type LabApiBrowserStoreSnapshot,
+  type ActiveHostSummary
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
@@ -103,6 +105,9 @@ type AppProps = {
   addonDetailDispatch?: AddonDetailDispatch;
   labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
   labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
+  nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
+  nowPlayingHostSummary?: ActiveHostSummary | null;
+  nowPlayingRefreshDispatch?: () => Promise<void> | void;
   localeSnapshot?: LocaleStoreSnapshot;
   localeDispatch?: { setLocale: (locale: unknown) => LocaleMutationResult };
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
@@ -1120,6 +1125,19 @@ function createLocalPlayerSnapshot(
   };
 }
 
+function createActiveHostSummary(overrides: Partial<ActiveHostSummary> = {}): ActiveHostSummary {
+  return {
+    id: 'host-safe-room',
+    label: 'Safe Room Kodi',
+    host: 'fixture-host',
+    port: 8080,
+    useTls: false,
+    useWebSocket: false,
+    hasCredentials: false,
+    ...overrides
+  };
+}
+
 function createDispatchSnapshot(
   overrides: Partial<PlayerDispatchSnapshot> = {}
 ): PlayerDispatchSnapshot {
@@ -1379,6 +1397,88 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
+  it('renders the standalone now-playing embed route with injected safe host, query, player props, and refresh dispatch', async () => {
+    const refresh = vi.fn(async () => undefined);
+    const target = renderApp({
+      route: { kind: 'nowPlaying' },
+      nowPlayingHostSummary: createActiveHostSummary(),
+      nowPlayingEmbedQuery: {
+        theme: 'light',
+        locale: 'de',
+        rejectedCredentialParams: [],
+        ignoredParams: []
+      },
+      nowPlayingRefreshDispatch: refresh,
+      localeSnapshot: { locale: 'de' },
+      playerSnapshot: activeVideoSnapshot({
+        item: {
+          label: 'Aurora Signal',
+          title: 'Aurora Signal',
+          file: 'opaque-media-token'
+        }
+      }),
+      playerDispatch: createPlayerDispatch(),
+      localPlayerSnapshot: createLocalPlayerSnapshot()
+    });
+
+    expect(target.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    expect(target.textContent).toContain('Safe Room Kodi');
+    expect(target.textContent).toContain('Aurora Signal');
+    expect(target.textContent).not.toContain('Music Library');
+    expect(target.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
+
+    const button = getButton(target, 'Player-Status aktualisieren');
+    button.click();
+    await tick();
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('renders now-playing setup guidance when no safe saved host is available', () => {
+    const target = renderApp({
+      route: { kind: 'nowPlaying' },
+      nowPlayingHostSummary: null,
+      nowPlayingEmbedQuery: {
+        theme: null,
+        locale: null,
+        rejectedCredentialParams: [],
+        ignoredParams: []
+      },
+      playerSnapshot: createPlayerSnapshot(),
+      playerDispatch: createPlayerDispatch(),
+      localPlayerSnapshot: createLocalPlayerSnapshot()
+    });
+
+    expect(target.textContent).toContain('Now playing embed');
+    expect(target.textContent).toContain(
+      'Setup required before the Now Playing embed can connect.'
+    );
+    expect(target.querySelector('.now-playing-panel')).toBeNull();
+  });
+
+  it('renders now-playing credential-query rejection without forbidden visible values', () => {
+    const target = renderApp({
+      route: { kind: 'nowPlaying' },
+      nowPlayingHostSummary: createActiveHostSummary(),
+      nowPlayingEmbedQuery: {
+        theme: null,
+        locale: null,
+        rejectedCredentialParams: ['username', 'password', 'token'],
+        ignoredParams: []
+      },
+      playerSnapshot: createPlayerSnapshot(),
+      playerDispatch: createPlayerDispatch(),
+      localPlayerSnapshot: createLocalPlayerSnapshot()
+    });
+
+    expect(target.querySelector('[role="alert"]')?.textContent).toContain(
+      '3 unsafe URL parameters'
+    );
+    expect(target.textContent).not.toMatch(
+      /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password=|token=|username|password|token|localStorage|sessionStorage|https?:\/\//i
+    );
+  });
+
   it('keeps the dashboard route as the default application surface', () => {
     const target = renderApp({ route: { kind: 'dashboard' } });
 

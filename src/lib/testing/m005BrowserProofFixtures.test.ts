@@ -311,6 +311,73 @@ describe('createM005BrowserProofAppProps', () => {
     expect(isM005BrowserProofFixtureSecretSafe(props.settingsDispatch)).toBe(true);
   });
 
+  test('creates deterministic active and setup now-playing fixture props only for the direct route', async () => {
+    const active = createM005BrowserProofAppProps({
+      pathname: '/now-playing',
+      search: '?m005-browser-proof=1&theme=light&locale=de'
+    });
+    const setup = createM005BrowserProofAppProps({
+      pathname: '/now-playing',
+      search: '?m005-browser-proof=1&embed-state=setup&locale=de'
+    });
+    const unsafeSubpath = createM005BrowserProofAppProps({
+      pathname: '/now-playing/Authorization/Basic/CHORUS3_SENTINEL_SECRET',
+      search: '?m005-browser-proof=1&password=CHORUS3_SENTINEL_SECRET&token=Basic'
+    });
+
+    expect(active.route).toEqual({ kind: 'nowPlaying' });
+    expect(active.nowPlayingHostSummary).toMatchObject({
+      label: 'Safe Room Kodi',
+      hasCredentials: false
+    });
+    expect(active.nowPlayingEmbedQuery).toMatchObject({ theme: 'light', locale: 'de' });
+    expect(active.localeSnapshot).toEqual({ locale: 'de' });
+    expect(active.playerSnapshot).toMatchObject({
+      playbackStatus: 'active',
+      item: { label: 'Aurora Signal' }
+    });
+    expect(active.localPlayerSnapshot).toBeDefined();
+    expect(active.playerDispatch?.snapshot.commandStatus).toBe('idle');
+
+    expect(setup.route).toEqual({ kind: 'nowPlaying' });
+    expect(setup.nowPlayingHostSummary).toBeNull();
+    expect(setup.playerSnapshot?.playbackStatus).toBe('none');
+    expect(setup.localeSnapshot).toEqual({ locale: 'de' });
+
+    expect(unsafeSubpath.route.kind).toBe('settingsUnknown');
+    expect(unsafeSubpath.playerSnapshot).toBeUndefined();
+    expect(unsafeSubpath.nowPlayingHostSummary).toBeUndefined();
+    expect(unsafeSubpath.nowPlayingEmbedQuery).toBeUndefined();
+    expect(JSON.stringify(unsafeSubpath.route)).not.toMatch(
+      /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password=|token=/i
+    );
+
+    await expect(active.nowPlayingRefreshDispatch?.()).resolves.toBeUndefined();
+    await expect(active.playerDispatch?.playPause()).resolves.toBeUndefined();
+    expect(isM005BrowserProofFixtureSecretSafe(active)).toBe(true);
+    expect(isM005BrowserProofFixtureSecretSafe(setup)).toBe(true);
+  });
+
+  test('uses inert now-playing fixtures without network or browser storage side effects', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
+    const sessionStorageSpy = vi.spyOn(window.sessionStorage.__proto__, 'getItem');
+    const props = createM005BrowserProofAppProps({
+      pathname: '/now-playing',
+      search: '?m005-browser-proof=1&username=admin&password=CHORUS3_SENTINEL_SECRET&token=Basic'
+    });
+
+    await expect(props.nowPlayingRefreshDispatch?.()).resolves.toBeUndefined();
+    await expect(props.playerDispatch?.next()).resolves.toBeUndefined();
+    await expect(props.playerDispatch?.setVolume(42)).resolves.toBeUndefined();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(localStorageSpy).not.toHaveBeenCalled();
+    expect(sessionStorageSpy).not.toHaveBeenCalled();
+    expect(props.nowPlayingEmbedQuery?.rejectedCredentialParams.length).toBeGreaterThan(0);
+    expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
+  });
+
   test('keeps every fixture value clear of forbidden text and sentinel secrets', () => {
     const props = createM005BrowserProofAppProps({ pathname: '/settings' });
     const text = collectText(props);

@@ -15,6 +15,7 @@ import {
 } from './lib/testing/m005BrowserProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
 import { parseAppRoute, type AppRoute } from './lib/app/appRouter';
+import { parseNowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type { VideoRoute } from './lib/video/videoRouter';
 
 export interface EntrypointEnv {
@@ -25,6 +26,11 @@ export interface EntrypointEnv {
 export interface EntrypointLocation {
   pathname?: unknown;
   search?: unknown;
+}
+
+interface EntrypointContext {
+  route: AppRoute;
+  nowPlayingEmbedQuery?: ReturnType<typeof parseNowPlayingEmbedQuery>;
 }
 
 type AppProps = { route: AppRoute } & Partial<
@@ -59,10 +65,19 @@ export function shouldUseM005BrowserProofFixtures(
 export function resolveEntrypointRoute(
   location: EntrypointLocation | null | undefined = globalThis.window?.location
 ): AppRoute {
+  return resolveEntrypointContext(location).route;
+}
+
+function resolveEntrypointContext(
+  location: EntrypointLocation | null | undefined = globalThis.window?.location
+): EntrypointContext {
   try {
-    return parseAppRoute(location?.pathname, location?.search);
+    const route = parseAppRoute(location?.pathname, location?.search);
+    return route.kind === 'nowPlaying'
+      ? { route, nowPlayingEmbedQuery: parseNowPlayingEmbedQuery(location?.search) }
+      : { route };
   } catch {
-    return { kind: 'dashboard' };
+    return { route: { kind: 'dashboard' } };
   }
 }
 
@@ -92,7 +107,16 @@ export function resolveEntrypointAppProps(
   location: EntrypointLocation | null | undefined = globalThis.window?.location,
   env: EntrypointEnv = import.meta.env
 ): AppProps {
-  const route = resolveEntrypointRoute(location);
+  const context = resolveEntrypointContext(location);
+  const { route } = context;
+  const nowPlayingBaseProps = context.nowPlayingEmbedQuery
+    ? {
+        nowPlayingEmbedQuery: context.nowPlayingEmbedQuery,
+        ...(context.nowPlayingEmbedQuery.locale
+          ? { localeSnapshot: { locale: context.nowPlayingEmbedQuery.locale } }
+          : {})
+      }
+    : {};
 
   if (shouldUseM004BrowserProofFixtures(location, env) && canLoadM004BrowserProofFixtures) {
     const props = createM004BrowserProofAppProps(location);
@@ -105,21 +129,27 @@ export function resolveEntrypointAppProps(
 
   if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
     const props = createM005BrowserProofAppProps(location);
-    return props.settingsSnapshot || props.addonsSnapshot || props.labApiBrowserSnapshot
+    return props.settingsSnapshot ||
+      props.addonsSnapshot ||
+      props.labApiBrowserSnapshot ||
+      props.nowPlayingEmbedQuery
       ? props
-      : { route };
+      : { route, ...nowPlayingBaseProps };
   }
 
-  return { route };
+  return { route, ...nowPlayingBaseProps };
 }
 
 function toAppRoute(route: VideoRoute): AppRoute {
   return route.kind === 'dashboard' ? route : { kind: 'video', route };
 }
 
-applyTheme(resolveInitialTheme(window.localStorage), {
+const initialContext = resolveEntrypointContext(window.location);
+const initialTheme =
+  initialContext.nowPlayingEmbedQuery?.theme ?? resolveInitialTheme(window.localStorage);
+applyTheme(initialTheme, {
   document,
-  storage: window.localStorage
+  storage: initialContext.nowPlayingEmbedQuery?.theme ? null : window.localStorage
 });
 
 const target = document.getElementById('app');
@@ -130,7 +160,7 @@ if (!target) {
 
 const app = mount(App, {
   target,
-  props: resolveEntrypointAppProps()
+  props: resolveEntrypointAppProps(window.location)
 });
 
 export default app;
