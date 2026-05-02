@@ -1,0 +1,149 @@
+# M005 Final Integrated Proof
+
+Date: 2026-05-01
+Milestone: M005
+Slice: S07
+
+## Scope
+
+This document is the tracked final proof contract for M005. It is written for a fresh executor running the integrated browser and package pass through the real Vite entrypoint, with deterministic M005 browser-proof fixtures where live Kodi is not required.
+
+The proof covers the primary M005 surfaces:
+
+- Settings route editing, write diagnostics, rollback, refresh-after-write, and safe unknown-route handling
+- Add-ons list and add-on detail route diagnostics, confirmation controls, rollback, and refresh-after-write copy
+- Lab shortcuts and Lab API Browser guard, confirmation, blocked-method, and redacted JSON diagnostics
+- Runtime English/German i18n switching and direct locale query handling
+- Standalone Now Playing embed active, setup, theme, locale, and unsafe-query states
+- Kodi package verification and packaged route smoke coverage
+
+The proof is intentionally no-live-Kodi by default. Optional live Kodi install checks are documented as out of scope for the required S07 proof and must not weaken the deterministic proof if skipped.
+
+## Requirements Cross-Reference
+
+Use these tracked M005 UAT documents as the requirement-level source of truth while filling the evidence log:
+
+- `docs/m005-settings-uat.md`
+- `docs/m005-addons-uat.md`
+- `docs/m005-lab-uat.md`
+- `docs/m005-i18n-uat.md`
+- `docs/m005-now-playing-uat.md`
+- `docs/m005-kodi-package-uat.md`
+
+This final proof reconciles those route- and package-specific runbooks into one integrated release gate. Do not cite local planning, audit, browser-state, or generated artifact directories as required inputs.
+
+## Server Lifecycle
+
+Start the dev server from the repository root with the managed background-process tool:
+
+```text
+npm run dev -- --host 127.0.0.1
+```
+
+Use the actual ready port reported by the managed process. Run every browser route through the real Vite app origin on that port.
+
+After verification, stop the managed process with the same background-process tool. Do not leave a dev server running after the proof.
+
+## Command and Package Verification
+
+Run and record these command gates in the evidence log:
+
+```text
+npm run verify
+npm run verify:kodi-package
+zipinfo -1 dist/kodi/webinterface.chorus3-0.0.0.zip | sort
+```
+
+Expected package evidence:
+
+- `npm run verify` exits 0 and includes lint, typecheck, tests, build, no-Tailwind, i18n, package creation, and package verification phases.
+- `npm run verify:kodi-package` exits 0 and reports manifest, HTML asset, archive root, forbidden-content, Now Playing, route, and documentation checks.
+- The zip listing shows one package root with manifest, app entrypoint, asset files, and the standalone Now Playing entrypoint.
+- Package evidence must not include literal credentials, raw endpoint values, raw host snapshots, browser storage values, or secret-bearing request data.
+
+## Browser Route Matrix
+
+Run every route below through the real Vite entrypoint. Record the final outcome in the evidence log.
+
+| Route                                                           | Proves                                                                                                                                                                  | Required visible text or actions                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/settings?m005-browser-proof=1`                                | Settings route, editable controls, unsupported read-only controls, write diagnostics, rollback, refresh-after-write, and safe redaction categories.                     | Settings heading, loaded status, Player and Services sections, Videos and Interface categories, autoplay, seek-step, tone-mapping, pending-write, saved-write, rejected-write, safe write-error, rollback, refresh-after-write, write counts, and read-only unsupported settings. |
+| `/settings?m005-browser-proof=1&locale=de`                      | Direct German locale query handling for the Settings fixture.                                                                                                           | German Settings heading and loaded status, German write-count copy, German read-only unsupported-setting guidance, and absence of invalid-locale reflection.                                                                                                                      |
+| `/addons?m005-browser-proof=1`                                  | Add-ons list route, fixture grouping, search/group controls, installed/enabled/disabled/broken/dependency metadata, and safe detail links.                              | Add-ons heading, loaded status, Safe Video Demo, Safe Helper Module, Safe Radio, grouped add-on type labels, badges, search/group controls, and safe detail link to the demo add-on.                                                                                              |
+| `/addons/plugin.video.safe-demo?m005-browser-proof=1`           | Add-on detail route, confirmation controls, write diagnostics, rollback, refresh-after-write, and inert fixture dispatches.                                             | Safe Video Demo detail, loaded status, failed write status, safe fixture error code, rollback copy, pending-toggle copy, last-write copy, refresh warning, write counts, Enable add-on, Confirm enable, and Cancel enable.                                                        |
+| `/lab/shortcuts?m005-browser-proof=1`                           | Lab shortcuts route and runtime i18n switch surface.                                                                                                                    | Playback shortcuts, Play / pause, language control, German shortcut heading after switching language, Key, and Action copy.                                                                                                                                                       |
+| `/lab/api-browser?m005-browser-proof=1`                         | Lab API Browser fixture, method introspection, guard decisions, confirmation-required flow, blocked-method diagnostics, validation copy, and redacted JSON diagnostics. | Application.GetProperties, Player.Open, System.Shutdown, confirmation-required guard copy, blocked destructive-method copy, validation error, confirmation affordance, redacted request JSON, redacted response JSON, and redacted error JSON.                                    |
+| `/now-playing?m005-browser-proof=1&theme=light&locale=de`       | Active standalone Now Playing embed with German locale, light theme, saved-host/status copy, fixture media, controls, and clean diagnostics.                            | German embed shell copy, Safe Room Kodi, Aurora Signal, light root theme, refresh/status copy, and media controls that do not require a live Kodi host.                                                                                                                           |
+| `/now-playing?m005-browser-proof=1&embed-state=setup&locale=de` | Setup guidance state for standalone Now Playing without a configured host.                                                                                              | German setup-required guidance, saved-host configuration guidance through the main app flow, no fixture media title dependency, and clean diagnostics.                                                                                                                            |
+| `/now-playing?m005-browser-proof=1&theme=dark&locale=en`        | English standalone Now Playing embed with dark theme.                                                                                                                   | English embed shell copy, Aurora Signal, dark root theme, saved-host/status copy, and clean diagnostics.                                                                                                                                                                          |
+| `/now-playing?m005-browser-proof=1&credential-category=blocked` | Unsafe-query rejection behavior without reflecting raw query values.                                                                                                    | Safe unsafe-query guidance, fixture media remains safe, raw query values are not reflected, and category-level redaction scan passes.                                                                                                                                             |
+
+Also run default or disabled fixture-gating checks for the primary route families before treating fixture evidence as valid:
+
+- `/settings`
+- `/addons`
+- `/lab/api-browser`
+- `/now-playing`
+
+Distinctive fixture labels must be absent when the fixture flag is missing or disabled, except for route shells and generic app copy that can appear in normal UI.
+
+## Browser Diagnostics
+
+After default navigation and after each route in the matrix:
+
+- assert no browser console errors
+- assert no failed network requests
+- inspect required route-specific visible text and interactions before marking the route passed
+- clear or scope diagnostic buffers so failures can be attributed to the route that caused them
+- record visible route status, alert, and live-region copy where the surface exposes it
+
+Expected M005 diagnostic surfaces include Settings write/rollback/refresh copy, Add-ons write/rollback/refresh copy, Lab guard and redacted JSON copy, Now Playing setup and unsafe-query guidance, and package verifier phase diagnostics.
+
+## Visible-DOM Redaction Scan Categories
+
+Scan the full visible DOM after default navigation and after every fixture route. Record results by category, not by literal sensitive examples.
+
+The scan must reject leaks in these categories:
+
+- local, network, special, and web URL schemes
+- credential-bearing endpoint shapes
+- authentication header names or values
+- credential and userinfo patterns
+- browser storage internals
+- raw JSON-RPC request, response, body, or payload data
+- Kodi media path or prepared-stream address categories
+- sentinel token names or values
+- ignored local artifact paths and generated browser-state paths
+
+Do not paste literal forbidden fixture strings, endpoint examples, credential examples, raw JSON bodies, storage key names, or sentinel values into this document, terminal notes, screenshots, summaries, issue comments, or commit messages.
+
+## Evidence Log
+
+T02 and T03 must replace the pending markers with pass/fail evidence from real commands and browser assertions.
+
+| Check                               | Outcome | Notes                                                                                                                  |
+| ----------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Server started with managed process | Pending | Record ready port and process lifecycle outcome.                                                                       |
+| `npm run verify`                    | Pending | Record exit code and package/build/test phase summary.                                                                 |
+| `npm run verify:kodi-package`       | Pending | Record exit code and verifier phase diagnostics.                                                                       |
+| Zip listing                         | Pending | Record that the package root, manifest, app entrypoint, assets, and Now Playing entrypoint are present.                |
+| Default fixture absence             | Pending | Record absence of distinctive fixture labels on default or disabled routes.                                            |
+| Settings route                      | Pending | Record Settings fixture status, controls, write diagnostics, rollback, refresh-after-write, and redaction result.      |
+| Settings German locale route        | Pending | Record German copy and locale handling result.                                                                         |
+| Add-ons list route                  | Pending | Record list, grouping, controls, metadata, safe detail links, and redaction result.                                    |
+| Add-on detail route                 | Pending | Record detail metadata, confirmation controls, write diagnostics, rollback, refresh-after-write, and redaction result. |
+| Lab shortcuts route                 | Pending | Record shortcut copy and language-switch result.                                                                       |
+| Lab API Browser route               | Pending | Record introspection, guard, confirmation, blocked-method, validation, redacted JSON, and redaction result.            |
+| Now Playing active route            | Pending | Record German copy, fixture media, saved-host/status copy, light theme, diagnostics, and redaction result.             |
+| Now Playing setup route             | Pending | Record setup guidance, diagnostics, and redaction result.                                                              |
+| Now Playing English dark route      | Pending | Record English copy, fixture media, dark theme, diagnostics, and redaction result.                                     |
+| Now Playing unsafe-query route      | Pending | Record safe rejection guidance and non-reflection of raw query values.                                                 |
+| Console diagnostics                 | Pending | Record clean console buffers or route-attributed failures.                                                             |
+| Network diagnostics                 | Pending | Record clean failed-request buffers or route-attributed failures.                                                      |
+| Visible DOM redaction categories    | Pending | Record category-level scan result only.                                                                                |
+
+## Live Kodi Out-of-Scope Note
+
+The required S07 proof is deterministic and no-live-Kodi. Optional live install or saved-host iframe checks may be recorded only as supplemental evidence after the deterministic command, package, browser, diagnostic, and redaction checks pass.
+
+If live Kodi is unavailable, skipped, or times out, record that as supplemental live UAT status only. Do not mark the M005 final integrated proof failed solely because optional live Kodi checks were not run.
