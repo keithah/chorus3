@@ -34,6 +34,9 @@
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
+  import RemoteInputPanel, {
+    type RemoteInputPanelRemoteDispatch
+  } from '$components/RemoteInputPanel.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
@@ -73,6 +76,7 @@
     musicBrowseStore,
     musicLibraryStore,
     playerDispatch as defaultPlayerDispatch,
+    remoteInputDispatch as defaultRemoteInputDispatch,
     playerStore,
     queueDispatch as defaultQueueDispatch,
     queueStore,
@@ -90,6 +94,7 @@
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot,
+    type RemoteInputDispatchSnapshot,
     type SavedKodiHost,
     type SettingsStoreSnapshot,
     type LocaleStoreSnapshot
@@ -116,6 +121,7 @@
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
+  import { handleRemoteInputShortcut } from '$lib/app/remoteInputShortcuts';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
@@ -127,6 +133,8 @@
   interface Props {
     playerSnapshot?: PlayerStoreSnapshot;
     playerDispatch?: PlayerControlsDispatch;
+    remoteSnapshot?: RemoteInputDispatchSnapshot;
+    remoteInputDispatch?: RemoteInputPanelRemoteDispatch;
     localPlayerSnapshot?: LocalPlayerStoreSnapshot;
     queueSnapshot?: QueueStoreSnapshot;
     queueDispatch?: QueuePanelDispatch;
@@ -395,6 +403,8 @@
   let {
     playerSnapshot,
     playerDispatch = defaultPlayerDispatch,
+    remoteSnapshot,
+    remoteInputDispatch = defaultRemoteInputDispatch,
     localPlayerSnapshot,
     queueSnapshot,
     queueDispatch = defaultQueueDispatch,
@@ -441,6 +451,7 @@
   const currentVideoRoute = $derived(currentRoute.kind === 'video' ? currentRoute.route : null);
   const currentRenderableVideoRoute = $derived(currentVideoRoute ?? dashboardVideoRoute);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
+  const currentRemoteSnapshot = $derived(remoteSnapshot ?? remoteInputDispatch.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
   const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
@@ -472,6 +483,7 @@
   const isPackageMounted = $derived(packageMountedHost !== null);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
+  const isRemoteRoute = $derived(currentRoute.kind === 'remote');
   const isSettingsUnknownRoute = $derived(currentRoute.kind === 'settingsUnknown');
   const isAddonsRoute = $derived(currentRoute.kind === 'addons');
   const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
@@ -529,6 +541,23 @@
     }
 
     const handleGlobalKeydown = (event: KeyboardEvent): void => {
+      if (
+        isRemoteRoute &&
+        handleRemoteInputShortcut(event, {
+          sendInput: (command) => {
+            try {
+              void Promise.resolve(remoteInputDispatch.sendInput(command)).catch(() => {
+                // RemoteInputPanel owns secret-safe diagnostics through the dispatch snapshot.
+              });
+            } catch {
+              // Keep the global listener alive; the dispatch snapshot is the diagnostics surface.
+            }
+          }
+        })
+      ) {
+        return;
+      }
+
       handlePlaybackShortcut(event, playerDispatch, {
         playerSnapshot: currentPlayerSnapshot,
         toggleFullscreen: toggleAppFullscreen
@@ -1107,6 +1136,16 @@
         <ParityPlaceholder
           placeholder={currentChorus2Placeholder}
           packageBasePath={isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''}
+          i18n={currentI18n}
+        />
+      </main>
+    {:else if isRemoteRoute}
+      <main class="remote-route" aria-label="Kodi Remote">
+        <RemoteInputPanel
+          remoteSnapshot={currentRemoteSnapshot}
+          remoteInputDispatch={remoteInputDispatch}
+          playerSnapshot={currentPlayerSnapshot}
+          playerDispatch={playerDispatch}
           i18n={currentI18n}
         />
       </main>

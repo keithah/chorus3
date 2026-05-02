@@ -40,6 +40,8 @@ import type {
   VideoSeasonWriteDispatch
 } from './lib/components/VideoSeasonDetailShell.svelte';
 import type { QueuePanelDispatch } from './lib/components/QueuePanel.svelte';
+import type { RemoteInputPanelRemoteDispatch } from './lib/components/RemoteInputPanel.svelte';
+import type { RemoteInputDispatchSnapshot } from './lib/stores/remoteInputDispatch.svelte.ts';
 import type { VideoLibraryStoreSnapshot } from './lib/stores/videoLibrary.svelte.ts';
 import type { VideoTvStoreSnapshot } from './lib/stores/videoTvStore.svelte.ts';
 import type { VideoRoute } from './lib/video/videoRouter';
@@ -84,6 +86,8 @@ type FetchMock = Mock<(input: RequestInfo | URL, init?: RequestInit) => Promise<
 type AppProps = {
   playerSnapshot?: PlayerStoreSnapshot;
   playerDispatch?: PlayerControlsDispatch;
+  remoteSnapshot?: RemoteInputDispatchSnapshot;
+  remoteInputDispatch?: RemoteInputPanelRemoteDispatch;
   localPlayerSnapshot?: import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
   queueSnapshot?: QueueStoreSnapshot;
   queueDispatch?: QueuePanelDispatch;
@@ -914,6 +918,37 @@ function getParityPlaceholderText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.parity-placeholder');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
+}
+
+function getRemoteInputPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('.remote-input-panel');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getRemoteInputPanelText(target: HTMLElement): string {
+  return getRemoteInputPanel(target).textContent ?? '';
+}
+
+function createRemoteSnapshot(
+  overrides: Partial<RemoteInputDispatchSnapshot> = {}
+): RemoteInputDispatchSnapshot {
+  return {
+    commandStatus: 'idle',
+    lastCommand: null,
+    lastError: null,
+    lastCompletedAt: null,
+    ...overrides
+  };
+}
+
+function createRemoteInputDispatch(
+  snapshot = createRemoteSnapshot()
+): RemoteInputPanelRemoteDispatch & { sendInput: ReturnType<typeof vi.fn> } {
+  return {
+    snapshot,
+    sendInput: vi.fn().mockResolvedValue(undefined)
+  };
 }
 
 const CHORUS2_PLACEHOLDER_FORBIDDEN_COPY =
@@ -1959,6 +1994,110 @@ describe('App shell', () => {
       expect(panel?.innerHTML).not.toMatch(CHORUS2_PLACEHOLDER_FORBIDDEN_COPY);
     }
   );
+
+  it('renders the Remote/Input route as the real remote panel with injected snapshots instead of a parity placeholder', () => {
+    const remoteInputDispatch = createRemoteInputDispatch();
+    const playerDispatch = createPlayerDispatch();
+    const target = renderApp({
+      route: { kind: 'remote' },
+      remoteSnapshot: createRemoteSnapshot({
+        commandStatus: 'failed',
+        lastCommand: 'info',
+        lastCompletedAt: '2026-05-02T17:30:00.000Z',
+        lastError: {
+          source: 'http',
+          code: 'transport/redacted',
+          message: 'Safe fixture error without secrets.'
+        }
+      }),
+      remoteInputDispatch,
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch
+    });
+    const remoteText = getRemoteInputPanelText(target);
+
+    expect(remoteText).toContain('Remote');
+    expect(remoteText).toContain('Send safe input commands to Kodi');
+    expect(remoteText).toContain('Status: failed');
+    expect(remoteText).toContain('Last command: Info');
+    expect(remoteText).toContain('transport/redacted');
+    expect(target.querySelector('.parity-placeholder')).toBeNull();
+  });
+
+  it('routes Remote/Input buttons and playback controls through injected App dispatch seams', async () => {
+    const remoteInputDispatch = createRemoteInputDispatch();
+    const playerDispatch = createPlayerDispatch();
+    const target = renderApp({
+      route: { kind: 'remote' },
+      remoteSnapshot: remoteInputDispatch.snapshot,
+      remoteInputDispatch,
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch
+    });
+
+    getButtonByAria(target, 'Move left').click();
+    getButton(target, 'Play or pause').click();
+    await tick();
+
+    expect(remoteInputDispatch.sendInput).toHaveBeenCalledWith('left');
+    expect(playerDispatch.playPause).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispatches remote keyboard shortcuts only on the Remote route and ignores editable or modified events', async () => {
+    const remoteInputDispatch = createRemoteInputDispatch();
+    const playerDispatch = createPlayerDispatch();
+    const target = renderApp({
+      route: { kind: 'remote' },
+      remoteSnapshot: remoteInputDispatch.snapshot,
+      remoteInputDispatch,
+      playerSnapshot: activeVideoSnapshot({ application: { volume: 40, muted: false } }),
+      playerDispatch
+    });
+
+    const moved = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true })
+    );
+    const selected = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', cancelable: true })
+    );
+    const modified = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, cancelable: true })
+    );
+    const search = document.createElement('input');
+    target.append(search);
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await tick();
+
+    expect(moved).toBe(false);
+    expect(selected).toBe(false);
+    expect(modified).toBe(true);
+    expect(remoteInputDispatch.sendInput).toHaveBeenCalledWith('left');
+    expect(remoteInputDispatch.sendInput).toHaveBeenCalledWith('select');
+    expect(remoteInputDispatch.sendInput).toHaveBeenCalledTimes(2);
+    expect(playerDispatch.seekRelativeSeconds).not.toHaveBeenCalled();
+    expect(playerDispatch.setVolume).not.toHaveBeenCalled();
+  });
+
+  it('does not install remote keyboard shortcuts outside the Remote route and preserves playback shortcuts', async () => {
+    const remoteInputDispatch = createRemoteInputDispatch();
+    const playerDispatch = createPlayerDispatch();
+    renderApp({
+      route: { kind: 'dashboard' },
+      remoteSnapshot: remoteInputDispatch.snapshot,
+      remoteInputDispatch,
+      playerSnapshot: activeVideoSnapshot({ application: { volume: 40, muted: false } }),
+      playerDispatch
+    });
+
+    const seeked = window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true })
+    );
+    await tick();
+
+    expect(seeked).toBe(false);
+    expect(remoteInputDispatch.sendInput).not.toHaveBeenCalled();
+    expect(playerDispatch.seekRelativeSeconds).toHaveBeenCalledWith(30);
+  });
 
   it('dispatches playback shortcuts globally outside editable controls and removes the listener on unmount', async () => {
     const playerDispatch = createPlayerDispatch();
