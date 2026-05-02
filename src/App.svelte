@@ -921,7 +921,11 @@
             <button type="button" aria-label="Previous" onclick={() => playerDispatch.previous()}>
               <span class="mdi mdi-av-skip-previous" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="Play or pause" onclick={() => playerDispatch.playPause()}>
+            <button
+              type="button"
+              aria-label="Play or pause"
+              onclick={() => playerDispatch.playPause()}
+            >
               <span class="mdi mdi-av-play-arrow" aria-hidden="true"></span>
             </button>
             <button type="button" aria-label="Next" onclick={() => playerDispatch.next()}>
@@ -941,7 +945,11 @@
             <span>{dashboardTime(currentPlayerSnapshot.time.totalSeconds)}</span>
           </div>
           <div class="c2-player-actions">
-            <button type="button" aria-label="Toggle mute" onclick={() => playerDispatch.toggleMute()}>
+            <button
+              type="button"
+              aria-label="Toggle mute"
+              onclick={() => playerDispatch.toggleMute()}
+            >
               <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
             </button>
             <button type="button" aria-label="Shuffle">
@@ -1373,8 +1381,7 @@
 
   @font-face {
     font-family: 'Material-Design-Icons';
-    src: url('/chorus2-assets/themes/base/fonts/material/Material-Design-Icons.woff')
-      format('woff');
+    src: url('/chorus2-assets/themes/base/fonts/material/Material-Design-Icons.woff') format('woff');
     font-weight: 400;
     font-style: normal;
     font-display: block;
@@ -1408,24 +1415,60 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  .mdi-action-extension::before { content: '\e628'; }
-  .mdi-action-help::before { content: '\e633'; }
-  .mdi-action-search::before { content: '\e67f'; }
-  .mdi-action-settings::before { content: '\e680'; }
-  .mdi-action-thumb-up::before { content: '\e6a4'; }
-  .mdi-av-my-library-music::before { content: '\e6b3'; }
-  .mdi-av-play-arrow::before { content: '\e6b9'; }
-  .mdi-av-playlist-add::before { content: '\e6bc'; }
-  .mdi-av-shuffle::before { content: '\e6c5'; }
-  .mdi-av-skip-next::before { content: '\e6c6'; }
-  .mdi-av-skip-previous::before { content: '\e6c7'; }
-  .mdi-av-volume-up::before { content: '\e6d2'; }
-  .mdi-editor-format-list-bulleted::before { content: '\e783'; }
-  .mdi-hardware-keyboard-arrow-right::before { content: '\e7b6'; }
-  .mdi-hardware-tv::before { content: '\e7d0'; }
-  .mdi-image-movie-creation::before { content: '\e833'; }
-  .mdi-navigation-fullscreen::before { content: '\e89f'; }
-  .mdi-navigation-more-vert::before { content: '\e8a3'; }
+  .mdi-action-extension::before {
+    content: '\e628';
+  }
+  .mdi-action-help::before {
+    content: '\e633';
+  }
+  .mdi-action-search::before {
+    content: '\e67f';
+  }
+  .mdi-action-settings::before {
+    content: '\e680';
+  }
+  .mdi-action-thumb-up::before {
+    content: '\e6a4';
+  }
+  .mdi-av-my-library-music::before {
+    content: '\e6b3';
+  }
+  .mdi-av-play-arrow::before {
+    content: '\e6b9';
+  }
+  .mdi-av-playlist-add::before {
+    content: '\e6bc';
+  }
+  .mdi-av-shuffle::before {
+    content: '\e6c5';
+  }
+  .mdi-av-skip-next::before {
+    content: '\e6c6';
+  }
+  .mdi-av-skip-previous::before {
+    content: '\e6c7';
+  }
+  .mdi-av-volume-up::before {
+    content: '\e6d2';
+  }
+  .mdi-editor-format-list-bulleted::before {
+    content: '\e783';
+  }
+  .mdi-hardware-keyboard-arrow-right::before {
+    content: '\e7b6';
+  }
+  .mdi-hardware-tv::before {
+    content: '\e7d0';
+  }
+  .mdi-image-movie-creation::before {
+    content: '\e833';
+  }
+  .mdi-navigation-fullscreen::before {
+    content: '\e89f';
+  }
+  .mdi-navigation-more-vert::before {
+    content: '\e8a3';
+  }
 
   .c2-topbar {
     position: absolute;
