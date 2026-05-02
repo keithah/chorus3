@@ -30,14 +30,17 @@
 
 <script lang="ts">
   import type { PlayerAudioStream, PlayerSubtitleStream } from '$lib/kodi';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 
   interface Props {
     snapshot: PlayerStoreSnapshot;
     dispatch: PlayerControlsDispatch;
     localPlayerSnapshot?: import('$lib/stores').LocalPlayerStoreSnapshot;
+    i18n?: TranslationContext;
   }
 
-  let { snapshot, dispatch, localPlayerSnapshot }: Props = $props();
+  let { snapshot, dispatch, localPlayerSnapshot, i18n = createTranslationContext('en') }: Props =
+    $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: import('$lib/stores').LocalPlayerStoreSnapshot = {
     status: 'idle',
@@ -150,7 +153,7 @@
     mode: PlayerDispatchSnapshot['mode']
   ): string | null {
     if (running) {
-      return 'A Kodi command is running. Controls are disabled until it finishes.';
+      return i18n.t('player.controls.disabled.running');
     }
 
     if (mode === 'local') {
@@ -158,11 +161,11 @@
     }
 
     if (value.activePlayers.length > 1 || value.playbackStatus === 'multiple') {
-      return 'Multiple Kodi players are active. Controls are disabled until there is one active player.';
+      return i18n.t('player.controls.disabled.multiple');
     }
 
     if (!value.primaryPlayer || value.playbackStatus !== 'active') {
-      return 'No active Kodi player is available. Controls are disabled until playback starts.';
+      return i18n.t('player.controls.disabled.noActive');
     }
 
     return null;
@@ -170,7 +173,7 @@
 
   function audioLabel(stream: PlayerAudioStream, fallbackIndex: number): string {
     const parts = [
-      textOrNull(stream.name) ?? streamIndexLabel('Audio stream', stream.index, fallbackIndex),
+      textOrNull(stream.name) ?? streamIndexLabel('player.controls.audioStreamFallback', stream.index, fallbackIndex),
       textOrNull(stream.language),
       typeof stream.channels === 'number' && Number.isFinite(stream.channels)
         ? `${stream.channels}ch`
@@ -183,15 +186,17 @@
 
   function subtitleLabel(stream: PlayerSubtitleStream, fallbackIndex: number): string {
     const parts = [
-      textOrNull(stream.name) ?? streamIndexLabel('Subtitle stream', stream.index, fallbackIndex),
+      textOrNull(stream.name) ?? streamIndexLabel('player.controls.subtitleStreamFallback', stream.index, fallbackIndex),
       textOrNull(stream.language)
     ].filter((part): part is string => Boolean(part));
 
     return parts.join(' · ');
   }
 
-  function streamIndexLabel(prefix: string, index: unknown, fallbackIndex: number): string {
-    return `${prefix} ${typeof index === 'number' && Number.isFinite(index) ? index : fallbackIndex + 1}`;
+  function streamIndexLabel(key: 'player.controls.audioStreamFallback' | 'player.controls.subtitleStreamFallback', index: unknown, fallbackIndex: number): string {
+    return i18n.t(key, {
+      index: typeof index === 'number' && Number.isFinite(index) ? index : fallbackIndex + 1
+    });
   }
 
   function textOrNull(value: unknown): string | null {
@@ -205,43 +210,43 @@
 
 <div
   class="player-controls"
-  aria-label="Kodi playback controls"
+  aria-label={i18n.t('player.controls.aria')}
   aria-describedby={disabledReason ? 'player-controls-disabled-reason' : undefined}
 >
   {#if disabledReason}
     <p id="player-controls-disabled-reason" class="disabled-reason">{disabledReason}</p>
   {/if}
 
-  <div class="control-group transport" aria-label="Transport controls">
+  <div class="control-group transport" aria-label={i18n.t('player.controls.transportAria')}>
     <button
       type="button"
       disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
-      onclick={() => dispatch.previous()}>Previous</button
+      onclick={() => dispatch.previous()}>{i18n.t('player.controls.previous')}</button
     >
     <button
       type="button"
       disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
       onclick={() => dispatch.playPause()}
     >
-      Play or pause
+      {i18n.t('player.controls.playPause')}
     </button>
     <button
       type="button"
       disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
       onclick={() => dispatch.stop()}
     >
-      Stop
+      {i18n.t('player.controls.stop')}
     </button>
     <button
       type="button"
       disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
-      onclick={() => dispatch.next()}>Next</button
+      onclick={() => dispatch.next()}>{i18n.t('player.controls.next')}</button
     >
   </div>
 
   <div class="control-grid">
     <div class="field range-field">
-      <label for="now-playing-seek">Seek position</label>
+      <label for="now-playing-seek">{i18n.t('player.controls.seekPosition')}</label>
       <input
         id="now-playing-seek"
         type="range"
@@ -252,26 +257,26 @@
         disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
         oninput={handleSeek}
       />
-      <div class="relative-seek cluster" aria-label="Relative seek controls">
+      <div class="relative-seek cluster" aria-label={i18n.t('player.controls.relativeSeekAria')}>
         <button
           type="button"
           disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
           onclick={() => dispatch.seekRelativeSeconds(-30)}
         >
-          Seek back 30 seconds
+          {i18n.t('player.controls.seekBack30')}
         </button>
         <button
           type="button"
           disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
           onclick={() => dispatch.seekRelativeSeconds(30)}
         >
-          Seek forward 30 seconds
+          {i18n.t('player.controls.seekForward30')}
         </button>
       </div>
     </div>
 
     <div class="field range-field">
-      <label for="now-playing-volume">Volume</label>
+      <label for="now-playing-volume">{i18n.t('player.controls.volume')}</label>
       <input
         id="now-playing-volume"
         type="range"
@@ -287,47 +292,47 @@
         disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
         onclick={() => dispatch.toggleMute()}
       >
-        Toggle mute
+        {i18n.t('player.controls.toggleMute')}
       </button>
     </div>
 
     <div class="field">
-      <label for="now-playing-shuffle">Shuffle</label>
+      <label for="now-playing-shuffle">{i18n.t('player.controls.shuffle')}</label>
       <select
         id="now-playing-shuffle"
         disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
         value={shuffleValue}
         onchange={handleShuffle}
       >
-        <option value="false">Shuffle off</option>
-        <option value="true">Shuffle on</option>
+        <option value="false">{i18n.t('player.controls.shuffle.off')}</option>
+        <option value="true">{i18n.t('player.controls.shuffle.on')}</option>
       </select>
     </div>
 
     <div class="field">
-      <label for="now-playing-repeat">Repeat mode</label>
+      <label for="now-playing-repeat">{i18n.t('player.controls.repeat')}</label>
       <select
         id="now-playing-repeat"
         disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
         value={repeatValue}
         onchange={handleRepeat}
       >
-        <option value="off">Repeat off</option>
-        <option value="one">Repeat one</option>
-        <option value="all">Repeat all</option>
-        <option value="cycle">Repeat cycle</option>
+        <option value="off">{i18n.t('player.controls.repeat.off')}</option>
+        <option value="one">{i18n.t('player.controls.repeat.one')}</option>
+        <option value="all">{i18n.t('player.controls.repeat.all')}</option>
+        <option value="cycle">{i18n.t('player.controls.repeat.cycle')}</option>
       </select>
     </div>
 
     <div class="field">
-      <label for="now-playing-subtitle">Subtitle stream</label>
+      <label for="now-playing-subtitle">{i18n.t('player.controls.subtitle')}</label>
       <select
         id="now-playing-subtitle"
         disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
         value={subtitleValue}
         onchange={handleSubtitle}
       >
-        <option value="off">Subtitles off</option>
+        <option value="off">{i18n.t('player.controls.subtitle.off')}</option>
         {#each subtitles as subtitle, index}
           <option
             value={typeof subtitle.index === 'number' && Number.isFinite(subtitle.index)
@@ -341,7 +346,7 @@
     </div>
 
     <div class="field">
-      <label for="now-playing-audio">Audio stream</label>
+      <label for="now-playing-audio">{i18n.t('player.controls.audio')}</label>
       <select
         id="now-playing-audio"
         disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
@@ -349,7 +354,7 @@
         onchange={handleAudioStream}
       >
         {#if audioStreams.length === 0}
-          <option value="">No audio streams reported</option>
+          <option value="">{i18n.t('player.controls.audio.none')}</option>
         {:else}
           {#each audioStreams as stream, index}
             <option

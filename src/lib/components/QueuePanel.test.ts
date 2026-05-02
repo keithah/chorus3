@@ -2,6 +2,7 @@ import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import QueuePanel, { type QueuePanelDispatch } from './QueuePanel.svelte';
+import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { QueueDispatchSnapshot, QueueStoreSnapshot } from '$lib/stores';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -72,10 +73,14 @@ function activeQueueSnapshot(itemCount = 3, activePosition = 1): QueueStoreSnaps
   });
 }
 
-function renderPanel(props: { snapshot: QueueStoreSnapshot; dispatch?: QueuePanelDispatch }): void {
+function renderPanel(props: {
+  snapshot: QueueStoreSnapshot;
+  dispatch?: QueuePanelDispatch;
+  i18n?: TranslationContext;
+}): void {
   mounted = mount(QueuePanel, {
     target: document.body,
-    props: { snapshot: props.snapshot, dispatch: props.dispatch ?? createFakeDispatch() }
+    props: { snapshot: props.snapshot, dispatch: props.dispatch ?? createFakeDispatch(), i18n: props.i18n }
   });
 }
 
@@ -258,5 +263,45 @@ describe('QueuePanel', () => {
     expect(button('Move Song B down').disabled).toBe(false);
     expect(button('Move Song C up').disabled).toBe(false);
     expect(button('Move Song C down').disabled).toBe(true);
+  });
+
+  it('renders German empty, loading, command, and editable queue labels', () => {
+    const dispatch = createFakeDispatch({ commandStatus: 'running', lastCommand: 'clear' });
+    renderPanel({
+      snapshot: activeQueueSnapshot(2, 0),
+      dispatch,
+      i18n: createTranslationContext('de')
+    });
+
+    expect(document.querySelector('.queue-panel')?.getAttribute('aria-label')).toBe('Kodi-Warteschlange');
+    expect(screenText()).toContain('clear wird ausgeführt…');
+    expect(button('Warteschlange leeren').disabled).toBe(true);
+    expect(button('Song B nach oben verschieben').disabled).toBe(true);
+    expect(button('Song A entfernen').disabled).toBe(true);
+
+    if (mounted) {
+      unmount(mounted);
+    }
+    mounted = null;
+    document.body.innerHTML = '';
+
+    renderPanel({
+      snapshot: createQueueSnapshot({ refreshStatus: 'ready', playlistid: 7 }),
+      i18n: createTranslationContext('de')
+    });
+    expect(screenText()).toContain('Die Warteschlange ist leer.');
+    expect(button('Warteschlange leeren').disabled).toBe(true);
+
+    if (mounted) {
+      unmount(mounted);
+    }
+    mounted = null;
+    document.body.innerHTML = '';
+
+    renderPanel({
+      snapshot: createQueueSnapshot({ refreshStatus: 'loading', playlistid: 7 }),
+      i18n: createTranslationContext('de')
+    });
+    expect(screenText()).toContain('Warteschlange wird geladen…');
   });
 });

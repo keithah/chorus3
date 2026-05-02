@@ -762,8 +762,9 @@
         snapshot={currentPlayerSnapshot}
         dispatch={playerDispatch}
         localPlayerSnapshot={currentLocalSnapshot}
+        i18n={currentI18n}
       />
-      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} />
+      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
     </main>
   {:else if isAddonsRoute}
     <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>

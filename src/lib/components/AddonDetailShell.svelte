@@ -165,7 +165,11 @@
     return snapshot.lastError ? safeText(snapshot.lastError.code) : null;
   }
   function writeCountsCopy(): string {
-    return i18n.t('addon.detail.writeCounts', snapshot.writeCounts);
+    return i18n.t('addon.detail.writeCounts', {
+      attempted: snapshot.writeCounts.attempted,
+      succeeded: snapshot.writeCounts.succeeded,
+      failed: snapshot.writeCounts.failed
+    });
   }
   function safeText(value: string): string {
     return value

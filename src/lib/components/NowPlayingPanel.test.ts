@@ -2,6 +2,7 @@ import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import NowPlayingPanel from './NowPlayingPanel.svelte';
+import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
 import type { PlayerDispatchSnapshot } from '$lib/stores/playerDispatch.svelte';
 
@@ -328,19 +329,62 @@ describe('NowPlayingPanel', () => {
     expect(screenText()).not.toContain('private-file.mkv');
     expect(slider('Seek position').value).toBe('0');
   });
+
+  it('renders German now-playing metadata labels, empty state, and local error diagnostics', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        playbackStatus: 'none',
+        item: { file: 'smb://admin:p@ssword@server/private-file.mkv' },
+        application: { volume: null, muted: null },
+        time: { currentSeconds: null, totalSeconds: null }
+      }),
+      dispatch: createDispatch({ mode: 'local' }),
+      localPlayerSnapshot: {
+        status: 'error',
+        mediaKind: 'video',
+        item: null,
+        currentSeconds: 0,
+        durationSeconds: null,
+        volume: 100,
+        muted: false,
+        lastError: { code: 'media/error', message: 'failed for http://admin:p@ssword@kodi.local' },
+        kodiPausedForLocal: false,
+        resumeAvailable: false,
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z'
+      },
+      i18n: createTranslationContext('de')
+    });
+
+    const text = screenText();
+    expect(text).toContain('Unbekannter Titel');
+    expect(text).toContain('Unbekannter Künstler');
+    expect(text).toContain('Unbekannte Dauer');
+    expect(text).toContain('Lautstärke unbekannt');
+    expect(text).toContain('Stumm: unbekannt');
+    expect(text).toContain('Warteschlange unbekannt');
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toContain('failed');
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).not.toContain(
+      'admin:p@ssword'
+    );
+    expect(button('Lokal abspielen').disabled).toBe(true);
+    expect(slider('Suchposition').value).toBe('0');
+    expect(select('Wiederholmodus').disabled).toBe(true);
+  });
 });
 
 function renderPanel(input: {
   snapshot: PlayerStoreSnapshot;
   dispatch?: FakeDispatch;
   localPlayerSnapshot?: import('$lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
+  i18n?: TranslationContext;
 }): void {
   mounted = mount(NowPlayingPanel, {
     target: document.body,
     props: {
       snapshot: input.snapshot,
       dispatch: input.dispatch ?? createDispatch(),
-      localPlayerSnapshot: input.localPlayerSnapshot
+      localPlayerSnapshot: input.localPlayerSnapshot,
+      i18n: input.i18n
     }
   });
 }

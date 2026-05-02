@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PlayerAudioStream, PlayerSubtitleStream } from '$lib/kodi';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
   import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
   import PlayerControls, { type PlayerControlsDispatch } from './PlayerControls.svelte';
@@ -8,9 +9,11 @@
     snapshot: PlayerStoreSnapshot;
     dispatch: PlayerControlsDispatch;
     localPlayerSnapshot?: LocalPlayerStoreSnapshot;
+    i18n?: TranslationContext;
   }
 
-  let { snapshot, dispatch, localPlayerSnapshot }: Props = $props();
+  let { snapshot, dispatch, localPlayerSnapshot, i18n = createTranslationContext('en') }: Props =
+    $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: LocalPlayerStoreSnapshot = {
     status: 'idle',
@@ -32,7 +35,7 @@
   const creator = $derived(mediaCreator(snapshot));
   const detail = $derived(mediaDetail(snapshot));
   const typeLabel = $derived(
-    textOrFallback(snapshot.item?.type ?? snapshot.properties?.type, 'unknown type')
+    textOrFallback(snapshot.item?.type ?? snapshot.properties?.type, i18n.t('nowPlaying.unknownType'))
   );
   const currentTime = $derived(formatTime(snapshot.time.currentSeconds));
   const totalTime = $derived(formatTime(snapshot.time.totalSeconds));
@@ -40,19 +43,19 @@
   const volume = $derived(formatVolume(snapshot.application.volume));
   const muted = $derived(
     snapshot.application.muted === true
-      ? 'yes'
+      ? i18n.t('nowPlaying.yes')
       : snapshot.application.muted === false
-        ? 'no'
-        : 'unknown'
+        ? i18n.t('nowPlaying.no')
+        : i18n.t('nowPlaying.unknown')
   );
   const shuffle = $derived(
     snapshot.properties?.shuffled === true
-      ? 'on'
+      ? i18n.t('player.controls.shuffle.on')
       : snapshot.properties?.shuffled === false
-        ? 'off'
-        : 'unknown'
+        ? i18n.t('player.controls.shuffle.off')
+        : i18n.t('nowPlaying.unknown')
   );
-  const repeat = $derived(textOrFallback(snapshot.properties?.repeat, 'unknown'));
+  const repeat = $derived(textOrFallback(snapshot.properties?.repeat, i18n.t('nowPlaying.unknown')));
   const queueSummary = $derived(formatQueueSummary(snapshot));
   const subtitleSummary = $derived(
     formatSubtitleSummary(
@@ -69,7 +72,7 @@
       value.item?.label,
       value.item?.showtitle,
       value.item?.channel,
-      'Unknown title'
+      i18n.t('nowPlaying.unknownTitle')
     );
   }
 
@@ -79,7 +82,7 @@
       joinText(value.item?.albumartist),
       value.item?.showtitle,
       value.item?.channel,
-      'Unknown artist'
+      i18n.t('nowPlaying.unknownArtist')
     );
   }
 
@@ -95,7 +98,7 @@
     const album = textOrNull(value.item?.album);
 
     if (season !== null && episode !== null) {
-      return `Season ${season}, episode ${episode}`;
+      return i18n.t('nowPlaying.seasonEpisode', { season, episode });
     }
 
     if (album) {
@@ -111,7 +114,9 @@
     controls: PlayerControlsDispatch
   ): string {
     if (controls.snapshot.commandStatus === 'running') {
-      return `Running ${formatCommandName(controls.snapshot.lastCommand)}.`;
+      return i18n.t('nowPlaying.status.running', {
+        command: formatCommandName(controls.snapshot.lastCommand)
+      });
     }
 
     if (controls.snapshot.commandStatus === 'error' && controls.snapshot.lastError) {
@@ -125,22 +130,22 @@
 
       switch (localSnapshot.status) {
         case 'playing':
-          return 'Playing locally in the browser.';
+          return i18n.t('nowPlaying.status.local.playing');
         case 'paused':
-          return 'Local playback paused.';
+          return i18n.t('nowPlaying.status.local.paused');
         case 'loading':
-          return 'Starting local playback...';
+          return i18n.t('nowPlaying.status.local.loading');
         case 'ended':
-          return 'Local playback finished.';
+          return i18n.t('nowPlaying.status.local.ended');
         case 'error':
-          return 'Local playback encountered an error.';
+          return i18n.t('nowPlaying.status.local.error');
         default:
-          return 'Local playback ready.';
+          return i18n.t('nowPlaying.status.local.ready');
       }
     }
 
     if (value.refreshStatus === 'loading') {
-      return `Refreshing player state from ${value.lastRefreshReason}.`;
+      return i18n.t('nowPlaying.status.refreshing', { reason: value.lastRefreshReason });
     }
 
     if (value.refreshStatus === 'error' && value.lastError) {
@@ -148,18 +153,18 @@
     }
 
     if (value.playbackStatus === 'multiple') {
-      return 'Multiple Kodi players are active. Choose one player before sending controls.';
+      return i18n.t('nowPlaying.status.multiple');
     }
 
     if (value.playbackStatus === 'none') {
-      return 'No active Kodi player is available.';
+      return i18n.t('nowPlaying.status.noActive');
     }
 
     const readyText = value.lastUpdatedAt
-      ? `Player state ready. Last updated ${value.lastUpdatedAt}.`
-      : 'Player state ready.';
+      ? i18n.t('nowPlaying.status.readyUpdated', { lastUpdated: value.lastUpdatedAt })
+      : i18n.t('nowPlaying.status.ready');
 
-    return `Playing on Kodi. ${readyText}`;
+    return i18n.t('nowPlaying.status.playingKodi', { readyText });
   }
 
   function formatCommandName(command: string | null): string {
@@ -172,7 +177,7 @@
 
   function formatTime(seconds: number | null): string {
     if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
-      return 'Unknown duration';
+      return i18n.t('nowPlaying.time.unknown');
     }
 
     const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -189,7 +194,7 @@
 
   function formatPercentage(value: unknown): string {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return 'Unknown progress';
+      return i18n.t('nowPlaying.progress.unknown');
     }
 
     return `${Math.round(Math.min(100, Math.max(0, value)))}%`;
@@ -197,26 +202,29 @@
 
   function formatVolume(value: unknown): string {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return 'Volume unknown';
+      return i18n.t('nowPlaying.volume.unknown');
     }
 
-    return `Volume ${Math.round(Math.min(100, Math.max(0, value)))}`;
+    return i18n.t('nowPlaying.volume.value', { volume: Math.round(Math.min(100, Math.max(0, value))) });
   }
 
   function formatAudioSummary(stream: PlayerAudioStream | undefined): string {
     if (!stream) {
-      return 'Audio stream unknown';
+      return i18n.t('nowPlaying.audio.unknown');
     }
 
-    return streamLabel('Audio stream', stream, 0);
+    return streamLabel('player.controls.audioStreamFallback', stream, 0);
   }
 
   function formatQueueSummary(value: PlayerStoreSnapshot): string {
     if (value.queue.playlistid === null || value.queue.position === null) {
-      return 'Queue unknown';
+      return i18n.t('nowPlaying.queue.unknown');
     }
 
-    return `Playlist ${value.queue.playlistid} · position ${value.queue.position}`;
+    return i18n.t('nowPlaying.queue.position', {
+      playlistid: value.queue.playlistid,
+      position: value.queue.position
+    });
   }
 
   function formatSubtitleSummary(
@@ -224,24 +232,31 @@
     enabled: unknown
   ): string {
     if (enabled === false) {
-      return 'Subtitles off';
+      return i18n.t('nowPlaying.subtitle.off');
     }
 
     if (!stream) {
-      return enabled === true ? 'Subtitle stream unknown' : 'Subtitles unknown';
+      return enabled === true
+        ? i18n.t('nowPlaying.subtitle.streamUnknown')
+        : i18n.t('nowPlaying.subtitle.unknown');
     }
 
-    return streamLabel('Subtitle stream', stream, 0);
+    return streamLabel('player.controls.subtitleStreamFallback', stream, 0);
   }
 
   function streamLabel(
-    prefix: string,
+    fallbackKey: 'player.controls.audioStreamFallback' | 'player.controls.subtitleStreamFallback',
     stream: PlayerAudioStream | PlayerSubtitleStream,
     fallbackIndex: number
   ): string {
     const parts = [
       textOrNull(stream.name) ??
-        `${prefix} ${typeof stream.index === 'number' && Number.isFinite(stream.index) ? stream.index : fallbackIndex + 1}`,
+        i18n.t(fallbackKey, {
+          index:
+            typeof stream.index === 'number' && Number.isFinite(stream.index)
+              ? stream.index
+              : fallbackIndex + 1
+        }),
       textOrNull(stream.language),
       'channels' in stream &&
       typeof stream.channels === 'number' &&
@@ -261,7 +276,7 @@
       }
     }
 
-    return 'Unknown';
+    return i18n.t('nowPlaying.unknown');
   }
 
   function textOrFallback(value: unknown, fallback: string): string {
@@ -302,7 +317,7 @@
 
 <section class="now-playing-panel surface" aria-labelledby="now-playing-title">
   <div class="panel-heading">
-    <p class="section-kicker">Now playing</p>
+    <p class="section-kicker">{i18n.t('nowPlaying.kicker')}</p>
     <h2 id="now-playing-title">{title}</h2>
     <p class="creator-line">{creator}</p>
     {#if detail}
@@ -312,80 +327,80 @@
 
   <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
 
-  <div class="mode-controls" aria-label="Playback destination">
+  <div class="mode-controls" aria-label={i18n.t('nowPlaying.destinationAria')}>
     {#if dispatch.snapshot.mode === 'local' && currentLocalSnapshot.resumeAvailable}
       <button
         type="button"
         class="mode-button"
-        aria-label="Resume on Kodi"
+        aria-label={i18n.t('nowPlaying.resumeKodi')}
         disabled={dispatch.snapshot.commandStatus === 'running'}
         onclick={() => dispatch.resumeOnKodi()}
       >
-        Resume on Kodi
+        {i18n.t('nowPlaying.resumeKodi')}
       </button>
     {:else}
       <button
         type="button"
         class="mode-button"
-        aria-label="Play locally"
+        aria-label={i18n.t('nowPlaying.playLocal')}
         disabled={dispatch.snapshot.commandStatus === 'running' ||
           snapshot.playbackStatus !== 'active' ||
           snapshot.activePlayers.length !== 1}
         onclick={() => dispatch.startLocalPlayback()}
       >
-        Play locally
+        {i18n.t('nowPlaying.playLocal')}
       </button>
     {/if}
   </div>
 
-  <dl class="metadata-grid" aria-label="Current player metadata">
+  <dl class="metadata-grid" aria-label={i18n.t('nowPlaying.metadataAria')}>
     <div>
-      <dt>Type</dt>
+      <dt>{i18n.t('nowPlaying.label.type')}</dt>
       <dd>{typeLabel}</dd>
     </div>
     <div>
-      <dt>Elapsed</dt>
+      <dt>{i18n.t('nowPlaying.label.elapsed')}</dt>
       <dd>{currentTime}</dd>
     </div>
     <div>
-      <dt>Total</dt>
+      <dt>{i18n.t('nowPlaying.label.total')}</dt>
       <dd>{totalTime}</dd>
     </div>
     <div>
-      <dt>Progress</dt>
+      <dt>{i18n.t('nowPlaying.label.progress')}</dt>
       <dd>{percentage}</dd>
     </div>
     <div>
-      <dt>Volume</dt>
+      <dt>{i18n.t('nowPlaying.label.volume')}</dt>
       <dd>{volume}</dd>
     </div>
     <div>
-      <dt>Muted</dt>
-      <dd>Muted: {muted}</dd>
+      <dt>{i18n.t('nowPlaying.label.muted')}</dt>
+      <dd>{i18n.t('nowPlaying.label.mutedValue', { value: muted })}</dd>
     </div>
     <div>
-      <dt>Shuffle</dt>
+      <dt>{i18n.t('nowPlaying.label.shuffle')}</dt>
       <dd>{shuffle}</dd>
     </div>
     <div>
-      <dt>Repeat</dt>
+      <dt>{i18n.t('nowPlaying.label.repeat')}</dt>
       <dd>{repeat}</dd>
     </div>
     <div>
-      <dt>Queue</dt>
+      <dt>{i18n.t('nowPlaying.label.queue')}</dt>
       <dd>{queueSummary}</dd>
     </div>
     <div>
-      <dt>Subtitle</dt>
+      <dt>{i18n.t('nowPlaying.label.subtitle')}</dt>
       <dd>{subtitleSummary}</dd>
     </div>
     <div>
-      <dt>Audio</dt>
+      <dt>{i18n.t('nowPlaying.label.audio')}</dt>
       <dd>{audioSummary}</dd>
     </div>
   </dl>
 
-  <PlayerControls {snapshot} {dispatch} localPlayerSnapshot={currentLocalSnapshot} />
+  <PlayerControls {snapshot} {dispatch} localPlayerSnapshot={currentLocalSnapshot} {i18n} />
 </section>
 
 <style>
