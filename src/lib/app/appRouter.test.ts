@@ -3,13 +3,92 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
+  getChorus2PlaceholderMetadata,
+  getChorus2PlaceholderMetadataTable,
   isDelegatedVideoRoute,
   navigateAppRoute,
   parseAppRoute,
   unwrapVideoRoute,
-  type AppRoute
+  type AppRoute,
+  type Chorus2RoutePlaceholder
 } from './appRouter';
+import { getChorus2ParityRowById } from './chorus2ParityLedger';
 import { buildVideoRoute, type VideoRoute } from '../video/videoRouter';
+
+const EXPECTED_PLACEHOLDER_IDS = [
+  'remote',
+  'moviesRecent',
+  'tvShowsRecent',
+  'playlists',
+  'help',
+  'helpOverview',
+  'browser',
+  'settingsWeb',
+  'settingsKodi',
+  'settingsNav',
+  'settingsSearch',
+  'settingsAddons',
+  'lab',
+  'labScreenshot',
+  'labIconBrowser',
+  'labApiBrowserMethod',
+  'addonsVideo',
+  'addonExecute',
+  'search',
+  'searchVideo'
+] as const;
+
+function expectChorus2Placeholder(route: AppRoute, expectedId: string): Chorus2RoutePlaceholder {
+  expect(route.kind).toBe('chorus2Placeholder');
+
+  if (route.kind !== 'chorus2Placeholder') {
+    throw new Error(`Expected chorus2Placeholder for ${expectedId}`);
+  }
+
+  const { placeholder } = route;
+
+  expect(placeholder.id).toBe(expectedId);
+  expect(placeholder.surface).toEqual(expect.any(String));
+  expect(placeholder.surface).not.toContain('[redacted]');
+  expect(placeholder.title).toEqual(expect.any(String));
+  expect(placeholder.status).toMatch(/^(missing|deferred|intentionallyChanged)$/u);
+  expect(placeholder.owner).toEqual(expect.any(String));
+  expect(placeholder.description).toEqual(expect.any(String));
+  expect(placeholder.recoveryRoute).toMatch(/^\//u);
+  expect(placeholder.ledgerIds.length).toBeGreaterThan(0);
+
+  for (const ledgerId of placeholder.ledgerIds) {
+    expect(getChorus2ParityRowById(ledgerId), ledgerId).toBeDefined();
+  }
+
+  return placeholder;
+}
+
+describe('chorus2 placeholder metadata', () => {
+  test('exports only curated placeholder metadata with valid ledger references', () => {
+    const metadata = getChorus2PlaceholderMetadataTable();
+
+    expect(metadata.map((placeholder) => placeholder.id).sort()).toEqual(
+      [...EXPECTED_PLACEHOLDER_IDS].sort()
+    );
+
+    for (const placeholder of metadata) {
+      expect(placeholder.surface).toEqual(expect.any(String));
+      expect(placeholder.status).toMatch(/^(missing|deferred|intentionallyChanged)$/u);
+      expect(placeholder.owner).toMatch(/^(M006\/S0[2-4]|R0\d+\/M006\/S0[4-5])$/u);
+      expect(placeholder.recoveryRoute).toMatch(/^\//u);
+
+      for (const ledgerId of placeholder.ledgerIds) {
+        const row = getChorus2ParityRowById(ledgerId);
+
+        expect(row, ledgerId).toBeDefined();
+        expect(row?.owner, ledgerId).toBe(placeholder.owner);
+      }
+    }
+
+    expect(getChorus2PlaceholderMetadata('missing-id')).toBeUndefined();
+  });
+});
 
 describe('parseAppRoute', () => {
   test('parses dashboard and settings routes without using query identity', () => {
@@ -44,6 +123,101 @@ describe('parseAppRoute', () => {
       expect(parseAppRoute(path, '?ignored=1')).toEqual({ kind: 'video', route: videoRoute });
       expect(unwrapVideoRoute(parseAppRoute(path))).toEqual(videoRoute);
     }
+  });
+
+  test('parses curated Chorus2 URLs to implemented routes or safe placeholders', () => {
+    expect(parseAppRoute('/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
+    expect(parseAppRoute('/tvshows')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
+
+    const placeholderCases = [
+      ['/remote', 'remote'],
+      ['/movies/recent', 'moviesRecent'],
+      ['/tvshows/recent', 'tvShowsRecent'],
+      ['/playlists', 'playlists'],
+      ['/help', 'help'],
+      ['/help/overview', 'helpOverview'],
+      ['/browser', 'browser'],
+      ['/settings/web', 'settingsWeb'],
+      ['/settings/kodi', 'settingsKodi'],
+      ['/settings/nav', 'settingsNav'],
+      ['/settings/search', 'settingsSearch'],
+      ['/settings/addons', 'settingsAddons'],
+      ['/lab', 'lab'],
+      ['/lab/screenshot', 'labScreenshot'],
+      ['/lab/icon-browser', 'labIconBrowser'],
+      ['/lab/api-browser/JSONRPC.Ping', 'labApiBrowserMethod'],
+      ['/addons/video', 'addonsVideo'],
+      ['/addon/execute/plugin.video.youtube', 'addonExecute'],
+      ['/search', 'search'],
+      ['/search/video/star wars', 'searchVideo']
+    ] as const;
+
+    for (const [path, expectedId] of placeholderCases) {
+      expectChorus2Placeholder(parseAppRoute(path, '?token=Basic&ignored=1'), expectedId);
+    }
+  });
+
+  test('parses package-mounted Chorus2 URLs to the same placeholder identities', () => {
+    const packageCases = [
+      ['/addons/webinterface.chorus3/remote', 'remote'],
+      ['/addons/webinterface.chorus3/help', 'help'],
+      ['/addons/webinterface.chorus3/playlists', 'playlists']
+    ] as const;
+
+    for (const [path, expectedId] of packageCases) {
+      const unmounted = parseAppRoute(`/${expectedId === 'remote' ? 'remote' : expectedId}`, '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      });
+      const mounted = parseAppRoute(path, '?Authorization=Basic', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      });
+
+      expectChorus2Placeholder(mounted, expectedId);
+      expect(mounted).toEqual(unmounted);
+      expect(buildAppRoute(mounted, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })).toBe(path);
+    }
+  });
+
+  test('redacts unsafe Chorus2 placeholder route input instead of serializing raw path or query data', () => {
+    const unsafeCases = [
+      ['/addon/execute/user:pass@host', 'addonExecute'],
+      ['/addon/execute/smb://nas/private', 'addonExecute'],
+      ['/addon/execute/special://profile/passwords', 'addonExecute'],
+      ['/search/video/Authorization', 'searchVideo'],
+      ['/search/video/Basic', 'searchVideo'],
+      ['/search/video/{"jsonrpc":"2.0","method":"Input.SendText"}', 'searchVideo'],
+      ['/search/video/localStorage', 'searchVideo'],
+      ['/search/video/sessionStorage', 'searchVideo'],
+      ['/lab/api-browser/smb://nas/private', 'labApiBrowserMethod'],
+      ['/lab/api-browser/special://profile/passwords', 'labApiBrowserMethod'],
+      ['/lab/api-browser/{"method":"JSONRPC.Ping"}', 'labApiBrowserMethod']
+    ] as const;
+
+    for (const [path, expectedId] of unsafeCases) {
+      const route = parseAppRoute(path, '?Authorization=Basic&body={"password":"secret"}');
+      const serialized = JSON.stringify(route);
+
+      expectChorus2Placeholder(route, expectedId);
+      expect(serialized).not.toMatch(
+        /Authorization|Basic|user:pass@host|localStorage|sessionStorage|smb:\/\/|special:\/\/|jsonrpc|Input\.SendText|password|secret|body=/i
+      );
+    }
+  });
+
+  test('normalizes malformed Chorus2 route inputs without leaking unsafe placeholder data', () => {
+    expect(parseAppRoute('/movies?first=true')).toEqual(parseAppRoute('/movies?second=true'));
+    expect(parseAppRoute('/movies', '?first=true')).toEqual(
+      parseAppRoute('/movies', '?second=true')
+    );
+    expect(parseAppRoute('//movies///recent//')).toEqual(parseAppRoute('/movies/recent'));
+    expect(parseAppRoute('/search/video/star%2Fwars')).toEqual(
+      parseAppRoute('/search/video/[redacted]')
+    );
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3%2Fremote', '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'addonsUnknown', pathLabel: '/addons/[redacted]' });
   });
 
   test('parses safe add-on detail routes with dotted ids', () => {
@@ -228,7 +402,14 @@ describe('buildAppRoute', () => {
       '/settings/[redacted]/[redacted]'
     ],
     [{ kind: 'video', route: { kind: 'videoMovies' } }, '/video/movies'],
-    [{ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 4401 } }, '/video/movies/4401']
+    [{ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 4401 } }, '/video/movies/4401'],
+    [
+      {
+        kind: 'chorus2Placeholder',
+        placeholder: getChorus2PlaceholderMetadata('help')!
+      },
+      '/help'
+    ]
   ])('builds %j as %s', (route, expectedPath) => {
     expect(buildAppRoute(route)).toBe(expectedPath);
   });

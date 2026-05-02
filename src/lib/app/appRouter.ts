@@ -4,6 +4,7 @@ import {
   type DashboardRoute,
   type VideoRoute
 } from '../video/videoRouter';
+import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
 
 export type AppDashboardRoute = DashboardRoute;
 export type SettingsRoute = { kind: 'settings' };
@@ -16,6 +17,24 @@ export type LabApiBrowserRoute = { kind: 'labApiBrowser' };
 export type LabUnknownRoute = { kind: 'labUnknown'; pathLabel: string };
 export type NowPlayingRoute = { kind: 'nowPlaying' };
 export type DelegatedVideoRoute = { kind: 'video'; route: Exclude<VideoRoute, DashboardRoute> };
+export type Chorus2PlaceholderStatus = 'missing' | 'deferred' | 'intentionallyChanged';
+
+export interface Chorus2RoutePlaceholder {
+  readonly id: string;
+  readonly ledgerIds: readonly string[];
+  readonly surface: string;
+  readonly title: string;
+  readonly status: Chorus2PlaceholderStatus;
+  readonly owner: string;
+  readonly description: string;
+  readonly recoveryRoute: string;
+  readonly routePath: string;
+}
+
+export type Chorus2PlaceholderRoute = {
+  kind: 'chorus2Placeholder';
+  placeholder: Chorus2RoutePlaceholder;
+};
 
 export type AppRoute =
   | AppDashboardRoute
@@ -28,7 +47,8 @@ export type AppRoute =
   | LabApiBrowserRoute
   | LabUnknownRoute
   | NowPlayingRoute
-  | DelegatedVideoRoute;
+  | DelegatedVideoRoute
+  | Chorus2PlaceholderRoute;
 
 export interface AppRouteHistory {
   pushState: (data: unknown, unused: string, url?: string | URL | null) => void;
@@ -63,6 +83,241 @@ const UNSAFE_SEGMENT = '[redacted]';
 const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
+const CHORUS2_PLACEHOLDER_DEFINITIONS = [
+  placeholder({
+    id: 'remote',
+    ledgerIds: ['route:remote-page:remote'],
+    surface: 'remote',
+    title: 'Chorus2 Remote',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 remote shell route is reserved for the S03 input/remote implementation.',
+    recoveryRoute: '/',
+    routePath: '/remote'
+  }),
+  placeholder({
+    id: 'moviesRecent',
+    ledgerIds: ['nav:movie:movies-recent'],
+    surface: 'movies/recent',
+    title: 'Recent Movies',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 recent-movies navigation is visible but not implemented in Chorus3 yet.',
+    recoveryRoute: '/video/movies',
+    routePath: '/movies/recent'
+  }),
+  placeholder({
+    id: 'tvShowsRecent',
+    ledgerIds: ['nav:tvshow:tvshows-recent'],
+    surface: 'tvshows/recent',
+    title: 'Recent TV Shows',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 recent-TV navigation is visible but not implemented in Chorus3 yet.',
+    recoveryRoute: '/video/tv',
+    routePath: '/tvshows/recent'
+  }),
+  placeholder({
+    id: 'playlists',
+    ledgerIds: ['route:playlist:playlists'],
+    surface: 'playlists',
+    title: 'Chorus2 Playlists',
+    status: 'deferred',
+    owner: 'R055/M006/S04',
+    description: 'Playlist parity is deferred to the playlist/local-player parity owner.',
+    recoveryRoute: '/',
+    routePath: '/playlists'
+  }),
+  placeholder({
+    id: 'help',
+    ledgerIds: ['route:help-overview:help'],
+    surface: 'help',
+    title: 'Chorus2 Help',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 help landing route is tracked but not rendered in Chorus3 yet.',
+    recoveryRoute: '/',
+    routePath: '/help'
+  }),
+  placeholder({
+    id: 'helpOverview',
+    ledgerIds: ['route:help-overview:help-overview'],
+    surface: 'help/overview',
+    title: 'Chorus2 Help Overview',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 help overview content is tracked but not rendered in Chorus3 yet.',
+    recoveryRoute: '/help',
+    routePath: '/help/overview'
+  }),
+  placeholder({
+    id: 'browser',
+    ledgerIds: ['route:list:browser'],
+    surface: 'browser',
+    title: 'Chorus2 Browser',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 browser navigation is visible but awaits file-browser parity work.',
+    recoveryRoute: '/',
+    routePath: '/browser'
+  }),
+  placeholder({
+    id: 'settingsWeb',
+    ledgerIds: ['route:local:settings-web'],
+    surface: 'settings/web',
+    title: 'Web Settings',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 web settings are tracked separately from the implemented settings shell.',
+    recoveryRoute: '/settings',
+    routePath: '/settings/web'
+  }),
+  placeholder({
+    id: 'settingsKodi',
+    ledgerIds: ['route:kodi:settings-kodi'],
+    surface: 'settings/kodi',
+    title: 'Kodi Settings',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 Kodi settings require a future settings parity implementation.',
+    recoveryRoute: '/settings',
+    routePath: '/settings/kodi'
+  }),
+  placeholder({
+    id: 'settingsNav',
+    ledgerIds: ['route:nav-main:settings-nav'],
+    surface: 'settings/nav',
+    title: 'Navigation Settings',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 navigation settings are visible but not implemented in Chorus3 yet.',
+    recoveryRoute: '/settings',
+    routePath: '/settings/nav'
+  }),
+  placeholder({
+    id: 'settingsSearch',
+    ledgerIds: ['route:search:settings-search'],
+    surface: 'settings/search',
+    title: 'Search Settings',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 search settings are visible but not implemented in Chorus3 yet.',
+    recoveryRoute: '/settings',
+    routePath: '/settings/search'
+  }),
+  placeholder({
+    id: 'settingsAddons',
+    ledgerIds: ['route:addons:settings-addons'],
+    surface: 'settings/addons',
+    title: 'Add-on Settings',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 add-on settings are visible but not implemented in Chorus3 yet.',
+    recoveryRoute: '/settings',
+    routePath: '/settings/addons'
+  }),
+  placeholder({
+    id: 'lab',
+    ledgerIds: ['route:lab-landing:lab'],
+    surface: 'lab',
+    title: 'Chorus2 Lab',
+    status: 'missing',
+    owner: 'M006/S02',
+    description:
+      'Chorus2 lab landing is tracked separately from implemented Chorus3 lab shortcuts.',
+    recoveryRoute: '/lab/shortcuts',
+    routePath: '/lab'
+  }),
+  placeholder({
+    id: 'labScreenshot',
+    ledgerIds: ['route:screen-shot:lab-screenshot'],
+    surface: 'lab/screenshot',
+    title: 'Lab Screenshot',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 screenshot tooling is tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/lab/shortcuts',
+    routePath: '/lab/screenshot'
+  }),
+  placeholder({
+    id: 'labIconBrowser',
+    ledgerIds: ['route:icon-browser:lab-icon-browser'],
+    surface: 'lab/icon-browser',
+    title: 'Lab Icon Browser',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 icon browser tooling is tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/lab/shortcuts',
+    routePath: '/lab/icon-browser'
+  }),
+  placeholder({
+    id: 'labApiBrowserMethod',
+    ledgerIds: ['route:api-browser:lab-api-browser-method'],
+    surface: 'lab/api-browser/:method',
+    title: 'Lab API Browser Method',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 method-specific API browser routes do not dispatch JSON-RPC in Chorus3.',
+    recoveryRoute: '/lab/api-browser',
+    routePath: '/lab/api-browser/[method]'
+  }),
+  placeholder({
+    id: 'addonsVideo',
+    ledgerIds: ['nav:addon:addons-video'],
+    surface: 'addons/video',
+    title: 'Video Add-ons',
+    status: 'missing',
+    owner: 'M006/S02',
+    description:
+      'Chorus2 add-on type-filter navigation is not implemented in the current add-ons shell.',
+    recoveryRoute: '/addons',
+    routePath: '/addons/video'
+  }),
+  placeholder({
+    id: 'addonExecute',
+    ledgerIds: ['route:execute:addon-execute-id'],
+    surface: 'addon/execute/:id',
+    title: 'Execute Add-on',
+    status: 'missing',
+    owner: 'M006/S02',
+    description:
+      'Chorus2 add-on execution routes are visible but intentionally non-dispatching here.',
+    recoveryRoute: '/addons',
+    routePath: '/addon/execute/[id]'
+  }),
+  placeholder({
+    id: 'search',
+    ledgerIds: ['route:view:search'],
+    surface: 'search',
+    title: 'Chorus2 Search',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 search landing is tracked but not implemented in Chorus3 yet.',
+    recoveryRoute: '/',
+    routePath: '/search'
+  }),
+  placeholder({
+    id: 'searchVideo',
+    ledgerIds: ['route:list:search-media-query'],
+    surface: 'search/:media/:query',
+    title: 'Video Search',
+    status: 'missing',
+    owner: 'M006/S02',
+    description: 'Chorus2 media search routes are tracked without reflecting raw query text.',
+    recoveryRoute: '/search',
+    routePath: '/search/video/[query]'
+  })
+] as const satisfies readonly Chorus2RoutePlaceholder[];
+
+const CHORUS2_PLACEHOLDERS_BY_ID = new Map(
+  CHORUS2_PLACEHOLDER_DEFINITIONS.map((placeholder) => [placeholder.id, placeholder])
+);
+const CHORUS2_PLACEHOLDERS_BY_ROUTE_PATH = new Map(
+  CHORUS2_PLACEHOLDER_DEFINITIONS.map((placeholder) => [placeholder.routePath, placeholder])
+);
+
+validateChorus2PlaceholderLedgerIds();
+
 export function parseAppRoute(
   pathname: unknown,
   search?: unknown,
@@ -77,6 +332,20 @@ export function parseAppRoute(
 
   if (path === ROOT_PATH) {
     return { kind: 'dashboard' };
+  }
+
+  if (path === '/movies') {
+    return { kind: 'video', route: { kind: 'videoMovies' } };
+  }
+
+  if (path === '/tvshows') {
+    return { kind: 'video', route: { kind: 'videoTvShows' } };
+  }
+
+  const chorus2Placeholder = parseChorus2PlaceholderRoute(path);
+
+  if (chorus2Placeholder) {
+    return { kind: 'chorus2Placeholder', placeholder: chorus2Placeholder };
   }
 
   if (path === SETTINGS_PATH) {
@@ -183,6 +452,10 @@ function buildAppRoutePath(route: AppRoute): string {
     return NOW_PLAYING_PATH;
   }
 
+  if (route.kind === 'chorus2Placeholder') {
+    return normalizeChorus2PlaceholderRoutePath(route.placeholder);
+  }
+
   if (route.kind === 'labUnknown') {
     return normalizePathLabel(route.pathLabel || UNKNOWN_LAB_PATH, UNKNOWN_LAB_PATH);
   }
@@ -202,6 +475,14 @@ export function unwrapVideoRoute(route: AppRoute): VideoRoute {
   return isDelegatedVideoRoute(route) ? route.route : { kind: 'dashboard' };
 }
 
+export function getChorus2PlaceholderMetadata(id: string): Chorus2RoutePlaceholder | undefined {
+  return CHORUS2_PLACEHOLDERS_BY_ID.get(id);
+}
+
+export function getChorus2PlaceholderMetadataTable(): readonly Chorus2RoutePlaceholder[] {
+  return CHORUS2_PLACEHOLDER_DEFINITIONS;
+}
+
 export function navigateAppRoute(route: AppRoute, options: NavigateAppRouteOptions = {}): boolean {
   const history = 'history' in options ? options.history : globalThis.history;
 
@@ -219,6 +500,32 @@ export function navigateAppRoute(route: AppRoute, options: NavigateAppRouteOptio
   } catch {
     return false;
   }
+}
+
+function parseChorus2PlaceholderRoute(path: string): Chorus2RoutePlaceholder | null {
+  const direct = CHORUS2_PLACEHOLDERS_BY_ROUTE_PATH.get(path);
+
+  if (direct) {
+    return direct;
+  }
+
+  if (path.startsWith('/addon/execute/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('addonExecute') ?? null;
+  }
+
+  if (path.startsWith('/search/video/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('searchVideo') ?? null;
+  }
+
+  if (path.startsWith('/lab/api-browser/')) {
+    return CHORUS2_PLACEHOLDERS_BY_ID.get('labApiBrowserMethod') ?? null;
+  }
+
+  return null;
+}
+
+function normalizeChorus2PlaceholderRoutePath(placeholder: Chorus2RoutePlaceholder): string {
+  return CHORUS2_PLACEHOLDERS_BY_ID.get(placeholder.id)?.routePath ?? ROOT_PATH;
 }
 
 function normalizePackageBasePath(packageBasePath: unknown): string {
@@ -352,6 +659,53 @@ function isSafeAddonId(addonid: unknown): addonid is string {
     /^[A-Za-z0-9._-]+$/.test(decoded) &&
     !FORBIDDEN_SEGMENT_PATTERN.test(decoded)
   );
+}
+
+function placeholder(input: Chorus2RoutePlaceholder): Chorus2RoutePlaceholder {
+  return {
+    ...input,
+    ledgerIds: [...input.ledgerIds],
+    routePath: normalizePathnameInput(input.routePath),
+    recoveryRoute: normalizePathnameInput(input.recoveryRoute)
+  };
+}
+
+function validateChorus2PlaceholderLedgerIds(): void {
+  for (const placeholder of CHORUS2_PLACEHOLDER_DEFINITIONS) {
+    for (const ledgerId of placeholder.ledgerIds) {
+      const row = getChorus2ParityRowById(ledgerId);
+
+      if (!row) {
+        throw new Error(
+          `Missing Chorus2 parity ledger row for placeholder ${placeholder.id}: ${ledgerId}`
+        );
+      }
+
+      if (row.owner !== placeholder.owner) {
+        throw new Error(
+          `Chorus2 placeholder ${placeholder.id} owner ${placeholder.owner} does not match ledger row ${ledgerId} owner ${row.owner}`
+        );
+      }
+
+      if (toPlaceholderStatus(row.status) !== placeholder.status) {
+        throw new Error(
+          `Chorus2 placeholder ${placeholder.id} status ${placeholder.status} does not match ledger row ${ledgerId} status ${row.status}`
+        );
+      }
+    }
+  }
+}
+
+function toPlaceholderStatus(status: Chorus2ParityStatus): Chorus2PlaceholderStatus {
+  if (status === 'missing' || status === 'deferred') {
+    return status;
+  }
+
+  if (status === 'out-of-scope') {
+    return 'intentionallyChanged';
+  }
+
+  throw new Error(`Unsupported Chorus2 placeholder status: ${status}`);
 }
 
 function safeDecode(value: string): string {

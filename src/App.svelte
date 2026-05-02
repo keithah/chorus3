@@ -422,7 +422,8 @@
       input.kind === 'labShortcuts' ||
       input.kind === 'labApiBrowser' ||
       input.kind === 'labUnknown' ||
-      input.kind === 'nowPlaying'
+      input.kind === 'nowPlaying' ||
+      input.kind === 'chorus2Placeholder'
     ) {
       return input;
     }
