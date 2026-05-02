@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     VideoEpisodeSnapshot,
     VideoLibraryMovieSnapshot,
@@ -8,6 +9,7 @@
 
   interface Props {
     snapshot: VideoLibraryStoreSnapshot;
+    i18n?: TranslationContext;
   }
 
   type RecentSection = {
@@ -35,7 +37,7 @@
     initials: string;
   };
 
-  let { snapshot }: Props = $props();
+  let { snapshot, i18n = createTranslationContext('en') }: Props = $props();
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));
@@ -45,22 +47,22 @@
     return [
       {
         key: 'recentlyAddedMovies',
-        title: 'Recently added movies',
-        emptyCopy: 'No recently added movies in this snapshot.',
+        title: i18n.t('video.recent.recentlyAddedMovies'),
+        emptyCopy: i18n.t('video.recent.empty.recentlyAddedMovies'),
         total: totalFor(value, 'recentlyAddedMovies', value.recentlyAddedMovies.length),
         items: value.recentlyAddedMovies.map((movie, index) => movieCard(movie, index, 'added'))
       },
       {
         key: 'recentlyPlayedMovies',
-        title: 'Recently played movies',
-        emptyCopy: 'No recently played movies in this snapshot.',
+        title: i18n.t('video.recent.recentlyPlayedMovies'),
+        emptyCopy: i18n.t('video.recent.empty.recentlyPlayedMovies'),
         total: totalFor(value, 'recentlyPlayedMovies', value.recentlyPlayedMovies.length),
         items: value.recentlyPlayedMovies.map((movie, index) => movieCard(movie, index, 'played'))
       },
       {
         key: 'recentlyAddedEpisodes',
-        title: 'Recently added episodes',
-        emptyCopy: 'No recently added episodes in this snapshot.',
+        title: i18n.t('video.recent.recentlyAddedEpisodes'),
+        emptyCopy: i18n.t('video.recent.empty.recentlyAddedEpisodes'),
         total: totalFor(value, 'recentlyAddedEpisodes', value.recentlyAddedEpisodes.length),
         items: value.recentlyAddedEpisodes.map((episode, index) =>
           episodeCard(episode, index, 'added')
@@ -68,8 +70,8 @@
       },
       {
         key: 'recentlyPlayedEpisodes',
-        title: 'Recently played episodes',
-        emptyCopy: 'No recently played episodes in this snapshot.',
+        title: i18n.t('video.recent.recentlyPlayedEpisodes'),
+        emptyCopy: i18n.t('video.recent.empty.recentlyPlayedEpisodes'),
         total: totalFor(value, 'recentlyPlayedEpisodes', value.recentlyPlayedEpisodes.length),
         items: value.recentlyPlayedEpisodes.map((episode, index) =>
           episodeCard(episode, index, 'played')
@@ -84,7 +86,7 @@
     dateKind: 'added' | 'played'
   ): RecentCard {
     const movieid = positiveSafeIntegerOrNull(movie.movieid);
-    const label = safeTitle(movie.title, movie.label, 'Unknown movie');
+    const label = safeTitle(movie.title, movie.label, i18n.t('video.movie.unknown'));
     const subtitle = [formatYear(movie.year), formatDuration(movie.runtime)]
       .filter(Boolean)
       .join(' · ');
@@ -110,7 +112,7 @@
     const episodeid = positiveSafeIntegerOrNull(episode.episodeid);
     const tvshowid = positiveSafeIntegerOrNull(episode.tvshowid);
     const season = positiveSafeIntegerOrNull(episode.season);
-    const label = safeTitle(episode.title, episode.label, 'Unknown episode');
+    const label = safeTitle(episode.title, episode.label, i18n.t('video.recent.unknownEpisode'));
     const showLabel = textOrNull(episode.showtitle);
     const numberLabel = formatEpisodeNumber(episode.season, episode.episode);
     const subtitle = [showLabel, numberLabel, formatDuration(episode.runtime)]
@@ -128,7 +130,7 @@
       subtitle: subtitle || null,
       href,
       dateLabel: formatDateLabel(dateKind, dateValue),
-      badges: [...buildBadges(episode), ...(href === null ? ['Route unavailable'] : [])],
+      badges: [...buildBadges(episode), ...(href === null ? [i18n.t('video.recent.routeUnavailable')] : [])],
       artworkClass: artworkClass(episode),
       initials: initialsFor(label, 'E')
     };
@@ -136,8 +138,8 @@
 
   function buildBadges(item: VideoLibraryMovieSnapshot | VideoEpisodeSnapshot): string[] {
     return [
-      isWatched(item) ? 'Watched' : null,
-      hasResume(item) ? 'Resume available' : null,
+      isWatched(item) ? i18n.t('video.movie.watched') : null,
+      hasResume(item) ? i18n.t('video.movie.resumeAvailable') : null,
       ...artworkBadges(item)
     ].filter((badge): badge is string => badge !== null);
   }
@@ -147,23 +149,23 @@
     const badges: string[] = [];
 
     if (safeKeys.has('poster')) {
-      badges.push('Poster artwork available');
+      badges.push(i18n.t('video.artwork.posterAvailable'));
     }
 
     if (safeKeys.has('fanart')) {
-      badges.push('Fanart metadata available');
+      badges.push(i18n.t('video.artwork.fanartMetadataAvailable'));
     }
 
     if (safeKeys.has('thumb')) {
-      badges.push('Thumbnail metadata available');
+      badges.push(i18n.t('video.artwork.thumbnailMetadataAvailable'));
     }
 
     if (safeKeys.size > 0 && badges.length === 0) {
-      badges.push('Artwork metadata available');
+      badges.push(i18n.t('video.artwork.metadataAvailable'));
     }
 
     if (safeKeys.size === 0) {
-      badges.push('Artwork pending');
+      badges.push(i18n.t('video.artwork.pending'));
     }
 
     return badges;
@@ -211,7 +213,7 @@
 
   function formatStatus(value: VideoLibraryStoreSnapshot): string {
     if (value.refreshStatus === 'loading') {
-      return `Loading recent video from ${formatReason(value.lastRefreshReason)}.`;
+      return i18n.t('video.recent.status.loading', { reason: formatReason(value.lastRefreshReason) });
     }
 
     if (value.refreshStatus === 'error' && value.lastError) {
@@ -224,9 +226,9 @@
       value.recentlyAddedEpisodes.length +
       value.recentlyPlayedEpisodes.length;
     const updated = textOrNull(value.lastUpdatedAt);
-    const updatedCopy = updated ? ` Last updated ${updated}.` : '';
+    const updatedCopy = updated ? i18n.t('video.recent.status.updated', { updated }) : '';
 
-    return `Showing ${count} recent video ${count === 1 ? 'item' : 'items'}.${updatedCopy}`;
+    return i18n.t('video.recent.status.showing', { count, itemWord: count === 1 ? i18n.t('video.recent.status.item') : i18n.t('video.recent.status.items'), updated: updatedCopy });
   }
 
   function totalFor(
@@ -240,15 +242,15 @@
 
   function formatReason(reason: string): string {
     if (reason.startsWith('notification:')) {
-      return `notification ${sanitizeUiText(reason.slice('notification:'.length))}`;
+      return i18n.t('video.common.notificationReason', { reason: sanitizeUiText(reason.slice('notification:'.length)) });
     }
 
     if (reason.startsWith('command:')) {
-      return `command ${sanitizeUiText(reason.slice('command:'.length))}`;
+      return i18n.t('video.common.commandReason', { reason: sanitizeUiText(reason.slice('command:'.length)) });
     }
 
     if (reason.startsWith('error:')) {
-      return `error ${sanitizeUiText(reason.slice('error:'.length))}`;
+      return i18n.t('video.common.errorReason', { reason: sanitizeUiText(reason.slice('error:'.length)) });
     }
 
     return sanitizeUiText(reason);
@@ -264,7 +266,7 @@
       return null;
     }
 
-    return `${kind === 'added' ? 'Added' : 'Played'} ${text}`;
+    return i18n.t(kind === 'added' ? 'video.recent.date.added' : 'video.recent.date.played', { date: text });
   }
 
   function formatEpisodeNumber(season: unknown, episode: unknown): string | null {
@@ -275,7 +277,7 @@
       return null;
     }
 
-    return `S${seasonNumber}:E${episodeNumber}`;
+    return i18n.t('video.recent.episodeNumber', { season: seasonNumber, episode: episodeNumber });
   }
 
   function formatYear(value: unknown): string | null {
@@ -394,25 +396,25 @@
 
 <section class="video-recent-panel surface" aria-labelledby="video-recent-title">
   <div class="panel-heading">
-    <p class="section-kicker">Video Library</p>
-    <h2 id="video-recent-title">Recent Video</h2>
+    <p class="section-kicker">{i18n.t('video.recent.kicker')}</p>
+    <h2 id="video-recent-title">{i18n.t('video.recent.title')}</h2>
     <p class="summary-line">
-      Browse recent movie and episode snapshots without exposing raw Kodi artwork paths.
+      {i18n.t('video.recent.description')}
     </p>
   </div>
 
   <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
 
   {#if isLoading}
-    <p class="state-copy">Loading recent video lists…</p>
+    <p class="state-copy">{i18n.t('video.recent.loadingLists')}</p>
   {/if}
 
-  <div class="recent-grid" aria-label="Recent video sections">
+  <div class="recent-grid" aria-label={i18n.t('video.recent.sectionsAria')}>
     {#each sections as section (section.key)}
       <section class="recent-section" aria-labelledby={`video-recent-${section.key}`}>
         <div class="section-heading">
           <h3 id={`video-recent-${section.key}`}>{section.title}</h3>
-          <p>{section.items.length} of {section.total}</p>
+          <p>{i18n.t('video.recent.countOf', { count: section.items.length, total: section.total })}</p>
         </div>
 
         {#if section.items.length === 0}
@@ -424,14 +426,14 @@
                 <div class="fanart-wash" aria-hidden="true"></div>
                 <div
                   class={`poster-frame ${item.artworkClass}`}
-                  aria-label={`${item.label} artwork availability`}
+                  aria-label={i18n.t('video.recent.artworkAvailability', { label: item.label })}
                 >
                   <span class="fallback-initials" aria-hidden="true">{item.initials}</span>
                   <span class="artwork-copy">
-                    {item.artworkClass === 'no-artwork' ? 'Artwork pending' : 'Poster frame'}
+                    {item.artworkClass === 'no-artwork' ? i18n.t('video.artwork.pending') : i18n.t('video.recent.posterFrame')}
                   </span>
                   {#if item.artworkClass === 'has-fanart'}
-                    <span class="artwork-copy muted">Fanart wash</span>
+                    <span class="artwork-copy muted">{i18n.t('video.recent.fanartWash')}</span>
                   {/if}
                 </div>
                 <div class="card-copy">
@@ -450,7 +452,7 @@
                   {/if}
 
                   {#if item.badges.length > 0}
-                    <div class="badge-list" aria-label="Recent video metadata">
+                    <div class="badge-list" aria-label={i18n.t('video.recent.metadataAria')}>
                       {#each item.badges as badge (badge)}
                         <span class="badge">{badge}</span>
                       {/each}

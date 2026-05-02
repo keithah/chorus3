@@ -2,6 +2,7 @@ import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import VideoRecentPanel from './VideoRecentPanel.svelte';
+import { createTranslationContext } from '$lib/i18n';
 import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
 
 let mounted: ReturnType<typeof mount> | null = null;
@@ -44,10 +45,13 @@ function createVideoSnapshot(overrides: VideoSnapshotOverrides = {}): VideoLibra
   };
 }
 
-function renderPanel(snapshot: VideoLibraryStoreSnapshot): void {
+function renderPanel(
+  snapshot: VideoLibraryStoreSnapshot,
+  i18n: ReturnType<typeof createTranslationContext> = createTranslationContext('en')
+): void {
   mounted = mount(VideoRecentPanel, {
     target: document.body,
-    props: { snapshot }
+    props: { snapshot, i18n }
   });
 }
 
@@ -80,6 +84,46 @@ function expectSecretSafe(value: string): void {
 }
 
 describe('VideoRecentPanel', () => {
+  it('renders German localized recent sections, empty states, malformed fallbacks, and safe error status', () => {
+    renderPanel(
+      createVideoSnapshot({
+        refreshStatus: 'error',
+        lastRefreshReason: 'error:http/auth',
+        lastError: {
+          source: 'http',
+          code: 'http/auth',
+          message:
+            'Failed at http://admin:p@ssword@example.test/jsonrpc with Authorization: Basic abc123 localStorage raw response body smb://secret/movie.mkv'
+        },
+        recentlyAddedMovies: [
+          {
+            movieid: Number.NaN,
+            label: 'smb://nas/private/movie.mkv',
+            title: 'https://admin:p@ssword@example.test/private/movie.mkv',
+            thumbnail: 'image://unsafe-poster/'
+          }
+        ],
+        limits: {
+          recentlyAddedMovies: { start: 0, end: 1, total: 1 }
+        }
+      }),
+      createTranslationContext('de')
+    );
+
+    const text = screenText();
+    expect(text).toContain('Aktuelle Videos');
+    expect(text).toContain('Kürzlich hinzugefügte Filme');
+    expect(text).toContain('Kürzlich wiedergegebene Filme');
+    expect(text).toContain('Kürzlich hinzugefügte Episoden');
+    expect(text).toContain('Kürzlich wiedergegebene Episoden');
+    expect(text).toContain('Unbekannter Film');
+    expect(text).toContain('Artwork ausstehend');
+    expect(text).toContain('Keine kürzlich wiedergegebenen Filme in diesem Snapshot.');
+    expect(statusText()).toContain('credentials');
+    expect(statusText()).toContain('browser storage');
+    expectSecretSafe(text);
+  });
+
   it('renders four accessible recent-video sections with links and safe fallback cards', () => {
     renderPanel(
       createVideoSnapshot({

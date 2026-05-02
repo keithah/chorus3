@@ -867,7 +867,7 @@
   {:else if isVideoMoviesRoute}
     <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
       <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
-      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
+      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
       <MediaPlaylistsPanel
         snapshot={currentVideoMediaPlaylistsSnapshot}
         dispatch={videoMediaPlaylistsDispatch}
@@ -882,6 +882,7 @@
         route={currentRenderableVideoRoute}
         detailSnapshot={videoMovieDetailSnapshot}
         actionDispatch={videoMovieActionDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoMovieStreamRoute}
@@ -893,12 +894,13 @@
         localPlayerSnapshot={currentLocalSnapshot}
         dispatchSnapshot={playerDispatch.snapshot}
         actionDispatch={videoMovieStreamActionDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoTvShowsRoute}
     <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
       <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
-      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} />
+      <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
       <MediaPlaylistsPanel
         snapshot={currentVideoMediaPlaylistsSnapshot}
         dispatch={videoMediaPlaylistsDispatch}
@@ -911,6 +913,7 @@
       <VideoTvShowDetailShell
         snapshot={currentVideoTvSnapshot}
         route={currentRenderableVideoRoute}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoTvSeasonDetailRoute}
@@ -920,6 +923,7 @@
         route={currentRenderableVideoRoute}
         artworkDispatch={videoSeasonArtworkDispatch}
         writeDispatch={videoSeasonWriteDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoEpisodeDetailRoute}
@@ -928,6 +932,7 @@
         snapshot={currentVideoTvSnapshot}
         route={currentRenderableVideoRoute}
         actionDispatch={videoEpisodeActionDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoUnknownRoute}

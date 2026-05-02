@@ -14,6 +14,9 @@
 
 <script lang="ts">
   import type {
+    TranslationContext
+  } from '$lib/i18n';
+  import type {
     VideoEpisodeDetailSnapshot,
     VideoEpisodeSnapshot,
     VideoTvStoreSnapshot
@@ -24,6 +27,7 @@
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     actionDispatch?: VideoEpisodeActionDispatch;
+    i18n?: TranslationContext;
   }
 
   type ActionKind = 'play' | 'resume' | 'queue' | 'stream' | 'mark-watched' | 'mark-unwatched';
@@ -41,7 +45,7 @@
     markEpisodeWatched: async () => undefined
   };
 
-  let { snapshot, route, actionDispatch = noopActionDispatch }: Props = $props();
+  let { snapshot, route, actionDispatch = noopActionDispatch, i18n }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
 
   const routeTvShowId = $derived(

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import VideoMovieStreamShell, {
   type VideoMovieStreamDispatch
 } from './VideoMovieStreamShell.svelte';
+import { createTranslationContext } from '$lib/i18n';
 import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
 import type { PlayerDispatchSnapshot } from '$lib/stores/playerDispatch.svelte';
 import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
@@ -164,6 +165,7 @@ function renderShell(
     localPlayerSnapshot?: LocalPlayerStoreSnapshot;
     dispatchSnapshot?: PlayerDispatchSnapshot;
     actionDispatch?: VideoMovieStreamDispatch;
+    i18n?: ReturnType<typeof createTranslationContext>;
   } = {}
 ): void {
   mounted = mount(VideoMovieStreamShell, {
@@ -174,7 +176,8 @@ function renderShell(
       route: props.route ?? { kind: 'videoMovieStream', movieid: 4401 },
       localPlayerSnapshot: props.localPlayerSnapshot ?? createLocalPlayerSnapshot(),
       dispatchSnapshot: props.dispatchSnapshot ?? createDispatchSnapshot(),
-      actionDispatch: props.actionDispatch ?? createDispatch()
+      actionDispatch: props.actionDispatch ?? createDispatch(),
+      ...(props.i18n ? { i18n: props.i18n } : {})
     }
   });
 }
@@ -207,6 +210,59 @@ function expectSecretSafe(value: string): void {
 }
 
 describe('VideoMovieStreamShell', () => {
+  it('renders German localized stream status, actions, not-found state, and rejected diagnostics', async () => {
+    const actionDispatch = createDispatch({
+      streamMovieItem: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/vfs/movie.mkv from localStorage'
+        );
+      })
+    });
+    renderShell({
+      actionDispatch,
+      i18n: createTranslationContext('de'),
+      localPlayerSnapshot: createLocalPlayerSnapshot({
+        status: 'paused',
+        currentSeconds: 123,
+        resumeAvailable: true,
+        kodiPausedForLocal: true
+      })
+    });
+
+    let text = screenText();
+    expect(text).toContain('Zurück zu Details');
+    expect(text).toContain('Browser-Stream');
+    expect(text).toContain('Lokale Browser-Wiedergabe ist pausiert.');
+    expect(text).toContain('Fortsetzungspunkt verfügbar bei 2:03.');
+    expect(getButton('Im Browser wiedergeben').disabled).toBe(false);
+    expect(getButton('Im Browser fortsetzen').disabled).toBe(false);
+    expect(getButton('Erneut versuchen').disabled).toBe(false);
+    expect(getButton('An Kodi senden').disabled).toBe(false);
+
+    getButton('Erneut versuchen').click();
+    await tick();
+    await tick();
+
+    text = screenText();
+    expect(text).toContain('Browser-Wiedergabe für Big Buck Bunny konnte nicht gestartet werden.');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('[redacted-url]');
+    expect(text).toContain('browser storage');
+    expectSecretSafe(text);
+
+    document.body.innerHTML = '';
+    if (mounted) {
+      unmount(mounted);
+      mounted = null;
+    }
+
+    renderShell({ route: { kind: 'videoMovieStream', movieid: 999 }, i18n: createTranslationContext('de') });
+    text = screenText();
+    expect(text).toContain('Filmstream nicht verfügbar');
+    expect(text).toContain('Film-ID 999 ist in diesem Snapshot nicht vorhanden.');
+    expectSecretSafe(text);
+  });
+
   it('renders a full-viewport streaming shell with safe title, Local runtime, and recovery controls', () => {
     renderShell({
       localPlayerSnapshot: createLocalPlayerSnapshot({

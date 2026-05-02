@@ -18,6 +18,7 @@
 
 <script lang="ts">
   import LocalMediaRuntime from '$lib/components/LocalMediaRuntime.svelte';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     VideoLibraryMovieSnapshot,
     VideoLibraryStoreSnapshot
@@ -35,6 +36,7 @@
     localPlayerSnapshot: LocalPlayerStoreSnapshot;
     dispatchSnapshot?: PlayerDispatchSnapshot;
     actionDispatch?: VideoMovieStreamDispatch;
+    i18n?: TranslationContext;
   }
 
   type StreamAction = 'play' | 'resume' | 'retry' | 'sendToKodi';
@@ -55,12 +57,18 @@
     detailSnapshot,
     localPlayerSnapshot,
     dispatchSnapshot,
-    actionDispatch = noopActionDispatch
+    actionDispatch = noopActionDispatch,
+    i18n = createTranslationContext('en')
   }: Props = $props();
 
   let actionStatus = $state<ActionStatus>({
     kind: 'idle',
-    message: 'Browser stream controls are ready.'
+    message: ''
+  });
+  $effect.pre(() => {
+    if (actionStatus.kind === 'idle') {
+      actionStatus.message = i18n.t('video.stream.ready');
+    }
   });
 
   const routeMovieId = $derived(
@@ -115,18 +123,18 @@
 
   function fallbackTitle(targetMovieId: number | null, value: VideoRoute): string {
     if (value.kind !== 'videoMovieStream') {
-      return 'Movie stream unavailable';
+      return i18n.t('video.stream.unavailable');
     }
 
-    return targetMovieId === null ? 'Movie stream unavailable' : 'Movie stream unavailable';
+    return i18n.t('video.stream.unavailable');
   }
 
   function notFoundCopy(): string {
     if (route.kind !== 'videoMovieStream' || routeMovieId === null) {
-      return 'Open the movies grid and choose a safe stream link.';
+      return i18n.t('video.stream.openSafeLink');
     }
 
-    return `Movie ID ${routeMovieId} is not present in this snapshot.`;
+    return i18n.t('video.movie.notPresent', { id: routeMovieId });
   }
 
   function safeMovieId(value: unknown): number | null {
@@ -134,7 +142,7 @@
   }
 
   function safeMovieLabel(value: Pick<VideoLibraryMovieSnapshot, 'label' | 'title'>): string {
-    return textOrNull(value.title) ?? textOrNull(value.label) ?? 'Unknown movie';
+    return textOrNull(value.title) ?? textOrNull(value.label) ?? i18n.t('video.movie.unknown');
   }
 
   function hasResume(value: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot): boolean {
@@ -148,44 +156,44 @@
     const localError = localPlayerSnapshot.lastError?.message;
 
     if (dispatchSnapshot?.commandStatus === 'running') {
-      return 'Preparing the browser stream…';
+      return i18n.t('video.stream.preparing');
     }
 
     if (dispatchSnapshot?.commandStatus === 'error' || localPlayerSnapshot.status === 'error') {
       return [
-        'Browser playback needs attention.',
+        i18n.t('video.stream.needsAttention'),
         dispatchError ? sanitizeUiText(dispatchError) : '',
         localError ? sanitizeUiText(localError) : '',
-        'Use Retry or Send to Kodi to recover.'
+        i18n.t('video.stream.recoveryHint')
       ]
         .filter(Boolean)
         .join(' ');
     }
 
     if (localPlayerSnapshot.status === 'playing') {
-      return 'Local browser playback is playing.';
+      return i18n.t('video.stream.localPlaying');
     }
 
     if (localPlayerSnapshot.status === 'paused') {
-      return 'Local browser playback is paused.';
+      return i18n.t('video.stream.localPaused');
     }
 
     if (localPlayerSnapshot.status === 'loading') {
-      return 'Local browser playback is loading.';
+      return i18n.t('video.stream.localLoading');
     }
 
     if (localPlayerSnapshot.status === 'ended') {
-      return 'Local browser playback ended. Use Retry to start again or Send to Kodi to recover.';
+      return i18n.t('video.stream.localEnded');
     }
 
-    return 'Browser stream controls are ready.';
+    return i18n.t('video.stream.ready');
   }
 
   function resumeCopy(): string | null {
     const position =
       numberOrNull(movie?.resume?.position) ?? numberOrNull(localPlayerSnapshot.currentSeconds);
     return hasResumeState && position !== null
-      ? `Resume point available at ${formatDuration(position)}.`
+      ? i18n.t('video.stream.resumePoint', { position: formatDuration(position) })
       : null;
   }
 
@@ -194,7 +202,7 @@
       actionStatus = {
         kind: 'error',
         action,
-        message: 'Choose a valid movie before starting browser playback.'
+        message: i18n.t('video.stream.chooseValid')
       };
       return;
     }
@@ -207,8 +215,8 @@
       action,
       message:
         action === 'resume'
-          ? `Resuming browser playback for ${label}…`
-          : `Starting browser playback for ${label}…`
+          ? i18n.t('video.stream.resuming', { label })
+          : i18n.t('video.stream.starting', { label })
     };
 
     try {
@@ -218,14 +226,14 @@
         action,
         message:
           action === 'resume'
-            ? `Browser playback resumed for ${label}.`
-            : `Browser playback started for ${label}.`
+            ? i18n.t('video.stream.resumed', { label })
+            : i18n.t('video.stream.started', { label })
       };
     } catch (error) {
       actionStatus = {
         kind: 'error',
         action,
-        message: `Could not start browser playback for ${label}. ${sanitizeUiText(errorMessage(error))}`
+        message: i18n.t('video.stream.couldNotStart', { label, message: sanitizeUiText(errorMessage(error)) })
       };
     }
   }
@@ -234,7 +242,7 @@
     actionStatus = {
       kind: 'pending',
       action: 'sendToKodi',
-      message: 'Sending playback back to Kodi…'
+      message: i18n.t('video.stream.sendingToKodi')
     };
 
     try {
@@ -242,13 +250,13 @@
       actionStatus = {
         kind: 'success',
         action: 'sendToKodi',
-        message: 'Sent playback back to Kodi.'
+        message: i18n.t('video.stream.sentToKodi')
       };
     } catch (error) {
       actionStatus = {
         kind: 'error',
         action: 'sendToKodi',
-        message: `Could not send playback back to Kodi. ${sanitizeUiText(errorMessage(error))}`
+        message: i18n.t('video.stream.couldNotSendToKodi', { message: sanitizeUiText(errorMessage(error)) })
       };
     }
   }
@@ -256,7 +264,7 @@
   function errorMessage(error: unknown): string {
     return error instanceof Error && error.message.trim()
       ? error.message
-      : 'Playback action failed.';
+      : i18n.t('video.stream.actionFailed');
   }
 
   function numberOrNull(value: unknown): number | null {
@@ -323,18 +331,17 @@
 </script>
 
 <section class="video-movie-stream-shell fullscreen" aria-labelledby="video-movie-stream-title">
-  <a class="back-link" href={backHref}>Back to details</a>
+  <a class="back-link" href={backHref}>{i18n.t('video.stream.backToDetails')}</a>
 
   {#if movie && movieid !== null}
     <header class="stream-heading">
-      <div class="stream-artwork-frame" aria-label="Safe movie stream artwork summary">
-        <div class="stream-poster-frame" aria-hidden="true"><span>Poster</span></div>
+      <div class="stream-artwork-frame" aria-label={i18n.t('video.stream.artworkAria')}>
+        <div class="stream-poster-frame" aria-hidden="true"><span>{i18n.t('video.movie.poster')}</span></div>
         <div class="stream-heading-copy">
-          <p class="section-kicker">Browser stream</p>
+          <p class="section-kicker">{i18n.t('video.stream.kicker')}</p>
           <h2 id="video-movie-stream-title">{title}</h2>
           <p class="summary-line">
-            Poster-led stream surface with fullscreen browser playback, fallback recovery, and safe
-            dispatch actions.
+            {i18n.t('video.stream.description')}
           </p>
         </div>
       </div>
@@ -352,50 +359,50 @@
       {/if}
     </div>
 
-    <div class="runtime-frame" aria-label="Browser playback surface">
+    <div class="runtime-frame" aria-label={i18n.t('video.stream.runtimeAria')}>
       <LocalMediaRuntime variant="fullscreen" className="stream-runtime" />
     </div>
 
-    <div class="stream-actions" aria-label="Browser stream actions">
+    <div class="stream-actions" aria-label={i18n.t('video.stream.actionsAria')}>
       <button
         type="button"
         disabled={actionDisabled}
-        aria-label="Play in browser"
+        aria-label={i18n.t('video.stream.play')}
         onclick={() => void runStreamAction('play')}
       >
-        Play in browser
+        {i18n.t('video.stream.play')}
       </button>
       {#if hasResumeState}
         <button
           type="button"
           disabled={actionDisabled}
-          aria-label="Resume in browser"
+          aria-label={i18n.t('video.stream.resume')}
           onclick={() => void runStreamAction('resume')}
         >
-          Resume in browser
+          {i18n.t('video.stream.resume')}
         </button>
       {/if}
       <button
         type="button"
         disabled={actionDisabled}
-        aria-label="Retry"
+        aria-label={i18n.t('video.stream.retry')}
         onclick={() => void runStreamAction('retry')}
       >
-        Retry
+        {i18n.t('video.stream.retry')}
       </button>
       <button
         type="button"
         disabled={actionDisabled || !showSendToKodi}
-        aria-label="Send to Kodi"
+        aria-label={i18n.t('video.stream.sendToKodi')}
         onclick={() => void sendToKodi()}
       >
-        Send to Kodi
+        {i18n.t('video.stream.sendToKodi')}
       </button>
     </div>
   {:else}
     <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">
-      <p class="section-kicker">Browser stream</p>
-      <h2 id="video-movie-stream-title">Movie stream unavailable</h2>
+      <p class="section-kicker">{i18n.t('video.stream.kicker')}</p>
+      <h2 id="video-movie-stream-title">{i18n.t('video.stream.unavailable')}</h2>
       <p>{notFoundCopy()}</p>
     </div>
   {/if}

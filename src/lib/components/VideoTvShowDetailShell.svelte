@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { TranslationContext } from '$lib/i18n';
   import type {
     VideoSeasonSnapshot,
     VideoTvShowDetailSnapshot,
@@ -9,9 +10,10 @@
   interface Props {
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
+    i18n?: TranslationContext;
   }
 
-  let { snapshot, route }: Props = $props();
+  let { snapshot, route, i18n }: Props = $props();
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvShowDetail' ? safePositiveId(route.tvshowid) : null

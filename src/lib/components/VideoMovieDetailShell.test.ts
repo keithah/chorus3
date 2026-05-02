@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import VideoMovieDetailShell, {
   type VideoMovieActionDispatch
 } from './VideoMovieDetailShell.svelte';
+import { createTranslationContext } from '$lib/i18n';
 import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
 import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
@@ -132,6 +133,7 @@ function renderShell(
   props: {
     detailSnapshot?: VideoMovieDetailStoreSnapshot;
     actionDispatch?: VideoMovieActionDispatch;
+    i18n?: ReturnType<typeof createTranslationContext>;
   } = {}
 ): void {
   mounted = mount(VideoMovieDetailShell, {
@@ -160,6 +162,77 @@ function expectSecretSafe(value: string): void {
 }
 
 describe('VideoMovieDetailShell', () => {
+  it('renders German localized detail labels, actions, malformed fallbacks, and rejected write diagnostics', async () => {
+    const actionDispatch = createMovieActionDispatch({
+      markMovieWatched: vi.fn(async () => {
+        throw new Error(
+          'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with raw response body from localStorage'
+        );
+      })
+    });
+    renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 84 }, {
+      actionDispatch,
+      i18n: createTranslationContext('de')
+    });
+
+    let text = screenText();
+    expect(text).toContain('Zurück zu Filmen');
+    expect(text).toContain('Filmdetail');
+    expect(text).toContain('Filmaktionen sind bereit.');
+    expect(text).toContain('Film-ID 84');
+    expect(text).toContain('Sichere Metadaten');
+    expect(text).toContain('Nicht als gesehen in diesem Snapshot');
+    expect(text).toContain('Fortsetzen verfügbar');
+    expect(text).toContain('2 Versionen verfügbar');
+    expect(getButtonByAria('Film Arrival als gesehen markieren').textContent).toContain(
+      'Als gesehen markieren'
+    );
+
+    getButtonByAria('Film Arrival als gesehen markieren').click();
+    await tick();
+    await tick();
+
+    text = screenText();
+    expect(text).toContain('Arrival konnte nicht als gesehen markiert werden.');
+    expect(text).toContain('credentials [redacted]');
+    expect(text).toContain('[redacted-url]');
+    expect(text).toContain('response body [redacted]');
+    expect(text).toContain('browser storage');
+    expectSecretSafe(text);
+
+    document.body.innerHTML = '';
+    if (mounted) {
+      unmount(mounted);
+      mounted = null;
+    }
+
+    renderShell(
+      createVideoSnapshot({
+        isEmpty: false,
+        movies: [
+          {
+            movieid: 7,
+            label: 'smb://nas.local/private/movie.mkv',
+            title: 'https://admin:p@ssword@example.test/private/movie.mkv',
+            year: Number.NaN,
+            runtime: Number.POSITIVE_INFINITY,
+            resume: { position: Number.NaN, total: 0 },
+            art: { poster: 'image://poster-private/' }
+          }
+        ],
+        limits: { movies: { start: 0, end: 1, total: 1 } }
+      }),
+      { kind: 'videoMovieDetail', movieid: 7 },
+      { i18n: createTranslationContext('de') }
+    );
+
+    text = screenText();
+    expect(text).toContain('Unbekannter Film');
+    expect(text).toContain('Versionsmetadaten nicht verfügbar');
+    expect(text).toContain('Kein Fortsetzungspunkt verfügbar');
+    expectSecretSafe(text);
+  });
+
   it('renders safe metadata for an existing finite movie detail route', () => {
     renderShell(populatedSnapshot(), { kind: 'videoMovieDetail', movieid: 42 });
 
