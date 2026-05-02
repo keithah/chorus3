@@ -5,6 +5,13 @@
     type HostConnectionErrorSnapshot,
     type HostTestSnapshot
   } from '$lib/stores';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+
+  interface Props {
+    i18n?: TranslationContext;
+  }
+
+  let { i18n = createTranslationContext('en') }: Props = $props();
 
   const configSnapshot = $derived(configStore.snapshot);
   const connectionSnapshot = $derived(hostConnectionStore.snapshot);
@@ -19,27 +26,27 @@
 
   function formatTestStatus(test: HostTestSnapshot | undefined): string {
     if (!test || test.status === 'idle') {
-      return 'Not tested';
+      return i18n.t('hostSwitcher.testStatus.idle');
     }
 
     if (test.status === 'testing') {
-      return 'Testing…';
+      return i18n.t('hostSwitcher.testStatus.testing');
     }
 
     if (test.status === 'success') {
-      return 'Test passed';
+      return i18n.t('hostSwitcher.testStatus.success');
     }
 
-    return 'Test failed';
+    return i18n.t('hostSwitcher.testStatus.failed');
   }
 
   function formatTestDetails(test: HostTestSnapshot | undefined): string {
     if (!test || test.status === 'idle') {
-      return 'Run a safe HTTP JSON-RPC diagnostic before switching if you want a quick check.';
+      return i18n.t('hostSwitcher.testDetails.idle');
     }
 
     if (test.status === 'testing') {
-      return 'Checking HTTP JSON-RPC with secret-safe diagnostics.';
+      return i18n.t('hostSwitcher.testDetails.testing');
     }
 
     if (test.status === 'failed') {
@@ -48,14 +55,18 @@
 
     const parts = [formatKodiVersion(test.kodiVersion), test.applicationName]
       .filter(Boolean)
-      .map((value, index) => (index === 0 ? `Kodi ${value}` : `Application ${value}`));
+      .map((value, index) =>
+        index === 0
+          ? i18n.t('hostSwitcher.testDetails.kodiVersion', { version: value })
+          : i18n.t('hostSwitcher.testDetails.application', { application: value })
+      );
 
-    return parts.length > 0 ? parts.join(' · ') : 'HTTP JSON-RPC responded successfully.';
+    return parts.length > 0 ? parts.join(' · ') : i18n.t('hostSwitcher.testDetails.success');
   }
 
   function formatError(error: HostConnectionErrorSnapshot | null): string {
     if (!error) {
-      return 'Kodi did not return additional diagnostics.';
+      return i18n.t('hostSwitcher.error.empty');
     }
 
     return `${error.message} (${error.source}/${error.code})`;
@@ -80,16 +91,15 @@
 
 <section class="host-switcher surface" aria-labelledby="host-switcher-title">
   <div class="section-heading">
-    <p class="section-kicker">Active endpoint</p>
-    <h2 id="host-switcher-title">Host switcher</h2>
+    <p class="section-kicker">{i18n.t('hostSwitcher.kicker')}</p>
+    <h2 id="host-switcher-title">{i18n.t('hostSwitcher.title')}</h2>
     <p>
-      Test saved hosts, activate a different Kodi endpoint, and inspect the current active-host
-      summary without leaving the page.
+      {i18n.t('hostSwitcher.description')}
     </p>
   </div>
 
   <div class="active-summary" aria-live="polite" aria-atomic="true">
-    <p class="summary-label">Active host</p>
+    <p class="summary-label">{i18n.t('hostSwitcher.active.label')}</p>
     {#if connectionSnapshot.activeHostSummary}
       <p class="summary-value">{connectionSnapshot.activeHostSummary.label}</p>
       <p class="summary-meta">
@@ -97,14 +107,14 @@
           .activeHostSummary.useTls
           ? 'HTTPS'
           : 'HTTP'} · {connectionSnapshot.activeHostSummary.useWebSocket
-          ? 'WebSocket enabled'
-          : 'HTTP only'} · {connectionSnapshot.activeHostSummary.hasCredentials
-          ? 'credentials configured'
-          : 'no credentials'}
+          ? i18n.t('hostSwitcher.summary.websocketEnabled')
+          : i18n.t('hostSwitcher.summary.httpOnly')} · {connectionSnapshot.activeHostSummary.hasCredentials
+          ? i18n.t('hostSwitcher.summary.credentialsConfigured')
+          : i18n.t('hostSwitcher.summary.noCredentials')}
       </p>
     {:else}
-      <p class="summary-value">No active host selected</p>
-      <p class="summary-meta">Save a host, then activate it to start connection diagnostics.</p>
+      <p class="summary-value">{i18n.t('hostSwitcher.active.none')}</p>
+      <p class="summary-meta">{i18n.t('hostSwitcher.active.noneDescription')}</p>
     {/if}
     {#if connectionSnapshot.controllerError}
       <p class="switcher-error" role="status">{formatError(connectionSnapshot.controllerError)}</p>
@@ -112,7 +122,7 @@
   </div>
 
   {#if configSnapshot.hosts.length === 0}
-    <p class="empty-state">No saved hosts yet. Host switch controls appear after the first save.</p>
+    <p class="empty-state">{i18n.t('hostSwitcher.empty')}</p>
   {:else}
     <ul class="host-list">
       {#each configSnapshot.hosts as savedHost (savedHost.id)}
@@ -123,7 +133,7 @@
             <p class="host-meta">
               {savedHost.host}{savedHost.port ? `:${savedHost.port}` : ''} · {savedHost.useTls
                 ? 'HTTPS'
-                : 'HTTP'} · {savedHost.useWebSocket ? 'WebSocket on' : 'WebSocket off'}
+                : 'HTTP'} · {savedHost.useWebSocket ? i18n.t('hostSwitcher.websocket.on') : i18n.t('hostSwitcher.websocket.off')}
             </p>
             <p class="test-result" aria-live="polite">
               <strong>{formatTestStatus(test)}</strong> — {formatTestDetails(test)}
@@ -133,19 +143,19 @@
             <button
               class="secondary-button"
               type="button"
-              aria-label={`Test ${savedHost.label}`}
+              aria-label={i18n.t('hostSwitcher.action.testAria', { label: savedHost.label })}
               disabled={test?.status === 'testing'}
               onclick={() => testHost(savedHost.id)}
             >
-              {test?.status === 'testing' ? 'Testing…' : 'Test'}
+              {test?.status === 'testing' ? i18n.t('hostSwitcher.action.testing') : i18n.t('hostSwitcher.action.test')}
             </button>
             <button
               type="button"
-              aria-label={`Activate ${savedHost.label}`}
+              aria-label={i18n.t('hostSwitcher.action.activateAria', { label: savedHost.label })}
               aria-current={configSnapshot.activeHostId === savedHost.id ? 'true' : undefined}
               onclick={() => activateHost(savedHost.id)}
             >
-              {configSnapshot.activeHostId === savedHost.id ? 'Reconnect' : 'Activate'}
+              {configSnapshot.activeHostId === savedHost.id ? i18n.t('hostSwitcher.action.reconnect') : i18n.t('hostSwitcher.action.activate')}
             </button>
           </div>
         </li>

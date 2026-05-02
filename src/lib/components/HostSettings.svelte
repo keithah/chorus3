@@ -1,7 +1,14 @@
 <script lang="ts">
   import { configStore, hostConnectionStore, type ConfigValidationErrors } from '$lib/stores';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+
+  interface Props {
+    i18n?: TranslationContext;
+  }
 
   type FieldName = 'label' | 'host' | 'port' | 'username' | 'password';
+
+  let { i18n = createTranslationContext('en') }: Props = $props();
 
   let editingHostId = $state<string | null>(null);
   let label = $state('');
@@ -20,7 +27,66 @@
       : null
   );
   const errors = $derived({ ...snapshot.validationErrors, ...localErrors });
-  const submitLabel = $derived(editingHost ? 'Update host' : 'Save host');
+  const submitLabel = $derived(
+    editingHost ? i18n.t('hostSettings.action.updateHost') : i18n.t('hostSettings.action.saveHost')
+  );
+
+  function formatValidationError(field: keyof ConfigValidationErrors, message: string): string {
+    const keyByFieldAndMessage: Partial<Record<keyof ConfigValidationErrors, Record<string, string>>> = {
+      id: {
+        'A saved Kodi host already exists for this id.': 'hostSettings.validation.id.duplicate',
+        'No saved Kodi host exists for this id.': 'hostSettings.validation.id.missing',
+        'Host id is required.': 'hostSettings.validation.id.required'
+      },
+      label: {
+        'Label is required.': 'hostSettings.validation.label.required'
+      },
+      host: {
+        'Saved Kodi host must be an object.': 'hostSettings.validation.host.object',
+        'Host is required.': 'hostSettings.validation.host.required',
+        'Host must not include a protocol, path, query string, or credentials.':
+          'hostSettings.validation.host.safeShape'
+      },
+      port: {
+        'HTTP port must be an integer between 1 and 65535.': 'hostSettings.validation.port.range'
+      },
+      username: {
+        'Username cannot be blank when provided.': 'hostSettings.validation.username.blank',
+        'Credential must not contain Authorization header content.':
+          'hostSettings.validation.username.authorization'
+      },
+      password: {
+        'Password cannot be blank when provided.': 'hostSettings.validation.password.blank',
+        'Password must not contain Authorization header content.':
+          'hostSettings.validation.password.authorization'
+      },
+      activeHostId: {
+        'Choose a saved Kodi host before making it active.':
+          'hostSettings.validation.activeHost.required'
+      },
+      useTls: {
+        'useTls must be true or false.': 'hostSettings.validation.useTls.boolean'
+      },
+      useWebSocket: {
+        'useWebSocket must be true or false.': 'hostSettings.validation.useWebSocket.boolean'
+      }
+    };
+    const key = keyByFieldAndMessage[field]?.[message];
+
+    return key ? i18n.t(key) : message;
+  }
+
+  function formatStorageWarning(): string | null {
+    if (!snapshot.storageWarning) {
+      return null;
+    }
+
+    return i18n.t(`hostSettings.storage.${snapshot.storageWarning.code}`);
+  }
+
+  function savedCountLabel(count: number): string {
+    return i18n.t('hostSettings.saved.count', { count });
+  }
 
   function errorId(field: FieldName): string {
     return `host-${field}-error`;
@@ -137,26 +203,25 @@
 
 <section class="host-settings surface" aria-labelledby="host-settings-title">
   <div class="section-heading">
-    <p class="section-kicker">Host settings</p>
-    <h2 id="host-settings-title">Kodi host settings</h2>
+    <p class="section-kicker">{i18n.t('hostSettings.kicker')}</p>
+    <h2 id="host-settings-title">{i18n.t('hostSettings.title')}</h2>
     <p>
-      Save named Kodi hosts locally, then test and switch between them without reloading the app.
+      {i18n.t('hostSettings.description')}
     </p>
   </div>
 
   {#if snapshot.storageWarning}
-    <p class="warning" role="status">{snapshot.storageWarning.message}</p>
+    <p class="warning" role="status">{formatStorageWarning()}</p>
   {/if}
 
   <p class="warning trusted-warning" id="trusted-device-warning">
-    Only save credentials on a trusted device. Host settings are stored in this browser's storage
-    and passwords are never shown again after saving.
+    {i18n.t('hostSettings.trustedWarning')}
   </p>
 
-  <form class="host-form" aria-label="Kodi host settings" novalidate onsubmit={handleSubmit}>
+  <form class="host-form" aria-label={i18n.t('hostSettings.formAria')} novalidate onsubmit={handleSubmit}>
     <div class="field-grid">
       <div class="field">
-        <label for="host-label">Label</label>
+        <label for="host-label">{i18n.t('hostSettings.field.label')}</label>
         <input
           id="host-label"
           type="text"
@@ -166,12 +231,12 @@
           aria-describedby={descriptionId('label')}
         />
         {#if errors.label}
-          <p id={errorId('label')} class="field-error" role="alert">{errors.label}</p>
+          <p id={errorId('label')} class="field-error" role="alert">{formatValidationError('label', errors.label)}</p>
         {/if}
       </div>
 
       <div class="field">
-        <label for="host-address">Host</label>
+        <label for="host-address">{i18n.t('hostSettings.field.host')}</label>
         <input
           id="host-address"
           type="text"
@@ -182,12 +247,12 @@
           aria-describedby={descriptionId('host')}
         />
         {#if errors.host}
-          <p id={errorId('host')} class="field-error" role="alert">{errors.host}</p>
+          <p id={errorId('host')} class="field-error" role="alert">{formatValidationError('host', errors.host)}</p>
         {/if}
       </div>
 
       <div class="field compact-field">
-        <label for="host-port">HTTP port</label>
+        <label for="host-port">{i18n.t('hostSettings.field.port')}</label>
         <input
           id="host-port"
           type="number"
@@ -199,12 +264,12 @@
           aria-describedby={descriptionId('port')}
         />
         {#if errors.port}
-          <p id={errorId('port')} class="field-error" role="alert">{errors.port}</p>
+          <p id={errorId('port')} class="field-error" role="alert">{formatValidationError('port', errors.port)}</p>
         {/if}
       </div>
 
       <div class="field compact-field">
-        <label for="host-username">Username</label>
+        <label for="host-username">{i18n.t('hostSettings.field.username')}</label>
         <input
           id="host-username"
           type="text"
@@ -214,54 +279,54 @@
           aria-describedby={descriptionId('username')}
         />
         {#if errors.username}
-          <p id={errorId('username')} class="field-error" role="alert">{errors.username}</p>
+          <p id={errorId('username')} class="field-error" role="alert">{formatValidationError('username', errors.username)}</p>
         {/if}
       </div>
 
       <div class="field compact-field">
-        <label for="host-password">Password</label>
+        <label for="host-password">{i18n.t('hostSettings.field.password')}</label>
         <input
           id="host-password"
           type="password"
           autocomplete="current-password"
-          placeholder={editingHost?.password ? 'Saved password retained' : ''}
+          placeholder={editingHost?.password ? i18n.t('hostSettings.password.retained') : ''}
           bind:value={password}
           aria-invalid={isInvalid('password')}
           aria-describedby={errors.password ? errorId('password') : 'trusted-device-warning'}
         />
         {#if errors.password}
-          <p id={errorId('password')} class="field-error" role="alert">{errors.password}</p>
+          <p id={errorId('password')} class="field-error" role="alert">{formatValidationError('password', errors.password)}</p>
         {/if}
       </div>
     </div>
 
-    <div class="toggles" aria-label="Connection options">
+    <div class="toggles" aria-label={i18n.t('hostSettings.connectionOptionsAria')}>
       <label class="check-row" for="host-tls">
         <input id="host-tls" type="checkbox" bind:checked={useTls} />
-        <span>Use HTTPS for HTTP JSON-RPC</span>
+        <span>{i18n.t('hostSettings.field.useTls')}</span>
       </label>
       <label class="check-row" for="host-websocket">
         <input id="host-websocket" type="checkbox" bind:checked={useWebSocket} />
-        <span>Use WebSocket notifications</span>
+        <span>{i18n.t('hostSettings.field.useWebSocket')}</span>
       </label>
     </div>
 
     <div class="form-actions">
       <button type="submit">{submitLabel}</button>
       {#if editingHost}
-        <button class="secondary-button" type="button" onclick={cancelEditing}>Cancel edit</button>
+        <button class="secondary-button" type="button" onclick={cancelEditing}>{i18n.t('hostSettings.action.cancelEdit')}</button>
       {/if}
     </div>
   </form>
 
   <div class="saved-hosts" aria-labelledby="saved-hosts-title">
     <div class="saved-hosts-heading">
-      <h3 id="saved-hosts-title">Saved hosts</h3>
-      <p>{snapshot.hosts.length} saved</p>
+      <h3 id="saved-hosts-title">{i18n.t('hostSettings.saved.title')}</h3>
+      <p>{savedCountLabel(snapshot.hosts.length)}</p>
     </div>
 
     {#if snapshot.hosts.length === 0}
-      <p class="empty-state">No saved hosts yet. Add the first trusted Kodi endpoint above.</p>
+      <p class="empty-state">{i18n.t('hostSettings.saved.empty')}</p>
     {:else}
       <ul aria-describedby="trusted-device-warning">
         {#each snapshot.hosts as savedHost (savedHost.id)}
@@ -271,24 +336,24 @@
               <p class="host-meta">
                 {savedHost.host}{savedHost.port ? `:${savedHost.port}` : ''} · {savedHost.useTls
                   ? 'HTTPS'
-                  : 'HTTP'} · {savedHost.useWebSocket ? 'WebSocket on' : 'WebSocket off'}
+                  : 'HTTP'} · {savedHost.useWebSocket ? i18n.t('hostSettings.websocket.on') : i18n.t('hostSettings.websocket.off')}
               </p>
               <p class="credential-note">
-                {savedHost.username ? 'Credentials saved' : 'No credentials saved'}
+                {savedHost.username ? i18n.t('hostSettings.credentials.saved') : i18n.t('hostSettings.credentials.none')}
               </p>
             </div>
             <div class="row-actions">
               <button
                 class="secondary-button"
                 type="button"
-                aria-label={`Edit ${savedHost.label}`}
-                onclick={() => startEditing(savedHost.id)}>Edit</button
+                aria-label={i18n.t('hostSettings.action.editAria', { label: savedHost.label })}
+                onclick={() => startEditing(savedHost.id)}>{i18n.t('hostSettings.action.edit')}</button
               >
               <button
                 class="danger-button"
                 type="button"
-                aria-label={`Delete ${savedHost.label}`}
-                onclick={() => deleteHost(savedHost.id)}>Delete</button
+                aria-label={i18n.t('hostSettings.action.deleteAria', { label: savedHost.label })}
+                onclick={() => deleteHost(savedHost.id)}>{i18n.t('hostSettings.action.delete')}</button
               >
             </div>
           </li>

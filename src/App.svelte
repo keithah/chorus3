@@ -715,8 +715,8 @@
       </section>
 
       <div class="host-grid">
-        <HostSettings />
-        <HostSwitcher />
+        <HostSettings i18n={currentI18n} />
+        <HostSwitcher i18n={currentI18n} />
       </div>
 
       <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
