@@ -28,6 +28,9 @@ export const DICTIONARIES = {
     'app.shell.eyebrow': 'Multi-host console',
     'app.shell.lede':
       'Save trusted Kodi endpoints, test HTTP diagnostics, switch the active host, and watch connection status update without reloading the app.',
+    'app.shell.packageEyebrow': 'Kodi webinterface',
+    'app.shell.packageLede':
+      'Connected to the Kodi server hosting this webinterface, using the current browser origin like Chorus2.',
     'app.dashboard.aria': 'Kodi host configuration and status',
     'app.mission.kicker': 'Runtime surface',
     'app.mission.noHost': 'No Kodi host configured yet',
@@ -865,6 +868,9 @@ export const DICTIONARIES = {
     'app.shell.eyebrow': 'Multi-Host-Konsole',
     'app.shell.lede':
       'Vertrauenswürdige Kodi-Endpunkte speichern, HTTP-Diagnosen testen, den aktiven Host wechseln und den Verbindungsstatus ohne Neuladen verfolgen.',
+    'app.shell.packageEyebrow': 'Kodi-Webinterface',
+    'app.shell.packageLede':
+      'Mit dem Kodi-Server verbunden, der dieses Webinterface bereitstellt, über den aktuellen Browser-Ursprung wie Chorus2.',
     'app.dashboard.aria': 'Kodi-Hostkonfiguration und Status',
     'app.mission.kicker': 'Runtime-Oberfläche',
     'app.mission.noHost': 'Noch kein Kodi-Host konfiguriert',

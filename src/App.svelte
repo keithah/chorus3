@@ -89,6 +89,7 @@
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
     type QueueStoreSnapshot,
+    type SavedKodiHost,
     type SettingsStoreSnapshot,
     type LocaleStoreSnapshot
   } from '$lib/stores';
@@ -155,6 +156,7 @@
     nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
     nowPlayingHostSummary?: ActiveHostSummary | null;
     nowPlayingRefreshDispatch?: () => Promise<void> | void;
+    packageMountedHost?: SavedKodiHost | null;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -349,6 +351,7 @@
     nowPlayingEmbedQuery,
     nowPlayingHostSummary,
     nowPlayingRefreshDispatch,
+    packageMountedHost = null,
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -382,10 +385,13 @@
   );
   const currentNowPlayingHostSummary = $derived(
     nowPlayingHostSummary === undefined
-      ? hostConnectionStore.snapshot.activeHostSummary
+      ? packageMountedHost
+        ? createActiveHostSummary(packageMountedHost)
+        : hostConnectionStore.snapshot.activeHostSummary
       : nowPlayingHostSummary
   );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
+  const isPackageMounted = $derived(packageMountedHost !== null);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
   const isSettingsUnknownRoute = $derived(currentRoute.kind === 'settingsUnknown');
@@ -429,6 +435,10 @@
   }
 
   onMount(() => {
+    if (packageMountedHost) {
+      void connectionStore.connect(packageMountedHost);
+    }
+
     const handleGlobalKeydown = (event: KeyboardEvent): void => {
       handlePlaybackShortcut(event, playerDispatch, {
         playerSnapshot: currentPlayerSnapshot,
@@ -709,6 +719,75 @@
 
     return `${transportText}${versionText}${lastConnectedText}`;
   }
+
+  function createActiveHostSummary(host: SavedKodiHost): ActiveHostSummary {
+    return {
+      id: host.id,
+      label: host.label,
+      host: host.host,
+      port: host.port ?? (host.useTls ? 443 : 8080),
+      useTls: host.useTls,
+      useWebSocket: host.useWebSocket,
+      hasCredentials: Boolean(host.username || host.password)
+    };
+  }
+
+  function dashboardMediaTitle(value: PlayerStoreSnapshot): string {
+    return firstDashboardText(
+      value.item?.title,
+      value.item?.label,
+      value.item?.showtitle,
+      value.item?.channel,
+      'Nothing playing'
+    );
+  }
+
+  function dashboardMediaCreator(value: PlayerStoreSnapshot): string {
+    return firstDashboardText(
+      joinDashboardText(value.item?.artist),
+      joinDashboardText(value.item?.albumartist),
+      value.item?.album,
+      value.item?.showtitle,
+      connectionStore.snapshot.status === 'connected' ? 'Kodi is ready' : 'Waiting for Kodi'
+    );
+  }
+
+  function dashboardProgress(value: PlayerStoreSnapshot): number {
+    const percentage = value.properties?.percentage;
+    return typeof percentage === 'number' && Number.isFinite(percentage)
+      ? Math.min(100, Math.max(0, percentage))
+      : 0;
+  }
+
+  function dashboardTime(seconds: number | null): string {
+    if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
+      return '--:--';
+    }
+
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+    return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+  }
+
+  function firstDashboardText(...values: unknown[]): string {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return 'Unknown media';
+  }
+
+  function joinDashboardText(value: unknown): string | null {
+    if (Array.isArray(value)) {
+      const joined = value.filter((entry) => typeof entry === 'string' && entry.trim()).join(', ');
+      return joined || null;
+    }
+
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
 </script>
 
 {#if isNowPlayingRoute}
@@ -722,39 +801,183 @@
     onRefresh={refreshNowPlayingEmbed}
   />
 {:else}
-  <AppShell>
-    <header class="hero" aria-labelledby="app-title">
-      <div class="hero-copy">
-        <p class="eyebrow">{currentI18n.t('app.shell.eyebrow')}</p>
-        <h1 id="app-title">{currentI18n.t('app.name')}</h1>
-        <p class="lede">{currentI18n.t('app.shell.lede')}</p>
-      </div>
-      <div class="hero-actions">
-        <LocaleToggle
-          locale={currentLocaleSnapshot.locale}
-          i18n={currentI18n}
-          dispatch={localeDispatch}
-        />
-        <ThemeToggle i18n={currentI18n} />
-      </div>
-    </header>
+  <AppShell chrome={isPackageMounted ? 'media' : 'default'}>
+    {#if !(isDashboardRoute && isPackageMounted)}
+      <header class="hero" aria-labelledby="app-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            {currentI18n.t(isPackageMounted ? 'app.shell.packageEyebrow' : 'app.shell.eyebrow')}
+          </p>
+          <h1 id="app-title">{currentI18n.t('app.name')}</h1>
+          <p class="lede">
+            {currentI18n.t(isPackageMounted ? 'app.shell.packageLede' : 'app.shell.lede')}
+          </p>
+        </div>
+        <div class="hero-actions">
+          <LocaleToggle
+            locale={currentLocaleSnapshot.locale}
+            i18n={currentI18n}
+            dispatch={localeDispatch}
+          />
+          <ThemeToggle i18n={currentI18n} />
+        </div>
+      </header>
+    {/if}
 
-    {#if isDashboardRoute}
+    {#if isDashboardRoute && isPackageMounted}
+      <div class="chorus-app" aria-label="Chorus media controller">
+        <header class="c2-topbar" aria-label="Chorus header">
+          <a class="c2-logo" href="/" aria-label="Kodi home">
+            <img src="/chorus2-assets/themes/base/images/logo.png" alt="" />
+          </a>
+
+          <label class="c2-search">
+            <span class="mdi mdi-action-search" aria-hidden="true"></span>
+            <span class="visually-hidden">Search Kodi</span>
+            <input type="search" />
+          </label>
+
+          <div class="c2-destination-tabs" aria-label="Playback destination">
+            <button type="button" class="active">
+              <span class="c2-kodi-mark" aria-hidden="true">✣</span>
+              Kodi
+            </button>
+            <button type="button">
+              <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
+              Local
+            </button>
+            <button type="button" aria-label="Playlist menu">
+              <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="Collapse playlist">
+              <span class="mdi mdi-hardware-keyboard-arrow-right" aria-hidden="true"></span>
+            </button>
+          </div>
+        </header>
+
+        <aside class="c2-rail" aria-label="Primary navigation">
+          <nav aria-label="Kodi sections">
+            <a href="/" class="active" aria-current="page" title="Music">
+              <span class="mdi mdi-av-my-library-music" aria-hidden="true"></span>
+              <span class="visually-hidden">Music</span>
+            </a>
+            <a href="/video/movies" title="Movies">
+              <span class="mdi mdi-image-movie-creation" aria-hidden="true"></span>
+              <span class="visually-hidden">Movies</span>
+            </a>
+            <a href="/video/tv" title="TV shows">
+              <span class="mdi mdi-hardware-tv" aria-hidden="true"></span>
+              <span class="visually-hidden">TV shows</span>
+            </a>
+            <a href="/lab/api-browser" title="Files">
+              <span class="mdi mdi-editor-format-list-bulleted" aria-hidden="true"></span>
+              <span class="visually-hidden">Files</span>
+            </a>
+            <a href="/addons" title="Add-ons">
+              <span class="mdi mdi-action-extension" aria-hidden="true"></span>
+              <span class="visually-hidden">Add-ons</span>
+            </a>
+            <a href="/" title="Remote">
+              <span class="mdi mdi-action-thumb-up" aria-hidden="true"></span>
+              <span class="visually-hidden">Remote</span>
+            </a>
+            <a href="/" title="Playlists">
+              <span class="mdi mdi-av-playlist-add" aria-hidden="true"></span>
+              <span class="visually-hidden">Playlists</span>
+            </a>
+            <a href="/settings" title="Settings">
+              <span class="mdi mdi-action-settings" aria-hidden="true"></span>
+              <span class="visually-hidden">Settings</span>
+            </a>
+            <a href="/" title="Help">
+              <span class="mdi mdi-action-help" aria-hidden="true"></span>
+              <span class="visually-hidden">Help</span>
+            </a>
+          </nav>
+        </aside>
+
+        <main class="c2-stage" aria-label={currentI18n.t('app.dashboard.aria')}>
+          <div class="c2-stage-art" aria-hidden="true"></div>
+        </main>
+
+        <aside class="c2-playlist" aria-label="Current playlist">
+          <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
+            <button type="button" class="active">Audio</button>
+            <button type="button">Video</button>
+          </div>
+
+          <div class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
+            <button type="button" role="menuitem">Current playlist</button>
+            <button type="button" role="menuitem" disabled>Clear playlist</button>
+            <button type="button" role="menuitem">Refresh playlist</button>
+            <button type="button" role="menuitem">Party mode</button>
+            <button type="button" role="menuitem" class="selected">Kodi</button>
+            <button type="button" role="menuitem">Save Kodi playlist</button>
+          </div>
+        </aside>
+
+        <footer class="c2-player" aria-label="Playback controls">
+          <div class="c2-player-controls">
+            <button type="button" aria-label="Previous" onclick={() => playerDispatch.previous()}>
+              <span class="mdi mdi-av-skip-previous" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="Play or pause" onclick={() => playerDispatch.playPause()}>
+              <span class="mdi mdi-av-play-arrow" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="Next" onclick={() => playerDispatch.next()}>
+              <span class="mdi mdi-av-skip-next" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="c2-thumb" aria-hidden="true"></div>
+          <div class="c2-nowline">
+            <strong>{dashboardMediaTitle(currentPlayerSnapshot)}</strong>
+            <span>{dashboardMediaCreator(currentPlayerSnapshot)}</span>
+            <div class="c2-progress" aria-hidden="true">
+              <span style={`width: ${dashboardProgress(currentPlayerSnapshot)}%`}></span>
+            </div>
+          </div>
+          <div class="c2-time" aria-label="Playback time">
+            <span>{dashboardTime(currentPlayerSnapshot.time.currentSeconds)}</span>
+            <span>{dashboardTime(currentPlayerSnapshot.time.totalSeconds)}</span>
+          </div>
+          <div class="c2-player-actions">
+            <button type="button" aria-label="Toggle mute" onclick={() => playerDispatch.toggleMute()}>
+              <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="Shuffle">
+              <span class="mdi mdi-av-shuffle" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="Fullscreen" onclick={toggleAppFullscreen}>
+              <span class="mdi mdi-navigation-fullscreen" aria-hidden="true"></span>
+            </button>
+            <button type="button" aria-label="More">
+              <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
+            </button>
+          </div>
+        </footer>
+
+        <LocalMediaRuntime />
+      </div>
+    {:else if isDashboardRoute}
       <main class="dashboard" aria-label={currentI18n.t('app.dashboard.aria')}>
         <section class="mission surface" aria-labelledby="mission-title">
           <p class="section-kicker">{currentI18n.t('app.mission.kicker')}</p>
           <h2 id="mission-title">
-            {configStore.snapshot.activeHost?.label ?? currentI18n.t('app.mission.noHost')}
+            {packageMountedHost?.label ??
+              configStore.snapshot.activeHost?.label ??
+              currentI18n.t('app.mission.noHost')}
           </h2>
           <p>
             {currentI18n.t('app.mission.description')}
           </p>
         </section>
 
-        <div class="host-grid">
-          <HostSettings i18n={currentI18n} />
-          <HostSwitcher i18n={currentI18n} />
-        </div>
+        {#if !isPackageMounted}
+          <div class="host-grid">
+            <HostSettings i18n={currentI18n} />
+            <HostSwitcher i18n={currentI18n} />
+          </div>
+        {/if}
 
         <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
           <StatusCard
@@ -1121,14 +1344,453 @@
     gap: var(--space-md);
   }
 
-  @media (max-width: 860px) {
-    .hero {
-      grid-template-columns: 1fr;
+  @font-face {
+    font-family: 'Open Sans Chorus';
+    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-light-webfont.woff2')
+      format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Open Sans Chorus';
+    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-regular-webfont.woff2')
+      format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Open Sans Chorus';
+    src: url('/chorus2-assets/themes/base/fonts/opensans/opensans-semibold-webfont.woff2')
+      format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Material-Design-Icons';
+    src: url('/chorus2-assets/themes/base/fonts/material/Material-Design-Icons.woff')
+      format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+
+  .chorus-app {
+    --c2-blue: #4db3e6;
+    --c2-header: #1d2021;
+    --c2-dark: #181b1c;
+    --c2-playlist: #2f3335;
+    --c2-player: #17191a;
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+    padding: 0;
+    color: #333;
+    background: var(--c2-dark);
+    font-family: 'Open Sans Chorus', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  .mdi {
+    font-family: 'Material-Design-Icons';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    speak: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .mdi-action-extension::before { content: '\e628'; }
+  .mdi-action-help::before { content: '\e633'; }
+  .mdi-action-search::before { content: '\e67f'; }
+  .mdi-action-settings::before { content: '\e680'; }
+  .mdi-action-thumb-up::before { content: '\e6a4'; }
+  .mdi-av-my-library-music::before { content: '\e6b3'; }
+  .mdi-av-play-arrow::before { content: '\e6b9'; }
+  .mdi-av-playlist-add::before { content: '\e6bc'; }
+  .mdi-av-shuffle::before { content: '\e6c5'; }
+  .mdi-av-skip-next::before { content: '\e6c6'; }
+  .mdi-av-skip-previous::before { content: '\e6c7'; }
+  .mdi-av-volume-up::before { content: '\e6d2'; }
+  .mdi-editor-format-list-bulleted::before { content: '\e783'; }
+  .mdi-hardware-keyboard-arrow-right::before { content: '\e7b6'; }
+  .mdi-hardware-tv::before { content: '\e7d0'; }
+  .mdi-image-movie-creation::before { content: '\e833'; }
+  .mdi-navigation-fullscreen::before { content: '\e89f'; }
+  .mdi-navigation-more-vert::before { content: '\e8a3'; }
+
+  .c2-topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 20;
+    height: 50px;
+    background: var(--c2-header);
+  }
+
+  .c2-logo {
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 50px;
+    overflow: hidden;
+    text-decoration: none;
+  }
+
+  .c2-logo img {
+    display: block;
+    width: 181px;
+    max-width: none;
+    height: 50px;
+    filter: brightness(0) saturate(100%) invert(62%) sepia(67%) saturate(1543%) hue-rotate(165deg)
+      brightness(96%) contrast(88%);
+    transform: translateX(-128px);
+  }
+
+  .c2-search {
+    position: absolute;
+    top: 0;
+    right: 300px;
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    align-items: center;
+    width: 205px;
+    height: 50px;
+    color: #565b5f;
+    background: #f0f0f0;
+  }
+
+  .c2-search .mdi {
+    justify-self: center;
+    font-size: 20px;
+  }
+
+  .c2-search input {
+    width: 100%;
+    height: 50px;
+    padding: 0;
+    color: #333;
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  .c2-destination-tabs {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: 95px 120px 42px 43px;
+    width: 300px;
+    height: 50px;
+  }
+
+  .c2-destination-tabs button,
+  .c2-media-tabs button,
+  .c2-playlist-menu button,
+  .c2-player button {
+    font: inherit;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  .c2-destination-tabs button {
+    display: inline-grid;
+    grid-auto-flow: column;
+    gap: 7px;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    color: #c8c8c8;
+    background: #292d2f;
+  }
+
+  .c2-destination-tabs button.active {
+    color: var(--c2-blue);
+    background: #1f2223;
+  }
+
+  .c2-destination-tabs button:nth-child(3),
+  .c2-destination-tabs button:nth-child(4) {
+    color: #888;
+    font-size: 20px;
+  }
+
+  .c2-kodi-mark {
+    color: var(--c2-blue);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .c2-rail {
+    position: absolute;
+    top: 50px;
+    bottom: 60px;
+    left: 0;
+    z-index: 10;
+    width: 50px;
+    background: #fff;
+    box-shadow: inset -1px 0 0 rgb(0 0 0 / 0.05);
+  }
+
+  .c2-rail nav {
+    display: grid;
+    align-content: start;
+    padding-top: 10px;
+  }
+
+  .c2-rail a {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 39px;
+    color: #303336;
+    font-size: 23px;
+    text-decoration: none;
+  }
+
+  .c2-rail a.active,
+  .c2-rail a:hover {
+    color: #fff;
+    background: var(--c2-blue);
+  }
+
+  .c2-rail a.active::after,
+  .c2-rail a:hover::after {
+    position: absolute;
+    left: 50px;
+    top: 0;
+    height: 39px;
+    padding: 0 22px 0 19px;
+    color: #fff;
+    background: var(--c2-blue);
+    content: attr(title);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 39px;
+    white-space: nowrap;
+  }
+
+  .c2-stage {
+    position: absolute;
+    top: 50px;
+    right: 300px;
+    bottom: 60px;
+    left: 50px;
+    overflow: hidden;
+    background: #1a1c1d;
+  }
+
+  .c2-stage-art {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgb(20 22 23 / 0.36), rgb(20 22 23 / 0.18) 52%, rgb(20 22 23 / 0.04)),
+      url('/chorus2-assets/images/fanart_default/tweeter.jpg') center bottom / cover no-repeat;
+  }
+
+  .c2-playlist {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    bottom: 60px;
+    z-index: 8;
+    width: 300px;
+    background: var(--c2-playlist);
+  }
+
+  .c2-media-tabs {
+    display: grid;
+    grid-template-columns: 70px 70px 1fr;
+    height: 28px;
+    background: #242728;
+  }
+
+  .c2-media-tabs button {
+    color: #888;
+    background: #3d4143;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .c2-media-tabs button.active {
+    color: #fff;
+    background: #4d5153;
+  }
+
+  .c2-playlist-menu {
+    position: absolute;
+    top: -17px;
+    right: 45px;
+    z-index: 25;
+    display: grid;
+    width: 165px;
+    padding: 0;
+    background: #f4f4f4;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
+  }
+
+  .c2-playlist-menu button {
+    height: 32px;
+    padding: 0 13px;
+    color: #858585;
+    background: #f4f4f4;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .c2-playlist-menu button.selected {
+    background: #d8d8d8;
+  }
+
+  .c2-playlist-menu button:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .c2-player {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: 170px 70px minmax(0, 1fr) 56px 305px;
+    height: 60px;
+    color: #cfcfcf;
+    background: var(--c2-player);
+  }
+
+  .c2-player-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: #202324;
+  }
+
+  .c2-player button {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    color: #8f9395;
+    background: transparent;
+  }
+
+  .c2-player button:hover {
+    color: #fff;
+    background: #35393a;
+  }
+
+  .c2-player-controls button {
+    font-size: 32px;
+  }
+
+  .c2-player-controls button:nth-child(2) {
+    font-size: 44px;
+  }
+
+  .c2-thumb {
+    background:
+      linear-gradient(rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.14)),
+      url('/chorus2-assets/images/thumbnail_default.png') center / cover no-repeat;
+  }
+
+  .c2-nowline {
+    position: relative;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 0 12px;
+    background: #191c1d;
+  }
+
+  .c2-nowline strong,
+  .c2-nowline span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .c2-nowline strong {
+    color: #e2e2e2;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .c2-nowline span {
+    color: #8e9498;
+    font-size: 11px;
+  }
+
+  .c2-progress {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 2px;
+    background: #2d3032;
+  }
+
+  .c2-progress span {
+    display: block;
+    height: 100%;
+    background: var(--c2-blue);
+  }
+
+  .c2-time {
+    display: grid;
+    align-content: center;
+    justify-items: end;
+    gap: 2px;
+    padding-right: 9px;
+    color: #fff;
+    background: #191c1d;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .c2-player-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: #3d4143;
+  }
+
+  .c2-player-actions button {
+    font-size: 24px;
+  }
+
+  @media (max-width: 760px) {
+    .c2-search {
+      right: 0;
+      width: 190px;
     }
 
-    .host-grid,
-    .status-grid {
-      grid-template-columns: 1fr;
+    .c2-destination-tabs,
+    .c2-playlist,
+    .c2-playlist-menu {
+      display: none;
+    }
+
+    .c2-stage {
+      right: 0;
+    }
+
+    .c2-player {
+      grid-template-columns: 150px 60px minmax(0, 1fr);
+    }
+
+    .c2-time,
+    .c2-player-actions {
+      display: none;
     }
   }
 </style>

@@ -16,7 +16,10 @@ import {
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
 import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute, type AppRoute } from './lib/app/appRouter';
 import { parseNowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
+import type { SavedKodiHost } from './lib/stores';
 import type { VideoRoute } from './lib/video/videoRouter';
+
+const KODI_WEBINTERFACE_MARKER_NAME = 'chorus3:kodi-webinterface';
 
 export interface EntrypointEnv {
   DEV?: boolean;
@@ -26,6 +29,9 @@ export interface EntrypointEnv {
 export interface EntrypointLocation {
   pathname?: unknown;
   search?: unknown;
+  protocol?: unknown;
+  hostname?: unknown;
+  port?: unknown;
 }
 
 interface EntrypointContext {
@@ -33,7 +39,7 @@ interface EntrypointContext {
   nowPlayingEmbedQuery?: ReturnType<typeof parseNowPlayingEmbedQuery>;
 }
 
-type AppProps = { route: AppRoute } & Partial<
+type AppProps = { route: AppRoute; packageMountedHost?: SavedKodiHost | null } & Partial<
   Omit<M003BrowserProofAppProps & M004BrowserProofAppProps & M005BrowserProofAppProps, 'route'>
 >;
 
@@ -139,7 +145,81 @@ export function resolveEntrypointAppProps(
       : { route, ...nowPlayingBaseProps };
   }
 
-  return { route, ...nowPlayingBaseProps };
+  return { route, ...nowPlayingBaseProps, ...createPackageMountedHostProps(location) };
+}
+
+function createPackageMountedHostProps(
+  location: EntrypointLocation | null | undefined
+): Pick<AppProps, 'packageMountedHost'> {
+  const host = createPackageMountedHost(location);
+  return host ? { packageMountedHost: host } : {};
+}
+
+function createPackageMountedHost(
+  location: EntrypointLocation | null | undefined
+): SavedKodiHost | null {
+  if (!isKodiPackageEntrypoint(location?.pathname)) {
+    return null;
+  }
+
+  if (typeof location?.hostname !== 'string' || location.hostname.trim() === '') {
+    return null;
+  }
+
+  const useTls = location.protocol === 'https:';
+  const port = parseOriginPort(location.port, useTls);
+
+  return {
+    id: 'kodi-package-origin',
+    label: 'This Kodi',
+    host: location.hostname,
+    port,
+    useTls,
+    useWebSocket: false
+  };
+}
+
+function isKodiPackageEntrypoint(pathname: unknown): boolean {
+  if (isPackageMountedPath(pathname)) {
+    return true;
+  }
+
+  return isRootPath(pathname) && hasKodiWebinterfaceMarker();
+}
+
+function isPackageMountedPath(pathname: unknown): boolean {
+  return (
+    typeof pathname === 'string' &&
+    (pathname === KODI_WEBINTERFACE_BASE_PATH ||
+      pathname.startsWith(`${KODI_WEBINTERFACE_BASE_PATH}/`))
+  );
+}
+
+function isRootPath(pathname: unknown): boolean {
+  return typeof pathname === 'string' && (pathname.trim() === '' || pathname === '/');
+}
+
+function hasKodiWebinterfaceMarker(): boolean {
+  try {
+    return (
+      globalThis.document
+        ?.querySelector(`meta[name="${KODI_WEBINTERFACE_MARKER_NAME}"]`)
+        ?.getAttribute('content') === 'webinterface.chorus3'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function parseOriginPort(port: unknown, useTls: boolean): number {
+  if (typeof port === 'string' && port.trim() !== '') {
+    const parsed = Number(port);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 65535) {
+      return parsed;
+    }
+  }
+
+  return useTls ? 443 : 80;
 }
 
 function toAppRoute(route: VideoRoute): AppRoute {

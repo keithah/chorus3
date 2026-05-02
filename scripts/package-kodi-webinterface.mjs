@@ -21,6 +21,7 @@ export const TEMPLATE_PATH = 'kodi/addon.xml.template';
 export const METADATA_PATH = 'kodi/addon-metadata.json';
 export const PACKAGE_JSON_PATH = 'package.json';
 export const DIST_INDEX_PATH = 'dist/index.html';
+export const KODI_WEBINTERFACE_MARKER = '<meta name="chorus3:kodi-webinterface" content="{{id}}">';
 
 const REQUIRED_METADATA_FIELDS = [
   'id',
@@ -156,6 +157,7 @@ export function stageKodiWebinterfacePackage({ root = cwd() } = {}) {
     entries.push(`${addonId}/${relativeToDist}`);
   }
 
+  injectKodiWebinterfaceMarker({ addonId, stageDir: paths.stageDir });
   ensureNowPlayingEntrypoint({ addonId, entries, stageDir: paths.stageDir });
 
   entries.sort((left, right) => left.localeCompare(right));
@@ -289,6 +291,12 @@ function validatePackageVersion(version) {
     );
   }
 
+  if (version === '0.0.0') {
+    throw new Error(
+      '[metadata] package.json version must not be 0.0.0; Kodi rejects placeholder add-on versions during install.'
+    );
+  }
+
   return version;
 }
 
@@ -375,6 +383,23 @@ function ensureNowPlayingEntrypoint({ addonId, entries, stageDir }) {
   entries.push(nowPlayingEntry);
 }
 
+function injectKodiWebinterfaceMarker({ addonId, stageDir }) {
+  const indexPath = join(stageDir, 'index.html');
+  const html = readFileSync(indexPath, 'utf8');
+  const marker = KODI_WEBINTERFACE_MARKER.replace('{{id}}', escapeHtmlAttribute(addonId));
+
+  if (html.includes('name="chorus3:kodi-webinterface"')) {
+    return;
+  }
+
+  if (/<head\b[^>]*>/i.test(html)) {
+    writeFileSync(indexPath, html.replace(/<head\b([^>]*)>/i, `<head$1>\n    ${marker}`));
+    return;
+  }
+
+  writeFileSync(indexPath, `${marker}\n${html}`);
+}
+
 function normalizeTimestamps(path) {
   const stats = statSync(path);
 
@@ -427,6 +452,14 @@ function escapeXml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;');
+}
+
+function escapeHtmlAttribute(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 function sanitizeZipOutput(output) {

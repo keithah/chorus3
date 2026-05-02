@@ -3,12 +3,13 @@
 
   interface Props {
     children?: Snippet;
+    chrome?: 'default' | 'media';
   }
 
-  let { children }: Props = $props();
+  let { children, chrome = 'default' }: Props = $props();
 </script>
 
-<div class="shell">
+<div class="shell" data-chrome={chrome}>
   <div class="ambient ambient-one" aria-hidden="true"></div>
   <div class="ambient ambient-two" aria-hidden="true"></div>
   <div class="shell-frame">
@@ -41,6 +42,12 @@
       );
   }
 
+  .shell[data-chrome='media'] {
+    overflow: auto;
+    padding: 0;
+    background: #e8e8e8;
+  }
+
   .shell::before {
     position: absolute;
     inset: 0;
@@ -51,6 +58,11 @@
       linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
     background-size: 4rem 4rem;
     mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.72), transparent 76%);
+  }
+
+  .shell[data-chrome='media']::before,
+  .shell[data-chrome='media'] .ambient {
+    display: none;
   }
 
   .ambient {
@@ -83,5 +95,11 @@
     width: min(100%, 72rem);
     min-height: calc(100vh - clamp(var(--space-lg), 4vw, var(--space-2xl)) * 2);
     margin-inline: auto;
+  }
+
+  .shell[data-chrome='media'] .shell-frame {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
   }
 </style>

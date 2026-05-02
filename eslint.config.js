@@ -9,7 +9,7 @@ export default tseslint.config(
   ...svelte.configs['flat/recommended'],
   ...svelte.configs['flat/prettier'],
   {
-    ignores: ['dist/', 'node_modules/', 'coverage/', '.gsd/', '.bg-shell/']
+    ignores: ['dist/', 'node_modules/', 'coverage/', '.gsd/', '.bg-shell/', 'chorus2-21.x-1.0.1/']
   },
   {
     languageOptions: {

@@ -58,6 +58,8 @@ const FORBIDDEN_BASENAMES = new Set([
 const FORBIDDEN_EXTENSIONS = /\.(?:svelte|ts|tsx)$/i;
 const TEST_FILE_PATTERN = /(?:^|[/.])(?:test|spec)\.[cm]?[jt]sx?$/i;
 const ROOT_ABSOLUTE_ASSET_PATTERN = /\b(?:src|href)=(['"])\/assets\//i;
+const KODI_WEBINTERFACE_MARKER_PATTERN =
+  /<meta\s+[^>]*name=(['"])chorus3:kodi-webinterface\1[^>]*content=(['"])webinterface\.chorus3\2/i;
 const CREDENTIAL_DOC_PATTERN =
   /(?:\b(?:username|password|token)=|:\/\/[^\s/@]+:[^\s/@]+@|\bAuthorization\b|\bBasic\s+)/i;
 
@@ -286,7 +288,12 @@ function validateHtmlAssets({ root, addonId, lines }) {
     return;
   }
 
-  lines.push('[html-assets] index.html uses relative asset URLs.');
+  if (!KODI_WEBINTERFACE_MARKER_PATTERN.test(html)) {
+    lines.push(`[html-assets] ${relativePath} must include the Kodi webinterface marker.`);
+    return;
+  }
+
+  lines.push('[html-assets] index.html uses relative asset URLs and Kodi webinterface marker.');
 }
 
 function validateArchiveEntries({ entries, addonId, lines }) {

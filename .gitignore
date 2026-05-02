@@ -27,5 +27,6 @@ target/
 vendor/
 *.log
 coverage/
+chorus2-21.x-1.0.1/
 .cache/
 tmp/

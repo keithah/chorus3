@@ -21,6 +21,7 @@ describe('main entrypoint', () => {
   beforeEach(() => {
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
+    document.querySelector('meta[name="chorus3:kodi-webinterface"]')?.remove();
     document.documentElement.removeAttribute('data-theme');
     window.localStorage.clear();
     setSearch('');
@@ -52,6 +53,65 @@ describe('main entrypoint', () => {
         search: '?token=Basic'
       })
     ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
+  });
+
+  it('derives a local-only Kodi host from package-mounted entrypoint origins', async () => {
+    const { resolveEntrypointAppProps } = await importMain();
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/addons/webinterface.chorus3',
+        search: '',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({
+      route: { kind: 'dashboard' },
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'kodi.local',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/',
+        search: '',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({ route: { kind: 'dashboard' } });
+
+    document.head.insertAdjacentHTML(
+      'beforeend',
+      '<meta name="chorus3:kodi-webinterface" content="webinterface.chorus3">'
+    );
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/',
+        search: '',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({
+      route: { kind: 'dashboard' },
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'kodi.local',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
   });
 
   it('mounts the Svelte app into the root element', async () => {

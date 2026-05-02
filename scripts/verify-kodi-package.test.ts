@@ -43,7 +43,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     }),
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/addon.xml`]: validAddonXml(),
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]:
-      '<!doctype html><script type="module" src="./assets/app.js"></script><link rel="stylesheet" href="./assets/app.css">',
+      '<!doctype html><meta name="chorus3:kodi-webinterface" content="webinterface.chorus3"><script type="module" src="./assets/app.js"></script><link rel="stylesheet" href="./assets/app.css">',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]: 'console.log("chorus3")',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]: ':root { color-scheme: dark; }',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`]:
@@ -112,7 +112,9 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(true);
     expect(result.lines).toContain('[manifest] addon.xml matches webinterface.chorus3 1.2.3.');
-    expect(result.lines).toContain('[html-assets] index.html uses relative asset URLs.');
+    expect(result.lines).toContain(
+      '[html-assets] index.html uses relative asset URLs and Kodi webinterface marker.'
+    );
     expect(result.lines).toContain('[archive] zip root webinterface.chorus3 contains 5 entries.');
     expect(result.lines).toContain(
       '[now-playing] packaged now-playing entry and route support are present.'
@@ -165,6 +167,22 @@ describe('Kodi package structural verification', () => {
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
       '[html-assets] dist/kodi/webinterface.chorus3/index.html must not reference root-absolute /assets URLs'
+    );
+  });
+
+  it('rejects missing Kodi webinterface marker in index.html', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]:
+          '<!doctype html><script type="module" src="./assets/app.js"></script><link rel="stylesheet" href="./assets/app.css">'
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[html-assets] dist/kodi/webinterface.chorus3/index.html must include the Kodi webinterface marker'
     );
   });
 

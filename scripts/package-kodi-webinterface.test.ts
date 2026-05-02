@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DEFAULT_ADDON_ID,
+  KODI_WEBINTERFACE_MARKER,
   getKodiArtifactPaths,
   packageKodiWebinterface,
   renderAddonXml,
@@ -115,6 +116,11 @@ describe('Kodi add-on manifest rendering', () => {
       'package.json version'
     ],
     [
+      'Kodi rejects placeholder zero package version',
+      { 'package.json': JSON.stringify({ name: 'chorus3', version: '0.0.0' }) },
+      'package.json version'
+    ],
+    [
       'invalid template placeholder',
       { 'kodi/addon.xml.template': '<addon id="{{id}}">{{unexpected}}</addon>' },
       'template placeholder'
@@ -146,6 +152,9 @@ describe('Kodi package staging', () => {
       'webinterface.chorus3/now-playing/index.html'
     ]);
     expect(readFileSync(join(result.stageDir, 'addon.xml'), 'utf8')).toContain('version="1.2.3"');
+    expect(readFileSync(join(result.stageDir, 'index.html'), 'utf8')).toContain(
+      KODI_WEBINTERFACE_MARKER.replace('{{id}}', DEFAULT_ADDON_ID)
+    );
     expect(existsSync(join(result.stageDir, 'src/ignored.ts'))).toBe(false);
     expect(existsSync(join(result.stageDir, '.gsd/ignored.md'))).toBe(false);
   });

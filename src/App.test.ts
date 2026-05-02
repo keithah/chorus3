@@ -108,6 +108,7 @@ type AppProps = {
   nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
   nowPlayingHostSummary?: ActiveHostSummary | null;
   nowPlayingRefreshDispatch?: () => Promise<void> | void;
+  packageMountedHost?: import('./lib/stores').SavedKodiHost | null;
   localeSnapshot?: LocaleStoreSnapshot;
   localeDispatch?: { setLocale: (locale: unknown) => LocaleMutationResult };
   videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
@@ -1397,6 +1398,34 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
+  it('uses an implicit local Kodi host and hides multi-host setup when package-mounted', async () => {
+    const fetchMock = createKodiFetchMock();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'kodi.local',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
+
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+    expect(target.querySelector('.host-grid')).toBeNull();
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+      expect(connectionStore.snapshot.status).toBe('connected');
+    });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('http://kodi.local:8080/jsonrpc');
+  });
+
   it('renders the standalone now-playing embed route with injected safe host, query, player props, and refresh dispatch', async () => {
     const refresh = vi.fn(async () => undefined);
     const target = renderApp({
