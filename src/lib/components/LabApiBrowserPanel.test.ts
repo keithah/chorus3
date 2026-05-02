@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import LabApiBrowserPanel, { type LabApiBrowserPanelDispatch } from './LabApiBrowserPanel.svelte';
+import { createTranslationContext, type Locale } from '$lib/i18n';
 import type { LabApiBrowserStoreSnapshot } from '$lib/stores/labApiBrowser.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -109,12 +110,20 @@ function createDispatch(
 }
 
 function renderPanel(
-  props: { snapshot?: LabApiBrowserStoreSnapshot; dispatch?: LabApiBrowserPanelDispatch } = {}
+  props: {
+    snapshot?: LabApiBrowserStoreSnapshot;
+    dispatch?: LabApiBrowserPanelDispatch;
+    locale?: Locale;
+  } = {}
 ): LabApiBrowserPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(LabApiBrowserPanel, {
     target: document.body,
-    props: { snapshot: props.snapshot ?? createSnapshot(), dispatch }
+    props: {
+      snapshot: props.snapshot ?? createSnapshot(),
+      dispatch,
+      i18n: createTranslationContext(props.locale ?? 'en')
+    }
   });
   return dispatch;
 }
@@ -184,6 +193,23 @@ describe('LabApiBrowserPanel', () => {
     expect(screenText()).toContain('Safe Song');
     expect(screenText()).toContain('redactedField1');
     expect(paramsEditor().getAttribute('aria-label')).toContain('JSON-RPC params');
+    expectSecretSafe(screenText());
+  });
+
+  it('renders representative Lab API browser copy in German while preserving method and redacted JSON data', () => {
+    renderPanel({ locale: 'de' });
+
+    expect(screenText()).toContain('Labor-API-Browser');
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(
+      'Introspektion geladen.'
+    );
+    expect(screenText()).toContain('JSON-RPC-Aufruf läuft nicht.');
+    expect(screenText()).toContain('Ausgewählte Methode');
+    expect(screenText()).toContain('Guard: safe');
+    expect(screenText()).toContain('Redigierte JSON-Diagnosen');
+    expect(screenText()).toContain('Player.GetItem');
+    expect(screenText()).toContain('Safe Song');
+    expect(paramsEditor().getAttribute('aria-label')).toContain('JSON-RPC-Parameterobjekt');
     expectSecretSafe(screenText());
   });
 

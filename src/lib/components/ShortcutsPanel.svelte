@@ -1,40 +1,47 @@
 <script lang="ts">
-  import { PLAYBACK_SHORTCUTS } from '$lib/app/playbackShortcuts';
+  import { PLAYBACK_SHORTCUTS, type PlaybackShortcutAction } from '$lib/app/playbackShortcuts';
+  import type { TranslationContext } from '$lib/i18n';
+
+  interface Props {
+    i18n: TranslationContext;
+  }
+  let { i18n }: Props = $props();
+  function shortcutLabel(action: PlaybackShortcutAction): string {
+    return i18n.t(`shortcuts.action.${action}.label`);
+  }
+  function shortcutDescription(action: PlaybackShortcutAction): string {
+    return i18n.t(`shortcuts.action.${action}.description`);
+  }
 </script>
 
 <section class="shortcuts-panel surface" aria-labelledby="shortcuts-panel-title">
   <div class="shortcuts-panel__header">
-    <p class="section-kicker">Lab utility</p>
-    <h2 id="shortcuts-panel-title">Playback shortcuts</h2>
-    <p>
-      These playback-only shortcuts are available globally when focus is not inside an editable
-      control.
-    </p>
+    <p class="section-kicker">{i18n.t('shortcuts.eyebrow')}</p>
+    <h2 id="shortcuts-panel-title">{i18n.t('shortcuts.panel.title')}</h2>
+    <p>{i18n.t('shortcuts.panel.description')}</p>
   </div>
-
-  <div class="shortcuts-panel__guidance" role="note" aria-label="Shortcut focus guidance">
-    Shortcuts are ignored while focus is inside editable controls. Text inputs, textareas, selects,
-    and contenteditable regions keep their normal keyboard behavior.
+  <div
+    class="shortcuts-panel__guidance"
+    role="note"
+    aria-label={i18n.t('shortcuts.panel.guidanceAria')}
+  >
+    {i18n.t('shortcuts.panel.guidance')}
   </div>
-
   <table class="shortcuts-table">
-    <caption> Global playback shortcut contract </caption>
-    <thead>
-      <tr>
-        <th scope="col">Key</th>
-        <th scope="col">Action</th>
-        <th scope="col">Behavior</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each PLAYBACK_SHORTCUTS as shortcut (shortcut.action)}
-        <tr>
-          <th scope="row"><kbd>{shortcut.key}</kbd></th>
-          <td>{shortcut.label}</td>
-          <td>{shortcut.description}</td>
-        </tr>
-      {/each}
-    </tbody>
+    <caption>{i18n.t('shortcuts.panel.caption')}</caption>
+    <thead
+      ><tr
+        ><th scope="col">{i18n.t('shortcuts.panel.key')}</th><th scope="col"
+          >{i18n.t('shortcuts.panel.action')}</th
+        ><th scope="col">{i18n.t('shortcuts.panel.behavior')}</th></tr
+      ></thead
+    >
+    <tbody
+      >{#each PLAYBACK_SHORTCUTS as shortcut (shortcut.action)}<tr
+          ><th scope="row"><kbd>{shortcut.key}</kbd></th><td>{shortcutLabel(shortcut.action)}</td
+          ><td>{shortcutDescription(shortcut.action)}</td></tr
+        >{/each}</tbody
+    >
   </table>
 </section>
 

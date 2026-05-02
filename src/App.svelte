@@ -767,11 +767,15 @@
     </main>
   {:else if isAddonsRoute}
     <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
-      <AddonsPanel snapshot={currentAddonsSnapshot} dispatch={addonsDispatch} />
+      <AddonsPanel snapshot={currentAddonsSnapshot} dispatch={addonsDispatch} i18n={currentI18n} />
     </main>
   {:else if isAddonDetailRoute}
     <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
-      <AddonDetailShell snapshot={currentAddonsSnapshot} dispatch={addonDetailDispatch} />
+      <AddonDetailShell
+        snapshot={currentAddonsSnapshot}
+        dispatch={addonDetailDispatch}
+        i18n={currentI18n}
+      />
     </main>
   {:else if isAddonsUnknownRoute}
     <main class="addons-route" aria-label={currentI18n.t('app.route.addonsUnknown.aria')}>
@@ -797,13 +801,14 @@
     </main>
   {:else if isLabShortcutsRoute}
     <main class="lab-route" aria-label={currentI18n.t('app.route.labShortcuts.aria')}>
-      <ShortcutsPanel />
+      <ShortcutsPanel i18n={currentI18n} />
     </main>
   {:else if isLabApiBrowserRoute}
     <main class="lab-route" aria-label={currentI18n.t('app.route.labApiBrowser.aria')}>
       <LabApiBrowserPanel
         snapshot={currentLabApiBrowserSnapshot}
         dispatch={labApiBrowserDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isLabUnknownRoute}

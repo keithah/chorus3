@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import type { TranslationContext } from '$lib/i18n';
   import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 
   export interface AddonDetailDispatch {
@@ -13,11 +14,10 @@
   interface Props {
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonDetailDispatch;
+    i18n: TranslationContext;
   }
-
   type PendingConfirmation = { addonid: string; enabled: boolean } | null;
-
-  let { snapshot, dispatch }: Props = $props();
+  let { snapshot, dispatch, i18n }: Props = $props();
   let pendingConfirmation = $state<PendingConfirmation>(null);
 
   const detail = $derived(snapshot.detail);
@@ -30,27 +30,21 @@
   const canToggle = $derived(Boolean(detail && typeof detail.enabled === 'boolean'));
 
   function callLoad(): void {
-    if (isBusy) return;
-    void dispatch.load();
+    if (!isBusy) void dispatch.load();
   }
-
   function callRetry(): void {
     void dispatch.retry();
   }
-
   function callBack(): void {
     void dispatch.back?.();
   }
-
   function requestToggle(addon: AddonSnapshot): void {
-    if (isBusy || typeof addon.enabled !== 'boolean') return;
-    pendingConfirmation = { addonid: addon.addonid, enabled: !addon.enabled };
+    if (!isBusy && typeof addon.enabled === 'boolean')
+      pendingConfirmation = { addonid: addon.addonid, enabled: !addon.enabled };
   }
-
   function cancelToggle(): void {
     pendingConfirmation = null;
   }
-
   function confirmToggle(): void {
     if (!pendingConfirmation || isBusy) return;
     const { addonid, enabled } = pendingConfirmation;
@@ -59,114 +53,120 @@
   }
 
   function detailStatusCopy(): string {
-    if (snapshot.detailStatus === 'loading') return 'Loading add-on detail from Kodi.';
-    if (snapshot.detailStatus === 'error') return 'Add-on detail could not be loaded.';
-    if (snapshot.detailStatus === 'success' && detail) return 'Add-on detail loaded.';
-    return 'No add-on detail has been loaded.';
+    if (snapshot.detailStatus === 'loading') return i18n.t('addon.detail.detail.loading');
+    if (snapshot.detailStatus === 'error') return i18n.t('addon.detail.detail.error');
+    if (snapshot.detailStatus === 'success' && detail) return i18n.t('addon.detail.detail.success');
+    return i18n.t('addon.detail.detail.idle');
   }
-
   function writeStatusCopy(): string {
-    if (snapshot.writeStatus === 'pending') return 'Saving add-on change.';
-    if (snapshot.writeStatus === 'success') return 'Add-on write succeeded.';
-    if (snapshot.writeStatus === 'error') return 'Add-on write failed.';
-    return 'No add-on write is pending.';
+    if (snapshot.writeStatus === 'pending') return i18n.t('addon.detail.write.pending');
+    if (snapshot.writeStatus === 'success') return i18n.t('addon.detail.write.success');
+    if (snapshot.writeStatus === 'error') return i18n.t('addon.detail.write.error');
+    return i18n.t('addon.detail.write.idle');
   }
-
   function addonLabel(addon: AddonSnapshot | null): string {
     const name = safeText(addon?.name ?? '').trim();
-    return name.length > 0 ? name : 'Untitled add-on';
+    return name.length > 0 ? name : i18n.t('addons.panel.untitled');
   }
-
   function addonIdLabel(addon: AddonSnapshot | null): string {
     const id = safeText(addon?.addonid ?? selectedAddonId ?? '').trim();
-    return id.length > 0 ? id : 'unknown-addon';
+    return id.length > 0 ? id : i18n.t('addons.panel.unknownAddon');
   }
-
   function typeLabel(addon: AddonSnapshot): string {
     const type = safeText(addon.type).trim();
-    return type.length > 0 ? type : 'unknown';
+    return type.length > 0 ? type : i18n.t('addons.panel.unknown');
   }
-
   function versionLabel(addon: AddonSnapshot): string {
     const version = addon.version ? safeText(addon.version).trim() : '';
-    return version.length > 0 ? version : 'unavailable';
+    return version.length > 0 ? version : i18n.t('addons.panel.unavailable');
   }
-
   function optionalCopy(value: string | null, fallback: string): string {
     const safe = value ? safeText(value).trim() : '';
     return safe.length > 0 ? safe : fallback;
   }
-
   function enabledLabel(addon: AddonSnapshot): string {
-    if (addon.enabled === true) return 'Enabled';
-    if (addon.enabled === false) return 'Disabled';
-    return 'Enablement unknown';
+    if (addon.enabled === true) return i18n.t('addons.panel.enabled');
+    if (addon.enabled === false) return i18n.t('addons.panel.disabled');
+    return i18n.t('addons.panel.enablementUnknown');
   }
-
+  function enabledStateLabel(enabled: boolean): string {
+    return enabled
+      ? i18n.t('addons.panel.enabled').toLowerCase()
+      : i18n.t('addons.panel.disabled').toLowerCase();
+  }
   function toggleButtonLabel(addon: AddonSnapshot | null): string {
-    if (!addon || typeof addon.enabled !== 'boolean') return 'Toggle unavailable';
-    return addon.enabled ? 'Disable add-on' : 'Enable add-on';
+    if (!addon || typeof addon.enabled !== 'boolean')
+      return i18n.t('addon.detail.toggleUnavailable');
+    return addon.enabled ? i18n.t('addon.detail.disable') : i18n.t('addon.detail.enable');
   }
-
   function actionVerb(enabled: boolean): string {
+    return enabled ? i18n.t('addon.detail.action.enable') : i18n.t('addon.detail.action.disable');
+  }
+  function writeActionVerb(enabled: boolean): string {
     return enabled ? 'enable' : 'disable';
   }
-
+  function pendingAction(enabled: boolean): string {
+    return enabled
+      ? i18n.t('addon.detail.pendingAction.enable')
+      : i18n.t('addon.detail.pendingAction.disable');
+  }
   function brokenLabel(addon: AddonSnapshot): string | null {
-    if (addon.broken === true) return 'Broken';
+    if (addon.broken === true) return i18n.t('addons.panel.broken');
     if (typeof addon.broken === 'string') {
       const safe = safeText(addon.broken).trim();
-      return safe.length > 0 ? `Broken: ${safe}` : 'Broken';
+      return safe.length > 0
+        ? i18n.t('addons.panel.brokenReason', { reason: safe })
+        : i18n.t('addons.panel.broken');
     }
     return null;
   }
-
   function dependencyLabel(addon: AddonSnapshot): string {
-    return addon.dependencyCount === 1 ? '1 dependency' : `${addon.dependencyCount} dependencies`;
+    return addon.dependencyCount === 1
+      ? i18n.t('addons.panel.dependencies.one')
+      : i18n.t('addons.panel.dependencies.many', { count: addon.dependencyCount });
   }
-
   function extraInfoLabel(addon: AddonSnapshot): string {
-    return addon.extrainfoCount === 1 ? '1 extra field' : `${addon.extrainfoCount} extra fields`;
+    return addon.extrainfoCount === 1
+      ? i18n.t('addons.panel.extraFields.one')
+      : i18n.t('addons.panel.extraFields.many', { count: addon.extrainfoCount });
   }
-
   function pendingToggleCopy(): string | null {
     if (!snapshot.pendingToggle) return null;
-    const verb = snapshot.pendingToggle.enabled ? 'Enabling' : 'Disabling';
-    return `${verb} ${safeText(snapshot.pendingToggle.addonid)} is pending.`;
+    return i18n.t('addon.detail.pendingToggle', {
+      action: pendingAction(snapshot.pendingToggle.enabled),
+      addonid: safeText(snapshot.pendingToggle.addonid)
+    });
   }
-
   function lastWriteCopy(): string | null {
     if (!snapshot.lastWrite) return null;
-    const verb = snapshot.lastWrite.enabled ? 'enable' : 'disable';
-    return `Last write: ${verb} ${safeText(snapshot.lastWrite.addonid)} (${snapshot.lastWrite.status}) at ${safeText(snapshot.lastWrite.at)}.`;
+    return i18n.t('addon.detail.lastWrite', {
+      action: writeActionVerb(snapshot.lastWrite.enabled),
+      addonid: safeText(snapshot.lastWrite.addonid),
+      status: snapshot.lastWrite.status,
+      at: safeText(snapshot.lastWrite.at)
+    });
   }
-
   function rollbackCopy(): string | null {
     if (snapshot.writeStatus !== 'error' || snapshot.rollbackEnabled === null) return null;
-    return `Rolled back to ${snapshot.rollbackEnabled ? 'enabled' : 'disabled'}.`;
+    return i18n.t('addon.detail.rollback', { state: enabledStateLabel(snapshot.rollbackEnabled) });
   }
-
   function refreshCopy(): string | null {
     if (!snapshot.refreshAfterWrite) return null;
-    if (snapshot.refreshAfterWrite.refreshed) return 'Refresh after write: refreshed.';
+    if (snapshot.refreshAfterWrite.refreshed) return i18n.t('addon.detail.refresh.refreshed');
     const warning = snapshot.refreshAfterWrite.warning
       ? safeText(snapshot.refreshAfterWrite.warning)
-      : 'Refreshed add-on state is unavailable.';
-    return `Refresh after write warning: ${warning}`;
+      : i18n.t('addon.detail.refreshUnavailable');
+    return i18n.t('addon.detail.refresh.warning', { warning });
   }
-
   function errorMessage(): string | null {
     return snapshot.lastError ? safeText(snapshot.lastError.message) : null;
   }
-
   function errorCode(): string | null {
     return snapshot.lastError ? safeText(snapshot.lastError.code) : null;
   }
-
   function writeCountsCopy(): string {
-    return `${snapshot.writeCounts.attempted} attempted, ${snapshot.writeCounts.succeeded} succeeded, ${snapshot.writeCounts.failed} failed`;
+    return i18n.t('addon.detail.writeCounts', snapshot.writeCounts);
   }
-
   function safeText(value: string): string {
     return value
       .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
@@ -191,158 +191,139 @@
 <section class="addon-detail" aria-labelledby="addon-detail-title">
   <header class="addon-detail-hero">
     <div>
-      <p class="addon-eyebrow">Kodi JSON-RPC</p>
-      <h2 id="addon-detail-title">{detail ? addonLabel(detail) : 'Add-on detail'}</h2>
-      <p>
-        Confirm add-on enablement changes before writing to Kodi, then inspect safe mutation and
-        refresh diagnostics without exposing host paths or credentials.
-      </p>
+      <p class="addon-eyebrow">{i18n.t('addon.detail.eyebrow')}</p>
+      <h2 id="addon-detail-title">
+        {detail ? addonLabel(detail) : i18n.t('addon.detail.titleFallback')}
+      </h2>
+      <p>{i18n.t('addon.detail.description')}</p>
     </div>
     <div class="addon-hero-actions">
-      {#if dispatch.back}
-        <button type="button" class="addon-secondary-action" onclick={callBack} disabled={isBusy}>
-          Back to add-ons
-        </button>
-      {/if}
-      <button type="button" class="addon-primary-action" onclick={callLoad} disabled={isBusy}>
-        Reload detail
-      </button>
+      {#if dispatch.back}<button
+          type="button"
+          class="addon-secondary-action"
+          onclick={callBack}
+          disabled={isBusy}>{i18n.t('addon.detail.back')}</button
+        >{/if}<button
+        type="button"
+        class="addon-primary-action"
+        onclick={callLoad}
+        disabled={isBusy}>{i18n.t('addon.detail.reload')}</button
+      >
     </div>
   </header>
-
-  <div class="addon-status-grid" aria-label="Add-on detail status">
+  <div class="addon-status-grid" aria-label={i18n.t('addon.detail.statusAria')}>
     <div class="addon-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>Detail</span>
-      <strong>{detailStatusCopy()}</strong>
+      <span>{i18n.t('addon.detail.detail')}</span><strong>{detailStatusCopy()}</strong>
     </div>
     <div class="addon-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>Write</span>
-      <strong>{writeStatusCopy()}</strong>
+      <span>{i18n.t('addon.detail.write')}</span><strong>{writeStatusCopy()}</strong>
     </div>
     <div class="addon-status">
-      <span>Writes</span>
-      <strong>{writeCountsCopy()}</strong>
+      <span>{i18n.t('addon.detail.writes')}</span><strong>{writeCountsCopy()}</strong>
     </div>
   </div>
-
-  {#if errorMessage()}
-    <div class="addon-alert" role="alert">
-      {#if errorCode()}
-        <strong>{errorCode()}</strong>
-      {/if}
-      <span>{errorMessage()}</span>
-    </div>
-  {/if}
-
-  <div class="addon-diagnostics" aria-label="Add-on write diagnostics">
-    {#if pendingToggleCopy()}
-      <p>{pendingToggleCopy()}</p>
-    {/if}
-    {#if lastWriteCopy()}
-      <p>{lastWriteCopy()}</p>
-    {/if}
-    {#if rollbackCopy()}
-      <p>{rollbackCopy()}</p>
-    {/if}
-    {#if refreshCopy()}
-      <p class:warning={snapshot.refreshAfterWrite?.refreshed === false}>{refreshCopy()}</p>
-    {/if}
+  {#if errorMessage()}<div class="addon-alert" role="alert">
+      {#if errorCode()}<strong>{errorCode()}</strong>{/if}<span>{errorMessage()}</span>
+    </div>{/if}
+  <div class="addon-diagnostics" aria-label={i18n.t('addon.detail.diagnosticsAria')}>
+    {#if pendingToggleCopy()}<p>{pendingToggleCopy()}</p>{/if}{#if lastWriteCopy()}<p>
+        {lastWriteCopy()}
+      </p>{/if}{#if rollbackCopy()}<p>{rollbackCopy()}</p>{/if}{#if refreshCopy()}<p
+        class:warning={snapshot.refreshAfterWrite?.refreshed === false}
+      >
+        {refreshCopy()}
+      </p>{/if}
   </div>
-
-  {#if snapshot.detailStatus === 'error'}
-    <div class="addon-error-actions">
-      <p>
-        Review the safe diagnostic above, then retry after the Kodi host or add-on response is
-        fixed.
-      </p>
-      <button type="button" onclick={callRetry}>Retry add-on detail load</button>
-    </div>
-  {/if}
-
-  {#if detail}
-    <article class="addon-card" class:broken={brokenLabel(detail) !== null}>
+  {#if snapshot.detailStatus === 'error'}<div class="addon-error-actions">
+      <p>{i18n.t('addon.detail.errorGuidance')}</p>
+      <button type="button" onclick={callRetry}>{i18n.t('addon.detail.retryLoad')}</button>
+    </div>{/if}
+  {#if detail}<article class="addon-card" class:broken={brokenLabel(detail) !== null}>
       <div class="addon-card-heading">
         <div>
           <h3>{addonLabel(detail)}</h3>
           <p>{addonIdLabel(detail)}</p>
         </div>
-        <span class:enabled={detail.enabled === true} class:disabled={detail.enabled === false}>
-          {enabledLabel(detail)}
-        </span>
+        <span class:enabled={detail.enabled === true} class:disabled={detail.enabled === false}
+          >{enabledLabel(detail)}</span
+        >
       </div>
-
-      <p class="addon-summary">{optionalCopy(detail.summary, 'Summary unavailable')}</p>
-      {#if optionalCopy(detail.description, '')}
-        <p class="addon-description">{optionalCopy(detail.description, '')}</p>
-      {:else}
-        <p class="addon-description muted">Description unavailable</p>
-      {/if}
-
+      <p class="addon-summary">
+        {optionalCopy(detail.summary, i18n.t('addons.panel.summaryUnavailable'))}
+      </p>
+      {#if optionalCopy(detail.description, '')}<p class="addon-description">
+          {optionalCopy(detail.description, '')}
+        </p>{:else}<p class="addon-description muted">
+          {i18n.t('addon.detail.descriptionUnavailable')}
+        </p>{/if}
       <dl class="addon-meta">
         <div>
-          <dt>Add-on ID</dt>
+          <dt>{i18n.t('addon.detail.addonId')}</dt>
           <dd>{addonIdLabel(detail)}</dd>
         </div>
         <div>
-          <dt>Type</dt>
-          <dd>Type {typeLabel(detail)}</dd>
+          <dt>{i18n.t('addons.panel.type')}</dt>
+          <dd>{i18n.t('addons.panel.typeValue', { type: typeLabel(detail) })}</dd>
         </div>
         <div>
-          <dt>Version</dt>
-          <dd>Version {versionLabel(detail)}</dd>
+          <dt>{i18n.t('addons.panel.version')}</dt>
+          <dd>{i18n.t('addons.panel.versionValue', { version: versionLabel(detail) })}</dd>
         </div>
         <div>
-          <dt>Author</dt>
-          <dd>Author {optionalCopy(detail.author, 'unavailable')}</dd>
-        </div>
-        <div>
-          <dt>Installed</dt>
+          <dt>{i18n.t('addon.detail.author')}</dt>
           <dd>
-            {detail.installed === true
-              ? 'Installed'
-              : detail.installed === false
-                ? 'Not installed'
-                : 'Installation unknown'}
+            {i18n.t('addon.detail.authorValue', {
+              author: optionalCopy(detail.author, i18n.t('addons.panel.unavailable'))
+            })}
           </dd>
         </div>
         <div>
-          <dt>Dependencies</dt>
+          <dt>{i18n.t('addon.detail.installed')}</dt>
+          <dd>
+            {detail.installed === true
+              ? i18n.t('addon.detail.installed')
+              : detail.installed === false
+                ? i18n.t('addon.detail.notInstalled')
+                : i18n.t('addon.detail.installationUnknown')}
+          </dd>
+        </div>
+        <div>
+          <dt>{i18n.t('addon.detail.dependencies')}</dt>
           <dd>{dependencyLabel(detail)}</dd>
         </div>
       </dl>
-
-      <div class="addon-badges" aria-label={`${addonLabel(detail)} badges`}>
-        <span>{enabledLabel(detail)}</span>
-        <span>{dependencyLabel(detail)}</span>
-        <span>{extraInfoLabel(detail)}</span>
-        {#if brokenLabel(detail)}
-          <span class="danger">{brokenLabel(detail)}</span>
-        {/if}
+      <div
+        class="addon-badges"
+        aria-label={i18n.t('addons.panel.badgesAria', { name: addonLabel(detail) })}
+      >
+        <span>{enabledLabel(detail)}</span><span>{dependencyLabel(detail)}</span><span
+          >{extraInfoLabel(detail)}</span
+        >{#if brokenLabel(detail)}<span class="danger">{brokenLabel(detail)}</span>{/if}
       </div>
-
       <div class="addon-toggle-panel" aria-live="polite" aria-atomic="true">
         <div>
-          <h4>Enablement</h4>
+          <h4>{i18n.t('addon.detail.enablement')}</h4>
           <p>
-            The displayed state remains {enabledLabel(detail).toLowerCase()} until Kodi returns a refreshed
-            detail snapshot, unless a pending write is explicitly shown above.
+            {i18n.t('addon.detail.stateExplanation', { state: enabledLabel(detail).toLowerCase() })}
           </p>
         </div>
         <button
           type="button"
           class="addon-primary-action"
           onclick={() => requestToggle(detail)}
-          disabled={isBusy || !canToggle}
+          disabled={isBusy || !canToggle}>{toggleButtonLabel(detail)}</button
         >
-          {toggleButtonLabel(detail)}
-        </button>
       </div>
-
-      {#if pendingConfirmation}
-        <div class="addon-confirm" role="group" aria-label="Confirm add-on enablement change">
+      {#if pendingConfirmation}<div
+          class="addon-confirm"
+          role="group"
+          aria-label={i18n.t('addon.detail.confirmAria')}
+        >
           <p>
-            Confirm {actionVerb(pendingConfirmation.enabled)}
-            {addonLabel(detail)}?
+            {i18n.t('addon.detail.confirmPrompt', {
+              action: actionVerb(pendingConfirmation.enabled),
+              name: addonLabel(detail)
+            })}
           </p>
           <div>
             <button
@@ -350,28 +331,25 @@
               class="addon-danger-action"
               onclick={confirmToggle}
               disabled={isBusy}
-            >
-              Confirm {actionVerb(pendingConfirmation.enabled)}
-            </button>
-            <button
+              >{i18n.t('addon.detail.confirm', {
+                action: actionVerb(pendingConfirmation.enabled)
+              })}</button
+            ><button
               type="button"
               class="addon-secondary-action"
               onclick={cancelToggle}
               disabled={isBusy}
+              >{i18n.t('addon.detail.cancel', {
+                action: actionVerb(pendingConfirmation.enabled)
+              })}</button
             >
-              Cancel {actionVerb(pendingConfirmation.enabled)}
-            </button>
           </div>
-        </div>
-      {/if}
-    </article>
-  {:else if snapshot.detailStatus !== 'error'}
-    <p class="addon-empty">
+        </div>{/if}
+    </article>{:else if snapshot.detailStatus !== 'error'}<p class="addon-empty">
       {selectedAddonId
-        ? `No add-on detail has been loaded for ${safeText(selectedAddonId)}.`
-        : 'No add-on detail has been loaded.'}
-    </p>
-  {/if}
+        ? i18n.t('addon.detail.noDetailFor', { addonid: safeText(selectedAddonId) })
+        : i18n.t('addon.detail.noDetail')}
+    </p>{/if}
 </section>
 
 <style>

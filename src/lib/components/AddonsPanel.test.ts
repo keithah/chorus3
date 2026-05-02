@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AddonsPanel, { type AddonsPanelDispatch } from './AddonsPanel.svelte';
+import { createTranslationContext, type Locale } from '$lib/i18n';
 import type {
   AddonSnapshot,
   AddonsGroupBy,
@@ -132,12 +133,16 @@ function createDispatch(overrides: Partial<AddonsPanelDispatch> = {}): AddonsPan
 }
 
 function renderPanel(
-  props: { snapshot?: AddonsStoreSnapshot; dispatch?: AddonsPanelDispatch } = {}
+  props: { snapshot?: AddonsStoreSnapshot; dispatch?: AddonsPanelDispatch; locale?: Locale } = {}
 ): AddonsPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(AddonsPanel, {
     target: document.body,
-    props: { snapshot: props.snapshot ?? createSnapshot(), dispatch }
+    props: {
+      snapshot: props.snapshot ?? createSnapshot(),
+      dispatch,
+      i18n: createTranslationContext(props.locale ?? 'en')
+    }
   });
   return dispatch;
 }
@@ -210,6 +215,20 @@ describe('AddonsPanel', () => {
     const alphaLink = document.querySelector('a[href="/addons/plugin.video.alpha"]');
     expect(alphaLink?.textContent).toContain('Open Alpha Video details');
     expectNoForbiddenText(screenText());
+  });
+
+  it('renders representative add-ons browser copy in German', () => {
+    renderPanel({ snapshot: createSnapshot({ groupBy: 'enabled' }), locale: 'de' });
+
+    expect(document.querySelector('#addons-panel-title')?.textContent).toContain('Kodi-Add-ons');
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Add-ons geladen.');
+    expect(searchInput().getAttribute('aria-label')).toBe('Installierte Add-ons suchen');
+    expect(groupSelect().getAttribute('aria-label')).toBe('Add-ons gruppieren');
+    expect(screenText()).toContain('2 von 2 Add-ons');
+    expect(screenText()).toContain('Gruppiert nach Aktivierungsstatus');
+    expect(screenText()).toContain('Öffne Details für Alpha Video');
+    expect(screenText()).toContain('Aktiviert');
+    expect(screenText()).toContain('Defekt: Missing dependency');
   });
 
   it('renders loading, no-host, malformed, and generic error copy with retry affordances', async () => {

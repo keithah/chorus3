@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsGroupBy,
     AddonsStoreSnapshot,
@@ -19,16 +20,17 @@
   interface Props {
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonsPanelDispatch;
+    i18n: TranslationContext;
   }
 
-  let { snapshot, dispatch }: Props = $props();
+  let { snapshot, dispatch, i18n }: Props = $props();
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');
   const hasInstalledAddons = $derived(snapshot.addons.length > 0);
   const hasVisibleAddons = $derived(snapshot.visibleAddons.length > 0);
   const renderedGroups = $derived(
     snapshot.groupBy === 'none'
-      ? [{ key: 'all', label: 'All add-ons', addons: snapshot.visibleAddons }]
+      ? [{ key: 'all', label: i18n.t('addons.panel.group.none'), addons: snapshot.visibleAddons }]
       : snapshot.groups
   );
 
@@ -57,50 +59,70 @@
   }
 
   function loadStatusCopy(): string {
-    if (snapshot.loadStatus === 'loading') return 'Loading add-ons from Kodi.';
-    if (snapshot.loadStatus === 'error') return 'Add-ons could not be loaded.';
-    if (snapshot.loadStatus === 'success') return 'Add-ons loaded.';
-    return 'Add-ons have not been loaded yet.';
+    if (snapshot.loadStatus === 'loading') return i18n.t('addons.panel.load.loading');
+    if (snapshot.loadStatus === 'error') return i18n.t('addons.panel.load.error');
+    if (snapshot.loadStatus === 'success') return i18n.t('addons.panel.load.success');
+    return i18n.t('addons.panel.load.idle');
+  }
+
+  function groupingCopy(): string {
+    if (snapshot.groupBy === 'none') return i18n.t('addons.panel.grouping.none');
+    if (snapshot.groupBy === 'type') return i18n.t('addons.panel.grouping.type');
+    return i18n.t('addons.panel.grouping.enabled');
   }
 
   function addonLabel(addon: AddonSnapshot): string {
     const name = safeText(addon.name).trim();
-    return name.length > 0 ? name : 'Untitled add-on';
+    return name.length > 0 ? name : i18n.t('addons.panel.untitled');
   }
 
   function addonId(addon: AddonSnapshot): string {
     const id = safeText(addon.addonid).trim();
-    return id.length > 0 ? id : 'unknown-addon';
+    return id.length > 0 ? id : i18n.t('addons.panel.unknownAddon');
   }
 
   function typeLabel(addon: AddonSnapshot): string {
     const type = safeText(addon.type).trim();
-    return type.length > 0 ? type : 'unknown';
+    return type.length > 0 ? type : i18n.t('addons.panel.unknown');
   }
 
   function versionLabel(addon: AddonSnapshot): string {
     const version = addon.version ? safeText(addon.version).trim() : '';
-    return version.length > 0 ? version : 'unavailable';
+    return version.length > 0 ? version : i18n.t('addons.panel.unavailable');
   }
 
   function summaryLabel(addon: AddonSnapshot): string {
     const summary = addon.summary ? safeText(addon.summary).trim() : '';
-    return summary.length > 0 ? summary : 'Summary unavailable';
+    return summary.length > 0 ? summary : i18n.t('addons.panel.summaryUnavailable');
   }
 
   function enabledLabel(addon: AddonSnapshot): string {
-    if (addon.enabled === true) return 'Enabled';
-    if (addon.enabled === false) return 'Disabled';
-    return 'Enablement unknown';
+    if (addon.enabled === true) return i18n.t('addons.panel.enabled');
+    if (addon.enabled === false) return i18n.t('addons.panel.disabled');
+    return i18n.t('addons.panel.enablementUnknown');
   }
 
   function brokenLabel(addon: AddonSnapshot): string | null {
-    if (addon.broken === true) return 'Broken';
+    if (addon.broken === true) return i18n.t('addons.panel.broken');
     if (typeof addon.broken === 'string') {
       const reason = safeText(addon.broken).trim();
-      return reason.length > 0 ? `Broken: ${reason}` : 'Broken';
+      return reason.length > 0
+        ? i18n.t('addons.panel.brokenReason', { reason })
+        : i18n.t('addons.panel.broken');
     }
     return null;
+  }
+
+  function dependencyLabel(addon: AddonSnapshot): string {
+    return addon.dependencyCount === 1
+      ? i18n.t('addons.panel.dependencies.one')
+      : i18n.t('addons.panel.dependencies.many', { count: addon.dependencyCount });
+  }
+
+  function extraInfoLabel(addon: AddonSnapshot): string {
+    return addon.extrainfoCount === 1
+      ? i18n.t('addons.panel.extraFields.one')
+      : i18n.t('addons.panel.extraFields.many', { count: addon.extrainfoCount });
   }
 
   function addonDetailHref(addon: AddonSnapshot): string {
@@ -135,31 +157,32 @@
 <section class="addons-panel" aria-labelledby="addons-panel-title">
   <header class="addons-hero">
     <div>
-      <p class="addons-eyebrow">Kodi JSON-RPC</p>
-      <h2 id="addons-panel-title">Kodi Add-ons</h2>
-      <p>
-        Browse the normalized installed add-ons snapshot, then open details without exposing Kodi
-        paths, credentials, or transport diagnostics.
-      </p>
+      <p class="addons-eyebrow">{i18n.t('addons.panel.eyebrow')}</p>
+      <h2 id="addons-panel-title">{i18n.t('addons.panel.title')}</h2>
+      <p>{i18n.t('addons.panel.description')}</p>
     </div>
     <button type="button" class="addons-primary-action" onclick={callLoad} disabled={isLoading}>
-      Reload add-ons
+      {i18n.t('addons.panel.reload')}
     </button>
   </header>
 
-  <div class="addons-status-grid" aria-label="Add-ons status">
+  <div class="addons-status-grid" aria-label={i18n.t('addons.panel.statusAria')}>
     <div class="addons-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>Load</span>
+      <span>{i18n.t('addons.panel.load')}</span>
       <strong>{loadStatusCopy()}</strong>
     </div>
     <div class="addons-status">
-      <span>Visible</span>
-      <strong>{snapshot.visibleAddons.length} of {snapshot.addons.length} add-ons</strong>
+      <span>{i18n.t('addons.panel.visible')}</span>
+      <strong
+        >{i18n.t('addons.panel.visibleCount', {
+          visible: snapshot.visibleAddons.length,
+          total: snapshot.addons.length
+        })}</strong
+      >
     </div>
     <div class="addons-status">
-      <span>Grouping</span>
-      <strong>{snapshot.groupBy === 'none' ? 'Ungrouped' : `Grouped by ${snapshot.groupBy}`}</strong
-      >
+      <span>{i18n.t('addons.panel.grouping')}</span>
+      <strong>{groupingCopy()}</strong>
     </div>
   </div>
 
@@ -170,38 +193,38 @@
     </div>
   {/if}
 
-  <div class="addons-toolbar" aria-label="Add-ons list controls">
-    <label for="addon-search">Search add-ons</label>
+  <div class="addons-toolbar" aria-label={i18n.t('addons.panel.controlsAria')}>
+    <label for="addon-search">{i18n.t('addons.panel.searchLabel')}</label>
     <input
       id="addon-search"
       name="addon-search"
       type="search"
       value={snapshot.searchQuery}
-      aria-label="Search installed add-ons"
-      placeholder="Search name, ID, type, or summary"
+      aria-label={i18n.t('addons.panel.searchAria')}
+      placeholder={i18n.t('addons.panel.searchPlaceholder')}
       oninput={updateSearch}
       disabled={isLoading}
     />
 
-    <label for="addon-group-by">Group by</label>
+    <label for="addon-group-by">{i18n.t('addons.panel.groupByLabel')}</label>
     <select
       id="addon-group-by"
       name="addon-group-by"
       value={snapshot.groupBy}
-      aria-label="Group add-ons"
+      aria-label={i18n.t('addons.panel.groupByAria')}
       onchange={updateGroupBy}
       disabled={isLoading}
     >
-      <option value="none">No grouping</option>
-      <option value="type">Type</option>
-      <option value="enabled">Enabled status</option>
+      <option value="none">{i18n.t('addons.panel.group.none')}</option>
+      <option value="type">{i18n.t('addons.panel.group.type')}</option>
+      <option value="enabled">{i18n.t('addons.panel.group.enabled')}</option>
     </select>
   </div>
 
   {#if snapshot.loadStatus === 'error'}
     <div class="addons-error-actions">
-      <p>Review the safe diagnostic above, then retry after the Kodi host or response is fixed.</p>
-      <button type="button" onclick={callRetry}>Retry add-ons load</button>
+      <p>{i18n.t('addons.panel.errorGuidance')}</p>
+      <button type="button" onclick={callRetry}>{i18n.t('addons.panel.retryLoad')}</button>
     </div>
   {/if}
 
@@ -212,9 +235,8 @@
           <section class="addons-group" aria-labelledby={`addons-group-${group.key}`}>
             <div class="addons-group-heading">
               <h3 id={`addons-group-${group.key}`}>{safeText(group.label)}</h3>
-              <span>{group.addons.length} add-ons</span>
+              <span>{i18n.t('addons.panel.groupCount', { count: group.addons.length })}</span>
             </div>
-
             <div class="addons-card-grid">
               {#each group.addons as addon, index (safeKey(addon, index))}
                 <article class="addons-card" class:broken={brokenLabel(addon) !== null}>
@@ -223,37 +245,35 @@
                       <h4>{addonLabel(addon)}</h4>
                       <p>{addonId(addon)}</p>
                     </div>
-                    <a href={addonDetailHref(addon)}>Open {addonLabel(addon)} details</a>
+                    <a href={addonDetailHref(addon)}
+                      >{i18n.t('addons.panel.openDetails', { name: addonLabel(addon) })}</a
+                    >
                   </div>
-
                   <p class="addons-summary">{summaryLabel(addon)}</p>
-
                   <dl class="addons-meta">
                     <div>
-                      <dt>Type</dt>
-                      <dd>Type {typeLabel(addon)}</dd>
+                      <dt>{i18n.t('addons.panel.type')}</dt>
+                      <dd>{i18n.t('addons.panel.typeValue', { type: typeLabel(addon) })}</dd>
                     </div>
                     <div>
-                      <dt>Version</dt>
-                      <dd>Version {versionLabel(addon)}</dd>
+                      <dt>{i18n.t('addons.panel.version')}</dt>
+                      <dd>
+                        {i18n.t('addons.panel.versionValue', { version: versionLabel(addon) })}
+                      </dd>
                     </div>
                     <div>
-                      <dt>Status</dt>
+                      <dt>{i18n.t('addons.panel.status')}</dt>
                       <dd>{enabledLabel(addon)}</dd>
                     </div>
                   </dl>
-
-                  <div class="addons-badges" aria-label={`${addonLabel(addon)} badges`}>
+                  <div
+                    class="addons-badges"
+                    aria-label={i18n.t('addons.panel.badgesAria', { name: addonLabel(addon) })}
+                  >
                     <span>{enabledLabel(addon)}</span>
-                    {#if brokenLabel(addon)}
-                      <span class="danger">{brokenLabel(addon)}</span>
-                    {/if}
-                    {#if addon.dependencyCount > 0}
-                      <span>{addon.dependencyCount} dependencies</span>
-                    {/if}
-                    {#if addon.extrainfoCount > 0}
-                      <span>{addon.extrainfoCount} extra fields</span>
-                    {/if}
+                    {#if brokenLabel(addon)}<span class="danger">{brokenLabel(addon)}</span>{/if}
+                    {#if addon.dependencyCount > 0}<span>{dependencyLabel(addon)}</span>{/if}
+                    {#if addon.extrainfoCount > 0}<span>{extraInfoLabel(addon)}</span>{/if}
                   </div>
                 </article>
               {/each}
@@ -263,9 +283,11 @@
       {/each}
     </div>
   {:else if hasInstalledAddons}
-    <p class="addons-empty">No add-ons match “{safeText(snapshot.searchQuery)}”.</p>
+    <p class="addons-empty">
+      {i18n.t('addons.panel.noMatches', { query: safeText(snapshot.searchQuery) })}
+    </p>
   {:else}
-    <p class="addons-empty">No installed add-ons are available.</p>
+    <p class="addons-empty">{i18n.t('addons.panel.noInstalled')}</p>
   {/if}
 </section>
 

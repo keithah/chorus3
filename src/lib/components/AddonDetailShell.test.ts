@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AddonDetailShell, { type AddonDetailDispatch } from './AddonDetailShell.svelte';
+import { createTranslationContext, type Locale } from '$lib/i18n';
 import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -82,12 +83,16 @@ function createDispatch(overrides: Partial<AddonDetailDispatch> = {}): AddonDeta
 }
 
 function renderDetail(
-  props: { snapshot?: AddonsStoreSnapshot; dispatch?: AddonDetailDispatch } = {}
+  props: { snapshot?: AddonsStoreSnapshot; dispatch?: AddonDetailDispatch; locale?: Locale } = {}
 ): AddonDetailDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(AddonDetailShell, {
     target: document.body,
-    props: { snapshot: props.snapshot ?? createSnapshot(), dispatch }
+    props: {
+      snapshot: props.snapshot ?? createSnapshot(),
+      dispatch,
+      i18n: createTranslationContext(props.locale ?? 'en')
+    }
   });
   return dispatch;
 }
@@ -161,6 +166,21 @@ describe('AddonDetailShell', () => {
     expect(screenText()).toContain('plugin.video.alpha');
     expect(screenText()).toContain('Version 1.0.0');
     expect(screenText()).toContain('2 dependencies');
+  });
+
+  it('renders representative add-on detail and confirmation copy in German', async () => {
+    renderDetail({ locale: 'de' });
+
+    expect(screenText()).toContain('Add-on-Detail geladen.');
+    expect(screenText()).toContain('2 Abhängigkeiten');
+    expect(screenText()).toContain('Aktiviert');
+    button('Add-on deaktivieren').click();
+    await tick();
+
+    expect(screenText()).toMatch(/Deaktivieren von\s+Alpha Video bestätigen\?/);
+    button('Deaktivieren abbrechen').click();
+    await tick();
+    expect(screenText()).not.toMatch(/Deaktivieren von\s+Alpha Video bestätigen\?/);
   });
 
   it('requires two-step confirmation before dispatching enable or disable writes', async () => {

@@ -2,8 +2,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
-import { localeStore, type LocaleStoreSnapshot } from './lib/stores/locale.svelte';
-import type { LocaleMutationResult } from './lib/stores/locale.svelte';
+import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
 import type { AppRoute } from './lib/app/appRouter';
 import type {
   MusicBrowseActionDispatch,
