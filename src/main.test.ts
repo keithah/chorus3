@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProofFixtures';
@@ -22,6 +24,34 @@ describe('main entrypoint', () => {
     document.documentElement.removeAttribute('data-theme');
     window.localStorage.clear();
     setSearch('');
+  });
+
+  it('keeps Vite production assets relative for Kodi package installs', () => {
+    const viteConfigSource = readFileSync('vite.config.ts', 'utf8');
+
+    expect(viteConfigSource).toMatch(/base:\s*['"]\.\/['"]/);
+  });
+
+  it('resolves Kodi package-mounted entrypoint routes to in-app routes', async () => {
+    const { resolveEntrypointRoute } = await importMain();
+
+    expect(
+      resolveEntrypointRoute({ pathname: '/addons/webinterface.chorus3', search: '' })
+    ).toEqual({
+      kind: 'dashboard'
+    });
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/addons/webinterface.chorus3/now-playing',
+        search: '?theme=light&locale=de'
+      })
+    ).toEqual({ kind: 'nowPlaying' });
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/addons/webinterface.chorus3/%2FAuthorization/Basic',
+        search: '?token=Basic'
+      })
+    ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
   });
 
   it('mounts the Svelte app into the root element', async () => {

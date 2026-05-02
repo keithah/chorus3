@@ -38,6 +38,17 @@ export interface NavigateAppRouteOptions {
   history?: AppRouteHistory | null;
 }
 
+export interface ParseAppRouteOptions {
+  packageBasePath?: unknown;
+}
+
+export interface BuildAppRouteOptions {
+  packageBasePath?: unknown;
+}
+
+export const KODI_WEBINTERFACE_ADDON_ID = 'webinterface.chorus3';
+export const KODI_WEBINTERFACE_BASE_PATH = `/addons/${KODI_WEBINTERFACE_ADDON_ID}`;
+
 const ROOT_PATH = '/';
 const SETTINGS_PATH = '/settings';
 const ADDONS_PATH = '/addons';
@@ -52,10 +63,17 @@ const UNSAFE_SEGMENT = '[redacted]';
 const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
-export function parseAppRoute(pathname: unknown, search?: unknown): AppRoute {
+export function parseAppRoute(
+  pathname: unknown,
+  search?: unknown,
+  options: ParseAppRouteOptions = {}
+): AppRoute {
   void normalizeSearch(search);
 
-  const path = normalizePathnameInput(pathname);
+  const path = stripPackageBasePath(
+    normalizePathnameInput(pathname),
+    normalizePackageBasePath(options.packageBasePath)
+  );
 
   if (path === ROOT_PATH) {
     return { kind: 'dashboard' };
@@ -115,7 +133,14 @@ export function parseAppRoute(pathname: unknown, search?: unknown): AppRoute {
   return { kind: 'settingsUnknown', pathLabel: normalizePathLabel(path, '/[redacted]') };
 }
 
-export function buildAppRoute(route: AppRoute): string {
+export function buildAppRoute(route: AppRoute, options: BuildAppRouteOptions = {}): string {
+  const path = buildAppRoutePath(route);
+  const packageBasePath = normalizePackageBasePath(options.packageBasePath);
+
+  return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+}
+
+function buildAppRoutePath(route: AppRoute): string {
   if (!isRouteLike(route)) {
     return ROOT_PATH;
   }
@@ -194,6 +219,34 @@ export function navigateAppRoute(route: AppRoute, options: NavigateAppRouteOptio
   } catch {
     return false;
   }
+}
+
+function normalizePackageBasePath(packageBasePath: unknown): string {
+  if (typeof packageBasePath !== 'string' || !packageBasePath.trim()) {
+    return '';
+  }
+
+  const normalized = normalizePathnameInput(packageBasePath);
+  return normalized === ROOT_PATH || normalized.includes(UNSAFE_SEGMENT) ? '' : normalized;
+}
+
+function stripPackageBasePath(pathname: string, packageBasePath: string): string {
+  if (!packageBasePath) {
+    return pathname;
+  }
+
+  if (pathname === packageBasePath) {
+    return ROOT_PATH;
+  }
+
+  return pathname.startsWith(`${packageBasePath}/`)
+    ? normalizePathnameInput(pathname.slice(packageBasePath.length))
+    : pathname;
+}
+
+function prefixPackageBasePath(pathname: string, packageBasePath: string): string {
+  const path = normalizePathnameInput(pathname);
+  return path === ROOT_PATH ? packageBasePath : `${packageBasePath}${path}`;
 }
 
 function normalizePathnameInput(pathname: unknown): string {

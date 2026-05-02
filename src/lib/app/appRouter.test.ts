@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+  KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
   isDelegatedVideoRoute,
   navigateAppRoute,
@@ -161,6 +162,47 @@ describe('parseAppRoute', () => {
       expect(route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
     }
   });
+
+  test('keeps package mount paths as add-on details unless package-base parsing is requested', () => {
+    expect(parseAppRoute('/addons/webinterface.chorus3')).toEqual({
+      kind: 'addonDetail',
+      addonid: 'webinterface.chorus3'
+    });
+
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3', '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'dashboard' });
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/', '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'dashboard' });
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/now-playing', '?theme=light', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'nowPlaying' });
+  });
+
+  test('normalizes malformed package-mounted inputs without leaking unsafe labels', () => {
+    expect(
+      parseAppRoute('/addons//webinterface.chorus3//now-playing//', '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'nowPlaying' });
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/%2FAuthorization/Basic', '?token=Basic', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
+    expect(
+      parseAppRoute({ raw: '/addons/webinterface.chorus3' }, '', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]' });
+  });
 });
 
 describe('buildAppRoute', () => {
@@ -189,6 +231,24 @@ describe('buildAppRoute', () => {
     [{ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 4401 } }, '/video/movies/4401']
   ])('builds %j as %s', (route, expectedPath) => {
     expect(buildAppRoute(route)).toBe(expectedPath);
+  });
+
+  test('prefixes built routes when a package base is provided', () => {
+    expect(
+      buildAppRoute({ kind: 'dashboard' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    ).toBe('/addons/webinterface.chorus3');
+    expect(
+      buildAppRoute({ kind: 'nowPlaying' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    ).toBe('/addons/webinterface.chorus3/now-playing');
+    expect(
+      buildAppRoute(
+        { kind: 'addonDetail', addonid: 'plugin.video.youtube' },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
+    ).toBe('/addons/webinterface.chorus3/addons/plugin.video.youtube');
+    expect(
+      buildAppRoute({ kind: 'nowPlaying' }, { packageBasePath: '/addons/webinterface.chorus3/' })
+    ).toBe('/addons/webinterface.chorus3/now-playing');
   });
 
   test('falls back safely for malformed routes', () => {

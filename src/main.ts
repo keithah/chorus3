@@ -14,7 +14,7 @@ import {
   type M005BrowserProofAppProps
 } from './lib/testing/m005BrowserProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
-import { parseAppRoute, type AppRoute } from './lib/app/appRouter';
+import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute, type AppRoute } from './lib/app/appRouter';
 import { parseNowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type { VideoRoute } from './lib/video/videoRouter';
 
@@ -72,7 +72,9 @@ function resolveEntrypointContext(
   location: EntrypointLocation | null | undefined = globalThis.window?.location
 ): EntrypointContext {
   try {
-    const route = parseAppRoute(location?.pathname, location?.search);
+    const route = parseAppRoute(location?.pathname, location?.search, {
+      packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+    });
     return route.kind === 'nowPlaying'
       ? { route, nowPlayingEmbedQuery: parseNowPlayingEmbedQuery(location?.search) }
       : { route };
