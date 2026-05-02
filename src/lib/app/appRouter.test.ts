@@ -16,8 +16,7 @@ import { getChorus2ParityRowById } from './chorus2ParityLedger';
 import { buildVideoRoute, type VideoRoute } from '../video/videoRouter';
 
 const EXPECTED_PLACEHOLDER_IDS = [
-  'remote',
-  'moviesRecent',
+  'moviesRecent', 
   'tvShowsRecent',
   'playlists',
   'help',
@@ -128,9 +127,11 @@ describe('parseAppRoute', () => {
   test('parses curated Chorus2 URLs to implemented routes or safe placeholders', () => {
     expect(parseAppRoute('/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
     expect(parseAppRoute('/tvshows')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
+    expect(parseAppRoute('/remote', '?endpoint=http://user:pass@example/jsonrpc')).toEqual({
+      kind: 'remote'
+    });
 
     const placeholderCases = [
-      ['/remote', 'remote'],
       ['/movies/recent', 'moviesRecent'],
       ['/tvshows/recent', 'tvShowsRecent'],
       ['/playlists', 'playlists'],
@@ -157,15 +158,23 @@ describe('parseAppRoute', () => {
     }
   });
 
-  test('parses package-mounted Chorus2 URLs to the same placeholder identities', () => {
+  test('parses package-mounted Chorus2 URLs to implemented routes or the same placeholder identities', () => {
+    expect(
+      parseAppRoute('/addons/webinterface.chorus3/remote', '?Authorization=Basic', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })
+    ).toEqual({ kind: 'remote' });
+    expect(
+      buildAppRoute({ kind: 'remote' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    ).toBe('/addons/webinterface.chorus3/remote');
+
     const packageCases = [
-      ['/addons/webinterface.chorus3/remote', 'remote'],
-      ['/addons/webinterface.chorus3/help', 'help'],
-      ['/addons/webinterface.chorus3/playlists', 'playlists']
+      ['/addons/webinterface.chorus3/help', '/help', 'help'],
+      ['/addons/webinterface.chorus3/playlists', '/playlists', 'playlists']
     ] as const;
 
-    for (const [path, expectedId] of packageCases) {
-      const unmounted = parseAppRoute(`/${expectedId === 'remote' ? 'remote' : expectedId}`, '', {
+    for (const [path, unmountedPath, expectedId] of packageCases) {
+      const unmounted = parseAppRoute(unmountedPath, '', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       });
       const mounted = parseAppRoute(path, '?Authorization=Basic', {
@@ -383,6 +392,7 @@ describe('buildAppRoute', () => {
   test.each<[AppRoute, string]>([
     [{ kind: 'dashboard' }, '/'],
     [{ kind: 'settings' }, '/settings'],
+    [{ kind: 'remote' }, '/remote'],
     [{ kind: 'nowPlaying' }, '/now-playing'],
     [{ kind: 'labShortcuts' }, '/lab/shortcuts'],
     [{ kind: 'labApiBrowser' }, '/lab/api-browser'],
@@ -427,6 +437,9 @@ describe('buildAppRoute', () => {
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
       )
     ).toBe('/addons/webinterface.chorus3/addons/plugin.video.youtube');
+    expect(
+      buildAppRoute({ kind: 'remote' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+    ).toBe('/addons/webinterface.chorus3/remote');
     expect(
       buildAppRoute({ kind: 'nowPlaying' }, { packageBasePath: '/addons/webinterface.chorus3/' })
     ).toBe('/addons/webinterface.chorus3/now-playing');

@@ -1340,7 +1340,7 @@ function shellRailTargets(): readonly (readonly [string, AppRoute])[] {
     ['TV shows', { kind: 'video', route: { kind: 'videoTvShows' } }],
     ['Files', requirePlaceholderRoute('browser')],
     ['Add-ons', { kind: 'addons' }],
-    ['Remote', requirePlaceholderRoute('remote')],
+    ['Remote', { kind: 'remote' }],
     ['Playlists', requirePlaceholderRoute('playlists')],
     ['Settings', { kind: 'settings' }],
     ['Help', requirePlaceholderRoute('help')]
@@ -1932,7 +1932,6 @@ describe('App shell', () => {
   });
 
   it.each([
-    ['remote', 'Chorus2 Remote', 'remote', 'M006/S02'],
     ['help', 'Chorus2 Help', 'help', 'M006/S02'],
     ['playlists', 'Chorus2 Playlists', 'playlists', 'R055/M006/S04'],
     ['settingsWeb', 'Web Settings', 'settings/web', 'M006/S02'],

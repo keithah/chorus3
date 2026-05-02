@@ -364,7 +364,7 @@
       title: 'Remote',
       label: 'Remote',
       icon: 'mdi-action-thumb-up',
-      route: chorus2PlaceholderRoute('remote')
+      route: { kind: 'remote' }
     },
     {
       title: 'Playlists',
@@ -497,6 +497,7 @@
       input.kind === 'dashboard' ||
       input.kind === 'settings' ||
       input.kind === 'settingsUnknown' ||
+      input.kind === 'remote' ||
       input.kind === 'addons' ||
       input.kind === 'addonDetail' ||
       input.kind === 'addonsUnknown' ||

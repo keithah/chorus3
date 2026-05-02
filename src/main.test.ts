@@ -55,11 +55,17 @@ describe('main entrypoint', () => {
     ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
   });
 
-  it('resolves package-mounted Chorus2 parity URLs to typed placeholder routes', async () => {
+  it('resolves package-mounted Chorus2 parity URLs to typed routes without reflecting unsafe input', async () => {
     const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
 
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/addons/webinterface.chorus3/remote',
+        search: '?endpoint=http://user:pass@example/jsonrpc&token=Basic'
+      })
+    ).toEqual({ kind: 'remote' });
+
     for (const [pathname, expectedId] of [
-      ['/addons/webinterface.chorus3/remote', 'remote'],
       ['/addons/webinterface.chorus3/help', 'help'],
       ['/addons/webinterface.chorus3/playlists', 'playlists'],
       ['/addons/webinterface.chorus3/settings/web', 'settingsWeb'],
@@ -85,7 +91,7 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toMatchObject({
-      route: { kind: 'chorus2Placeholder', placeholder: { id: 'remote' } },
+      route: { kind: 'remote' },
       packageMountedHost: {
         id: 'kodi-package-origin',
         label: 'This Kodi',

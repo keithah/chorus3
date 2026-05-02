@@ -9,6 +9,7 @@ import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2Pari
 export type AppDashboardRoute = DashboardRoute;
 export type SettingsRoute = { kind: 'settings' };
 export type SettingsUnknownRoute = { kind: 'settingsUnknown'; pathLabel: string };
+export type RemoteRoute = { kind: 'remote' };
 export type AddonsRoute = { kind: 'addons' };
 export type AddonDetailRoute = { kind: 'addonDetail'; addonid: string };
 export type AddonsUnknownRoute = { kind: 'addonsUnknown'; pathLabel: string };
@@ -40,6 +41,7 @@ export type AppRoute =
   | AppDashboardRoute
   | SettingsRoute
   | SettingsUnknownRoute
+  | RemoteRoute
   | AddonsRoute
   | AddonDetailRoute
   | AddonsUnknownRoute
@@ -71,6 +73,7 @@ export const KODI_WEBINTERFACE_BASE_PATH = `/addons/${KODI_WEBINTERFACE_ADDON_ID
 
 const ROOT_PATH = '/';
 const SETTINGS_PATH = '/settings';
+const REMOTE_PATH = '/remote';
 const ADDONS_PATH = '/addons';
 const LAB_PATH = '/lab';
 const LAB_SHORTCUTS_PATH = '/lab/shortcuts';
@@ -84,17 +87,6 @@ const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
 const CHORUS2_PLACEHOLDER_DEFINITIONS = [
-  placeholder({
-    id: 'remote',
-    ledgerIds: ['route:remote-page:remote'],
-    surface: 'remote',
-    title: 'Chorus2 Remote',
-    status: 'missing',
-    owner: 'M006/S02',
-    description: 'Chorus2 remote shell route is reserved for the S03 input/remote implementation.',
-    recoveryRoute: '/',
-    routePath: '/remote'
-  }),
   placeholder({
     id: 'moviesRecent',
     ledgerIds: ['nav:movie:movies-recent'],
@@ -342,6 +334,10 @@ export function parseAppRoute(
     return { kind: 'video', route: { kind: 'videoTvShows' } };
   }
 
+  if (path === REMOTE_PATH) {
+    return { kind: 'remote' };
+  }
+
   const chorus2Placeholder = parseChorus2PlaceholderRoute(path);
 
   if (chorus2Placeholder) {
@@ -420,6 +416,10 @@ function buildAppRoutePath(route: AppRoute): string {
 
   if (route.kind === 'settings') {
     return SETTINGS_PATH;
+  }
+
+  if (route.kind === 'remote') {
+    return REMOTE_PATH;
   }
 
   if (route.kind === 'settingsUnknown') {
