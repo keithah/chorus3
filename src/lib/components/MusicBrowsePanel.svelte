@@ -24,6 +24,7 @@
 </script>
 
 <script lang="ts">
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     MusicBrowseSelection,
     MusicBrowseStoreSnapshot
@@ -41,6 +42,7 @@
     librarySnapshot: MusicLibraryStoreSnapshot;
     browseSnapshot: MusicBrowseStoreSnapshot;
     dispatch: MusicBrowsePanelDispatch;
+    i18n?: TranslationContext;
     actionDispatch: MusicBrowseActionDispatch;
   }
 
@@ -55,7 +57,7 @@
     item: MusicBrowseActionItem;
   };
 
-  let { librarySnapshot, browseSnapshot, dispatch, actionDispatch }: Props = $props();
+  let { librarySnapshot, browseSnapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
 
   let pendingAction = $state<PendingMusicAction | null>(null);
   let actionStatusText = $state<string | null>(null);
@@ -416,8 +418,8 @@
 
 <section class="music-browse-panel surface" aria-labelledby="music-browse-title">
   <div class="panel-heading">
-    <p class="section-kicker">Music Browse</p>
-    <h2 id="music-browse-title">Browse Music</h2>
+    <p class="section-kicker">{i18n.t('music.browse.kicker')}</p>
+    <h2 id="music-browse-title">{i18n.t('music.browse.title')}</h2>
     <p class="summary-line">
       Select an artist, album, or genre to inspect read-only Kodi-shaped music details.
     </p>

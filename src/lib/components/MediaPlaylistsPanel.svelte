@@ -26,6 +26,7 @@
 </script>
 
 <script lang="ts">
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     MediaPlaylistEntrySnapshot,
     MediaPlaylistSnapshot,
@@ -36,6 +37,7 @@
   interface Props {
     snapshot: MediaPlaylistsStoreSnapshot;
     dispatch: MediaPlaylistsPanelDispatch;
+    i18n?: TranslationContext;
     actionDispatch: MediaPlaylistsActionDispatch;
   }
 
@@ -54,7 +56,7 @@
     item: MediaPlaylistsActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch }: Props = $props();
+  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
   let pendingAction = $state<PendingPlaylistAction | null>(null);
@@ -422,8 +424,8 @@
 
 <section class="media-playlists-panel surface" aria-labelledby="media-playlists-title">
   <div class="panel-heading">
-    <p class="section-kicker">Shared Playlists</p>
-    <h2 id="media-playlists-title">Media Playlists</h2>
+    <p class="section-kicker">{i18n.t('media.playlists.kicker')}</p>
+    <h2 id="media-playlists-title">{i18n.t('media.playlists.title')}</h2>
     <p class="summary-line">
       Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and {#if snapshot.media === 'video'}inspect
         browse-only playlist IDs{:else}safely play or queue supported playlist IDs{/if}.

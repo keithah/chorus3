@@ -17,6 +17,7 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     MediaSearchAlbumResult,
     MediaSearchArtistResult,
@@ -31,6 +32,7 @@
     snapshot: MediaSearchStoreSnapshot;
     dispatch: MediaSearchPanelDispatch;
     actionDispatch: MediaSearchActionDispatch;
+    i18n?: TranslationContext;
   }
 
   type ResultGroupKey = 'artists' | 'albums' | 'songs' | 'genres';
@@ -43,7 +45,7 @@
     item: MediaSearchActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch }: Props = $props();
+  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
 
   let inputValue = $state(untrack(() => snapshot.query));
   let pendingOperation = $state<PendingOperation>(null);
@@ -70,7 +72,9 @@
     }
 
     const query = inputValue.trim();
-    localStatusText = `Searching music for ${query || 'the current query'}…`;
+    localStatusText = i18n.t('media.search.status.searchingQuery', {
+      query: query || i18n.t('media.search.currentQuery')
+    });
     localErrorText = null;
     pendingOperation = 'search';
 
@@ -78,8 +82,8 @@
       await dispatch.search({ query });
       localStatusText = null;
     } catch (error) {
-      const message = sanitizeUiText(error instanceof Error ? error.message : 'Search failed.');
-      localErrorText = `Could not search music. ${message}`;
+      const message = sanitizeUiText(error instanceof Error ? error.message : i18n.t('media.search.error.searchFailed'));
+      localErrorText = i18n.t('media.search.error.couldNotSearch', { message });
       localStatusText = localErrorText;
     } finally {
       pendingOperation = null;
@@ -91,7 +95,7 @@
       return;
     }
 
-    localStatusText = 'Clearing media search…';
+    localStatusText = i18n.t('media.search.status.clearing');
     localErrorText = null;
     pendingOperation = 'clear';
 
@@ -100,8 +104,8 @@
       inputValue = '';
       localStatusText = null;
     } catch (error) {
-      const message = sanitizeUiText(error instanceof Error ? error.message : 'Clear failed.');
-      localErrorText = `Could not clear media search. ${message}`;
+      const message = sanitizeUiText(error instanceof Error ? error.message : i18n.t('media.search.error.clearFailed'));
+      localErrorText = i18n.t('media.search.error.couldNotClear', { message });
       localStatusText = localErrorText;
     } finally {
       pendingOperation = null;
@@ -119,7 +123,9 @@
 
     pendingAction = { verb, item, label };
     localErrorText = null;
-    localStatusText = `${capitalize(verb === 'play' ? 'playing' : 'queueing')} ${label}…`;
+    localStatusText = i18n.t(verb === 'play' ? 'media.action.playing' : 'media.action.queueing', {
+      label
+    });
 
     try {
       if (verb === 'play') {
@@ -127,12 +133,14 @@
       } else {
         await actionDispatch.queueMusicItem(item);
       }
-      localStatusText = `${verb === 'play' ? 'Played' : 'Queued'} ${label}.`;
+      localStatusText = i18n.t(verb === 'play' ? 'media.action.played' : 'media.action.queued', {
+        label
+      });
     } catch (error) {
       const message = sanitizeUiText(
-        error instanceof Error ? error.message : 'Media search action failed.'
+        error instanceof Error ? error.message : i18n.t('media.action.errorFallback')
       );
-      localErrorText = `Could not ${verb} ${label}. ${message}`;
+      localErrorText = i18n.t('media.action.couldNotVerb', { verb: i18n.t(verb === 'play' ? 'media.action.verb.play' : 'media.action.verb.queue'), label, message });
       localStatusText = localErrorText;
     } finally {
       pendingAction = null;
@@ -143,7 +151,7 @@
     const query = displayText(value.query, '');
 
     if (value.searchStatus === 'loading') {
-      return query ? `Searching music for ${query}…` : 'Searching music…';
+      return query ? i18n.t('media.search.status.searchingQuery', { query }) : i18n.t('media.search.status.searching');
     }
 
     if (value.searchStatus === 'error' && value.lastError) {
@@ -152,22 +160,22 @@
 
     if (value.searchStatus === 'ready') {
       if (value.isEmpty || value.resultCounts.total === 0) {
-        return query ? `No music results found for ${query}.` : 'No music results found.';
+        return query ? i18n.t('media.search.status.noResultsFor', { query }) : i18n.t('media.search.status.noResults');
       }
 
       const updated = textOrNull(value.lastUpdatedAt);
-      const suffix = updated ? ` Last updated ${updated}.` : '';
+      const suffix = updated ? i18n.t('media.status.lastUpdated', { updated }) : '';
       return query
-        ? `Music results for ${query}. ${resultCountCopy(value.resultCounts.total)}.${suffix}`
-        : `Music results ready. ${resultCountCopy(value.resultCounts.total)}.${suffix}`;
+        ? i18n.t('media.search.status.resultsFor', { query, count: resultCountCopy(value.resultCounts.total), suffix })
+        : i18n.t('media.search.status.ready', { count: resultCountCopy(value.resultCounts.total), suffix });
     }
 
-    return 'Search music across Kodi.';
+    return i18n.t('media.search.status.idle');
   }
 
   function groupCountSummary(kind: ResultGroupKey): string {
     const count = snapshot.results[kind].length;
-    return `${count} of ${formatTotal(snapshot.limits[kind], count)}`;
+    return i18n.t('media.count.of', { count, total: formatTotal(snapshot.limits[kind], count) });
   }
 
   function formatTotal(limits: MusicLibraryLimitsSnapshot | undefined, fallback: number): number {
@@ -179,13 +187,13 @@
   function sectionEmptyCopy(kind: ResultGroupKey): string {
     switch (kind) {
       case 'artists':
-        return 'No artists in these music results.';
+        return i18n.t('media.search.empty.artists');
       case 'albums':
-        return 'No albums in these music results.';
+        return i18n.t('media.search.empty.albums');
       case 'songs':
-        return 'No songs in these music results.';
+        return i18n.t('media.search.empty.songs');
       case 'genres':
-        return 'No genres in these music results.';
+        return i18n.t('media.search.empty.genres');
     }
   }
 
@@ -226,19 +234,19 @@
   }
 
   function safeArtistLabel(artist: MediaSearchArtistResult): string {
-    return displayText(artist.label, 'Unknown artist');
+    return displayText(artist.label, i18n.t('media.unknown.artist'));
   }
 
   function safeAlbumLabel(album: MediaSearchAlbumResult): string {
-    return displayText(album.title ?? album.label, 'Unknown album');
+    return displayText(album.title ?? album.label, i18n.t('media.unknown.album'));
   }
 
   function safeSongLabel(song: MediaSearchSongResult): string {
-    return displayText(song.title ?? song.label, 'Unknown song');
+    return displayText(song.title ?? song.label, i18n.t('media.unknown.song'));
   }
 
   function safeGenreLabel(genre: MediaSearchGenreResult): string {
-    return displayText(genre.title ?? genre.label, 'Unknown genre');
+    return displayText(genre.title ?? genre.label, i18n.t('media.unknown.genre'));
   }
 
   function artistMeta(artist: MediaSearchArtistResult): string | null {
@@ -323,7 +331,7 @@
 
   function formatTrack(value: unknown): string | null {
     const track = numberOrNull(value);
-    return track === null ? null : `Track ${Math.trunc(track)}`;
+    return track === null ? null : i18n.t('media.meta.track', { track: Math.trunc(track) });
   }
 
   function formatPlaycount(value: unknown): string | null {
@@ -333,11 +341,28 @@
     }
 
     const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1 ? 'Played 1 time' : `Played ${rounded} times`;
+    return rounded === 1 ? i18n.t('media.meta.playedOnce') : i18n.t('media.meta.playedTimes', { count: rounded });
   }
 
   function resultCountCopy(count: number): string {
-    return count === 1 ? '1 result' : `${count} results`;
+    return count === 1 ? i18n.t('media.count.result.one') : i18n.t('media.count.result.many', { count });
+  }
+
+  function itemKindLabel(kind: MediaSearchActionItem['kind']): string {
+    if (kind === 'artist') return i18n.t('media.kind.artist');
+    if (kind === 'album') return i18n.t('media.kind.album');
+    return i18n.t('media.kind.song');
+  }
+
+  function actionLabel(verb: MusicActionVerb, item: MediaSearchActionItem, label: string): string {
+    return i18n.t(verb === 'play' ? 'media.action.playItem' : 'media.action.queueItem', {
+      kind: itemKindLabel(item.kind),
+      label
+    });
+  }
+
+  function actionTargetLabel(item: MediaSearchActionItem, label: string): string {
+    return `${itemKindLabel(item.kind)} ${label}`;
   }
 
   function sanitizeUiText(value: string): string {
@@ -376,42 +401,42 @@
 
 <section class="media-search-panel surface" aria-labelledby="media-search-title">
   <div class="panel-heading">
-    <p class="section-kicker">Shared Search</p>
-    <h2 id="media-search-title">Media Search</h2>
+    <p class="section-kicker">{i18n.t('media.search.kicker')}</p>
+    <h2 id="media-search-title">{i18n.t('media.search.title')}</h2>
     <p class="summary-line">
-      Search music now through a shared media boundary designed for future video results.
+      {i18n.t('media.search.description')}
     </p>
   </div>
 
-  <form class="search-form" role="search" aria-label="Media search" onsubmit={handleSearch}>
+  <form class="search-form" role="search" aria-label={i18n.t('media.search.formAria')} onsubmit={handleSearch}>
     <div class="search-field">
-      <label for="media-search-query">Search music</label>
+      <label for="media-search-query">{i18n.t('media.search.label')}</label>
       <input
         id="media-search-query"
         name="query"
         type="search"
         autocomplete="off"
         bind:value={inputValue}
-        placeholder="Artist, album, song, or genre"
+        placeholder={i18n.t('media.search.placeholder')}
       />
     </div>
     <div class="search-actions">
       <button
         type="submit"
         class="primary-button"
-        aria-label="Search media"
+        aria-label={i18n.t('media.search.action.search')}
         disabled={searchDisabled}
       >
-        Search media
+        {i18n.t('media.search.action.search')}
       </button>
       <button
         type="button"
         class="secondary-button"
-        aria-label="Clear media search"
+        aria-label={i18n.t('media.search.action.clear')}
         disabled={clearDisabled}
         onclick={handleClear}
       >
-        Clear
+        {i18n.t('app.action.clear')}
       </button>
     </div>
   </form>
@@ -422,18 +447,18 @@
   {/if}
 
   {#if snapshot.searchStatus === 'loading'}
-    <p class="state-copy">Loading music search results…</p>
+    <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
   {:else if snapshot.searchStatus === 'idle'}
-    <p class="state-copy">No music results yet.</p>
+    <p class="state-copy">{i18n.t('media.search.state.idle')}</p>
   {:else if snapshot.isEmpty}
-    <p class="state-copy">No music results match this query.</p>
+    <p class="state-copy">{i18n.t('media.search.state.noMatch')}</p>
   {/if}
 
   <section class="results-shell" aria-labelledby="media-search-results-title">
     <div class="results-heading">
       <div>
-        <p class="breadcrumb">Music results</p>
-        <h3 id="media-search-results-title">Music results</h3>
+        <p class="breadcrumb">{i18n.t('media.search.resultsKicker')}</p>
+        <h3 id="media-search-results-title">{i18n.t('media.search.resultsTitle')}</h3>
       </div>
       <p class="count-chip">{resultCountCopy(snapshot.resultCounts.total)}</p>
     </div>
@@ -441,7 +466,7 @@
     <div class="results-grid">
       <section class="result-section" aria-labelledby="media-search-artists-title">
         <div class="section-heading">
-          <h4 id="media-search-artists-title">Artists</h4>
+          <h4 id="media-search-artists-title">{i18n.t('media.heading.artists')}</h4>
           <p>{groupCountSummary('artists')}</p>
         </div>
         {#if snapshot.results.artists.length === 0}
@@ -452,30 +477,30 @@
               {@const label = safeArtistLabel(artist)}
               {@const actionItem = searchActionFor(artist)}
               <li class="result-card">
-                <span class="item-kicker">Artist</span>
+                <span class="item-kicker">{i18n.t('media.kind.artist')}</span>
                 <span class="item-title">{label}</span>
                 {#if artistMeta(artist)}
                   <span class="item-meta">{artistMeta(artist)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={`Actions for artist ${label}`}>
+                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Play artist ${label}`}
+                      aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, `artist ${label}`)}
+                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Play
+                      {i18n.t('media.action.play')}
                     </button>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Queue artist ${label}`}
+                      aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, `artist ${label}`)}
+                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Queue
+                      {i18n.t('media.action.queue')}
                     </button>
                   </div>
                 {/if}
@@ -487,7 +512,7 @@
 
       <section class="result-section" aria-labelledby="media-search-albums-title">
         <div class="section-heading">
-          <h4 id="media-search-albums-title">Albums</h4>
+          <h4 id="media-search-albums-title">{i18n.t('media.heading.albums')}</h4>
           <p>{groupCountSummary('albums')}</p>
         </div>
         {#if snapshot.results.albums.length === 0}
@@ -498,30 +523,30 @@
               {@const label = safeAlbumLabel(album)}
               {@const actionItem = searchActionFor(album)}
               <li class="result-card">
-                <span class="item-kicker">Album</span>
+                <span class="item-kicker">{i18n.t('media.kind.album')}</span>
                 <span class="item-title">{label}</span>
                 {#if albumMeta(album)}
                   <span class="item-meta">{albumMeta(album)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={`Actions for album ${label}`}>
+                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Play album ${label}`}
+                      aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, `album ${label}`)}
+                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Play
+                      {i18n.t('media.action.play')}
                     </button>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Queue album ${label}`}
+                      aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, `album ${label}`)}
+                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Queue
+                      {i18n.t('media.action.queue')}
                     </button>
                   </div>
                 {/if}
@@ -533,7 +558,7 @@
 
       <section class="result-section" aria-labelledby="media-search-songs-title">
         <div class="section-heading">
-          <h4 id="media-search-songs-title">Songs</h4>
+          <h4 id="media-search-songs-title">{i18n.t('media.heading.songs')}</h4>
           <p>{groupCountSummary('songs')}</p>
         </div>
         {#if snapshot.results.songs.length === 0}
@@ -544,31 +569,31 @@
               {@const label = safeSongLabel(song)}
               {@const actionItem = searchActionFor(song)}
               <li class="result-card" data-songid={song.songid}>
-                <span class="item-kicker">Song</span>
+                <span class="item-kicker">{i18n.t('media.kind.song')}</span>
                 <span class="item-title">{label}</span>
-                <span class="identity-chip">Song ID {song.songid}</span>
+                <span class="identity-chip">{i18n.t('media.songId', { songid: song.songid })}</span>
                 {#if songMeta(song)}
                   <span class="item-meta">{songMeta(song)}</span>
                 {/if}
                 {#if actionItem}
-                  <div class="action-row" aria-label={`Actions for song ${label}`}>
+                  <div class="action-row" aria-label={i18n.t('media.action.actionsFor', { kind: itemKindLabel(actionItem.kind), label })}>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Play song ${label}`}
+                      aria-label={actionLabel('play', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('play', actionItem, `song ${label}`)}
+                      onclick={() => handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Play
+                      {i18n.t('media.action.play')}
                     </button>
                     <button
                       type="button"
                       class="action-button"
-                      aria-label={`Queue song ${label}`}
+                      aria-label={actionLabel('queue', actionItem, label)}
                       disabled={isActionDisabled(actionItem)}
-                      onclick={() => handleMusicAction('queue', actionItem, `song ${label}`)}
+                      onclick={() => handleMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
                     >
-                      Queue
+                      {i18n.t('media.action.queue')}
                     </button>
                   </div>
                 {/if}
@@ -580,7 +605,7 @@
 
       <section class="result-section" aria-labelledby="media-search-genres-title">
         <div class="section-heading">
-          <h4 id="media-search-genres-title">Genres</h4>
+          <h4 id="media-search-genres-title">{i18n.t('media.heading.genres')}</h4>
           <p>{groupCountSummary('genres')}</p>
         </div>
         {#if snapshot.results.genres.length === 0}
@@ -590,7 +615,7 @@
             {#each snapshot.results.genres as genre, index (safeEachKey('genre', genre.genreid, index))}
               {@const label = safeGenreLabel(genre)}
               <li class="result-card">
-                <span class="item-kicker">Genre</span>
+                <span class="item-kicker">{i18n.t('media.kind.genre')}</span>
                 <span class="item-title">{label}</span>
               </li>
             {/each}

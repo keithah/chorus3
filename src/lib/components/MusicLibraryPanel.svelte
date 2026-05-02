@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     MusicLibraryAlbumSnapshot,
     MusicLibraryArtistSnapshot,
@@ -11,13 +12,14 @@
   interface Props {
     snapshot: MusicLibraryStoreSnapshot;
     onRefresh?: () => Promise<void> | void;
+    i18n?: TranslationContext;
   }
 
   type ListKind = 'artists' | 'albums' | 'songs' | 'genres';
   type DiscoveryListKind = 'recentlyAddedSongs' | 'recentlyPlayedSongs' | 'mostPlayedSongs';
   type DiscoveryMetadataKind = 'recentlyAdded' | 'recentlyPlayed' | 'mostPlayed';
 
-  let { snapshot, onRefresh }: Props = $props();
+  let { snapshot, onRefresh, i18n = createTranslationContext('en') }: Props = $props();
   let isRefreshing = $state(false);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
@@ -39,11 +41,11 @@
 
   function formatStatus(value: MusicLibraryStoreSnapshot, callbackRunning: boolean): string {
     if (callbackRunning) {
-      return 'Refresh requested. Waiting for the music library snapshot.';
+      return i18n.t('music.library.status.refreshRequested');
     }
 
     if (value.refreshStatus === 'loading') {
-      return `Refreshing music library from ${formatReason(value.lastRefreshReason)}.`;
+      return i18n.t('music.library.status.refreshing', { reason: formatReason(value.lastRefreshReason) });
     }
 
     if (value.refreshStatus === 'error' && value.lastError) {
@@ -51,11 +53,13 @@
     }
 
     if (value.isEmpty) {
-      return 'Music library is empty.';
+      return i18n.t('music.library.status.empty');
     }
 
     const updated = textOrNull(value.lastUpdatedAt);
-    return updated ? `Music library ready. Last updated ${updated}.` : 'Music library ready.';
+    return updated
+      ? i18n.t('music.library.status.readyUpdated', { updated })
+      : i18n.t('music.library.status.ready');
   }
 
   function formatReason(reason: string): string {
@@ -76,7 +80,7 @@
 
   function countSummary(kind: ListKind, count: number): string {
     const limits = snapshot.limits[kind];
-    return `${count} of ${formatTotal(limits, count)}`;
+    return i18n.t('media.count.of', { count, total: formatTotal(limits, count) });
   }
 
   function formatTotal(limits: MusicLibraryLimitsSnapshot | undefined, fallback: number): number {
@@ -88,29 +92,29 @@
   function sectionEmptyCopy(kind: ListKind): string {
     switch (kind) {
       case 'artists':
-        return 'No artists in this snapshot.';
+        return i18n.t('music.library.empty.artists');
       case 'albums':
-        return 'No albums in this snapshot.';
+        return i18n.t('music.library.empty.albums');
       case 'songs':
-        return 'No songs in this snapshot.';
+        return i18n.t('music.library.empty.songs');
       case 'genres':
-        return 'No genres in this snapshot.';
+        return i18n.t('music.library.empty.genres');
     }
   }
 
   function discoveryCountSummary(kind: DiscoveryListKind, count: number): string {
     const limits = snapshot.limits[kind];
-    return `${count} of ${formatTotal(limits, count)}`;
+    return i18n.t('media.count.of', { count, total: formatTotal(limits, count) });
   }
 
   function discoveryEmptyCopy(kind: DiscoveryListKind): string {
     switch (kind) {
       case 'recentlyAddedSongs':
-        return 'No recently added songs in this snapshot.';
+        return i18n.t('music.library.empty.recentlyAdded');
       case 'recentlyPlayedSongs':
-        return 'No recently played songs in this snapshot.';
+        return i18n.t('music.library.empty.recentlyPlayed');
       case 'mostPlayedSongs':
-        return 'No most-played songs in this snapshot.';
+        return i18n.t('music.library.empty.mostPlayed');
     }
   }
 
@@ -132,12 +136,12 @@
   ): string | null {
     if (kind === 'recentlyAdded') {
       const dateadded = textOrNull(song.dateadded);
-      return dateadded ? `Added ${dateadded}` : null;
+      return dateadded ? i18n.t('music.library.meta.added', { date: dateadded }) : null;
     }
 
     if (kind === 'recentlyPlayed') {
       const lastplayed = textOrNull(song.lastplayed);
-      return lastplayed ? `Played ${lastplayed}` : null;
+      return lastplayed ? i18n.t('music.library.meta.playedAt', { date: lastplayed }) : null;
     }
 
     return formatPlaycount(song.playcount);
@@ -201,7 +205,7 @@
 
   function formatTrack(value: unknown): string | null {
     const track = numberOrNull(value);
-    return track === null ? null : `Track ${Math.trunc(track)}`;
+    return track === null ? null : i18n.t('media.meta.track', { track: Math.trunc(track) });
   }
 
   function formatPlaycount(value: unknown): string | null {
@@ -211,23 +215,23 @@
     }
 
     const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1 ? 'Played 1 time' : `Played ${rounded} times`;
+    return rounded === 1 ? i18n.t('media.meta.playedOnce') : i18n.t('media.meta.playedTimes', { count: rounded });
   }
 
   function safeArtistLabel(artist: MusicLibraryArtistSnapshot): string {
-    return displayText(artist.label, 'Unknown artist');
+    return displayText(artist.label, i18n.t('media.unknown.artist'));
   }
 
   function safeAlbumLabel(album: MusicLibraryAlbumSnapshot): string {
-    return displayText(album.title ?? album.label, 'Unknown album');
+    return displayText(album.title ?? album.label, i18n.t('media.unknown.album'));
   }
 
   function safeSongLabel(song: MusicLibrarySongSnapshot): string {
-    return displayText(song.title ?? song.label, 'Unknown song');
+    return displayText(song.title ?? song.label, i18n.t('media.unknown.song'));
   }
 
   function safeGenreLabel(genre: MusicLibraryGenreSnapshot): string {
-    return displayText(genre.title ?? genre.label, 'Unknown genre');
+    return displayText(genre.title ?? genre.label, i18n.t('media.unknown.genre'));
   }
 
   function sanitizeUiText(value: string): string {
@@ -261,9 +265,9 @@
 
 <section class="music-library-panel surface" aria-labelledby="music-library-title">
   <div class="panel-heading">
-    <p class="section-kicker">Music Library</p>
-    <h2 id="music-library-title">Music Library</h2>
-    <p class="summary-line">Read-only snapshots from Kodi artists, albums, songs, and genres.</p>
+    <p class="section-kicker">{i18n.t('music.library.kicker')}</p>
+    <h2 id="music-library-title">{i18n.t('music.library.title')}</h2>
+    <p class="summary-line">{i18n.t('music.library.description')}</p>
   </div>
 
   <div class="toolbar">
@@ -272,25 +276,25 @@
       <button
         type="button"
         class="refresh-button"
-        aria-label="Refresh music library"
+        aria-label={i18n.t('music.library.refresh')}
         disabled={refreshDisabled}
         onclick={handleRefresh}
       >
-        Refresh music library
+        {i18n.t('music.library.refresh')}
       </button>
     {/if}
   </div>
 
   {#if isLoading}
-    <p class="state-copy">Loading music library…</p>
+    <p class="state-copy">{i18n.t('music.library.state.loading')}</p>
   {:else if snapshot.isEmpty}
-    <p class="state-copy">No music library items found in this snapshot.</p>
+    <p class="state-copy">{i18n.t('music.library.state.empty')}</p>
   {/if}
 
   <div class="library-grid">
     <section class="library-section" aria-labelledby="music-library-artists-title">
       <div class="section-heading">
-        <h3 id="music-library-artists-title">Artists</h3>
+        <h3 id="music-library-artists-title">{i18n.t('media.heading.artists')}</h3>
         <p>{countSummary('artists', snapshot.artists.length)}</p>
       </div>
       {#if snapshot.artists.length === 0}
@@ -311,7 +315,7 @@
 
     <section class="library-section" aria-labelledby="music-library-albums-title">
       <div class="section-heading">
-        <h3 id="music-library-albums-title">Albums</h3>
+        <h3 id="music-library-albums-title">{i18n.t('media.heading.albums')}</h3>
         <p>{countSummary('albums', snapshot.albums.length)}</p>
       </div>
       {#if snapshot.albums.length === 0}
@@ -332,7 +336,7 @@
 
     <section class="library-section" aria-labelledby="music-library-songs-title">
       <div class="section-heading">
-        <h3 id="music-library-songs-title">Songs</h3>
+        <h3 id="music-library-songs-title">{i18n.t('media.heading.songs')}</h3>
         <p>{countSummary('songs', snapshot.songs.length)}</p>
       </div>
       {#if snapshot.songs.length === 0}
@@ -361,7 +365,7 @@
 
     <section class="library-section" aria-labelledby="music-library-genres-title">
       <div class="section-heading">
-        <h3 id="music-library-genres-title">Genres</h3>
+        <h3 id="music-library-genres-title">{i18n.t('media.heading.genres')}</h3>
         <p>{countSummary('genres', snapshot.genres.length)}</p>
       </div>
       {#if snapshot.genres.length === 0}
@@ -380,15 +384,15 @@
 
   <section class="discovery-section" aria-labelledby="music-library-discovery-title">
     <div class="panel-heading">
-      <p class="section-kicker">Discovery</p>
-      <h3 id="music-library-discovery-title">Recent &amp; Top Music</h3>
-      <p class="summary-line">Read-only recently added, recently played, and most-played songs.</p>
+      <p class="section-kicker">{i18n.t('music.library.discoveryKicker')}</p>
+      <h3 id="music-library-discovery-title">{i18n.t('music.library.discoveryTitle')}</h3>
+      <p class="summary-line">{i18n.t('music.library.discoveryDescription')}</p>
     </div>
 
     <div class="discovery-grid">
       <section class="library-section" aria-labelledby="music-library-recently-added-title">
         <div class="section-heading">
-          <h4 id="music-library-recently-added-title">Recently Added</h4>
+          <h4 id="music-library-recently-added-title">{i18n.t('music.library.recentlyAdded')}</h4>
           <p>{discoveryCountSummary('recentlyAddedSongs', snapshot.recentlyAddedSongs.length)}</p>
         </div>
         {#if snapshot.recentlyAddedSongs.length === 0}
@@ -409,7 +413,7 @@
 
       <section class="library-section" aria-labelledby="music-library-recently-played-title">
         <div class="section-heading">
-          <h4 id="music-library-recently-played-title">Recently Played</h4>
+          <h4 id="music-library-recently-played-title">{i18n.t('music.library.recentlyPlayed')}</h4>
           <p>{discoveryCountSummary('recentlyPlayedSongs', snapshot.recentlyPlayedSongs.length)}</p>
         </div>
         {#if snapshot.recentlyPlayedSongs.length === 0}
@@ -430,7 +434,7 @@
 
       <section class="library-section" aria-labelledby="music-library-most-played-title">
         <div class="section-heading">
-          <h4 id="music-library-most-played-title">Most Played</h4>
+          <h4 id="music-library-most-played-title">{i18n.t('music.library.mostPlayed')}</h4>
           <p>{discoveryCountSummary('mostPlayedSongs', snapshot.mostPlayedSongs.length)}</p>
         </div>
         {#if snapshot.mostPlayedSongs.length === 0}

@@ -734,27 +734,31 @@
         />
       </section>
 
-      <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} />
+      <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} i18n={currentI18n} />
       <MusicBrowsePanel
         librarySnapshot={currentMusicLibrarySnapshot}
         browseSnapshot={currentMusicBrowseSnapshot}
         dispatch={musicBrowseDispatch}
         actionDispatch={musicActionDispatch}
+        i18n={currentI18n}
       />
       <MediaSearchPanel
         snapshot={currentMediaSearchSnapshot}
         dispatch={mediaSearchDispatch}
         actionDispatch={mediaSearchActionDispatch}
+        i18n={currentI18n}
       />
       <MediaFilesPanel
         snapshot={currentMediaFilesSnapshot}
         dispatch={mediaFilesDispatch}
         actionDispatch={mediaFilesActionDispatch}
+        i18n={currentI18n}
       />
       <MediaPlaylistsPanel
         snapshot={currentMediaPlaylistsSnapshot}
         dispatch={mediaPlaylistsDispatch}
         actionDispatch={mediaPlaylistsActionDispatch}
+        i18n={currentI18n}
       />
 
       <LocalMediaRuntime />
@@ -868,6 +872,7 @@
         snapshot={currentVideoMediaPlaylistsSnapshot}
         dispatch={videoMediaPlaylistsDispatch}
         actionDispatch={videoMediaPlaylistsActionDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoMovieDetailRoute}
@@ -898,6 +903,7 @@
         snapshot={currentVideoMediaPlaylistsSnapshot}
         dispatch={videoMediaPlaylistsDispatch}
         actionDispatch={videoMediaPlaylistsActionDispatch}
+        i18n={currentI18n}
       />
     </main>
   {:else if isVideoTvShowDetailRoute}

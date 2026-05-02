@@ -2,6 +2,7 @@ import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import MusicLibraryPanel from './MusicLibraryPanel.svelte';
+import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { MusicLibraryStoreSnapshot } from '$lib/stores/musicLibrary.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -133,6 +134,7 @@ function populatedSnapshot(
 function renderPanel(props: {
   snapshot: MusicLibraryStoreSnapshot;
   onRefresh?: () => Promise<void> | void;
+  i18n?: TranslationContext;
 }): void {
   mounted = mount(MusicLibraryPanel, {
     target: document.body,
@@ -198,6 +200,50 @@ describe('MusicLibraryPanel', () => {
     expect(text).toContain('Genres');
     expect(text).toContain('0 of 0');
     expect(document.querySelector('button')).toBeNull();
+  });
+
+  it('renders German library empty states and malformed fallback labels', () => {
+    renderPanel({
+      i18n: createTranslationContext('de'),
+      snapshot: createMusicSnapshot({
+        isEmpty: false,
+        artists: [{ artistid: 1, label: 'smb://secret/share/artist' }],
+        albums: [{ albumid: 2, label: 'C:\\music\\secret.flac' }],
+        songs: [
+          {
+            songid: 3,
+            label: 'Unknown song',
+            title: 'https://example.test/private/song.mp3',
+            artist: ['Safe Artist']
+          }
+        ],
+        genres: [],
+        recentlyAddedSongs: [],
+        recentlyPlayedSongs: [],
+        mostPlayedSongs: [],
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 1, total: 1 },
+          songs: { start: 0, end: 1, total: 1 },
+          genres: { start: 0, end: 0, total: 0 }
+        }
+      })
+    });
+
+    const text = screenText();
+    expect(document.querySelector('#music-library-title')?.textContent).toContain('Musikbibliothek');
+    expect(statusText()).toContain('Musikbibliothek bereit.');
+    expect(text).toContain('Künstler');
+    expect(text).toContain('Alben');
+    expect(text).toContain('Songs');
+    expect(text).toContain('Genres');
+    expect(text).toContain('Unbekannter Künstler');
+    expect(text).toContain('Unbekanntes Album');
+    expect(text).toContain('Unbekannter Song');
+    expect(text).toContain('Keine Genres in diesem Snapshot.');
+    expect(text).toContain('Keine zuletzt hinzugefügten Songs in diesem Snapshot.');
+    expect(text).toContain('1 von 1');
+    expectSecretSafe(text);
   });
 
   it('renders a refresh button only when a refresh callback is provided and disables it while loading', () => {

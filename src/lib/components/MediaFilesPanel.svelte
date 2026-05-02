@@ -21,6 +21,7 @@
 </script>
 
 <script lang="ts">
+  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import type {
     MediaDirectoryEntrySnapshot,
     MediaFileSourceSnapshot,
@@ -31,6 +32,7 @@
   interface Props {
     snapshot: MediaFilesStoreSnapshot;
     dispatch: MediaFilesPanelDispatch;
+    i18n?: TranslationContext;
     actionDispatch: MediaFilesActionDispatch;
   }
 
@@ -49,7 +51,7 @@
     item: MediaFilesActionItem;
   };
 
-  let { snapshot, dispatch, actionDispatch }: Props = $props();
+  let { snapshot, dispatch, actionDispatch, i18n = createTranslationContext('en') }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
   let pendingAction = $state<PendingFileAction | null>(null);
@@ -388,8 +390,8 @@
 
 <section class="media-files-panel surface" aria-labelledby="media-files-title">
   <div class="panel-heading">
-    <p class="section-kicker">Shared Files</p>
-    <h2 id="media-files-title">Media Files</h2>
+    <p class="section-kicker">{i18n.t('media.files.kicker')}</p>
+    <h2 id="media-files-title">{i18n.t('media.files.title')}</h2>
     <p class="summary-line">
       Browse Kodi {safeMediaLabel(snapshot.media)} sources and safely play or queue supported audio files.
     </p>

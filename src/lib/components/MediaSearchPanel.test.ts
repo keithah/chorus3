@@ -5,6 +5,7 @@ import MediaSearchPanel, {
   type MediaSearchActionDispatch,
   type MediaSearchPanelDispatch
 } from './MediaSearchPanel.svelte';
+import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { MediaSearchStoreSnapshot } from '$lib/stores/mediaSearch.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -119,6 +120,7 @@ function renderPanel(
     snapshot?: MediaSearchStoreSnapshot;
     dispatch?: MediaSearchPanelDispatch;
     actionDispatch?: MediaSearchActionDispatch;
+    i18n?: TranslationContext;
   } = {}
 ): { dispatch: MediaSearchPanelDispatch; actionDispatch: MediaSearchActionDispatch } {
   const dispatch = props.dispatch ?? createDispatch();
@@ -128,7 +130,8 @@ function renderPanel(
     props: {
       snapshot: props.snapshot ?? createSnapshot(),
       dispatch,
-      actionDispatch
+      actionDispatch,
+      i18n: props.i18n ?? createTranslationContext('en')
     }
   });
   return { dispatch, actionDispatch };
@@ -220,6 +223,45 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Sinnerman');
     expect(text).toContain('Jazz');
     expect(text).toContain('4 results');
+  });
+
+  it('renders German search labels, counts, empty states, and fallback labels', () => {
+    renderPanel({
+      i18n: createTranslationContext('de'),
+      snapshot: createEmptySnapshot({
+        searchStatus: 'ready',
+        query: 'zzzz',
+        results: {
+          artists: [{ kind: 'artist', artistid: 1, label: 'smb://secret/share/artist' }],
+          albums: [],
+          songs: [],
+          genres: []
+        },
+        limits: {
+          artists: { start: 0, end: 1, total: 1 },
+          albums: { start: 0, end: 0, total: 0 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 0, total: 0 }
+        },
+        resultCounts: { artists: 1, albums: 0, songs: 0, genres: 0, total: 1 },
+        isEmpty: false
+      })
+    });
+
+    const text = screenText();
+    expect(document.querySelector('#media-search-title')?.textContent).toContain('Mediensuche');
+    expect(document.querySelector('label[for="media-search-query"]')?.textContent).toContain(
+      'Musik suchen'
+    );
+    expect(searchInput().placeholder).toBe('Künstler, Album, Song oder Genre');
+    expect(statusText()).toContain('Musikergebnisse für zzzz. 1 Ergebnis.');
+    expect(text).toContain('Künstler');
+    expect(text).toContain('Unbekannter Künstler');
+    expect(text).toContain('Keine Alben in diesen Musikergebnissen.');
+    expect(text).toContain('1 Ergebnis');
+    expect(button('Medien suchen')).not.toBeNull();
+    expect(button('Mediensuche leeren')).not.toBeNull();
+    expectSecretSafe(text);
   });
 
   it('submits a trimmed query and clears through injected dispatch only', async () => {
