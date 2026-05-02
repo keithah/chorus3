@@ -1372,8 +1372,13 @@ function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement 
   return link as HTMLAnchorElement;
 }
 
-function requirePackageShellButtonByAria(target: HTMLElement, ariaLabel: string): HTMLButtonElement {
-  const button = target.querySelector<HTMLButtonElement>(`.chorus-app button[aria-label="${ariaLabel}"]`);
+function requirePackageShellButtonByAria(
+  target: HTMLElement,
+  ariaLabel: string
+): HTMLButtonElement {
+  const button = target.querySelector<HTMLButtonElement>(
+    `.chorus-app button[aria-label="${ariaLabel}"]`
+  );
   expect(button).toBeInstanceOf(HTMLButtonElement);
   return button as HTMLButtonElement;
 }
@@ -1404,7 +1409,9 @@ function isDisabledOrGuarded(control: HTMLButtonElement | HTMLInputElement): boo
     control.closest('[aria-description]')?.getAttribute('aria-description')
   ]
     .filter((value): value is string => typeof value === 'string')
-    .some((value) => /not yet|deferred|disabled|guarded|placeholder|future owner|unsupported/i.test(value));
+    .some((value) =>
+      /not yet|deferred|disabled|guarded|placeholder|future owner|unsupported/i.test(value)
+    );
 }
 
 function requirePlaceholderRoute(id: string): AppRoute {
@@ -1632,7 +1639,9 @@ describe('App shell', () => {
     expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'More')), 'More').toBe(true);
 
     for (const label of ['Previous', 'Play or pause', 'Next', 'Toggle mute', 'Fullscreen']) {
-      expect(requirePackageShellButtonByAria(target, label).disabled, `${label} enabled`).toBe(false);
+      expect(requirePackageShellButtonByAria(target, label).disabled, `${label} enabled`).toBe(
+        false
+      );
     }
   });
 
@@ -1693,7 +1702,8 @@ describe('App shell', () => {
       expect(placeholderText).toContain(title);
       expect(placeholderText).toContain('Future owner');
       expect(placeholderText).toContain(owner);
-      const recoveryLink = placeholderTarget.querySelector<HTMLAnchorElement>('.parity-placeholder a');
+      const recoveryLink =
+        placeholderTarget.querySelector<HTMLAnchorElement>('.parity-placeholder a');
       expect(recoveryLink?.getAttribute('href')).toMatch(
         /^\/addons\/webinterface\.chorus3(?:\/|$)/u
       );

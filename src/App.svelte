@@ -956,7 +956,10 @@
             <img src={chorus2LogoUrl} alt="" />
           </a>
 
-          <label class="c2-search" title="Search is deferred to the search route owner for the packaged shell.">
+          <label
+            class="c2-search"
+            title="Search is deferred to the search route owner for the packaged shell."
+          >
             <span class="mdi mdi-action-search" aria-hidden="true"></span>
             <span class="visually-hidden">Search Kodi</span>
             <input
@@ -982,7 +985,12 @@
               <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
               Local
             </button>
-            <button type="button" aria-label="Playlist menu" title="Playlist menu is deferred." disabled>
+            <button
+              type="button"
+              aria-label="Playlist menu"
+              title="Playlist menu is deferred."
+              disabled
+            >
               <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
             </button>
             <button
@@ -1018,7 +1026,9 @@
 
         <aside class="c2-playlist" aria-label="Current playlist">
           <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
-            <button type="button" role="tab" class="active" aria-selected="true" disabled>Audio</button>
+            <button type="button" role="tab" class="active" aria-selected="true" disabled
+              >Audio</button
+            >
             <button
               type="button"
               role="tab"
@@ -1044,7 +1054,12 @@
             <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
               Kodi
             </button>
-            <button type="button" role="menuitem" title="Saving Kodi playlists is deferred." disabled>
+            <button
+              type="button"
+              role="menuitem"
+              title="Saving Kodi playlists is deferred."
+              disabled
+            >
               Save Kodi playlist
             </button>
           </div>
@@ -1086,13 +1101,23 @@
             >
               <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="Shuffle" title="Shuffle is deferred for package proof." disabled>
+            <button
+              type="button"
+              aria-label="Shuffle"
+              title="Shuffle is deferred for package proof."
+              disabled
+            >
               <span class="mdi mdi-av-shuffle" aria-hidden="true"></span>
             </button>
             <button type="button" aria-label="Fullscreen" onclick={toggleAppFullscreen}>
               <span class="mdi mdi-navigation-fullscreen" aria-hidden="true"></span>
             </button>
-            <button type="button" aria-label="More" title="More playback actions are deferred." disabled>
+            <button
+              type="button"
+              aria-label="More"
+              title="More playback actions are deferred."
+              disabled
+            >
               <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
             </button>
           </div>
