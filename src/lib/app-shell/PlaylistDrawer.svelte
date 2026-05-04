@@ -16,6 +16,8 @@
     drawerContent?: Snippet;
   }
 
+  const MENU_ID = 'c2-playlist-menu';
+
   const MENU_ACTION_LABELS: Record<AppShellPlaylistMenuAction, string> = {
     currentPlaylist: 'Current playlist',
     clear: 'Clear playlist',
@@ -31,20 +33,34 @@
     drawerContent
   }: Props = $props();
 
+  const DEFAULT_MENU_DISABLED_REASONS = {
+    currentPlaylist: 'Current playlist is already selected.',
+    clear: 'Clear playlist is deferred until a playlist action callback is supplied.',
+    refresh: 'Refresh playlist is deferred to playlist persistence work.',
+    partyMode: 'Party mode is deferred to Kodi playlist controls.',
+    saveKodiPlaylist: 'Saving Kodi playlists is deferred to durable playlist persistence.'
+  } satisfies Record<AppShellPlaylistMenuAction, string>;
+
   let localMenuOpen = $state(false);
   let localCollapsed = $state(false);
   let localDestinationMode = $state<AppShellPlaylistDestinationMode>('kodi');
   let localMediaMode = $state<AppShellPlaylistMediaMode>('audio');
 
   $effect(() => {
-    localMenuOpen = Boolean(drawer.menuOpen);
-    localCollapsed = Boolean(drawer.collapsed);
+    if (drawer.menuOpen !== undefined) {
+      localMenuOpen = Boolean(drawer.menuOpen);
+    }
+
+    if (drawer.collapsed !== undefined) {
+      localCollapsed = Boolean(drawer.collapsed);
+    }
+
     localDestinationMode = destination.mode === 'local' ? 'local' : 'kodi';
     localMediaMode = drawer.mediaMode ?? destination.mediaMode ?? 'audio';
   });
 
   const safeDrawerLabel = $derived(safeText(drawer.label, 'Current playlist'));
-  const menuDisabledReasons = $derived(drawer.menuDisabledReasons ?? {});
+  const menuDisabledReasons = $derived(normalizeMenuDisabledReasons(drawer.menuDisabledReasons));
   const destinationDisabledReasons = $derived(destination.disabledReasons ?? {});
 
   function invoke(action: (() => void | Promise<void>) | undefined): void {
@@ -63,6 +79,25 @@
 
   function safeText(value: unknown, fallback: string): string {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  function normalizeMenuDisabledReasons(
+    reasons: AppShellDrawerState['menuDisabledReasons']
+  ): Partial<Record<AppShellPlaylistMenuAction, string>> {
+    const normalized: Partial<Record<AppShellPlaylistMenuAction, string>> = {
+      ...DEFAULT_MENU_DISABLED_REASONS,
+      ...reasons,
+      currentPlaylist: reasons?.currentPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.currentPlaylist,
+      clear:
+        callbacks.onPlaylistMenuAction && reasons?.clear === undefined
+          ? undefined
+          : (reasons?.clear ?? DEFAULT_MENU_DISABLED_REASONS.clear),
+      refresh: reasons?.refresh ?? DEFAULT_MENU_DISABLED_REASONS.refresh,
+      partyMode: reasons?.partyMode ?? DEFAULT_MENU_DISABLED_REASONS.partyMode,
+      saveKodiPlaylist: reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist
+    };
+
+    return normalized;
   }
 
   function selectDestinationMode(mode: AppShellPlaylistDestinationMode): void {
@@ -103,7 +138,9 @@
     type="button"
     class:active={localDestinationMode === 'kodi'}
     aria-pressed={localDestinationMode === 'kodi'}
-    aria-label={localDestinationMode === 'kodi' ? 'Kodi playback destination selected' : 'Use Kodi playback destination'}
+    aria-label={localDestinationMode === 'kodi'
+      ? 'Kodi playback destination selected'
+      : 'Use Kodi playback destination'}
     title={destinationDisabledReasons.kodi}
     disabled={Boolean(destinationDisabledReasons.kodi)}
     onclick={() => selectDestinationMode('kodi')}
@@ -127,6 +164,7 @@
     aria-label="Playlist menu"
     aria-haspopup="menu"
     aria-expanded={localMenuOpen}
+    aria-controls={MENU_ID}
     onclick={toggleMenu}
   >
     <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
@@ -137,11 +175,19 @@
     aria-pressed={localCollapsed}
     onclick={toggleCollapsed}
   >
-    <span class="mdi mdi-hardware-keyboard-arrow-right" aria-hidden="true"></span>
+    <span
+      class="mdi mdi-hardware-keyboard-arrow-right c2-collapse-icon"
+      class:collapsed={localCollapsed}
+      aria-hidden="true"
+    ></span>
   </button>
 </div>
 
-<aside class="c2-playlist" aria-label={safeDrawerLabel} data-collapsed={localCollapsed ? 'true' : 'false'}>
+<aside
+  class="c2-playlist"
+  aria-label={safeDrawerLabel}
+  data-collapsed={localCollapsed ? 'true' : 'false'}
+>
   <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
     <button
       type="button"
@@ -162,7 +208,7 @@
   {#if drawerContent}
     {@render drawerContent()}
   {:else if localMenuOpen}
-    <div class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
+    <div id={MENU_ID} class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
       <button
         type="button"
         role="menuitem"
@@ -207,7 +253,8 @@
         aria-disabled={menuDisabledReasons.saveKodiPlaylist ? 'true' : undefined}
         title={menuDisabledReasons.saveKodiPlaylist}
         disabled={Boolean(menuDisabledReasons.saveKodiPlaylist)}
-        onclick={() => selectMenuAction('saveKodiPlaylist')}>{MENU_ACTION_LABELS.saveKodiPlaylist}</button
+        onclick={() => selectMenuAction('saveKodiPlaylist')}
+        >{MENU_ACTION_LABELS.saveKodiPlaylist}</button
       >
     </div>
   {/if}

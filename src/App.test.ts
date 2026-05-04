@@ -1660,7 +1660,16 @@ describe('App shell', () => {
     ['/settings/main-menu', ['Navigation settings', 'General options', 'Appearance'], []],
     [
       '/help',
-      ['About Chorus', 'Status report', 'What is Chorus?', 'Keyboard controls', 'Readme', 'Changelog', 'Translations', 'License'],
+      [
+        'About Chorus',
+        'Status report',
+        'What is Chorus?',
+        'Keyboard controls',
+        'Readme',
+        'Changelog',
+        'Translations',
+        'License'
+      ],
       []
     ],
     ['/help/overview', ['About Chorus', 'Status report', 'What is Chorus?'], []],
@@ -1678,7 +1687,11 @@ describe('App shell', () => {
     ],
     [
       '/settings/kodi/interface',
-      ['Kodi settings section', 'Deferred Kodi settings section', 'S06-owned Kodi settings behavior'],
+      [
+        'Kodi settings section',
+        'Deferred Kodi settings section',
+        'S06-owned Kodi settings behavior'
+      ],
       ['settings/kodi/interface', 'smb://', 'special://']
     ]
   ] as const)(
@@ -1938,12 +1951,20 @@ describe('App shell', () => {
     flushSync();
     expect(playlistMenuButton.getAttribute('aria-expanded')).toBe('true');
 
-    for (const label of ['Audio', 'Video', 'Party mode', 'Save Kodi playlist']) {
+    for (const label of ['Audio', 'Video']) {
       const button = requirePackageShellButtonByText(target, label);
       expect(button.disabled, `${label} enabled for drawer contract`).toBe(false);
     }
 
-    expect(requirePackageShellButtonByText(target, 'Clear playlist').disabled).toBe(false);
+    for (const label of [
+      'Current playlist',
+      'Clear playlist',
+      'Party mode',
+      'Save Kodi playlist'
+    ]) {
+      const button = requirePackageShellButtonByText(target, label);
+      expect(button.disabled, `${label} guarded until downstream playlist support`).toBe(true);
+    }
     expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'Shuffle')), 'Shuffle').toBe(
       true
     );

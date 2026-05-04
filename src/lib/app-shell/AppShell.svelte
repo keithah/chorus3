@@ -74,6 +74,23 @@
   const activeRouteKind = $derived(
     routeIdentity.kind === 'primary' ? routeIdentity.route.kind : routeIdentity.kind
   );
+  let localDrawerCollapsed = $state(false);
+
+  $effect(() => {
+    if (drawer.collapsed !== undefined) {
+      localDrawerCollapsed = Boolean(drawer.collapsed);
+    }
+  });
+
+  const isDrawerCollapsed = $derived(drawer.collapsed ?? localDrawerCollapsed);
+  const drawerLayoutState = $derived(isDrawerCollapsed ? 'collapsed' : 'expanded');
+  const shellCallbacks = $derived({
+    ...callbacks,
+    onPlaylistCollapseToggle: (collapsed: boolean) => {
+      localDrawerCollapsed = collapsed;
+      invoke(() => callbacks.onPlaylistCollapseToggle?.(collapsed));
+    }
+  });
 
   function invoke(action: (() => void | Promise<void>) | undefined): void {
     if (!action) {
@@ -138,9 +155,11 @@
 
 <div
   class="chorus-app"
+  class:playlist-collapsed={isDrawerCollapsed}
   aria-label="Chorus media controller"
   data-route-kind={activeRouteKind}
-  style={`--c2-stage-art-url: url('${stageArtUrl || chorusFanartUrl}'); --c2-thumb-url: url('${safePlayer.thumbnailUrl || chorusThumbnailUrl}')`}
+  data-playlist-layout={drawerLayoutState}
+  style={`--c2-stage-art-url: url('${stageArtUrl || chorusFanartUrl}'); --c2-thumb-url: url('${safePlayer.thumbnailUrl || chorusThumbnailUrl}'); --c2-playlist-width: ${isDrawerCollapsed ? '43px' : '300px'}; --c2-search-right: ${isDrawerCollapsed ? '43px' : '300px'}`}
 >
   <header class="c2-topbar" aria-label="Chorus header">
     <a class="c2-logo" href={logoHref} aria-label="Kodi home">
@@ -207,12 +226,7 @@
       {@render children?.()}
     </div>
   </main>
-  <PlaylistDrawer
-    {drawer}
-    {destination}
-    {callbacks}
-    {drawerContent}
-  />
+  <PlaylistDrawer {drawer} {destination} callbacks={shellCallbacks} {drawerContent} />
 
   {#if playerContent}
     {@render playerContent()}
@@ -430,7 +444,7 @@
   .c2-search {
     position: absolute;
     top: 0;
-    right: 300px;
+    right: var(--c2-search-right, 300px);
     display: grid;
     grid-template-columns: 42px 1fr;
     align-items: center;
@@ -655,7 +669,7 @@
   .c2-stage {
     position: absolute;
     top: 50px;
-    right: 300px;
+    right: var(--c2-playlist-width, 300px);
     bottom: 60px;
     left: 50px;
     overflow: auto;
@@ -686,8 +700,12 @@
     right: 0;
     bottom: 60px;
     z-index: 8;
-    width: 300px;
+    width: var(--c2-playlist-width, 300px);
+    overflow: hidden;
     background: var(--c2-playlist);
+    transition-property: width;
+    transition-duration: 140ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }
 
   :global(.c2-media-tabs) {
@@ -707,6 +725,21 @@
   :global(.c2-media-tabs button.active) {
     color: #fff;
     background: #4d5153;
+  }
+
+  :global(.c2-playlist[data-collapsed='true'] .c2-media-tabs),
+  :global(.c2-playlist[data-collapsed='true'] .c2-playlist-menu) {
+    display: none;
+  }
+
+  :global(.c2-collapse-icon) {
+    transition-property: transform;
+    transition-duration: 140ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  :global(.c2-collapse-icon.collapsed) {
+    transform: rotate(180deg);
   }
 
   :global(.c2-playlist-menu) {
