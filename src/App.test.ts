@@ -4,6 +4,8 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import PrimaryAppShell from './lib/app-shell/AppShell.svelte';
+import { createAppNavigationItems } from './lib/app-shell/appNavigation';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
 import {
   KODI_WEBINTERFACE_BASE_PATH,
@@ -1424,15 +1426,15 @@ function requirePlaceholderRoute(id: string): AppRoute {
 
 function shellRailTargets(): readonly (readonly [string, AppRoute])[] {
   return [
-    ['Music', { kind: 'dashboard' }],
-    ['Movies', { kind: 'video', route: { kind: 'videoMovies' } }],
-    ['TV shows', { kind: 'video', route: { kind: 'videoTvShows' } }],
-    ['Files', requirePlaceholderRoute('browser')],
-    ['Add-ons', { kind: 'addons' }],
-    ['Remote', { kind: 'remote' }],
-    ['Playlists', requirePlaceholderRoute('playlists')],
-    ['Settings', { kind: 'settings' }],
-    ['Help', requirePlaceholderRoute('help')]
+    ['Music', { kind: 'primary', route: { kind: 'music' } }],
+    ['Movies', { kind: 'primary', route: { kind: 'movies' } }],
+    ['TV shows', { kind: 'primary', route: { kind: 'tvshows' } }],
+    ['Browser', { kind: 'primary', route: { kind: 'browser' } }],
+    ['Add-ons', { kind: 'primary', route: { kind: 'addonsAll' } }],
+    ['Remote', { kind: 'primary', route: { kind: 'remote' } }],
+    ['Playlists', { kind: 'primary', route: { kind: 'playlists' } }],
+    ['Settings', { kind: 'primary', route: { kind: 'settingsWeb' } }],
+    ['Help', { kind: 'primary', route: { kind: 'help' } }]
   ] as const satisfies readonly (readonly [string, AppRoute])[];
 }
 
@@ -1547,6 +1549,83 @@ afterEach(() => {
 });
 
 describe('App shell', () => {
+  it('renders a neutral primary shell landmark for standalone and package roots', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    let target = renderApp({ route: { kind: 'dashboard' } });
+    let shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
+    expect(shell).toBeInstanceOf(HTMLElement);
+    expect(shell?.classList.contains('chorus-app')).toBe(true);
+    expect(requireRailLink(target, 'Music').getAttribute('href')).toBe(
+      buildAppRoute({ kind: 'primary', route: { kind: 'music' } })
+    );
+    expect(requireRailLink(target, 'Movies').getAttribute('href')).toBe(
+      buildAppRoute({ kind: 'primary', route: { kind: 'movies' } })
+    );
+
+    unmountCurrentApp();
+
+    target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost()
+    });
+    shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
+    expect(shell).toBeInstanceOf(HTMLElement);
+    expect(shell?.classList.contains('chorus-app')).toBe(true);
+    expect(requireRailLink(target, 'Music').getAttribute('href')).toBe(
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'music' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
+    );
+    expect(requireRailLink(target, 'Movies').getAttribute('href')).toBe(
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'movies' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
+    );
+  });
+
+  it('keeps the extracted primary shell safe with empty nav, disabled drawer/player defaults, and trailing package base', () => {
+    document.body.innerHTML = '<div id="app-test-root"></div>';
+    const target = document.getElementById('app-test-root');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mountedComponent = mount(PrimaryAppShell, {
+      target: target as HTMLElement,
+      props: {
+        navigationItems: [],
+        routeIdentity: { kind: 'unknown', label: 'fixture' },
+        stageLabel: '',
+        drawer: { label: '', mediaMode: 'audio', collapsed: false }
+      }
+    }) as Record<string, unknown>;
+    flushSync();
+
+    const shell = target?.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
+    expect(shell).toBeInstanceOf(HTMLElement);
+    expect(target?.querySelectorAll('aside[aria-label="Primary navigation"] a')).toHaveLength(0);
+    expect(requirePackageShellButtonByText(target as HTMLElement, 'Audio').disabled).toBe(true);
+    expect(requirePackageShellButtonByText(target as HTMLElement, 'Clear playlist').disabled).toBe(
+      true
+    );
+    expect(requirePackageShellButtonByAria(target as HTMLElement, 'Shuffle').disabled).toBe(true);
+
+    const packageItems = createAppNavigationItems({
+      packageBasePath: `${KODI_WEBINTERFACE_BASE_PATH}/`,
+      activeRoute: { kind: 'home' }
+    });
+
+    for (const item of packageItems) {
+      expect(item.href, `${item.title} package prefix`).toMatch(
+        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
+      );
+      expect(item.href, `${item.title} avoids doubled slashes`).not.toMatch(
+        /webinterface\.chorus3\/\//u
+      );
+    }
+  });
+
   it('uses an implicit local Kodi host and hides multi-host setup when package-mounted', async () => {
     const fetchMock = createKodiFetchMock();
     vi.stubGlobal('fetch', fetchMock);
@@ -1656,22 +1735,28 @@ describe('App shell', () => {
     });
 
     expect(requireRailLink(railTarget, 'Remote').getAttribute('href')).toBe(
-      buildAppRoute({ kind: 'remote' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'remote' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
     );
-    expect(requireRailLink(railTarget, 'Files').getAttribute('href')).toBe(
-      buildAppRoute(requirePlaceholderRoute('browser'), {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
-      })
+    expect(requireRailLink(railTarget, 'Browser').getAttribute('href')).toBe(
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'browser' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
     );
     expect(requireRailLink(railTarget, 'Playlists').getAttribute('href')).toBe(
-      buildAppRoute(requirePlaceholderRoute('playlists'), {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
-      })
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'playlists' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
     );
     expect(requireRailLink(railTarget, 'Help').getAttribute('href')).toBe(
-      buildAppRoute(requirePlaceholderRoute('help'), {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
-      })
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'help' } },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
+      )
     );
 
     unmountCurrentApp();
@@ -1717,20 +1802,20 @@ describe('App shell', () => {
     expect(
       Object.fromEntries(shellRailTargets().map(([title, route]) => [title, buildAppRoute(route)]))
     ).toEqual({
-      Music: '/',
-      Movies: '/video/movies',
-      'TV shows': '/video/tv',
-      Files: '/browser',
-      'Add-ons': '/addons',
+      Music: '/music',
+      Movies: '/movies',
+      'TV shows': '/tvshows',
+      Browser: '/browser',
+      'Add-ons': '/addons/all',
       Remote: '/remote',
       Playlists: '/playlists',
-      Settings: '/settings',
+      Settings: '/settings/web',
       Help: '/help'
     });
   });
 
   it('keeps package shell rail vertically reachable on short landscape viewports', () => {
-    const source = readFileSync('src/App.svelte', 'utf8');
+    const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
     const mediaStart = source.indexOf('@media (max-height: 420px)');
     const nextMediaStart = source.indexOf('@media', mediaStart + 1);
     const shortHeightRule =
