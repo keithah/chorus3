@@ -90,6 +90,32 @@ describe('app page metadata', () => {
     });
   });
 
+  test('classifies playlist routes as implemented local playlist surfaces', () => {
+    expect(getAppPageMetadata({ kind: 'playlists' })).toMatchObject({
+      routeKind: 'playlists',
+      surfaceKind: 'playlists',
+      status: 'implemented',
+      heading: 'Playlists',
+      stageLabel: 'Playlist library'
+    });
+    expect(
+      getAppPageMetadata({ kind: 'playlistDetail', playlistid: 'playlist-local_jazz' })
+    ).toMatchObject({
+      routeKind: 'playlistDetail',
+      surfaceKind: 'playlists',
+      status: 'implemented',
+      heading: 'Playlist details',
+      stageLabel: 'Playlist library'
+    });
+    expect(getAppPageMetadata({ kind: 'playlists' }).description).toContain(
+      'local browser playlists'
+    );
+    expect(
+      getAppPageMetadata({ kind: 'playlistDetail', playlistid: 'playlist-local_jazz' })
+        .deferredMessage
+    ).toBe('');
+  });
+
   test('keeps dynamic and malformed route labels generic without leaking route payloads', () => {
     const unsafeRoutes = [
       { kind: 'browserItem', media: 'music', itemid: 'smb://nas/passwords' },

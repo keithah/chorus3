@@ -1,19 +1,68 @@
 <script lang="ts">
+  import LocalPlaylistsPanel from '$components/LocalPlaylistsPanel.svelte';
   import MediaPlaylistsPanel, {
     type MediaPlaylistsActionDispatch,
     type MediaPlaylistsPanelDispatch
   } from '$components/MediaPlaylistsPanel.svelte';
+  import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { TranslationContext } from '$lib/i18n';
-  import type { MediaPlaylistsStoreSnapshot } from '$lib/stores';
+  import type {
+    LocalPlaylistDispatch,
+    LocalPlaylistSnapshot,
+    LocalPlaylistStoreSnapshot,
+    MediaPlaylistsStoreSnapshot
+  } from '$lib/stores';
 
   interface Props {
     snapshot: MediaPlaylistsStoreSnapshot;
     dispatch: MediaPlaylistsPanelDispatch;
     actionDispatch: MediaPlaylistsActionDispatch;
+    localPlaylistSnapshot: LocalPlaylistStoreSnapshot;
+    localPlaylistDispatch: LocalPlaylistDispatch;
     i18n: TranslationContext;
+    route?: PrimaryRoute;
   }
 
-  let { snapshot, dispatch, actionDispatch, i18n }: Props = $props();
+  let {
+    snapshot,
+    dispatch,
+    actionDispatch,
+    localPlaylistSnapshot,
+    localPlaylistDispatch,
+    i18n,
+    route = { kind: 'playlists' }
+  }: Props = $props();
+
+  const localRoutePlaylist = $derived(resolveRoutePlaylist(route, localPlaylistSnapshot));
+  const routeLocalSnapshot = $derived(
+    route.kind === 'playlistDetail'
+      ? withSelectedLocalPlaylist(localPlaylistSnapshot, localRoutePlaylist)
+      : localPlaylistSnapshot
+  );
+  const routeNotFound = $derived(route.kind === 'playlistDetail' && !localRoutePlaylist);
+
+  function resolveRoutePlaylist(
+    value: PrimaryRoute,
+    localSnapshot: LocalPlaylistStoreSnapshot
+  ): LocalPlaylistSnapshot | null {
+    if (value.kind !== 'playlistDetail') {
+      return null;
+    }
+
+    return localSnapshot.playlists.find((playlist) => playlist.id === value.playlistid) ?? null;
+  }
+
+  function withSelectedLocalPlaylist(
+    localSnapshot: LocalPlaylistStoreSnapshot,
+    selectedPlaylist: LocalPlaylistSnapshot | null
+  ): LocalPlaylistStoreSnapshot {
+    return {
+      ...localSnapshot,
+      selectedPlaylistId: selectedPlaylist?.id ?? null,
+      selectedPlaylist,
+      selectedItemCount: selectedPlaylist?.items.length ?? 0
+    };
+  }
 </script>
 
 <section class="app-page-section playlists-page" aria-labelledby="playlists-title">
@@ -21,28 +70,22 @@
     <p class="section-kicker">Playlist library</p>
     <h2 id="playlists-title">Playlist library</h2>
     <p>
-      Browse Kodi playlists with safe play and queue actions. Media playlists and local playlist
-      affordances stay app-native while creation remains guarded until persistence lands in the
-      playlist slice.
+      Manage local browser playlists with durable storage, then browse Kodi media playlists in a
+      separate panel. Local playlist diagnostics remain safe while Kodi playlist play and queue
+      actions stay scoped to Kodi media playlists.
     </p>
-    <button
-      type="button"
-      class="disabled-affordance"
-      disabled
-      aria-disabled="true"
-      title="Playlist creation is deferred until local playlist persistence is implemented."
-    >
-      New playlist
-    </button>
   </div>
 
-  {#if snapshot.playlists.length === 0}
+  {#if routeNotFound}
     <p class="safe-empty-copy" role="status">
-      No Kodi playlists are available in this snapshot. Local playlist creation is not persisted yet.
+      Local playlist not found. Choose an existing local playlist from the saved browser playlists.
     </p>
   {/if}
 
-  <MediaPlaylistsPanel {snapshot} {dispatch} {actionDispatch} {i18n} />
+  <div class="playlists-page__grid">
+    <LocalPlaylistsPanel snapshot={routeLocalSnapshot} dispatch={localPlaylistDispatch} />
+    <MediaPlaylistsPanel {snapshot} {dispatch} {actionDispatch} {i18n} />
+  </div>
 </section>
 
 <style>
@@ -51,13 +94,22 @@
     gap: var(--space-md);
   }
 
-  .app-page-section__header {
+  .app-page-section__header,
+  .playlists-page__grid {
     display: grid;
     gap: var(--space-sm);
+  }
+
+  .app-page-section__header {
     padding: var(--space-lg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background: var(--color-surface);
+  }
+
+  .playlists-page__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    align-items: start;
   }
 
   .app-page-section__header h2,
@@ -68,7 +120,7 @@
 
   .app-page-section__header p:not(.section-kicker),
   .safe-empty-copy {
-    max-width: 48rem;
+    max-width: 52rem;
     color: var(--color-text-muted);
     line-height: 1.6;
   }
@@ -80,14 +132,5 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-  }
-
-  .disabled-affordance {
-    justify-self: start;
-    border: 1px solid var(--color-border);
-    border-radius: 999px;
-    padding: 0.55rem 0.9rem;
-    color: var(--color-text-muted);
-    background: color-mix(in srgb, var(--color-surface) 82%, var(--color-border));
   }
 </style>

@@ -68,6 +68,7 @@
     connectionStore,
     hostConnectionStore,
     localPlayerStore,
+    localPlaylistStore,
     labApiBrowserStore,
     mediaFilesStore,
     mediaPlaylistsStore,
@@ -86,6 +87,8 @@
     type ActiveHostSummary,
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
+    type LocalPlaylistDispatch,
+    type LocalPlaylistStoreSnapshot,
     type LabApiBrowserStoreSnapshot,
     type MediaFilesStoreSnapshot,
     type MediaPlaylistsStoreSnapshot,
@@ -150,6 +153,8 @@
     remoteSnapshot?: RemoteInputDispatchSnapshot;
     remoteInputDispatch?: RemoteInputPanelRemoteDispatch;
     localPlayerSnapshot?: LocalPlayerStoreSnapshot;
+    localPlaylistSnapshot?: LocalPlaylistStoreSnapshot;
+    localPlaylistDispatch?: LocalPlaylistDispatch;
     queueSnapshot?: QueueStoreSnapshot;
     queueDispatch?: QueuePanelDispatch;
     musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
@@ -348,6 +353,8 @@
     remoteSnapshot,
     remoteInputDispatch = defaultRemoteInputDispatch,
     localPlayerSnapshot,
+    localPlaylistSnapshot,
+    localPlaylistDispatch = localPlaylistStore,
     queueSnapshot,
     queueDispatch = defaultQueueDispatch,
     musicLibrarySnapshot,
@@ -406,6 +413,9 @@
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentRemoteSnapshot = $derived(remoteSnapshot ?? remoteInputDispatch.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
+  const currentLocalPlaylistSnapshot = $derived(
+    localPlaylistSnapshot ?? localPlaylistStore.snapshot
+  );
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
   const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
   const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
@@ -1099,6 +1109,8 @@
       remoteSnapshot={currentRemoteSnapshot}
       {remoteInputDispatch}
       localPlayerSnapshot={currentLocalSnapshot}
+      localPlaylistSnapshot={currentLocalPlaylistSnapshot}
+      {localPlaylistDispatch}
       queueSnapshot={currentQueueSnapshot}
       {queueDispatch}
       musicLibrarySnapshot={currentMusicLibrarySnapshot}

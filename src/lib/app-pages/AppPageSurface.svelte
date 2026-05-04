@@ -55,6 +55,8 @@
   import type {
     AddonsStoreSnapshot,
     LocalPlayerStoreSnapshot,
+    LocalPlaylistDispatch,
+    LocalPlaylistStoreSnapshot,
     MediaFilesStoreSnapshot,
     MediaPlaylistsStoreSnapshot,
     MediaSearchStoreSnapshot,
@@ -102,6 +104,8 @@
     remoteSnapshot: RemoteInputDispatchSnapshot;
     remoteInputDispatch: RemoteInputPanelRemoteDispatch;
     localPlayerSnapshot: LocalPlayerStoreSnapshot;
+    localPlaylistSnapshot: LocalPlaylistStoreSnapshot;
+    localPlaylistDispatch: LocalPlaylistDispatch;
     queueSnapshot: QueueStoreSnapshot;
     queueDispatch: QueuePanelDispatch;
     musicLibrarySnapshot: MusicLibraryStoreSnapshot;
@@ -148,6 +152,8 @@
     remoteSnapshot,
     remoteInputDispatch,
     localPlayerSnapshot,
+    localPlaylistSnapshot,
+    localPlaylistDispatch,
     queueSnapshot,
     queueDispatch,
     musicLibrarySnapshot,
@@ -321,10 +327,21 @@
         snapshot={mediaPlaylistsSnapshot}
         dispatch={mediaPlaylistsDispatch}
         actionDispatch={mediaPlaylistsActionDispatch}
+        {localPlaylistSnapshot}
+        {localPlaylistDispatch}
+        {route}
         {i18n}
       />
     {:else if route.kind === 'playlistDetail'}
-      <DeferredPrimaryPage {route} {metadata} />
+      <PlaylistsPage
+        snapshot={mediaPlaylistsSnapshot}
+        dispatch={mediaPlaylistsDispatch}
+        actionDispatch={mediaPlaylistsActionDispatch}
+        {localPlaylistSnapshot}
+        {localPlaylistDispatch}
+        {route}
+        {i18n}
+      />
     {:else if route.kind === 'addonsAll' || route.kind === 'addonsVideo' || route.kind === 'addonsAudio' || route.kind === 'addonsExecutable'}
       <AddonsPage {route} snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} />
     {:else if route.kind === 'addonExecute'}
@@ -340,7 +357,9 @@
         <div class="remote-app-page__header">
           <p class="section-kicker">Remote control</p>
           <h2 id="remote-app-page-title">Remote control</h2>
-          <p>Directional pad and playback commands are wired to the existing Kodi remote input panel.</p>
+          <p>
+            Directional pad and playback commands are wired to the existing Kodi remote input panel.
+          </p>
         </div>
         <RemoteInputPanel
           {remoteSnapshot}

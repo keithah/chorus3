@@ -56,6 +56,7 @@ import {
   createConfigStore,
   hostConnectionStore,
   localPlayerStore,
+  localPlaylistStore,
   mediaPlaylistsStore,
   videoMediaPlaylistsStore,
   playerDispatch as defaultPlayerDispatch,
@@ -81,6 +82,8 @@ import {
   type QueueStoreSnapshot,
   type AddonsStoreSnapshot,
   type LabApiBrowserStoreSnapshot,
+  type LocalPlaylistDispatch,
+  type LocalPlaylistStoreSnapshot,
   type ActiveHostSummary
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
@@ -94,6 +97,8 @@ type AppProps = {
   remoteSnapshot?: RemoteInputDispatchSnapshot;
   remoteInputDispatch?: RemoteInputPanelRemoteDispatch;
   localPlayerSnapshot?: import('./lib/stores/localPlayer.svelte').LocalPlayerStoreSnapshot;
+  localPlaylistSnapshot?: LocalPlaylistStoreSnapshot;
+  localPlaylistDispatch?: LocalPlaylistDispatch;
   queueSnapshot?: QueueStoreSnapshot;
   queueDispatch?: QueuePanelDispatch;
   musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
@@ -1189,6 +1194,89 @@ function createLocalPlayerSnapshot(
   };
 }
 
+function createLocalPlaylistSnapshot(
+  overrides: Partial<LocalPlaylistStoreSnapshot> = {}
+): LocalPlaylistStoreSnapshot {
+  const playlists = overrides.playlists ?? [
+    {
+      id: 'playlist-local_jazz',
+      label: 'Browser Jazz',
+      createdAt: '2026-05-04T10:00:00.000Z',
+      updatedAt: '2026-05-04T10:05:00.000Z',
+      items: [
+        {
+          id: 'item-blue_green',
+          kind: 'audio',
+          label: 'Blue in Green',
+          position: 0,
+          durationSeconds: 337,
+          addedAt: '2026-05-04T10:01:00.000Z'
+        }
+      ]
+    }
+  ];
+  const selectedPlaylistId =
+    overrides.selectedPlaylistId === undefined
+      ? (playlists[0]?.id ?? null)
+      : overrides.selectedPlaylistId;
+  const selectedPlaylist =
+    overrides.selectedPlaylist === undefined
+      ? (playlists.find((playlist) => playlist.id === selectedPlaylistId) ?? null)
+      : overrides.selectedPlaylist;
+
+  return {
+    playlists,
+    selectedPlaylistId: selectedPlaylist?.id ?? null,
+    selectedPlaylist,
+    playlistCount: playlists.length,
+    selectedItemCount: selectedPlaylist?.items.length ?? 0,
+    mutationStatus: 'idle',
+    lastMutation: null,
+    validationErrors: {},
+    storageWarning: null,
+    lastError: null,
+    lastUpdatedAt: selectedPlaylist?.updatedAt ?? null,
+    ...overrides
+  };
+}
+
+function createLocalPlaylistDispatch(
+  overrides: Partial<LocalPlaylistDispatch> = {}
+): LocalPlaylistDispatch {
+  return {
+    createPlaylist: vi.fn(() => ({
+      ok: true as const,
+      playlist: createLocalPlaylistSnapshot().playlists[0]!
+    })),
+    renamePlaylist: vi.fn(() => ({
+      ok: true as const,
+      playlist: createLocalPlaylistSnapshot().playlists[0]!
+    })),
+    removePlaylist: vi.fn(() => ({ ok: true as const })),
+    selectPlaylist: vi.fn(() => ({
+      ok: true as const,
+      playlist: createLocalPlaylistSnapshot().playlists[0]!
+    })),
+    clearPlaylist: vi.fn(() => ({ ok: true as const })),
+    addItems: vi.fn(() => ({ ok: true as const, items: [] })),
+    removeItem: vi.fn(() => ({ ok: true as const })),
+    moveItem: vi.fn(() => ({ ok: true as const })),
+    reorderItems: vi.fn(() => ({ ok: true as const })),
+    reset: vi.fn(),
+    ...overrides
+  };
+}
+
+function getLocalPlaylistsPanel(target: HTMLElement): HTMLElement {
+  const panel = target.querySelector<HTMLElement>('[data-local-playlists-panel]');
+  expect(panel).toBeInstanceOf(HTMLElement);
+  return panel as HTMLElement;
+}
+
+function getLocalPlaylistsPanelText(target: HTMLElement): string {
+  return getLocalPlaylistsPanel(target).textContent ?? '';
+}
+
 function createActiveHostSummary(overrides: Partial<ActiveHostSummary> = {}): ActiveHostSummary {
   return {
     id: 'host-safe-room',
@@ -1578,6 +1666,7 @@ afterEach(() => {
 
   hostConnectionStore.destroy();
   localPlayerStore.stop();
+  localPlaylistStore.reset();
   configStore.reset();
   connectionStore.destroy();
   localeStore.setLocale('en');
@@ -1688,7 +1777,7 @@ describe('App shell', () => {
     ['/addons/video', ['Video add-ons', 'Installed add-ons'], []],
     ['/addons/audio', ['Audio add-ons', 'Installed add-ons'], []],
     ['/addons/executable', ['Executable add-ons', 'Installed add-ons'], []],
-    ['/playlists', ['Playlist library', 'New playlist', 'Media playlists'], []],
+    ['/playlists', ['Playlist library', 'Local Playlists', 'Media Playlists'], []],
     ['/settings/web', ['Web interface settings', 'General options', 'Appearance'], []],
     ['/settings/kodi', ['Kodi settings', 'General options', 'Appearance'], []],
     ['/settings/main-menu', ['Navigation settings', 'General options', 'Appearance'], []],
@@ -1716,7 +1805,7 @@ describe('App shell', () => {
     ],
     [
       '/playlists/music',
-      ['Playlist details', 'Deferred playlist detail', 'S05-owned playlist editing'],
+      ['Playlist details', 'Local playlist not found', 'Local Playlists'],
       ['playlists/music', 'smb://', 'special://']
     ],
     [
@@ -1767,6 +1856,86 @@ describe('App shell', () => {
       }
     }
   );
+
+  it('wires local playlists into /playlists while keeping Kodi media playlists separate', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const target = renderApp({
+      route: { kind: 'primary', route: { kind: 'playlists' } },
+      localPlaylistSnapshot: createLocalPlaylistSnapshot({
+        storageWarning: {
+          code: 'write-failed',
+          message: 'Local playlists could not be written. Changes are kept in memory only.'
+        }
+      }),
+      localPlaylistDispatch: createLocalPlaylistDispatch(),
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch()
+    });
+
+    const surface = requireAppPageSurface(target, 'playlists', 'playlists');
+    const localText = getLocalPlaylistsPanelText(target);
+    const kodiText = getMediaPlaylistsPanelText(target);
+
+    expect(surface.dataset.appPageStatus).toBe('implemented');
+    expect(
+      Array.from(target.querySelectorAll('button')).some(
+        (button) => button.textContent?.trim() === 'New playlist'
+      )
+    ).toBe(false);
+    expect(target.textContent).not.toContain('creation remains guarded');
+    expect(localText).toContain('Local Playlists');
+    expect(localText).toContain('Browser Jazz');
+    expect(localText).toContain('Blue in Green');
+    expect(localText).toContain('Local playlists could not be written');
+    expect(kodiText).toContain('Media Playlists');
+    expect(kodiText).toContain('Late Night Jazz.xsp');
+  });
+
+  it('renders local playlist detail through the real local playlist surface without leaking unmatched route ids', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const localPlaylistSnapshot = createLocalPlaylistSnapshot();
+
+    let target = renderApp({
+      route: {
+        kind: 'primary',
+        route: { kind: 'playlistDetail', playlistid: 'playlist-local_jazz' }
+      },
+      localPlaylistSnapshot,
+      localPlaylistDispatch: createLocalPlaylistDispatch(),
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch()
+    });
+
+    expect(requireAppPageSurface(target, 'playlistDetail', 'playlists').dataset.appPageStatus).toBe(
+      'implemented'
+    );
+    expect(target.querySelector('.deferred-primary-page')).toBeNull();
+    expect(getLocalPlaylistsPanelText(target)).toContain('Browser Jazz selected with 1 item.');
+    expect(getLocalPlaylistsPanelText(target)).toContain('Blue in Green');
+
+    unmountCurrentApp();
+
+    target = renderApp({
+      route: {
+        kind: 'primary',
+        route: { kind: 'playlistDetail', playlistid: 'missing-safe-id' }
+      },
+      localPlaylistSnapshot,
+      localPlaylistDispatch: createLocalPlaylistDispatch(),
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch()
+    });
+
+    const text = target.textContent ?? '';
+    expect(getLocalPlaylistsPanel(target)).toBeInstanceOf(HTMLElement);
+    expect(text).toContain('Local playlist not found');
+    expect(text).not.toContain('missing-safe-id');
+    expect(text).not.toContain('smb://');
+    expect(text).not.toContain('special://');
+  });
 
   it('keeps primary shell modules store-agnostic and panel-free after app page extraction', () => {
     for (const file of [

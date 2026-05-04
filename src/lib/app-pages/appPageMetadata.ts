@@ -62,12 +62,12 @@ const APP_PAGE_METADATA_BY_KIND = {
   addonsAudio: staticSurface('addons', 'Audio add-ons', 'Add-on catalog', 'Static route'),
   addonsExecutable: staticSurface('addons', 'Executable add-ons', 'Add-on catalog', 'Static route'),
   addonExecute: deferred('addons', 'Execute add-on', 'Add-on catalog', 'Deferred action route'),
-  playlists: staticSurface('playlists', 'Playlists', 'Playlist library', 'Static route'),
-  playlistDetail: deferred(
+  playlists: implemented('playlists', 'Playlists', 'Playlist library', 'Local playlists'),
+  playlistDetail: implemented(
     'playlists',
     'Playlist details',
     'Playlist library',
-    'Deferred detail surface'
+    'Local playlist detail'
   ),
   settingsWeb: staticSurface('settings', 'Web interface settings', 'Settings', 'Static route'),
   settingsKodi: staticSurface('settings', 'Kodi settings', 'Settings', 'Static route'),
@@ -145,7 +145,11 @@ function appPageDescription(route: PrimaryRoute): string {
   }
 
   if (route.kind === 'playlists') {
-    return 'Browse media playlists in an app-native frame while fuller playlist parity remains deferred.';
+    return 'Manage local browser playlists with durable storage while browsing Kodi media playlists separately.';
+  }
+
+  if (route.kind === 'playlistDetail') {
+    return 'Manage one local browser playlist through the primary app shell without exposing route ids or stored media paths.';
   }
 
   return 'This supported primary route is wired to an app-native shell frame; fuller behavior can land without changing the route boundary.';
@@ -158,7 +162,6 @@ function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): str
 
   if (
     route.kind === 'browserItem' ||
-    route.kind === 'playlistDetail' ||
     route.kind === 'settingsKodiSection' ||
     route.kind === 'helpPage' ||
     route.kind === 'addonExecute'
