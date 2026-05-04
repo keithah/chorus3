@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute } from '../src/lib/app/appRouter';
+import {
+  KODI_WEBINTERFACE_BASE_PATH,
+  buildPrimaryAppRoute,
+  parseAppRoute
+} from '../src/lib/app/appRouter';
 import {
   DEFAULT_DOC_PATH,
   DEFAULT_PACKAGE_ROOT,
@@ -358,11 +362,11 @@ describe('Kodi package structural verification', () => {
       '[now-playing] webinterface.chorus3/now-playing/index.html is missing from zip'
     );
     expect(result.lines.join('\n')).toContain(
-      '[route] /addons/webinterface.chorus3/now-playing must resolve to nowPlaying'
+      '[route] now-playing-package /addons/webinterface.chorus3/now-playing must resolve to nowPlaying; got addonDetail.'
     );
   });
 
-  it('validates real app route support for packaged shell routes and placeholder identities', () => {
+  it('validates real app route support for standalone and packaged primary routes plus aliases', () => {
     const result = validatePackageRouteSupport({
       addonId: DEFAULT_PACKAGE_ROOT,
       parsePackageRoute: (path, packageBasePath) => parseAppRoute(path, '', { packageBasePath })
@@ -372,26 +376,31 @@ describe('Kodi package structural verification', () => {
     expect(result.ok).toBe(true);
     expect(result.lines).toEqual(
       expect.arrayContaining([
-        '[route] /addons/webinterface.chorus3/ resolves to primary/home.',
-        '[route] /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
-        '[route] /addons/webinterface.chorus3/video/tv resolves to video/videoTvShows.',
-        '[route] /addons/webinterface.chorus3/browser resolves to primary/browser.',
-        '[route] /addons/webinterface.chorus3/addons resolves to addons.',
-        '[route] /addons/webinterface.chorus3/remote resolves to primary/remote.',
-        '[route] /addons/webinterface.chorus3/playlists resolves to primary/playlists.',
-        '[route] /addons/webinterface.chorus3/settings resolves to settings.',
-        '[route] /addons/webinterface.chorus3/help resolves to primary/help.',
-        '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
+        '[route] primary-home-root / resolves to primary/home.',
+        '[route] primary-home-package /addons/webinterface.chorus3 resolves to primary/home.',
+        '[route] primary-music-package /addons/webinterface.chorus3/music resolves to primary/music.',
+        '[route] primary-movies-package /addons/webinterface.chorus3/movies resolves to primary/movies.',
+        '[route] primary-browser-package /addons/webinterface.chorus3/browser resolves to primary/browser.',
+        '[route] primary-files-alias-package /addons/webinterface.chorus3/files resolves to chorus2Placeholder/files.',
+        '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
+        '[route] now-playing-package /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
       ])
     );
+
+    expect(buildPrimaryAppRoute({ kind: 'browser' })).toBe('/browser');
+    expect(buildPrimaryAppRoute({ kind: 'browser' })).not.toBe('/lab/api-browser');
   });
 
-  it('names expected nested route identity when a packaged shell route resolves incorrectly', () => {
+  it('names route-specific expected and actual identities when a packaged route resolves incorrectly', () => {
     const result = validatePackageRouteSupport({
       addonId: DEFAULT_PACKAGE_ROOT,
       parsePackageRoute: (path, packageBasePath) => {
         if (path === `${packageBasePath}/playlists`) {
           return { kind: 'primary', route: { kind: 'help' } };
+        }
+
+        if (path === `${packageBasePath}/browser`) {
+          return { kind: 'labApiBrowser' };
         }
 
         return parseAppRoute(path, '', { packageBasePath });
@@ -400,8 +409,53 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route] /addons/webinterface.chorus3/playlists must resolve to primary/playlists.'
+      '[route] primary-playlists-package /addons/webinterface.chorus3/playlists must resolve to primary/playlists; got primary/help.'
     );
+    expect(result.lines.join('\n')).toContain(
+      '[route] primary-browser-package /addons/webinterface.chorus3/browser must resolve to primary/browser; got labApiBrowser.'
+    );
+  });
+
+  it('treats route parser exceptions as route-specific verifier failures', () => {
+    const result = validatePackageRouteSupport({
+      addonId: DEFAULT_PACKAGE_ROOT,
+      parsePackageRoute: (path, packageBasePath) => {
+        if (path === `${packageBasePath}/files`) {
+          throw new Error('boom with token=secret-value');
+        }
+
+        return parseAppRoute(path, '', { packageBasePath });
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route] primary-files-alias-package /addons/webinterface.chorus3/files failed to parse.'
+    );
+    expect(result.lines.join('\n')).not.toContain('secret-value');
+  });
+
+  it('rejects setup-console fallback strings and lab-api Browser/Files targets in staged bundles', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]: [
+          'const primaryShellFallback = "Multi-host console";',
+          'const browserHref = "/lab/api-browser";',
+          'const secret = "token=secret-value";'
+        ].join('\n')
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-shell] primary shell bundle must not include setup-console fallback copy.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[bundle-shell] Browser/Files primary targets must not point at /lab/api-browser.'
+    );
+    expect(result.lines.join('\n')).not.toContain('secret-value');
   });
 });
 

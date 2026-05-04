@@ -67,6 +67,26 @@ const KODI_WEBINTERFACE_MARKER_PATTERN =
   /<meta\s+[^>]*name=(['"])chorus3:kodi-webinterface\1[^>]*content=(['"])webinterface\.chorus3\2/i;
 const CREDENTIAL_DOC_PATTERN =
   /(?:\b(?:username|password|token)=|:\/\/[^\s/@]+:[^\s/@]+@|\bAuthorization\b|\bBasic\s+)/i;
+const SETUP_CONSOLE_FALLBACK_PATTERN =
+  /\b(?:primaryShellFallback|primaryRouteFallback|wrongShellFallback)\b\s*=\s*['"](?:Multi-host console|Save trusted Kodi endpoints)['"]/i;
+const BROWSER_FILES_LAB_API_TARGET_PATTERN = /\b(?:browser|files)[\w$.-]{0,32}\s*=\s*['"]\/lab\/api-browser['"]/i;
+const PRIMARY_ROUTE_CHECKS = [
+  { name: 'primary-home-root', path: '/', expected: { kind: 'primary', routeKind: 'home' } },
+  { name: 'primary-home-alias-root', path: '/home', expected: { kind: 'primary', routeKind: 'home' } },
+  { name: 'primary-music-root', path: '/music', expected: { kind: 'primary', routeKind: 'music' } },
+  { name: 'primary-movies-root', path: '/movies', expected: { kind: 'primary', routeKind: 'movies' } },
+  { name: 'primary-tvshows-root', path: '/tvshows', expected: { kind: 'primary', routeKind: 'tvshows' } },
+  { name: 'primary-browser-root', path: '/browser', expected: { kind: 'primary', routeKind: 'browser' } },
+  { name: 'primary-files-alias-root', path: '/files', expected: { kind: 'chorus2Placeholder', placeholderId: 'files' } },
+  { name: 'primary-addons-root', path: '/addons/all', expected: { kind: 'primary', routeKind: 'addonsAll' } },
+  { name: 'primary-remote-root', path: '/remote', expected: { kind: 'primary', routeKind: 'remote' } },
+  { name: 'primary-playlists-root', path: '/playlists', expected: { kind: 'primary', routeKind: 'playlists' } },
+  { name: 'primary-settings-root', path: '/settings/web', expected: { kind: 'primary', routeKind: 'settingsWeb' } },
+  { name: 'primary-help-root', path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
+  { name: 'legacy-video-movies-root', path: '/video/movies', expected: { kind: 'video', routeKind: 'videoMovies' } },
+  { name: 'legacy-video-tv-root', path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
+  { name: 'now-playing-root', path: '/now-playing', expected: { kind: 'nowPlaying' } }
+];
 
 export async function runKodiPackageVerification({
   root = cwd(),
@@ -111,7 +131,7 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
   lines.push(...validateKodiPackageDocs({ root }).lines);
 
   const ok = !lines.some((line) =>
-    /^\[(?:metadata|manifest|html-assets|bundle-assets|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
+    /^\[(?:metadata|manifest|html-assets|bundle-assets|bundle-shell|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
       line
     )
   );
@@ -179,37 +199,35 @@ export function validatePackageRouteSupport({
   parsePackageRoute
 } = {}) {
   const packageBasePath = `/addons/${addonId}`;
-  const routeChecks = [
-    { path: '/', expected: { kind: 'primary', routeKind: 'home' } },
-    { path: '/video/movies', expected: { kind: 'video', routeKind: 'videoMovies' } },
-    { path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
-    { path: '/browser', expected: { kind: 'primary', routeKind: 'browser' } },
-    { path: '/addons', expected: { kind: 'addons' } },
-    { path: '/remote', expected: { kind: 'primary', routeKind: 'remote' } },
-    { path: '/playlists', expected: { kind: 'primary', routeKind: 'playlists' } },
-    { path: '/settings', expected: { kind: 'settings' } },
-    { path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
-    { path: '/now-playing', expected: { kind: 'nowPlaying' } }
-  ];
   const lines = [];
 
-  for (const check of routeChecks) {
-    const mountedPath = `${packageBasePath}${check.path}`;
-    const route = parsePackageRoute
-      ? parsePackageRoute(mountedPath, packageBasePath)
-      : defaultPackageRouteParser(mountedPath, packageBasePath);
-    const expectedLabel = formatExpectedRouteIdentity(check.expected);
+  for (const check of expandPrimaryRouteChecks(packageBasePath)) {
+    let route;
 
-    if (!routeMatchesExpectedDescriptor(route, check.expected)) {
-      lines.push(`[route] ${mountedPath} must resolve to ${expectedLabel}.`);
+    try {
+      route = parsePackageRoute
+        ? parsePackageRoute(check.path, check.packageBasePath)
+        : defaultPackageRouteParser(check.path, check.packageBasePath);
+    } catch {
+      lines.push(`[route] ${check.name} ${check.path} failed to parse.`);
       continue;
     }
 
-    lines.push(`[route] ${mountedPath} resolves to ${expectedLabel}.`);
+    const expectedLabel = formatExpectedRouteIdentity(check.expected);
+    const actualLabel = formatActualRouteIdentity(route);
+
+    if (!routeMatchesExpectedDescriptor(route, check.expected)) {
+      lines.push(
+        `[route] ${check.name} ${check.path} must resolve to ${expectedLabel}; got ${actualLabel}.`
+      );
+      continue;
+    }
+
+    lines.push(`[route] ${check.name} ${check.path} resolves to ${expectedLabel}.`);
   }
 
   return {
-    ok: lines.every((line) => !line.includes(' must ')),
+    ok: lines.every((line) => !line.includes(' must ') && !line.includes(' failed ')),
     lines
   };
 }
@@ -358,6 +376,14 @@ function validateStagedBundleAssetReferences({ root, addonId, lines }) {
     const contents = readFileSync(file, 'utf8');
     const escapingRoots = findPackageEscapingAssetRoots(contents);
 
+    if (SETUP_CONSOLE_FALLBACK_PATTERN.test(contents)) {
+      lines.push('[bundle-shell] primary shell bundle must not include setup-console fallback copy.');
+    }
+
+    if (BROWSER_FILES_LAB_API_TARGET_PATTERN.test(contents)) {
+      lines.push('[bundle-shell] Browser/Files primary targets must not point at /lab/api-browser.');
+    }
+
     for (const rootName of escapingRoots) {
       lines.push(
         `[${phase}] ${relativePath} must not reference root-absolute /${rootName} package-escaping assets.`
@@ -400,6 +426,25 @@ function findPackageEscapingAssetRoots(contents) {
   }
 
   return [...roots];
+}
+
+function expandPrimaryRouteChecks(packageBasePath) {
+  const checks = [];
+
+  for (const check of PRIMARY_ROUTE_CHECKS) {
+    checks.push({ ...check, packageBasePath: '', path: check.path });
+
+    const packagePath =
+      check.path === '/' ? packageBasePath : `${packageBasePath}${check.path}`;
+    checks.push({
+      ...check,
+      name: check.name.replace(/-root$/u, '-package'),
+      packageBasePath,
+      path: packagePath
+    });
+  }
+
+  return checks;
 }
 
 function validateArchiveEntries({ entries, addonId, lines }) {
@@ -512,31 +557,44 @@ function defaultPackageRouteParser(path, packageBasePath) {
   const normalizedBase = normalizePath(packageBasePath);
   const normalizedPath = normalizePath(path);
   const stripped =
-    normalizedPath === normalizedBase ? '/' : normalizedPath.slice(normalizedBase.length);
+    normalizedBase && normalizedPath === normalizedBase
+      ? '/'
+      : normalizedBase && normalizedPath.startsWith(`${normalizedBase}/`)
+        ? normalizedPath.slice(normalizedBase.length)
+        : normalizedPath;
 
   switch (stripped) {
     case '/':
+    case '/home':
       return { kind: 'primary', route: { kind: 'home' } };
-    case '/video/movies':
-      return { kind: 'video', route: { kind: 'videoMovies' } };
-    case '/video/tv':
-      return { kind: 'video', route: { kind: 'videoTvShows' } };
+    case '/music':
+      return { kind: 'primary', route: { kind: 'music' } };
+    case '/movies':
+      return { kind: 'primary', route: { kind: 'movies' } };
+    case '/tvshows':
+      return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/browser':
       return { kind: 'primary', route: { kind: 'browser' } };
-    case '/addons':
-      return { kind: 'addons' };
+    case '/files':
+      return { kind: 'chorus2Placeholder', placeholder: { id: 'files' } };
+    case '/addons/all':
+      return { kind: 'primary', route: { kind: 'addonsAll' } };
     case '/remote':
       return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':
       return { kind: 'primary', route: { kind: 'playlists' } };
-    case '/settings':
-      return { kind: 'settings' };
+    case '/settings/web':
+      return { kind: 'primary', route: { kind: 'settingsWeb' } };
     case '/help':
       return { kind: 'primary', route: { kind: 'help' } };
+    case '/video/movies':
+      return { kind: 'video', route: { kind: 'videoMovies' } };
+    case '/video/tv':
+      return { kind: 'video', route: { kind: 'videoTvShows' } };
     case '/now-playing':
       return { kind: 'nowPlaying' };
     default:
-      return { kind: 'dashboard' };
+      return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
   }
 }
 
@@ -572,6 +630,26 @@ function formatExpectedRouteIdentity(expected) {
   }
 
   return expected.kind;
+}
+
+function formatActualRouteIdentity(route) {
+  if (!route || typeof route !== 'object') {
+    return 'invalid';
+  }
+
+  if (route.kind === 'primary' && route.route && typeof route.route === 'object') {
+    return `primary/${route.route.kind || 'unknown'}`;
+  }
+
+  if (route.kind === 'video' && route.route && typeof route.route === 'object') {
+    return `video/${route.route.kind || 'unknown'}`;
+  }
+
+  if (route.kind === 'chorus2Placeholder' && route.placeholder && typeof route.placeholder === 'object') {
+    return `chorus2Placeholder/${route.placeholder.id || 'unknown'}`;
+  }
+
+  return typeof route.kind === 'string' ? route.kind : 'invalid';
 }
 
 function getExtension(path) {
