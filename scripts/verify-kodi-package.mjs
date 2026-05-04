@@ -105,6 +105,11 @@ const PRIMARY_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'addonsAll' }
   },
   {
+    name: 'primary-addon-detail-root',
+    path: '/addons/plugin.video.safe-demo',
+    expected: { kind: 'primary', routeKind: 'addonDetail' }
+  },
+  {
     name: 'primary-remote-root',
     path: '/remote',
     expected: { kind: 'primary', routeKind: 'remote' }
@@ -685,6 +690,8 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'addonsAudio' } };
     case '/addons/executable':
       return { kind: 'primary', route: { kind: 'addonsExecutable' } };
+    case '/addons/plugin.video.safe-demo':
+      return { kind: 'primary', route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' } };
     case '/remote':
       return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':

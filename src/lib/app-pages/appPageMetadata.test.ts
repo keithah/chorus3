@@ -31,6 +31,7 @@ const S03_ROUTE_KIND_CASES = [
   ['addonsVideo', { kind: 'addonsVideo' }],
   ['addonsAudio', { kind: 'addonsAudio' }],
   ['addonsExecutable', { kind: 'addonsExecutable' }],
+  ['addonDetail', { kind: 'addonDetail', addonid: 'plugin.video.demo' }],
   ['addonExecute', { kind: 'addonExecute', addonid: 'plugin.video.demo' }],
   ['playlists', { kind: 'playlists' }],
   ['playlistDetail', { kind: 'playlistDetail', playlistid: 'local' }],
@@ -90,6 +91,22 @@ describe('app page metadata', () => {
     });
   });
 
+  test('classifies add-on detail as a safe generic static add-on surface', () => {
+    const metadata = getAppPageMetadata({
+      kind: 'addonDetail',
+      addonid: 'plugin.video.demo?token=CHORUS3_SENTINEL_SECRET'
+    });
+
+    expect(metadata).toMatchObject({
+      routeKind: 'addonDetail',
+      surfaceKind: 'addons',
+      status: 'static',
+      heading: 'Add-on details',
+      stageLabel: 'Add-on catalog'
+    });
+    expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
+  });
+
   test('classifies playlist routes as implemented local playlist surfaces', () => {
     expect(getAppPageMetadata({ kind: 'playlists' })).toMatchObject({
       routeKind: 'playlists',
@@ -119,6 +136,7 @@ describe('app page metadata', () => {
   test('keeps dynamic and malformed route labels generic without leaking route payloads', () => {
     const unsafeRoutes = [
       { kind: 'browserItem', media: 'music', itemid: 'smb://nas/passwords' },
+      { kind: 'addonDetail', addonid: 'plugin.video.demo?token=CHORUS3_SENTINEL_SECRET' },
       { kind: 'addonExecute', addonid: 'plugin.video.demo?token=CHORUS3_SENTINEL_SECRET' },
       { kind: 'settingsKodiSection', section: 'Authorization' },
       { kind: 'helpPage', pageid: 'localStorage' },

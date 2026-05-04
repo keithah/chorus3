@@ -932,7 +932,11 @@
   }
 
   function currentAddonId(): string | null {
-    return currentRoute.kind === 'addonDetail' ? currentRoute.addonid : null;
+    if (currentRoute.kind === 'addonDetail') {
+      return currentRoute.addonid;
+    }
+
+    return currentPrimaryRoute?.kind === 'addonDetail' ? currentPrimaryRoute.addonid : null;
   }
 
   async function loadCurrentAddonDetail(): Promise<void> {
@@ -1270,6 +1274,7 @@
       {settingsDispatch}
       addonsSnapshot={currentAddonsSnapshot}
       {addonsDispatch}
+      {addonDetailDispatch}
       {videoMovieDetailSnapshot}
       {videoMovieActionDispatch}
       videoTvSnapshot={currentVideoTvSnapshot}

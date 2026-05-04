@@ -32,7 +32,7 @@ describe('createM005BrowserProofAppProps', () => {
     expect(snapshot).toBeDefined();
     if (!snapshot) throw new Error('Expected settings fixture snapshot.');
 
-    expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.route).toEqual({ kind: 'primary', route: { kind: 'settingsWeb' } });
     expect(props.localeSnapshot).toBeUndefined();
     expect(snapshot).toMatchObject({
       loadStatus: 'success',
@@ -86,7 +86,7 @@ describe('createM005BrowserProofAppProps', () => {
       search: '?m005-browser-proof=1&locale=de'
     });
 
-    expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.route).toEqual({ kind: 'primary', route: { kind: 'settingsWeb' } });
     expect(props.localeSnapshot).toEqual({ locale: 'de' });
     expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
   });
@@ -97,7 +97,7 @@ describe('createM005BrowserProofAppProps', () => {
       search: '?m005-browser-proof=1&locale=de<script>&locale=en'
     });
 
-    expect(props.route).toEqual({ kind: 'settings' });
+    expect(props.route).toEqual({ kind: 'primary', route: { kind: 'settingsWeb' } });
     expect(props.localeSnapshot).toBeUndefined();
     expect(JSON.stringify(props)).not.toContain('de<script>');
     expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
@@ -113,7 +113,7 @@ describe('createM005BrowserProofAppProps', () => {
       search: '?m005-browser-proof=1'
     });
 
-    expect(listProps.route).toEqual({ kind: 'addons' });
+    expect(listProps.route).toEqual({ kind: 'primary', route: { kind: 'addonsAll' } });
     expect(listProps.addonsSnapshot).toMatchObject({
       loadStatus: 'success',
       detailStatus: 'idle',
@@ -134,7 +134,10 @@ describe('createM005BrowserProofAppProps', () => {
       'xbmc.addon.audio'
     ]);
 
-    expect(detailProps.route).toEqual({ kind: 'addonDetail', addonid: 'plugin.video.safe-demo' });
+    expect(detailProps.route).toEqual({
+      kind: 'primary',
+      route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }
+    });
     expect(detailProps.addonsSnapshot).toMatchObject({
       loadStatus: 'success',
       detailStatus: 'success',

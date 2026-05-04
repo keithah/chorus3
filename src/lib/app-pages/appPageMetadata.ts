@@ -61,6 +61,7 @@ const APP_PAGE_METADATA_BY_KIND = {
   addonsVideo: staticSurface('addons', 'Video add-ons', 'Add-on catalog', 'Static route'),
   addonsAudio: staticSurface('addons', 'Audio add-ons', 'Add-on catalog', 'Static route'),
   addonsExecutable: staticSurface('addons', 'Executable add-ons', 'Add-on catalog', 'Static route'),
+  addonDetail: staticSurface('addons', 'Add-on details', 'Add-on catalog', 'Detail surface'),
   addonExecute: deferred('addons', 'Execute add-on', 'Add-on catalog', 'Deferred action route'),
   playlists: implemented('playlists', 'Playlists', 'Playlist library', 'Local playlists'),
   playlistDetail: implemented(
@@ -134,6 +135,10 @@ function appPageDescription(route: PrimaryRoute): string {
 
   if (route.kind === 'addonsAll') {
     return 'Inspect installed add-ons and write-state diagnostics inside the primary app shell.';
+  }
+
+  if (route.kind === 'addonDetail') {
+    return 'Inspect one installed add-on inside the primary app shell without exposing the add-on identifier in route metadata.';
   }
 
   if (route.kind === 'settingsWeb') {

@@ -69,7 +69,7 @@ export function createM005BrowserProofAppProps(
   const route = parseAppRoute(readPathname(location), readSearch(location));
   const localeSnapshot = createLocaleSnapshot(location);
 
-  if (route.kind === 'settings') {
+  if (isSettingsFixtureRoute(route)) {
     return {
       route,
       settingsSnapshot: createSettingsSnapshot(),
@@ -78,7 +78,7 @@ export function createM005BrowserProofAppProps(
     };
   }
 
-  if (route.kind === 'addons') {
+  if (isAddonsListFixtureRoute(route)) {
     return {
       route,
       addonsSnapshot: createAddonsListSnapshot(),
@@ -86,7 +86,7 @@ export function createM005BrowserProofAppProps(
     };
   }
 
-  if (route.kind === 'addonDetail' && route.addonid === 'plugin.video.safe-demo') {
+  if (isAddonDetailFixtureRoute(route, 'plugin.video.safe-demo')) {
     return {
       route,
       addonsSnapshot: createAddonDetailSnapshot(),
@@ -122,6 +122,23 @@ export function createM005BrowserProofAppProps(
   }
 
   return { route };
+}
+
+function isSettingsFixtureRoute(route: AppRoute): boolean {
+  return route.kind === 'settings' || (route.kind === 'primary' && route.route.kind === 'settingsWeb');
+}
+
+function isAddonsListFixtureRoute(route: AppRoute): boolean {
+  return route.kind === 'addons' || (route.kind === 'primary' && route.route.kind === 'addonsAll');
+}
+
+function isAddonDetailFixtureRoute(route: AppRoute, addonid: string): boolean {
+  return (
+    (route.kind === 'addonDetail' && route.addonid === addonid) ||
+    (route.kind === 'primary' &&
+      route.route.kind === 'addonDetail' &&
+      route.route.addonid === addonid)
+  );
 }
 
 export function isM005BrowserProofFixtureSecretSafe(value: unknown): boolean {

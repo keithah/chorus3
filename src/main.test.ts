@@ -40,7 +40,8 @@ describe('main entrypoint', () => {
     expect(
       resolveEntrypointRoute({ pathname: '/addons/webinterface.chorus3', search: '' })
     ).toEqual({
-      kind: 'dashboard'
+      kind: 'primary',
+      route: { kind: 'home' }
     });
     expect(
       resolveEntrypointRoute({
@@ -64,21 +65,20 @@ describe('main entrypoint', () => {
         pathname: '/addons/webinterface.chorus3/remote',
         search: '?endpoint=http://user:pass@example/jsonrpc&token=Basic'
       })
-    ).toEqual({ kind: 'remote' });
+    ).toEqual({ kind: 'primary', route: { kind: 'remote' } });
 
-    for (const [pathname, expectedId] of [
-      ['/addons/webinterface.chorus3/help', 'help'],
-      ['/addons/webinterface.chorus3/playlists', 'playlists'],
-      ['/addons/webinterface.chorus3/settings/web', 'settingsWeb'],
-      ['/addons/webinterface.chorus3/lab/screenshot', 'labScreenshot'],
-      ['/addons/webinterface.chorus3/pvr/tv', 'pvrTv']
+    for (const [pathname, expectedRoute] of [
+      ['/addons/webinterface.chorus3/help', { kind: 'primary', route: { kind: 'help' } }],
+      ['/addons/webinterface.chorus3/playlists', { kind: 'primary', route: { kind: 'playlists' } }],
+      ['/addons/webinterface.chorus3/settings/web', { kind: 'primary', route: { kind: 'settingsWeb' } }],
+      [
+        '/addons/webinterface.chorus3/lab/screenshot',
+        { kind: 'chorus2Placeholder', placeholder: expect.objectContaining({ id: 'labScreenshot' }) }
+      ],
+      ['/addons/webinterface.chorus3/pvr/tv', { kind: 'primary', route: { kind: 'pvrTv' } }]
     ] as const) {
       const route = resolveEntrypointRoute({ pathname, search: '?token=Basic' });
-      expect(route.kind).toBe('chorus2Placeholder');
-      if (route.kind !== 'chorus2Placeholder') {
-        throw new Error(`Expected placeholder route for ${pathname}`);
-      }
-      expect(route.placeholder.id).toBe(expectedId);
+      expect(route).toMatchObject(expectedRoute);
       expect(JSON.stringify(route)).not.toMatch(
         /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|localStorage|sessionStorage/i
       );
@@ -93,7 +93,7 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toMatchObject({
-      route: { kind: 'remote' },
+      route: { kind: 'primary', route: { kind: 'remote' } },
       packageMountedHost: {
         id: 'kodi-package-origin',
         label: 'This Kodi',
@@ -135,7 +135,7 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toEqual({
-      route: { kind: 'dashboard' },
+      route: { kind: 'primary', route: { kind: 'home' } },
       packageMountedHost: {
         id: 'kodi-package-origin',
         label: 'This Kodi',
@@ -154,7 +154,7 @@ describe('main entrypoint', () => {
         hostname: 'kodi.local',
         port: '8080'
       })
-    ).toEqual({ route: { kind: 'dashboard' } });
+    ).toEqual({ route: { kind: 'primary', route: { kind: 'home' } } });
 
     document.head.insertAdjacentHTML(
       'beforeend',
@@ -170,7 +170,7 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toEqual({
-      route: { kind: 'dashboard' },
+      route: { kind: 'primary', route: { kind: 'home' } },
       packageMountedHost: {
         id: 'kodi-package-origin',
         label: 'This Kodi',
@@ -194,11 +194,11 @@ describe('main entrypoint', () => {
     };
 
     for (const [pathname, expectedRoute] of [
-      [`${KODI_WEBINTERFACE_BASE_PATH}/`, { kind: 'dashboard' }],
-      [`${KODI_WEBINTERFACE_BASE_PATH}/remote`, { kind: 'remote' }],
+      [`${KODI_WEBINTERFACE_BASE_PATH}/`, { kind: 'primary', route: { kind: 'home' } }],
+      [`${KODI_WEBINTERFACE_BASE_PATH}/remote`, { kind: 'primary', route: { kind: 'remote' } }],
       [
         `${KODI_WEBINTERFACE_BASE_PATH}/help`,
-        { kind: 'chorus2Placeholder', placeholder: expect.objectContaining({ id: 'help' }) }
+        { kind: 'primary', route: { kind: 'help' } }
       ]
     ] as const) {
       expect(
@@ -223,7 +223,7 @@ describe('main entrypoint', () => {
         hostname: 'kodi.local',
         port: '8080'
       })
-    ).toEqual({ route: { kind: 'dashboard' } });
+    ).toEqual({ route: { kind: 'primary', route: { kind: 'home' } } });
 
     document.head.insertAdjacentHTML(
       'beforeend',
@@ -239,7 +239,7 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toEqual({
-      route: { kind: 'dashboard' },
+      route: { kind: 'primary', route: { kind: 'home' } },
       packageMountedHost: expectedHost
     });
   });
@@ -806,10 +806,12 @@ describe('main entrypoint', () => {
     const { resolveEntrypointRoute, shouldUseM005BrowserProofFixtures } = await importMain();
 
     expect(resolveEntrypointRoute({ pathname: '/settings', search: '?ignored=1' })).toEqual({
-      kind: 'settings'
+      kind: 'primary',
+      route: { kind: 'settingsWeb' }
     });
     expect(resolveEntrypointRoute({ pathname: '/settings/', search: '?ignored=1' })).toEqual({
-      kind: 'settings'
+      kind: 'primary',
+      route: { kind: 'settingsWeb' }
     });
     expect(
       resolveEntrypointRoute({
@@ -821,10 +823,12 @@ describe('main entrypoint', () => {
       pathLabel: '/settings/[redacted]/[redacted]/[redacted]/[redacted]'
     });
     expect(resolveEntrypointRoute({ pathname: '?m005-browser-proof=1', search: '' })).toEqual({
-      kind: 'dashboard'
+      kind: 'primary',
+      route: { kind: 'home' }
     });
     expect(resolveEntrypointRoute({ pathname: '//settings//', search: '' })).toEqual({
-      kind: 'settings'
+      kind: 'primary',
+      route: { kind: 'settingsWeb' }
     });
     expect(
       resolveEntrypointRoute({
@@ -908,7 +912,7 @@ describe('main entrypoint', () => {
         episodeid: 6601
       }
     });
-    expect(resolveEntrypointRoute(undefined)).toEqual({ kind: 'dashboard' });
+    expect(resolveEntrypointRoute(undefined)).toEqual({ kind: 'primary', route: { kind: 'home' } });
     expect(
       resolveEntrypointRoute({
         get pathname(): string {

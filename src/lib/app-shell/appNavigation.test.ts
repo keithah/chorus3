@@ -91,6 +91,7 @@ describe('createAppNavigationItems', () => {
         { kind: 'tvshowEpisodeDetail', tvshowid: '5501', season: '1', episodeid: '6601' },
         'tvshows'
       ],
+      [{ kind: 'addonDetail', addonid: 'plugin.video.demo' }, 'addons'],
       [{ kind: 'addonExecute', addonid: 'plugin.video.demo' }, 'addons'],
       [{ kind: 'settingsKodiSection', section: 'library' }, 'settings'],
       [{ kind: 'helpPage', pageid: 'keyboard' }, 'help'],
@@ -118,6 +119,7 @@ describe('createAppNavigationItems', () => {
       ['movies', { kind: 'moviesRecent' }, ['library', 'recent', '/movies/recent']],
       ['tvshows', { kind: 'tvshowsRecent' }, ['library', 'recent', '/tvshows/recent']],
       ['addons', { kind: 'addonsVideo' }, ['types', 'video', '/addons/video']],
+      ['addons', { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }, ['types', 'all', '/addons/all']],
       ['settings', { kind: 'settingsNav' }, ['settings', 'main-menu', '/settings/nav']],
       ['settings', { kind: 'settingsWeb' }, ['settings', 'web-interface', '/settings/web']],
       ['help', { kind: 'helpOverview' }, ['help', 'overview', '/help/overview']]

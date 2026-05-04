@@ -9,9 +9,10 @@
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonsPanelDispatch;
     i18n: TranslationContext;
+    packageBasePath?: string;
   }
 
-  let { route, snapshot, dispatch, i18n }: Props = $props();
+  let { route, snapshot, dispatch, i18n, packageBasePath = '' }: Props = $props();
 
   const title = $derived(addonsTitle(route));
   const description = $derived(addonsDescription(route));
@@ -38,7 +39,7 @@
     <p>{description}</p>
   </div>
 
-  <AddonsPanel {snapshot} {dispatch} {i18n} />
+  <AddonsPanel {snapshot} {dispatch} {i18n} {packageBasePath} />
 </section>
 
 <style>

@@ -23,6 +23,7 @@ export type PrimaryRoute =
   | { kind: 'addonsVideo' }
   | { kind: 'addonsAudio' }
   | { kind: 'addonsExecutable' }
+  | { kind: 'addonDetail'; addonid: string }
   | { kind: 'addonExecute'; addonid: string }
   | { kind: 'playlists' }
   | { kind: 'playlistDetail'; playlistid: string }
@@ -145,6 +146,10 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
     return media && itemid ? { kind: 'browserItem', media, itemid } : null;
   }
 
+  if (segments.length === 2 && segments[0] === 'addons') {
+    return withSafeDynamicSegment(segments[1], (addonid) => ({ kind: 'addonDetail', addonid }));
+  }
+
   if (segments.length === 3 && segments[0] === 'addon' && segments[1] === 'execute') {
     return withSafeDynamicSegment(segments[2], (addonid) => ({ kind: 'addonExecute', addonid }));
   }
@@ -231,6 +236,8 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return '/addons/audio';
     case 'addonsExecutable':
       return '/addons/executable';
+    case 'addonDetail':
+      return buildDynamicPath('/addons', route.addonid);
     case 'addonExecute':
       return buildDynamicPath('/addon/execute', route.addonid);
     case 'playlists':

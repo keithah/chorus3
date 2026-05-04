@@ -137,6 +137,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/addons/video', { kind: 'addonsVideo' }],
   ['/addons/audio', { kind: 'addonsAudio' }],
   ['/addons/executable', { kind: 'addonsExecutable' }],
+  ['/addons/plugin.video.safe-demo', { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }],
   ['/addon/execute/plugin.video.demo', { kind: 'addonExecute', addonid: 'plugin.video.demo' }],
   ['/playlists', { kind: 'playlists' }],
   ['/playlist/local', { kind: 'playlistDetail', playlistid: 'local' }],
@@ -240,6 +241,7 @@ describe('parseAppRoute', () => {
       '/movie/password',
       '/tvshow/smb://nas/private',
       '/browser/music/secret',
+      '/addons/plugin.video.youtube%2Fextra',
       '/addon/execute/plugin.video.youtube%2Fextra',
       '/settings/kodi/admin:p@ssword',
       '/help/special://profile/passwords',
@@ -267,6 +269,7 @@ describe('parseAppRoute', () => {
       `/movie/${'a'.repeat(129)}`,
       '/tvshow/series/%20/2',
       '/browser/music/smb://nas/passwords',
+      '/addons/user:pass@host',
       '/addon/execute/user:pass@host',
       '/search/music/token',
       '/addons/webinterface.chorus3/unsupported/admin:p@ssword'
@@ -512,18 +515,18 @@ describe('parseAppRoute', () => {
     ).toEqual({ kind: 'addonsUnknown', pathLabel: '/addons/[redacted]' });
   });
 
-  test('parses safe add-on detail routes with dotted ids', () => {
+  test('parses safe add-on detail routes as primary routes with dotted ids', () => {
     expect(parseAppRoute('/addons/plugin.video.youtube')).toEqual({
-      kind: 'addonDetail',
-      addonid: 'plugin.video.youtube'
+      kind: 'primary',
+      route: { kind: 'addonDetail', addonid: 'plugin.video.youtube' }
     });
     expect(parseAppRoute('/addons/script.module.safe-demo_1')).toEqual({
-      kind: 'addonDetail',
-      addonid: 'script.module.safe-demo_1'
+      kind: 'primary',
+      route: { kind: 'addonDetail', addonid: 'script.module.safe-demo_1' }
     });
     expect(parseAppRoute('/addons/plugin.video.safe-demo', '?m005-browser-proof=1')).toEqual({
-      kind: 'addonDetail',
-      addonid: 'plugin.video.safe-demo'
+      kind: 'primary',
+      route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }
     });
   });
 
@@ -640,8 +643,8 @@ describe('parseAppRoute', () => {
 
   test('keeps package mount paths as add-on details unless package-base parsing is requested', () => {
     expect(parseAppRoute('/addons/webinterface.chorus3')).toEqual({
-      kind: 'addonDetail',
-      addonid: 'webinterface.chorus3'
+      kind: 'primary',
+      route: { kind: 'addonDetail', addonid: 'webinterface.chorus3' }
     });
 
     expect(
@@ -690,9 +693,12 @@ describe('buildAppRoute', () => {
     [{ kind: 'labApiBrowser' }, '/lab/api-browser'],
     [{ kind: 'labUnknown', pathLabel: '/lab/Authorization/Basic' }, '/lab/[redacted]/[redacted]'],
     [{ kind: 'addons' }, '/addons'],
-    [{ kind: 'addonDetail', addonid: 'plugin.video.youtube' }, '/addons/plugin.video.youtube'],
     [
-      { kind: 'addonDetail', addonid: 'script.module.safe-demo_1' },
+      { kind: 'primary', route: { kind: 'addonDetail', addonid: 'plugin.video.youtube' } },
+      '/addons/plugin.video.youtube'
+    ],
+    [
+      { kind: 'primary', route: { kind: 'addonDetail', addonid: 'script.module.safe-demo_1' } },
       '/addons/script.module.safe-demo_1'
     ],
     [
@@ -725,7 +731,7 @@ describe('buildAppRoute', () => {
     ).toBe('/addons/webinterface.chorus3/now-playing');
     expect(
       buildAppRoute(
-        { kind: 'addonDetail', addonid: 'plugin.video.youtube' },
+        { kind: 'primary', route: { kind: 'addonDetail', addonid: 'plugin.video.youtube' } },
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
       )
     ).toBe('/addons/webinterface.chorus3/addons/plugin.video.youtube');
@@ -742,11 +748,11 @@ describe('buildAppRoute', () => {
     expect(buildAppRoute({ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 0 } })).toBe(
       '/video/unknown'
     );
-    expect(buildAppRoute({ kind: 'addonDetail', addonid: 'http:example' })).toBe(
-      '/addons/[redacted]'
+    expect(buildPrimaryAppRoute({ kind: 'addonDetail', addonid: 'http:example' })).toBe(
+      '/[redacted]'
     );
-    expect(buildAppRoute({ kind: 'addonDetail', addonid: 'plugin.video.youtube/extra' })).toBe(
-      '/addons/[redacted]'
+    expect(buildPrimaryAppRoute({ kind: 'addonDetail', addonid: 'plugin.video.youtube/extra' })).toBe(
+      '/[redacted]'
     );
   });
 });

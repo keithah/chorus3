@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import AddonsPage from './AddonsPage.svelte';
   import BrowserFilesPage from './BrowserFilesPage.svelte';
@@ -129,6 +130,7 @@
     settingsDispatch: SettingsPanelDispatch;
     addonsSnapshot: AddonsStoreSnapshot;
     addonsDispatch: AddonsPanelDispatch;
+    addonDetailDispatch: AddonDetailDispatch;
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoMovieActionDispatch: VideoMovieActionDispatch;
     videoTvSnapshot: VideoTvStoreSnapshot;
@@ -177,6 +179,7 @@
     settingsDispatch,
     addonsSnapshot,
     addonsDispatch,
+    addonDetailDispatch,
     videoMovieDetailSnapshot,
     videoMovieActionDispatch,
     videoTvSnapshot,
@@ -199,6 +202,12 @@
     description={metadata.description}
     deferredMessage={metadata.deferredMessage}
   >
+    {#if route.kind !== 'home'}
+      <div class="hero-actions">
+        <LocaleToggle locale={localeSnapshot.locale} {i18n} dispatch={localeDispatch} />
+        <ThemeToggle {i18n} />
+      </div>
+    {/if}
     {#if route.kind === 'home'}
       <div class="hero-actions">
         <LocaleToggle locale={localeSnapshot.locale} {i18n} dispatch={localeDispatch} />
@@ -343,7 +352,9 @@
         {i18n}
       />
     {:else if route.kind === 'addonsAll' || route.kind === 'addonsVideo' || route.kind === 'addonsAudio' || route.kind === 'addonsExecutable'}
-      <AddonsPage {route} snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} />
+      <AddonsPage {route} snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} {packageBasePath} />
+    {:else if route.kind === 'addonDetail'}
+      <AddonDetailShell snapshot={addonsSnapshot} dispatch={addonDetailDispatch} {i18n} />
     {:else if route.kind === 'addonExecute'}
       <DeferredPrimaryPage {route} {metadata} />
     {:else if route.kind === 'settingsWeb' || route.kind === 'settingsKodi' || route.kind === 'settingsAddons' || route.kind === 'settingsNav' || route.kind === 'settingsSearch'}

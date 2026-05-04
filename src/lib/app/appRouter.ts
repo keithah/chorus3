@@ -541,12 +541,7 @@ export function parseAppRoute(
   }
 
   if (path.startsWith(`${ADDONS_PATH}/`)) {
-    const segments = path.split('/').filter(Boolean);
-    const decodedAddonId = segments.length === 2 ? safeDecode(segments[1] ?? '').trim() : '';
-
-    return isSafeAddonId(decodedAddonId)
-      ? { kind: 'addonDetail', addonid: decodedAddonId }
-      : { kind: 'addonsUnknown', pathLabel: UNKNOWN_ADDONS_PATH };
+    return { kind: 'addonsUnknown', pathLabel: UNKNOWN_ADDONS_PATH };
   }
 
   if (path === LAB_SHORTCUTS_PATH) {
@@ -626,12 +621,6 @@ function buildAppRoutePath(route: AppRoute): string {
 
   if (route.kind === 'addons') {
     return ADDONS_PATH;
-  }
-
-  if (route.kind === 'addonDetail') {
-    return isSafeAddonId(route.addonid)
-      ? `${ADDONS_PATH}/${encodeURIComponent(route.addonid)}`
-      : UNKNOWN_ADDONS_PATH;
   }
 
   if (route.kind === 'addonsUnknown') {

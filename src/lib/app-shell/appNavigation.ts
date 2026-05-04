@@ -71,6 +71,7 @@ const ADDON_ROUTE_KINDS = [
   'addonsVideo',
   'addonsAudio',
   'addonsExecutable',
+  'addonDetail',
   'addonExecute'
 ] as const satisfies readonly PrimaryRoute['kind'][];
 
@@ -250,7 +251,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             title: 'All add-ons',
             label: 'All',
             route: { kind: 'addonsAll' },
-            activeRouteKinds: ['addonsAll', 'addonExecute']
+            activeRouteKinds: ['addonsAll', 'addonDetail', 'addonExecute']
           },
           { id: 'video', title: 'Video add-ons', label: 'Video', route: { kind: 'addonsVideo' } },
           { id: 'audio', title: 'Audio add-ons', label: 'Audio', route: { kind: 'addonsAudio' } },

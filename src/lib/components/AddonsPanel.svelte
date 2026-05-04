@@ -15,15 +15,16 @@
 </script>
 
 <script lang="ts">
-  import { buildAppRoute } from '$lib/app/appRouter';
+  import { buildPrimaryAppRoute } from '$lib/app/appRouter';
 
   interface Props {
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonsPanelDispatch;
     i18n: TranslationContext;
+    packageBasePath?: string;
   }
 
-  let { snapshot, dispatch, i18n }: Props = $props();
+  let { snapshot, dispatch, i18n, packageBasePath = '' }: Props = $props();
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');
   const hasInstalledAddons = $derived(snapshot.addons.length > 0);
@@ -126,7 +127,10 @@
   }
 
   function addonDetailHref(addon: AddonSnapshot): string {
-    return buildAppRoute({ kind: 'addonDetail', addonid: addon.addonid });
+    return buildPrimaryAppRoute(
+      { kind: 'addonDetail', addonid: addon.addonid },
+      { packageBasePath }
+    );
   }
 
   function safeKey(addon: AddonSnapshot, index: number): string {
