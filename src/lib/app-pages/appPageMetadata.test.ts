@@ -157,6 +157,8 @@ describe('app page metadata', () => {
     ['keyboard', 'Keyboard controls'],
     ['readme', 'Readme'],
     ['changelog', 'Changelog'],
+    ['addons', 'Add-ons'],
+    ['developers', 'Developers'],
     ['translations', 'Translations'],
     ['license', 'License']
   ] as const)('classifies known help topic %s as a static help surface', (pageid, heading) => {

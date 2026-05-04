@@ -107,19 +107,19 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     submenuGroups: [
       {
         id: 'library',
-        label: 'Music library',
+        label: 'Music',
         items: [
           {
             id: 'home',
-            title: 'Music home',
-            label: 'Home',
+            title: 'Music',
+            label: 'Music',
             route: { kind: 'music' },
             activeRouteKinds: ['home', 'music']
           },
           {
             id: 'recent',
-            title: 'Recently added music',
-            label: 'Recent',
+            title: 'Top music',
+            label: 'Top music',
             route: { kind: 'musicTop' }
           },
           {
@@ -244,7 +244,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     submenuGroups: [
       {
         id: 'types',
-        label: 'Add-on types',
+        label: 'ADD-ONS',
         items: [
           {
             id: 'all',
@@ -315,8 +315,8 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     activeRouteKinds: SETTINGS_ROUTE_KINDS,
     submenuGroups: [
       {
-        id: 'settings',
-        label: 'Settings',
+        id: 'general',
+        label: 'GENERAL',
         items: [
           {
             id: 'web-interface',
@@ -325,23 +325,23 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             route: { kind: 'settingsWeb' }
           },
           {
-            id: 'kodi',
-            title: 'Kodi settings',
-            label: 'Kodi',
-            route: { kind: 'settingsKodi' },
-            activeRouteKinds: ['settingsKodi', 'settingsKodiSection']
-          },
-          {
-            id: 'addons',
-            title: 'Add-on settings',
-            label: 'Add-ons',
-            route: { kind: 'settingsAddons' }
-          },
-          {
             id: 'main-menu',
             title: 'Main menu settings',
             label: 'Main menu',
             route: { kind: 'settingsNav' }
+          }
+        ]
+      },
+      {
+        id: 'kodi-settings',
+        label: 'KODI SETTINGS',
+        items: [
+          {
+            id: 'addons',
+            title: 'Add-on settings',
+            label: 'Add-ons',
+            route: { kind: 'settingsAddons' },
+            activeRouteKinds: ['settingsKodi', 'settingsKodiSection', 'settingsAddons']
           },
           {
             id: 'search',
@@ -365,14 +365,20 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
         id: 'help',
         label: 'Help',
         items: [
-          { id: 'home', title: 'Help home', label: 'Help', route: { kind: 'help' } },
+          { id: 'home', title: 'Help home', label: 'About', route: { kind: 'help' } },
           {
             id: 'overview',
             title: 'Help overview',
-            label: 'Overview',
+            label: 'Readme',
             route: { kind: 'helpOverview' },
-            activeRouteKinds: ['helpOverview', 'helpPage']
-          }
+            activeRouteKinds: ['helpOverview']
+          },
+          { id: 'changelog', title: 'Changelog', label: 'Changelog', route: { kind: 'helpPage', pageid: 'changelog' } },
+          { id: 'keyboard', title: 'Keyboard controls', label: 'Keyboard', route: { kind: 'helpPage', pageid: 'keyboard' } },
+          { id: 'addons', title: 'Add-ons help', label: 'Add-ons', route: { kind: 'helpPage', pageid: 'addons' } },
+          { id: 'developers', title: 'Developer help', label: 'Developers', route: { kind: 'helpPage', pageid: 'developers' } },
+          { id: 'translations', title: 'Translations', label: 'Translations', route: { kind: 'helpPage', pageid: 'translations' } },
+          { id: 'license', title: 'License', label: 'License', route: { kind: 'helpPage', pageid: 'license' } }
         ]
       }
     ]

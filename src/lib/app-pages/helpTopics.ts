@@ -1,6 +1,14 @@
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 
-export type HelpTopicId = 'overview' | 'keyboard' | 'readme' | 'changelog' | 'translations' | 'license';
+export type HelpTopicId =
+  | 'overview'
+  | 'keyboard'
+  | 'readme'
+  | 'changelog'
+  | 'addons'
+  | 'developers'
+  | 'translations'
+  | 'license';
 
 export interface HelpTopicCard {
   readonly title: string;
@@ -62,6 +70,26 @@ export const HELP_TOPICS = {
       { title: 'Verification history', copy: 'Build, package, and browser checks provide repeatable release confidence.' }
     ]
   },
+  addons: {
+    id: 'addons',
+    title: 'Add-ons',
+    summary: 'Static guidance for add-on browsing, settings, and package-safe execution boundaries.',
+    cards: [
+      { title: 'Add-ons', copy: 'Browse installed add-ons through static shell routes before opening add-on-specific details.' },
+      { title: 'Add-on browser', copy: 'Catalog routes group all, video, audio, and executable add-ons without reflecting add-on identifiers.' },
+      { title: 'Add-on settings', copy: 'Settings surfaces describe add-on configuration boundaries without exposing host paths or credentials.' }
+    ]
+  },
+  developers: {
+    id: 'developers',
+    title: 'Developers',
+    summary: 'Static implementation notes for route, package, and verification boundaries.',
+    cards: [
+      { title: 'Developers', copy: 'Use typed primary routes and stable data attributes when extending the app shell.' },
+      { title: 'Integration boundaries', copy: 'Keep package-aware href building centralized so browser and Kodi package routes stay aligned.' },
+      { title: 'Package verification', copy: 'Run targeted route and package checks before relying on screenshot proof evidence.' }
+    ]
+  },
   translations: {
     id: 'translations',
     title: 'Translations',
@@ -93,6 +121,8 @@ const HELP_LANDING_TOPIC: ResolvedHelpTopic = {
     { title: 'Keyboard controls', copy: 'Use keyboard and media keys for remote input and playback where supported.' },
     { title: 'Readme', copy: 'Package usage and primary shell guidance live as safe static app help.' },
     { title: 'Changelog', copy: 'Release notes summarize changes without embedding local environment details.' },
+    { title: 'Add-ons', copy: 'Add-on browsing and settings help stays static and package-safe.' },
+    { title: 'Developers', copy: 'Developer notes document typed route and package verification boundaries.' },
     { title: 'Translations', copy: 'Locale support is available from the shell controls.' },
     { title: 'License', copy: 'License details remain available as static project information.' }
   ]
