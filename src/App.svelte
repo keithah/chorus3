@@ -88,6 +88,7 @@
     type ConnectionStoreSnapshot,
     type LocalPlayerStoreSnapshot,
     type LocalPlaylistDispatch,
+    type LocalPlaylistItemInput,
     type LocalPlaylistStoreSnapshot,
     type LabApiBrowserStoreSnapshot,
     type MediaFilesStoreSnapshot,
@@ -96,6 +97,7 @@
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
+    type QueueItemSnapshot,
     type QueueStoreSnapshot,
     type RemoteInputDispatchSnapshot,
     type SavedKodiHost,
@@ -137,6 +139,7 @@
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
+  import { isTextSecretSafe } from '$lib/safety/redaction';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { handleRemoteInputShortcut } from '$lib/app/remoteInputShortcuts';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
@@ -453,29 +456,38 @@
   );
   const currentShellPlayer = $derived(toAppShellPlayerSnapshot(currentPlayerSnapshot));
   let drawerMediaMode = $state<AppShellPlaylistMediaMode>('audio');
+  let drawerDestinationModeOverride = $state<AppShellPlaylistDestinationMode | null>(null);
   let drawerCollapsed = $state(false);
   let drawerMenuOpen = $state(false);
-  const currentDrawerDestinationMode = $derived<AppShellPlaylistDestinationMode>(
+  const currentPlaylistDispatchDestinationMode = $derived<AppShellPlaylistDestinationMode>(
     playerDispatch.snapshot?.mode === 'local' ? 'local' : 'kodi'
+  );
+  const currentDrawerDestinationMode = $derived<AppShellPlaylistDestinationMode>(
+    drawerDestinationModeOverride ?? currentPlaylistDispatchDestinationMode
   );
   const isPlayerDestinationCommandRunning = $derived(
     playerDispatch.snapshot?.commandStatus === 'running'
   );
   const isQueueCommandRunning = $derived(queueDispatch.snapshot?.commandStatus === 'running');
+  const isLocalPlaylistMutationRunning = $derived(
+    currentLocalPlaylistSnapshot.mutationStatus === 'running'
+  );
+  const safeQueueItemsForLocalPlaylist = $derived(
+    currentQueueSnapshot.items.flatMap(toLocalPlaylistItemInput)
+  );
+  const currentPlaylistDrawerMenuDisabledReasons = $derived({
+    currentPlaylist: 'Current playlist is already selected.',
+    clear: getPlaylistClearDisabledReason(),
+    refresh: 'Refresh playlist is deferred to playlist persistence work.',
+    partyMode: 'Party mode is deferred to Kodi playlist controls.',
+    saveKodiPlaylist: getSaveKodiPlaylistDisabledReason()
+  });
   const currentPlaylistDrawer = $derived<AppShellDrawerState>({
     label: 'Current playlist',
     mediaMode: drawerMediaMode,
     collapsed: drawerCollapsed,
     menuOpen: drawerMenuOpen,
-    menuDisabledReasons: {
-      currentPlaylist: 'Current playlist is already selected.',
-      clear: isQueueCommandRunning
-        ? 'Queue command is running. Clear playlist is temporarily disabled.'
-        : undefined,
-      refresh: 'Refresh playlist is deferred to playlist persistence work.',
-      partyMode: 'Party mode is deferred to Kodi playlist controls.',
-      saveKodiPlaylist: 'Saving Kodi playlists is deferred to durable playlist persistence.'
-    }
+    menuDisabledReasons: currentPlaylistDrawerMenuDisabledReasons
   });
   const currentPlaylistDestination = $derived({
     mode: currentDrawerDestinationMode,
@@ -681,12 +693,13 @@
       return;
     }
 
-    const currentMode: AppShellPlaylistDestinationMode =
-      playerDispatch.snapshot?.mode === 'local' ? 'local' : 'kodi';
+    const currentMode = currentDrawerDestinationMode;
 
     if (mode === currentMode) {
       return;
     }
+
+    drawerDestinationModeOverride = mode;
 
     if (mode === 'local') {
       await playerDispatch.startLocalPlayback();
@@ -699,11 +712,134 @@
   }
 
   async function handlePlaylistMenuAction(action: AppShellPlaylistMenuAction): Promise<void> {
-    if (action !== 'clear' || queueDispatch.snapshot?.commandStatus === 'running') {
+    if (action === 'clear') {
+      if (currentDrawerDestinationMode === 'local') {
+        const playlistId = currentLocalPlaylistSnapshot.selectedPlaylistId;
+        if (getPlaylistClearDisabledReason() || !playlistId) {
+          return;
+        }
+
+        await localPlaylistDispatch.clearPlaylist(playlistId);
+        return;
+      }
+
+      if (getPlaylistClearDisabledReason()) {
+        return;
+      }
+
+      await queueDispatch.clear();
       return;
     }
 
-    await queueDispatch.clear();
+    if (action === 'saveKodiPlaylist') {
+      const playlistId = currentLocalPlaylistSnapshot.selectedPlaylistId;
+      const items = safeQueueItemsForLocalPlaylist;
+      if (getSaveKodiPlaylistDisabledReason() || !playlistId || items.length === 0) {
+        return;
+      }
+
+      await localPlaylistDispatch.addItems(playlistId, items);
+    }
+  }
+
+  function getPlaylistClearDisabledReason(): string | undefined {
+    if (currentDrawerDestinationMode === 'local') {
+      if (isLocalPlaylistMutationRunning) {
+        return 'A local playlist change is running. Clear playlist is temporarily disabled.';
+      }
+
+      if (!currentLocalPlaylistSnapshot.selectedPlaylistId) {
+        return 'Select a local playlist before clearing it.';
+      }
+
+      return undefined;
+    }
+
+    return isQueueCommandRunning
+      ? 'Queue command is running. Clear playlist is temporarily disabled.'
+      : undefined;
+  }
+
+  function getSaveKodiPlaylistDisabledReason(): string | undefined {
+    if (currentDrawerDestinationMode !== 'local') {
+      return 'Switch to Local destination before saving the current Kodi queue locally.';
+    }
+
+    if (isLocalPlaylistMutationRunning) {
+      return 'A local playlist change is running. Save Kodi playlist is temporarily disabled.';
+    }
+
+    if (isQueueCommandRunning) {
+      return 'Queue command is running. Save Kodi playlist is temporarily disabled.';
+    }
+
+    if (!currentLocalPlaylistSnapshot.selectedPlaylistId) {
+      return 'Select a local playlist before saving the current Kodi queue.';
+    }
+
+    if (safeQueueItemsForLocalPlaylist.length === 0) {
+      return 'Current Kodi queue has no supported items to save.';
+    }
+
+    return undefined;
+  }
+
+  function toLocalPlaylistItemInput(item: QueueItemSnapshot): LocalPlaylistItemInput[] {
+    const label = firstSafeQueueText(item.label, item.title, item.showtitle, item.album);
+
+    if (!label) {
+      return [];
+    }
+
+    const kind = queueItemTypeToLocalPlaylistKind(item.type);
+    if (!kind) {
+      return [];
+    }
+
+    return [
+      {
+        kind,
+        label,
+        file: `queue-item:${item.position}`,
+        sourceId: `queue:${item.position}`,
+        ...(typeof item.duration === 'number' && Number.isFinite(item.duration) && item.duration >= 0
+          ? { durationSeconds: item.duration }
+          : {})
+      }
+    ];
+  }
+
+  function firstSafeQueueText(...values: unknown[]): string | null {
+    for (const value of values) {
+      if (typeof value !== 'string') {
+        continue;
+      }
+
+      const text = value.trim().replace(/\s+/g, ' ');
+      if (text && isTextSecretSafe(text)) {
+        return text;
+      }
+    }
+
+    return null;
+  }
+
+  function queueItemTypeToLocalPlaylistKind(
+    type: QueueItemSnapshot['type']
+  ): LocalPlaylistItemInput['kind'] | null {
+    if (type === 'movie' || type === 'episode' || type === 'video') {
+      return 'video';
+    }
+
+    if (type === 'playlist') {
+      return 'playlist';
+    }
+
+    if (type === undefined || type === 'song' || type === 'audio' || type === 'music') {
+      return 'audio';
+    }
+
+    return null;
   }
 
   function toggleAppFullscreen(): void {

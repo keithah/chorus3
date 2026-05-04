@@ -305,6 +305,37 @@ describe('local playlist store', () => {
     expectNoUnsafeText(reloaded.snapshot);
   });
 
+  it('persists reordered saved items and clears items without deleting playlist metadata', () => {
+    const { store, storage, tick } = createHarness();
+
+    store.createPlaylist('Durable Queue Save');
+    tick();
+    store.addItems('playlist-1', [
+      { kind: 'audio', label: 'First Saved', file: 'queue-item:0', sourceId: 'queue:0' },
+      { kind: 'video', label: 'Second Saved', file: 'queue-item:1', sourceId: 'queue:1' }
+    ]);
+    expect(store.reorderItems('playlist-1', ['item-3', 'item-2'])).toEqual({ ok: true });
+
+    const reordered = createLocalPlaylistStore({
+      storage: createStorage({ [LOCAL_PLAYLIST_STORAGE_KEY]: latestPersistedValue(storage) }),
+      createId: (prefix) => `${prefix}-unused`,
+      now: () => '2026-01-01T00:00:00.000Z'
+    });
+
+    expect(reordered.snapshot.selectedPlaylist?.items.map((item) => item.label)).toEqual([
+      'Second Saved',
+      'First Saved'
+    ]);
+    expect(reordered.clearPlaylist('playlist-1')).toEqual({ ok: true });
+    expect(reordered.snapshot.selectedPlaylist).toMatchObject({
+      id: 'playlist-1',
+      label: 'Durable Queue Save',
+      items: []
+    });
+    expect(reordered.snapshot.playlistCount).toBe(1);
+    expectNoUnsafeText(reordered.snapshot);
+  });
+
   it('starts fresh with safe warnings for invalid persisted payloads', () => {
     const invalidPayloads = [
       '{bad json',

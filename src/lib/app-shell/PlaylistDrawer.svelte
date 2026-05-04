@@ -94,10 +94,20 @@
           : (reasons?.clear ?? DEFAULT_MENU_DISABLED_REASONS.clear),
       refresh: reasons?.refresh ?? DEFAULT_MENU_DISABLED_REASONS.refresh,
       partyMode: reasons?.partyMode ?? DEFAULT_MENU_DISABLED_REASONS.partyMode,
-      saveKodiPlaylist: reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist
+      saveKodiPlaylist:
+        callbacks.onPlaylistMenuAction && hasOwnDisabledReason(reasons, 'saveKodiPlaylist')
+          ? reasons?.saveKodiPlaylist
+          : (reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist)
     };
 
     return normalized;
+  }
+
+  function hasOwnDisabledReason(
+    reasons: AppShellDrawerState['menuDisabledReasons'],
+    action: AppShellPlaylistMenuAction
+  ): boolean {
+    return Boolean(reasons && Object.prototype.hasOwnProperty.call(reasons, action));
   }
 
   function selectDestinationMode(mode: AppShellPlaylistDestinationMode): void {

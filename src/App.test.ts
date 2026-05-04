@@ -2275,6 +2275,159 @@ describe('App shell', () => {
     expect(clearButton.title).toContain('Queue command is running');
   });
 
+  it('routes local drawer Clear to the selected local playlist instead of the Kodi queue', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'local' }));
+    const queueDispatch = createQueuePanelDispatch();
+    const localPlaylistDispatch = createLocalPlaylistDispatch();
+    const localPlaylistSnapshot = createLocalPlaylistSnapshot({
+      selectedPlaylistId: 'playlist-local_jazz'
+    });
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch,
+      queueDispatch,
+      localPlaylistSnapshot,
+      localPlaylistDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    expect(clearButton.disabled).toBe(false);
+
+    clearButton.click();
+    await tick();
+
+    expect(localPlaylistDispatch.clearPlaylist).toHaveBeenCalledWith('playlist-local_jazz');
+    expect(queueDispatch.clear).not.toHaveBeenCalled();
+  });
+
+  it('disables local drawer Clear and Save with safe truthful copy when no local playlist is selected', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'local' }));
+    const localPlaylistDispatch = createLocalPlaylistDispatch();
+    const localPlaylistSnapshot = createLocalPlaylistSnapshot({
+      playlists: [],
+      selectedPlaylistId: null,
+      selectedPlaylist: null
+    });
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch,
+      localPlaylistSnapshot,
+      localPlaylistDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    const saveButton = requirePackageShellButtonByText(target, 'Save Kodi playlist');
+    expect(clearButton.disabled).toBe(true);
+    expect(clearButton.title).toContain('Select a local playlist');
+    expect(saveButton.disabled).toBe(true);
+    expect(saveButton.title).toContain('Select a local playlist');
+    expect(target.textContent).not.toContain('localStorage');
+  });
+
+  it('saves safe current Kodi queue items into the selected local playlist from the drawer', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'local' }));
+    const localPlaylistDispatch = createLocalPlaylistDispatch();
+    const queueSnapshot: QueueStoreSnapshot = {
+      refreshStatus: 'ready',
+      playlistid: 1,
+      activePosition: 0,
+      items: [
+        {
+          position: 0,
+          label: 'Blue in Green',
+          type: 'song',
+          duration: 337
+        },
+        {
+          position: 1,
+          label: 'smb://admin:p@ssword@nas/private/secret.flac',
+          title: 'Safe fallback title',
+          type: 'song'
+        }
+      ],
+      limits: { start: 0, end: 2, total: 2 },
+      lastRefreshReason: 'manual',
+      lastUpdatedAt: '2026-05-04T12:00:00.000Z',
+      lastError: null
+    };
+
+    const target = renderApp({
+      route: { kind: 'primary', route: { kind: 'playlists' } },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch,
+      localPlaylistSnapshot: createLocalPlaylistSnapshot(),
+      localPlaylistDispatch,
+      queueSnapshot
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const saveButton = requirePackageShellButtonByText(target, 'Save Kodi playlist');
+    expect(saveButton.disabled).toBe(false);
+
+    saveButton.click();
+    await tick();
+
+    expect(localPlaylistDispatch.addItems).toHaveBeenCalledWith('playlist-local_jazz', [
+      {
+        kind: 'audio',
+        label: 'Blue in Green',
+        file: 'queue-item:0',
+        sourceId: 'queue:0',
+        durationSeconds: 337
+      },
+      {
+        kind: 'audio',
+        label: 'Safe fallback title',
+        file: 'queue-item:1',
+        sourceId: 'queue:1'
+      }
+    ]);
+    expect(target.textContent).not.toContain('admin:p@ssword');
+    expect(target.textContent).not.toContain('smb://');
+  });
+
+  it('disables local drawer Save when the queue has no supported safe items or commands are running', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'local' }));
+
+    const target = renderApp({
+      route: { kind: 'primary', route: { kind: 'playlists' } },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch,
+      localPlaylistSnapshot: createLocalPlaylistSnapshot(),
+      queueSnapshot: {
+        refreshStatus: 'ready',
+        playlistid: 1,
+        activePosition: null,
+        items: [{ position: 0, label: 'https://example.test/private.mp3', type: 'unknown' }],
+        limits: { start: 0, end: 1, total: 1 },
+        lastRefreshReason: 'manual',
+        lastUpdatedAt: '2026-05-04T12:00:00.000Z',
+        lastError: null
+      }
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const saveButton = requirePackageShellButtonByText(target, 'Save Kodi playlist');
+    expect(saveButton.disabled).toBe(true);
+    expect(saveButton.title).toContain('no supported items');
+    expect(saveButton.title).not.toContain('durable playlist persistence');
+  });
+
   it('guards package-mounted broad and deferred controls while keeping wired drawer and playback controls enabled', async () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
     const playerDispatch = createPlayerDispatch();
@@ -2323,15 +2476,19 @@ describe('App shell', () => {
     );
 
     const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
-    expect(clearButton.disabled, 'Clear playlist wired to queue dispatch').toBe(false);
+    expect(clearButton.disabled, 'Local Clear requires a selected local playlist').toBe(true);
+    expect(clearButton.title).toContain('Select a local playlist');
     clearButton.click();
     await tick();
-    expect(queueDispatch.clear).toHaveBeenCalledTimes(1);
+    expect(queueDispatch.clear).not.toHaveBeenCalled();
 
-    for (const label of ['Current playlist', 'Party mode', 'Save Kodi playlist']) {
+    for (const label of ['Current playlist', 'Party mode']) {
       const button = requirePackageShellButtonByText(target, label);
       expect(button.disabled, `${label} guarded until downstream playlist support`).toBe(true);
     }
+    const saveButton = requirePackageShellButtonByText(target, 'Save Kodi playlist');
+    expect(saveButton.disabled, 'Local Save requires a selected local playlist').toBe(true);
+    expect(saveButton.title).toContain('Select a local playlist');
     expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'Shuffle')), 'Shuffle').toBe(
       true
     );
