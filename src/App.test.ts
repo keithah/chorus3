@@ -1724,6 +1724,7 @@ describe('App shell', () => {
   it('keeps primary shell modules store-agnostic and panel-free after app page extraction', () => {
     for (const file of [
       'src/lib/app-shell/AppShell.svelte',
+      'src/lib/app-shell/PlaylistDrawer.svelte',
       'src/lib/app-shell/appNavigation.ts'
     ]) {
       const source = readFileSync(file, 'utf8');
@@ -1740,7 +1741,7 @@ describe('App shell', () => {
     expect(surfaceSource).not.toMatch(/import\s+(?!type)[^;]+from ['"]\$lib\/stores/u);
   });
 
-  it('keeps the extracted primary shell safe with empty nav, disabled drawer/player defaults, and trailing package base', () => {
+  it('keeps the extracted primary shell safe with empty nav, enabled drawer defaults, and trailing package base', () => {
     document.body.innerHTML = '<div id="app-test-root"></div>';
     const target = document.getElementById('app-test-root');
     expect(target).toBeInstanceOf(HTMLElement);
@@ -1759,9 +1760,9 @@ describe('App shell', () => {
     const shell = target?.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
     expect(shell).toBeInstanceOf(HTMLElement);
     expect(target?.querySelectorAll('aside[aria-label="Primary navigation"] a')).toHaveLength(0);
-    expect(requirePackageShellButtonByText(target as HTMLElement, 'Audio').disabled).toBe(true);
-    expect(requirePackageShellButtonByText(target as HTMLElement, 'Clear playlist').disabled).toBe(
-      true
+    expect(requirePackageShellButtonByText(target as HTMLElement, 'Audio').disabled).toBe(false);
+    expect(requirePackageShellButtonByAria(target as HTMLElement, 'Playlist menu').disabled).toBe(
+      false
     );
     expect(requirePackageShellButtonByAria(target as HTMLElement, 'Shuffle').disabled).toBe(true);
 
@@ -1929,15 +1930,20 @@ describe('App shell', () => {
         label === 'Local'
           ? requirePackageShellButtonByText(target, label)
           : requirePackageShellButtonByAria(target, label);
-      expect(isDisabledOrGuarded(button), `${label} should be disabled or guarded`).toBe(true);
+      expect(button.disabled, `${label} enabled for drawer contract`).toBe(false);
     }
+
+    const playlistMenuButton = requirePackageShellButtonByAria(target, 'Playlist menu');
+    playlistMenuButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    flushSync();
+    expect(playlistMenuButton.getAttribute('aria-expanded')).toBe('true');
 
     for (const label of ['Audio', 'Video', 'Party mode', 'Save Kodi playlist']) {
       const button = requirePackageShellButtonByText(target, label);
-      expect(isDisabledOrGuarded(button), `${label} should be disabled or guarded`).toBe(true);
+      expect(button.disabled, `${label} enabled for drawer contract`).toBe(false);
     }
 
-    expect(requirePackageShellButtonByText(target, 'Clear playlist').disabled).toBe(true);
+    expect(requirePackageShellButtonByText(target, 'Clear playlist').disabled).toBe(false);
     expect(isDisabledOrGuarded(requirePackageShellButtonByAria(target, 'Shuffle')), 'Shuffle').toBe(
       true
     );

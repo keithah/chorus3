@@ -42,11 +42,22 @@ export interface AppShellContentStage {
   readonly content?: Snippet;
 }
 
+export type AppShellPlaylistDestinationMode = 'kodi' | 'local';
+export type AppShellPlaylistMediaMode = 'audio' | 'video';
+export type AppShellPlaylistMenuAction =
+  | 'currentPlaylist'
+  | 'clear'
+  | 'refresh'
+  | 'partyMode'
+  | 'saveKodiPlaylist';
+
 export interface AppShellDrawerState {
   readonly label: string;
-  readonly mediaMode?: 'audio' | 'video';
+  readonly mediaMode?: AppShellPlaylistMediaMode;
   readonly collapsed?: boolean;
+  readonly menuOpen?: boolean;
   readonly disabledReason?: string;
+  readonly menuDisabledReasons?: Partial<Record<AppShellPlaylistMenuAction, string>>;
   readonly content?: Snippet;
 }
 
@@ -69,15 +80,15 @@ export interface AppShellPlayerActions {
 }
 
 export interface AppShellDestinationState {
-  readonly mode: 'kodi' | 'local';
-  readonly mediaMode: 'audio' | 'video';
+  readonly mode: AppShellPlaylistDestinationMode;
+  readonly mediaMode: AppShellPlaylistMediaMode;
+  readonly disabledReasons?: Partial<Record<AppShellPlaylistDestinationMode, string>>;
 }
 
 export interface AppShellCallbacks {
-  readonly onDestinationModeChange?: (
-    mode: AppShellDestinationState['mode']
-  ) => void | Promise<void>;
-  readonly onMediaModeChange?: (
-    mode: AppShellDestinationState['mediaMode']
-  ) => void | Promise<void>;
+  readonly onDestinationModeChange?: (mode: AppShellPlaylistDestinationMode) => void | Promise<void>;
+  readonly onMediaModeChange?: (mode: AppShellPlaylistMediaMode) => void | Promise<void>;
+  readonly onPlaylistMenuAction?: (action: AppShellPlaylistMenuAction) => void | Promise<void>;
+  readonly onPlaylistMenuToggle?: (open: boolean) => void | Promise<void>;
+  readonly onPlaylistCollapseToggle?: (collapsed: boolean) => void | Promise<void>;
 }

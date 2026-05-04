@@ -10,6 +10,7 @@
     AppShellPlayerSnapshot,
     AppShellRouteIdentity
   } from './appShellTypes';
+  import PlaylistDrawer from './PlaylistDrawer.svelte';
   import chorusFanartUrl from '$lib/assets/chorus2/tweeter.jpg';
   import chorusLogoUrl from '$lib/assets/chorus2/logo.png';
   import chorusThumbnailUrl from '$lib/assets/chorus2/thumbnail_default.png';
@@ -69,7 +70,6 @@
       }))
   );
   const safeStageLabel = $derived(safeText(stageLabel, 'Kodi dashboard'));
-  const safeDrawerLabel = $derived(safeText(drawer.label, 'Current playlist'));
   const safePlayer = $derived(normalizePlayer(player));
   const activeRouteKind = $derived(
     routeIdentity.kind === 'primary' ? routeIdentity.route.kind : routeIdentity.kind
@@ -87,10 +87,6 @@
     } catch {
       // Keep shell controls safe even when an injected action throws synchronously.
     }
-  }
-
-  function invokeDestinationMode(mode: AppShellDestinationState['mode']): void {
-    invoke(() => callbacks.onDestinationModeChange?.(mode));
   }
 
   function safeText(value: unknown, fallback: string): string {
@@ -164,40 +160,6 @@
         readonly
       />
     </label>
-
-    <div class="c2-destination-tabs" aria-label="Playback destination">
-      <button
-        type="button"
-        class:active={destination.mode === 'kodi'}
-        aria-label="Kodi playback destination selected"
-        aria-disabled="true"
-        disabled
-      >
-        <span class="c2-kodi-mark" aria-hidden="true">✣</span>
-        Kodi
-      </button>
-      <button
-        type="button"
-        class:active={destination.mode === 'local'}
-        title="Local playback destination is deferred."
-        onclick={() => invokeDestinationMode('local')}
-        disabled
-      >
-        <span class="mdi mdi-av-volume-up" aria-hidden="true"></span>
-        Local
-      </button>
-      <button type="button" aria-label="Playlist menu" title="Playlist menu is deferred." disabled>
-        <span class="mdi mdi-navigation-more-vert" aria-hidden="true"></span>
-      </button>
-      <button
-        type="button"
-        aria-label="Collapse playlist"
-        title="Playlist collapse is deferred."
-        disabled
-      >
-        <span class="mdi mdi-hardware-keyboard-arrow-right" aria-hidden="true"></span>
-      </button>
-    </div>
   </header>
 
   <aside class="c2-rail" aria-label="Primary navigation">
@@ -245,53 +207,12 @@
       {@render children?.()}
     </div>
   </main>
-
-  <aside
-    class="c2-playlist"
-    aria-label={safeDrawerLabel}
-    data-collapsed={drawer.collapsed ? 'true' : 'false'}
-  >
-    <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
-      <button
-        type="button"
-        role="tab"
-        class:active={drawer.mediaMode !== 'video'}
-        aria-selected={drawer.mediaMode !== 'video'}
-        disabled>Audio</button
-      >
-      <button
-        type="button"
-        role="tab"
-        class:active={drawer.mediaMode === 'video'}
-        aria-selected={drawer.mediaMode === 'video'}
-        title="Video playlists are deferred."
-        disabled>Video</button
-      >
-    </div>
-
-    {#if drawerContent}
-      {@render drawerContent()}
-    {:else}
-      <div class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
-        <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
-          Current playlist
-        </button>
-        <button type="button" role="menuitem" disabled>Clear playlist</button>
-        <button type="button" role="menuitem" title="Playlist refresh is deferred." disabled>
-          Refresh playlist
-        </button>
-        <button type="button" role="menuitem" title="Party mode is deferred." disabled>
-          Party mode
-        </button>
-        <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
-          Kodi
-        </button>
-        <button type="button" role="menuitem" title="Saving Kodi playlists is deferred." disabled>
-          Save Kodi playlist
-        </button>
-      </div>
-    {/if}
-  </aside>
+  <PlaylistDrawer
+    {drawer}
+    {destination}
+    {callbacks}
+    {drawerContent}
+  />
 
   {#if playerContent}
     {@render playerContent()}
@@ -534,19 +455,20 @@
     outline: 0;
   }
 
-  .c2-destination-tabs {
+  :global(.c2-destination-tabs) {
     position: absolute;
     top: 0;
     right: 0;
+    z-index: 21;
     display: grid;
     grid-template-columns: 95px 120px 42px 43px;
     width: 300px;
     height: 50px;
   }
 
-  .c2-destination-tabs button,
-  .c2-media-tabs button,
-  .c2-playlist-menu button,
+  :global(.c2-destination-tabs button),
+  :global(.c2-media-tabs button),
+  :global(.c2-playlist-menu button),
   .c2-player button {
     font: inherit;
     border: 0;
@@ -554,14 +476,14 @@
     cursor: pointer;
   }
 
-  .c2-destination-tabs button:disabled,
-  .c2-media-tabs button:disabled,
-  .c2-playlist-menu button:disabled,
+  :global(.c2-destination-tabs button:disabled),
+  :global(.c2-media-tabs button:disabled),
+  :global(.c2-playlist-menu button:disabled),
   .c2-player button:disabled {
     cursor: default;
   }
 
-  .c2-destination-tabs button {
+  :global(.c2-destination-tabs button) {
     display: inline-grid;
     grid-auto-flow: column;
     gap: 7px;
@@ -572,18 +494,18 @@
     background: #292d2f;
   }
 
-  .c2-destination-tabs button.active {
+  :global(.c2-destination-tabs button.active) {
     color: var(--c2-blue);
     background: #1f2223;
   }
 
-  .c2-destination-tabs button:nth-child(3),
-  .c2-destination-tabs button:nth-child(4) {
+  :global(.c2-destination-tabs button:nth-child(3)),
+  :global(.c2-destination-tabs button:nth-child(4)) {
     color: #888;
     font-size: 20px;
   }
 
-  .c2-kodi-mark {
+  :global(.c2-kodi-mark) {
     color: var(--c2-blue);
     font-size: 16px;
     line-height: 1;
@@ -758,7 +680,7 @@
     display: none;
   }
 
-  .c2-playlist {
+  :global(.c2-playlist) {
     position: absolute;
     top: 50px;
     right: 0;
@@ -768,26 +690,26 @@
     background: var(--c2-playlist);
   }
 
-  .c2-media-tabs {
+  :global(.c2-media-tabs) {
     display: grid;
     grid-template-columns: 70px 70px 1fr;
     height: 28px;
     background: #242728;
   }
 
-  .c2-media-tabs button {
+  :global(.c2-media-tabs button) {
     color: #888;
     background: #3d4143;
     font-size: 12px;
     text-align: center;
   }
 
-  .c2-media-tabs button.active {
+  :global(.c2-media-tabs button.active) {
     color: #fff;
     background: #4d5153;
   }
 
-  .c2-playlist-menu {
+  :global(.c2-playlist-menu) {
     position: absolute;
     top: -17px;
     right: 45px;
@@ -799,7 +721,7 @@
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
   }
 
-  .c2-playlist-menu button {
+  :global(.c2-playlist-menu button) {
     height: 32px;
     padding: 0 13px;
     color: #858585;
@@ -808,11 +730,11 @@
     text-align: left;
   }
 
-  .c2-playlist-menu button.selected {
+  :global(.c2-playlist-menu button.selected) {
     background: #d8d8d8;
   }
 
-  .c2-playlist-menu button:disabled {
+  :global(.c2-playlist-menu button:disabled) {
     opacity: 0.55;
     cursor: default;
   }
@@ -936,9 +858,9 @@
       width: 190px;
     }
 
-    .c2-destination-tabs,
-    .c2-playlist,
-    .c2-playlist-menu {
+    :global(.c2-destination-tabs),
+    :global(.c2-playlist),
+    :global(.c2-playlist-menu) {
       display: none;
     }
 
