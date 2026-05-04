@@ -125,11 +125,24 @@ export function createM005BrowserProofAppProps(
 }
 
 function isSettingsFixtureRoute(route: AppRoute): boolean {
-  return route.kind === 'settings' || (route.kind === 'primary' && route.route.kind === 'settingsWeb');
+  return (
+    route.kind === 'settings' ||
+    (route.kind === 'primary' &&
+      (route.route.kind === 'settingsWeb' ||
+        route.route.kind === 'settingsKodi' ||
+        route.route.kind === 'settingsKodiSection'))
+  );
 }
 
 function isAddonsListFixtureRoute(route: AppRoute): boolean {
-  return route.kind === 'addons' || (route.kind === 'primary' && route.route.kind === 'addonsAll');
+  return (
+    route.kind === 'addons' ||
+    (route.kind === 'primary' &&
+      (route.route.kind === 'addonsAll' ||
+        route.route.kind === 'addonsVideo' ||
+        route.route.kind === 'addonsAudio' ||
+        route.route.kind === 'addonsExecutable'))
+  );
 }
 
 function isAddonDetailFixtureRoute(route: AppRoute, addonid: string): boolean {

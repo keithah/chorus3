@@ -392,6 +392,10 @@ describe('Kodi package structural verification', () => {
         '[route] submenu-settings-kodi-package /addons/webinterface.chorus3/settings/kodi resolves to primary/settingsKodi.',
         '[route] submenu-settings-kodi-section-package /addons/webinterface.chorus3/settings/kodi/interface resolves to primary/settingsKodiSection.',
         '[route] submenu-help-page-package /addons/webinterface.chorus3/help/keyboard resolves to primary/helpPage.',
+        '[route] submenu-help-readme-package /addons/webinterface.chorus3/help/readme resolves to primary/helpPage.',
+        '[route] submenu-help-changelog-package /addons/webinterface.chorus3/help/changelog resolves to primary/helpPage.',
+        '[route] submenu-help-translations-package /addons/webinterface.chorus3/help/translations resolves to primary/helpPage.',
+        '[route] submenu-help-license-package /addons/webinterface.chorus3/help/license resolves to primary/helpPage.',
         '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
         '[route] now-playing-package /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
       ])

@@ -1,4 +1,5 @@
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
+import { HELP_TOPICS, isKnownHelpTopicId } from './helpTopics';
 
 export type AppPageStatus = 'implemented' | 'static' | 'deferred';
 export type AppPageSurfaceKind =
@@ -94,7 +95,7 @@ const APP_PAGE_METADATA_BY_KIND = {
 } as const satisfies Record<PrimaryRoute['kind'], StaticAppPageMetadata>;
 
 export function getAppPageMetadata(route: PrimaryRoute): AppPageMetadata {
-  const metadata = APP_PAGE_METADATA_BY_KIND[route.kind] ?? APP_PAGE_METADATA_BY_KIND.home;
+  const metadata = getStaticAppPageMetadata(route);
 
   return {
     routeKind: route.kind,
@@ -106,6 +107,14 @@ export function getAppPageMetadata(route: PrimaryRoute): AppPageMetadata {
     description: appPageDescription(route),
     deferredMessage: appPageDeferredMessage(route, metadata.status)
   };
+}
+
+function getStaticAppPageMetadata(route: PrimaryRoute): StaticAppPageMetadata {
+  if (route.kind === 'helpPage' && isKnownHelpTopicId(route.pageid)) {
+    return staticSurface('help', HELP_TOPICS[route.pageid].title, 'Help', 'Static route');
+  }
+
+  return APP_PAGE_METADATA_BY_KIND[route.kind] ?? APP_PAGE_METADATA_BY_KIND.home;
 }
 
 export function getAppPageLabel(route: PrimaryRoute): string {
@@ -165,6 +174,16 @@ function appPageDescription(route: PrimaryRoute): string {
     return 'Review search settings route context without claiming search-provider editing is implemented.';
   }
 
+  if (route.kind === 'help' || route.kind === 'helpOverview') {
+    return 'Browse safe static help for the primary app shell without loading external files or exposing route payloads.';
+  }
+
+  if (route.kind === 'helpPage') {
+    return isKnownHelpTopicId(route.pageid)
+      ? 'Browse a known safe static help topic for the primary app shell without loading external files.'
+      : 'Render a safe static help fallback for an unknown help route without reflecting the help identifier.';
+  }
+
   if (route.kind === 'browser') {
     return 'Browse media sources in an app-native frame while deeper browser parity lands in later slices.';
   }
@@ -181,7 +200,13 @@ function appPageDescription(route: PrimaryRoute): string {
 }
 
 function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): string {
-  if (status === 'implemented' || route.kind === 'home' || route.kind === 'settingsKodiSection') {
+  if (
+    status === 'implemented' ||
+    route.kind === 'home' ||
+    route.kind === 'settingsKodiSection' ||
+    route.kind === 'helpOverview' ||
+    (route.kind === 'helpPage' && isKnownHelpTopicId(route.pageid))
+  ) {
     return '';
   }
 

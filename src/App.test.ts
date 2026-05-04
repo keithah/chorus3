@@ -1804,6 +1804,10 @@ describe('App shell', () => {
     ],
     ['/help/overview', ['About Chorus', 'Status report', 'What is Chorus?'], []],
     ['/help/keyboard', ['Keyboard controls', 'Remote shortcuts', 'Playback shortcuts'], []],
+    ['/help/readme', ['Readme', 'Package usage', 'Primary shell routes'], []],
+    ['/help/changelog', ['Changelog', 'Release notes', 'Verification history'], []],
+    ['/help/translations', ['Translations', 'Language support', 'Locale selector'], []],
+    ['/help/license', ['License', 'Project license', 'Open source notice'], []],
     ['/remote', ['Remote control', 'Directional pad'], []],
     [
       '/browser/music/1',

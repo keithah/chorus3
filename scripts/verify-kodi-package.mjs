@@ -182,6 +182,26 @@ const SUBMENU_ROUTE_CHECKS = [
     name: 'submenu-help-page-root',
     path: '/help/keyboard',
     expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-readme-root',
+    path: '/help/readme',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-changelog-root',
+    path: '/help/changelog',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-translations-root',
+    path: '/help/translations',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-license-root',
+    path: '/help/license',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
   }
 ];
 
@@ -706,6 +726,14 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'help' } };
     case '/help/keyboard':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'keyboard' } };
+    case '/help/readme':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'readme' } };
+    case '/help/changelog':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'changelog' } };
+    case '/help/translations':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'translations' } };
+    case '/help/license':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'license' } };
     case '/video/movies':
       return { kind: 'video', route: { kind: 'videoMovies' } };
     case '/video/tv':

@@ -80,6 +80,27 @@ describe('createM005BrowserProofAppProps', () => {
     expect(isM005BrowserProofFixtureSecretSafe(props)).toBe(true);
   });
 
+  test('creates deterministic safe settings fixture props for Kodi settings primary routes', () => {
+    const kodi = createM005BrowserProofAppProps({
+      pathname: '/settings/kodi',
+      search: '?m005-browser-proof=1'
+    });
+    const section = createM005BrowserProofAppProps({
+      pathname: '/settings/kodi/interface',
+      search: '?m005-browser-proof=1'
+    });
+
+    expect(kodi.route).toEqual({ kind: 'primary', route: { kind: 'settingsKodi' } });
+    expect(section.route).toEqual({
+      kind: 'primary',
+      route: { kind: 'settingsKodiSection', section: 'interface' }
+    });
+    expect(kodi.settingsSnapshot).toMatchObject({ loadStatus: 'success' });
+    expect(section.settingsSnapshot).toMatchObject({ loadStatus: 'success' });
+    expect(isM005BrowserProofFixtureSecretSafe(kodi)).toBe(true);
+    expect(isM005BrowserProofFixtureSecretSafe(section)).toBe(true);
+  });
+
   test('injects a clone-safe German locale snapshot for direct settings browser proof after validation', () => {
     const props = createM005BrowserProofAppProps({
       pathname: '/settings',
@@ -108,12 +129,22 @@ describe('createM005BrowserProofAppProps', () => {
       pathname: '/addons',
       search: '?m005-browser-proof=1'
     });
+    const videoProps = createM005BrowserProofAppProps({
+      pathname: '/addons/video',
+      search: '?m005-browser-proof=1'
+    });
     const detailProps = createM005BrowserProofAppProps({
       pathname: '/addons/plugin.video.safe-demo',
       search: '?m005-browser-proof=1'
     });
 
     expect(listProps.route).toEqual({ kind: 'primary', route: { kind: 'addonsAll' } });
+    expect(videoProps.route).toEqual({ kind: 'primary', route: { kind: 'addonsVideo' } });
+    expect(videoProps.addonsSnapshot).toMatchObject({
+      loadStatus: 'success',
+      detailStatus: 'idle',
+      writeStatus: 'idle'
+    });
     expect(listProps.addonsSnapshot).toMatchObject({
       loadStatus: 'success',
       detailStatus: 'idle',
@@ -151,6 +182,7 @@ describe('createM005BrowserProofAppProps', () => {
     });
     expect(detailProps.addonsSnapshot?.detail?.name).toBe('Safe Video Demo');
     expect(isM005BrowserProofFixtureSecretSafe(listProps)).toBe(true);
+    expect(isM005BrowserProofFixtureSecretSafe(videoProps)).toBe(true);
     expect(isM005BrowserProofFixtureSecretSafe(detailProps)).toBe(true);
   });
 

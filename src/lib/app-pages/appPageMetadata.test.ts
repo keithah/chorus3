@@ -152,6 +152,50 @@ describe('app page metadata', () => {
     expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
   });
 
+  test.each([
+    ['overview', 'Help overview'],
+    ['keyboard', 'Keyboard controls'],
+    ['readme', 'Readme'],
+    ['changelog', 'Changelog'],
+    ['translations', 'Translations'],
+    ['license', 'License']
+  ] as const)('classifies known help topic %s as a static help surface', (pageid, heading) => {
+    const route =
+      pageid === 'overview'
+        ? ({ kind: 'helpOverview' } as const)
+        : ({ kind: 'helpPage', pageid } as const);
+
+    const metadata = getAppPageMetadata(route);
+
+    expect(metadata).toMatchObject({
+      surfaceKind: 'help',
+      status: 'static',
+      heading,
+      stageLabel: 'Help',
+      statusLabel: 'Static route'
+    });
+    expect(metadata.deferredMessage).toBe('');
+    expect(metadata.description).toContain('static help');
+    expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
+  });
+
+  test('keeps unknown safe help pages deferred without reflecting the raw id', () => {
+    const metadata = getAppPageMetadata({ kind: 'helpPage', pageid: 'safe-custom-topic' });
+
+    expect(metadata).toMatchObject({
+      routeKind: 'helpPage',
+      surfaceKind: 'help',
+      status: 'deferred',
+      heading: 'Help page',
+      stageLabel: 'Help',
+      statusLabel: 'Deferred detail surface'
+    });
+    expect(metadata.description).toContain('safe static help fallback');
+    expect(metadata.deferredMessage).toContain('safe app-native deferred frame');
+    expect(JSON.stringify(metadata)).not.toContain('safe-custom-topic');
+    expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
+  });
+
   test('keeps dynamic and malformed route labels generic without leaking route payloads', () => {
     const unsafeRoutes = [
       { kind: 'browserItem', media: 'music', itemid: 'smb://nas/passwords' },
