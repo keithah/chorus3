@@ -1726,6 +1726,11 @@ describe('App shell', () => {
     ['/addons/all', 'Add-ons', 'addonsAll', 'addons'],
     ['/playlists', 'Playlists', 'playlists', 'playlists'],
     ['/settings/web', 'Web interface settings', 'settingsWeb', 'settings'],
+    ['/settings/kodi', 'Kodi settings', 'settingsKodi', 'settings'],
+    ['/settings/kodi/interface', 'Kodi settings section', 'settingsKodiSection', 'settings'],
+    ['/settings/addons', 'Add-on settings', 'settingsAddons', 'settings'],
+    ['/settings/nav', 'Navigation settings', 'settingsNav', 'settings'],
+    ['/settings/search', 'Search settings', 'settingsSearch', 'settings'],
     ['/help', 'Help', 'help', 'help'],
     ['/remote', 'Remote', 'remote', 'remote'],
     ['/browser/music/safe-item', 'Browser item', 'browserItem', 'browser']
@@ -1778,9 +1783,11 @@ describe('App shell', () => {
     ['/addons/audio', ['Audio add-ons', 'Installed add-ons'], []],
     ['/addons/executable', ['Executable add-ons', 'Installed add-ons'], []],
     ['/playlists', ['Playlist library', 'Local Playlists', 'Media Playlists'], []],
-    ['/settings/web', ['Web interface settings', 'General options', 'Appearance'], []],
-    ['/settings/kodi', ['Kodi settings', 'General options', 'Appearance'], []],
-    ['/settings/main-menu', ['Navigation settings', 'General options', 'Appearance'], []],
+    ['/settings/web', ['Web interface settings', 'Package-safe web settings', 'Browser storage editing remains read-only here.'], []],
+    ['/settings/kodi', ['Kodi settings', 'Kodi settings browser', 'Browse Kodi sections and categories from the existing settings panel.'], []],
+    ['/settings/main-menu', ['Navigation settings', 'Navigation settings', 'Menu editing is represented as read-only route context.'], []],
+    ['/settings/addons', ['Add-on settings', 'Add-on settings', 'Deep add-on-specific settings remain deferred.'], []],
+    ['/settings/search', ['Search settings', 'Search settings', 'Search-provider editing is represented as read-only route context.'], []],
     [
       '/help',
       [
@@ -1812,10 +1819,11 @@ describe('App shell', () => {
       '/settings/kodi/interface',
       [
         'Kodi settings section',
-        'Deferred Kodi settings section',
-        'S06-owned Kodi settings behavior'
+        'Kodi section deep link',
+        'Selects a known Kodi settings section once, then leaves panel navigation in control.',
+        'Kodi Settings'
       ],
-      ['settings/kodi/interface', 'smb://', 'special://']
+      ['settings/kodi/interface', 'Deferred Kodi settings section', 'S06-owned Kodi settings behavior', 'smb://', 'special://']
     ]
   ] as const)(
     'renders S03 route %s with app-native safe surface copy',

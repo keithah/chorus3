@@ -151,10 +151,12 @@ export const DICTIONARIES = {
     'settings.panel.value.unavailable': 'unavailable',
     'settings.panel.readOnly.unrepresentable':
       'Read-only: this value cannot be represented safely.',
-    'settings.panel.readOnly.action': 'Read-only: Kodi action settings are not editable values.',
+    'settings.panel.readOnly.action':
+      'Read-only: Kodi action settings are not safe to edit here.',
     'settings.panel.readOnly.unsafeType':
       'Read-only: Kodi {type} settings are not safe to edit here.',
-    'settings.panel.readOnly.custom': 'Read-only: Kodi custom settings are not supported.',
+    'settings.panel.readOnly.custom':
+      'Read-only: Kodi custom setting payloads are not safe to edit here.',
     'settings.panel.readOnly.unsupported':
       'Read-only: Kodi marks this {type} setting as unsupported.',
     'settings.panel.load.loading': 'Loading settings from Kodi.',
@@ -1058,11 +1060,11 @@ export const DICTIONARIES = {
     'settings.panel.readOnly.unrepresentable':
       'Schreibgeschützt: Dieser Wert kann nicht sicher dargestellt werden.',
     'settings.panel.readOnly.action':
-      'Schreibgeschützt: Kodi-action-Einstellungen sind keine bearbeitbaren Werte.',
+      'Schreibgeschützt: Kodi-action-Einstellungen können hier nicht sicher bearbeitet werden.',
     'settings.panel.readOnly.unsafeType':
       'Schreibgeschützt: Kodi-{type}-Einstellungen können hier nicht sicher bearbeitet werden.',
     'settings.panel.readOnly.custom':
-      'Schreibgeschützt: Kodi-custom-Einstellungen werden nicht unterstützt.',
+      'Schreibgeschützt: Kodi-custom-Payloads können hier nicht sicher bearbeitet werden.',
     'settings.panel.readOnly.unsupported':
       'Schreibgeschützt: Kodi markiert diese {type}-Einstellung als nicht unterstützt.',
     'settings.panel.load.loading': 'Einstellungen werden von Kodi geladen.',

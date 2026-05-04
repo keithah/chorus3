@@ -362,10 +362,8 @@
       />
     {:else if route.kind === 'addonExecute'}
       <DeferredPrimaryPage {route} {metadata} />
-    {:else if route.kind === 'settingsWeb' || route.kind === 'settingsKodi' || route.kind === 'settingsAddons' || route.kind === 'settingsNav' || route.kind === 'settingsSearch'}
+    {:else if route.kind === 'settingsWeb' || route.kind === 'settingsKodi' || route.kind === 'settingsKodiSection' || route.kind === 'settingsAddons' || route.kind === 'settingsNav' || route.kind === 'settingsSearch'}
       <SettingsPage {route} snapshot={settingsSnapshot} dispatch={settingsDispatch} {i18n} />
-    {:else if route.kind === 'settingsKodiSection'}
-      <DeferredPrimaryPage {route} {metadata} />
     {:else if route.kind === 'help' || route.kind === 'helpOverview' || route.kind === 'helpPage'}
       <HelpPage {route} />
     {:else if route.kind === 'remote'}

@@ -133,6 +133,25 @@ describe('app page metadata', () => {
     ).toBe('');
   });
 
+  test('classifies Kodi settings section routes as real settings surfaces with generic copy', () => {
+    const metadata = getAppPageMetadata({
+      kind: 'settingsKodiSection',
+      section: 'interface?token=CHORUS3_SENTINEL_SECRET'
+    });
+
+    expect(metadata).toMatchObject({
+      routeKind: 'settingsKodiSection',
+      surfaceKind: 'settings',
+      status: 'static',
+      heading: 'Kodi settings section',
+      stageLabel: 'Settings',
+      statusLabel: 'Section route'
+    });
+    expect(metadata.deferredMessage).toBe('');
+    expect(metadata.description).toContain('Select a known Kodi settings section');
+    expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
+  });
+
   test('keeps dynamic and malformed route labels generic without leaking route payloads', () => {
     const unsafeRoutes = [
       { kind: 'browserItem', media: 'music', itemid: 'smb://nas/passwords' },

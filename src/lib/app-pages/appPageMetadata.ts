@@ -72,11 +72,11 @@ const APP_PAGE_METADATA_BY_KIND = {
   ),
   settingsWeb: staticSurface('settings', 'Web interface settings', 'Settings', 'Static route'),
   settingsKodi: staticSurface('settings', 'Kodi settings', 'Settings', 'Static route'),
-  settingsKodiSection: deferred(
+  settingsKodiSection: staticSurface(
     'settings',
     'Kodi settings section',
     'Settings',
-    'Deferred detail surface'
+    'Section route'
   ),
   settingsAddons: staticSurface('settings', 'Add-on settings', 'Settings', 'Static route'),
   settingsNav: staticSurface('settings', 'Navigation settings', 'Settings', 'Static route'),
@@ -142,7 +142,27 @@ function appPageDescription(route: PrimaryRoute): string {
   }
 
   if (route.kind === 'settingsWeb') {
-    return 'Manage Kodi settings through the primary app shell without exposing host setup as the root default.';
+    return 'Manage package-safe web interface settings context through the primary app shell without exposing host setup as the root default.';
+  }
+
+  if (route.kind === 'settingsKodi') {
+    return 'Browse Kodi settings sections and categories through the primary app shell while preserving existing settings-panel write guards.';
+  }
+
+  if (route.kind === 'settingsKodiSection') {
+    return 'Select a known Kodi settings section through the primary app shell without exposing route ids or unsafe setting values.';
+  }
+
+  if (route.kind === 'settingsAddons') {
+    return 'Review add-on settings route context while deep add-on-specific settings remain deferred behind a safe boundary.';
+  }
+
+  if (route.kind === 'settingsNav') {
+    return 'Review navigation settings route context without claiming mutable menu editing is implemented.';
+  }
+
+  if (route.kind === 'settingsSearch') {
+    return 'Review search settings route context without claiming search-provider editing is implemented.';
   }
 
   if (route.kind === 'browser') {
@@ -161,13 +181,12 @@ function appPageDescription(route: PrimaryRoute): string {
 }
 
 function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): string {
-  if (status === 'implemented' || route.kind === 'home') {
+  if (status === 'implemented' || route.kind === 'home' || route.kind === 'settingsKodiSection') {
     return '';
   }
 
   if (
     route.kind === 'browserItem' ||
-    route.kind === 'settingsKodiSection' ||
     route.kind === 'helpPage' ||
     route.kind === 'addonExecute'
   ) {
