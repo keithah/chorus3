@@ -13,6 +13,10 @@ import {
   createM005BrowserProofAppProps,
   type M005BrowserProofAppProps
 } from './lib/testing/m005BrowserProofFixtures';
+import {
+  createM007VisualProofAppProps,
+  type M007VisualProofAppProps
+} from './lib/testing/m007VisualProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
 import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute, type AppRoute } from './lib/app/appRouter';
 import { parseNowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
@@ -40,12 +44,19 @@ interface EntrypointContext {
 }
 
 type AppProps = { route: AppRoute; packageMountedHost?: SavedKodiHost | null } & Partial<
-  Omit<M003BrowserProofAppProps & M004BrowserProofAppProps & M005BrowserProofAppProps, 'route'>
+  Omit<
+    M003BrowserProofAppProps &
+      M004BrowserProofAppProps &
+      M005BrowserProofAppProps &
+      M007VisualProofAppProps,
+    'route'
+  >
 >;
 
 const canLoadM003BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 const canLoadM004BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 const canLoadM005BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const canLoadM007VisualProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 
 export function shouldUseM003BrowserProofFixtures(
   location: EntrypointLocation | null | undefined,
@@ -66,6 +77,13 @@ export function shouldUseM005BrowserProofFixtures(
   env: EntrypointEnv
 ): boolean {
   return shouldUseBrowserProofFixtures(location, env, 'm005-browser-proof');
+}
+
+export function shouldUseM007VisualProofFixtures(
+  location: EntrypointLocation | null | undefined,
+  env: EntrypointEnv
+): boolean {
+  return shouldUseBrowserProofFixtures(location, env, 'm007-visual-proof');
 }
 
 export function resolveEntrypointRoute(
@@ -125,6 +143,10 @@ export function resolveEntrypointAppProps(
           : {})
       }
     : {};
+
+  if (shouldUseM007VisualProofFixtures(location, env) && canLoadM007VisualProofFixtures) {
+    return createM007VisualProofAppProps(location);
+  }
 
   if (shouldUseM004BrowserProofFixtures(location, env) && canLoadM004BrowserProofFixtures) {
     const props = createM004BrowserProofAppProps(location);

@@ -4,6 +4,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import { createM007VisualProofAppProps, M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofFixtures';
 import PrimaryAppShell from './lib/app-shell/AppShell.svelte';
 import { createAppNavigationItems } from './lib/app-shell/appNavigation';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
@@ -1869,6 +1870,55 @@ describe('App shell', () => {
     }
   );
 
+  it('wires M007 visual proof fixtures through App surfaces without leaking unsafe proof query copy', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const routes = [
+      ['/music', ['Music', 'Nina Simone', 'Pastel Blues']],
+      ['/movies', ['Movies', 'Neon Harbor', 'Quiet Signal']],
+      ['/tvshows', ['TV shows', 'Aurora Files', 'Signal Mirror']],
+      ['/browser', ['Browser / Files', 'Albums', 'Sinnerman.flac']],
+      ['/addons/video', ['Video add-ons', 'Safe Video Demo']],
+      ['/addons/plugin.video.safe-demo', ['Safe Video Demo', 'Add-on detail loaded.']],
+      ['/playlists', ['Playlists', 'Browser Jazz', 'Blue in Green']],
+      ['/settings/kodi/interface', ['Kodi settings section', 'Kodi Settings', 'Autoplay next item']],
+      ['/help', ['Help', 'About Chorus', 'Add-ons', 'Developers']],
+      ['/help/readme', ['Readme', 'Package usage']]
+    ] as const;
+
+    for (const [pathname, expectedCopy] of routes) {
+      const target = renderApp(
+        createM007VisualProofAppProps({
+          pathname,
+          search:
+            '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage'
+        })
+      );
+
+      requirePrimaryShellStage(target);
+      expect(target.querySelector('[data-app-page-surface]')).toBeInstanceOf(HTMLElement);
+      if (pathname === '/playlists') {
+        expect(target.querySelector('[data-local-playlists-panel]')).toBeInstanceOf(HTMLElement);
+      }
+      const text = target.textContent ?? '';
+      for (const expected of expectedCopy) {
+        expect(text, `${pathname} should include ${expected}`).toContain(expected);
+      }
+      expect(text, `${pathname} should avoid setup console`).not.toContain('Setup console');
+      expect(text, `${pathname} should avoid generic not-found`).not.toMatch(
+        /route not found|Route not found|Settings route not found|Add-ons route not found/u
+      );
+      expect(text, `${pathname} should avoid legacy placeholder copy`).not.toContain(
+        'Detailed parity for this route is deferred'
+      );
+      for (const forbidden of M007_VISUAL_PROOF_FORBIDDEN_TEXT) {
+        expect(text, `${pathname} should not include ${forbidden}`).not.toContain(forbidden);
+      }
+
+      unmountCurrentApp();
+    }
+  });
+
   it('wires local playlists into /playlists while keeping Kodi media playlists separate', () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
     const target = renderApp({
@@ -2077,8 +2127,8 @@ describe('App shell', () => {
       ['Movies', 'Recent', { kind: 'primary', route: { kind: 'moviesRecent' } }],
       ['TV shows', 'Recent', { kind: 'primary', route: { kind: 'tvshowsRecent' } }],
       ['Add-ons', 'Video', { kind: 'primary', route: { kind: 'addonsVideo' } }],
-      ['Settings', 'Kodi', { kind: 'primary', route: { kind: 'settingsKodi' } }],
-      ['Help', 'Overview', { kind: 'primary', route: { kind: 'helpOverview' } }]
+      ['Settings', 'Add-ons', { kind: 'primary', route: { kind: 'settingsAddons' } }],
+      ['Help', 'About', { kind: 'primary', route: { kind: 'help' } }]
     ] as const satisfies readonly (readonly [string, string, AppRoute])[];
 
     let target = renderApp({ route: { kind: 'dashboard' } });
@@ -2114,8 +2164,8 @@ describe('App shell', () => {
 
   it.each([
     ['/addons/webinterface.chorus3/music/genres', 'Music', 'Genres'],
-    ['/addons/webinterface.chorus3/settings/kodi/interface', 'Settings', 'Kodi'],
-    ['/addons/webinterface.chorus3/help/keyboard', 'Help', 'Overview']
+    ['/addons/webinterface.chorus3/settings/kodi/interface', 'Settings', 'Add-ons'],
+    ['/addons/webinterface.chorus3/help/keyboard', 'Help', 'Keyboard']
   ] as const)(
     'marks package submenu %s as active without route fallback copy',
     (pathname, railTitle, submenuLabel) => {
@@ -2711,7 +2761,7 @@ describe('App shell', () => {
     const target = renderApp({ route: { kind: 'dashboard' } });
 
     expect(target.textContent).toContain('chorus3');
-    expect(target.textContent).toContain('Home');
+    expect(target.textContent).toContain('Library landing');
     expect(target.textContent).toContain('Music Library');
     expect(target.textContent).not.toContain('Kodi host settings');
     expect(target.textContent).not.toContain('Multi-host console');

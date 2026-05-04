@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KODI_WEBINTERFACE_BASE_PATH } from './lib/app/appRouter';
 import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProofFixtures';
+import { M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofFixtures';
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
 async function importMain(): Promise<typeof import('./main')> {
@@ -958,6 +959,75 @@ describe('main entrypoint', () => {
         { DEV: false, MODE: 'production' }
       )
     ).toBe(false);
+  });
+
+  it('exposes M007 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
+    const { resolveEntrypointAppProps, shouldUseM007VisualProofFixtures } = await importMain();
+
+    expect(
+      shouldUseM007VisualProofFixtures(
+        { search: '?m007-visual-proof=1' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM007VisualProofFixtures(
+        { search: '?m007-visual-proof=1' },
+        { DEV: false, MODE: 'test' }
+      )
+    ).toBe(true);
+    expect(
+      shouldUseM007VisualProofFixtures(
+        { search: '?m007-visual-proof=0' },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(shouldUseM007VisualProofFixtures(undefined, { DEV: true, MODE: 'development' })).toBe(
+      false
+    );
+    expect(
+      shouldUseM007VisualProofFixtures(
+        {
+          get search(): string {
+            throw new Error('untrusted location');
+          }
+        },
+        { DEV: true, MODE: 'development' }
+      )
+    ).toBe(false);
+    expect(
+      shouldUseM007VisualProofFixtures(
+        { search: '?m007-visual-proof=1' },
+        { DEV: false, MODE: 'production' }
+      )
+    ).toBe(false);
+    expect(
+      resolveEntrypointAppProps(
+        { pathname: '/addons/video', search: '?m007-visual-proof=1' },
+        { DEV: false, MODE: 'production' }
+      )
+    ).toEqual({ route: { kind: 'primary', route: { kind: 'addonsVideo' } } });
+  });
+
+  it('mounts M007 visual proof fixtures through the real entrypoint without reflecting unsafe query values', async () => {
+    setPathAndSearch(
+      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo',
+      '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage'
+    );
+
+    await importMain();
+
+    expect(document.body.querySelector('[aria-label="Chorus media controller"]')).toBeInstanceOf(
+      HTMLElement
+    );
+    expect(document.body.querySelector('[data-app-page-surface]')).toBeInstanceOf(HTMLElement);
+    expect(document.body.textContent).toContain('Safe Video Demo');
+    expect(document.body.textContent).toContain('Add-on detail loaded.');
+    expect(document.body.textContent).not.toContain('Setup console');
+    expect(document.body.textContent).not.toContain('Add-ons route not found');
+    for (const forbidden of M007_VISUAL_PROOF_FORBIDDEN_TEXT) {
+      expect(document.body.textContent).not.toContain(forbidden);
+    }
   });
 
   it('exposes pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
