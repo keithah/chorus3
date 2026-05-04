@@ -338,6 +338,31 @@ export {
 } from './localScrobble.svelte';
 
 export {
+  LOCAL_PLAYLIST_STORAGE_KEY,
+  LocalPlaylistStore,
+  createLocalPlaylistSafeError,
+  createLocalPlaylistStore,
+  localPlaylistStore,
+  type LocalPlaylistDispatch,
+  type LocalPlaylistItemInput,
+  type LocalPlaylistItemKind,
+  type LocalPlaylistItemSnapshot,
+  type LocalPlaylistMoveDirection,
+  type LocalPlaylistMutationName,
+  type LocalPlaylistMutationResult,
+  type LocalPlaylistMutationStatus,
+  type LocalPlaylistSafeErrorSnapshot,
+  type LocalPlaylistSnapshot,
+  type LocalPlaylistStorage,
+  type LocalPlaylistStorageWarning,
+  type LocalPlaylistStorageWarningCode,
+  type LocalPlaylistStoreOptions,
+  type LocalPlaylistStoreSnapshot,
+  type LocalPlaylistValidationErrors,
+  type LocalPlaylistValidationField
+} from './localPlaylist.svelte';
+
+export {
   AddonsStore,
   addonsStore,
   createAddonsStore,
