@@ -428,22 +428,22 @@ Acceptance:
 
 ## Detailed Route Map
 
-| Chorus2 UI Surface | Route(s) | Required Status |
-| --- | --- | --- |
-| Music | `/`, `/music` | Working page, clickable submenu |
-| Music genres | `/music/genres` | Working or Chorus2-shaped placeholder |
-| Top music | `/music/top` | Working or Chorus2-shaped placeholder |
-| Artists | `/music/artists` | Working or Chorus2-shaped placeholder |
-| Albums | `/music/albums` | Working or Chorus2-shaped placeholder |
-| Music videos | `/music/videos` | Working or Chorus2-shaped placeholder |
-| Movies | `/video/movies` | Working page, no not-found |
-| TV shows | `/video/tv` | Working page, no not-found |
-| Files/browser | `/files`, `/browser` | Working page, no lab URL |
-| Add-ons | `/addons`, `/addons/all`, `/addons/video`, `/addons/audio`, `/addons/executable` | Chorus2 add-ons UI |
-| Remote | `/remote` | Working remote-control UI |
-| Playlists | `/playlists` | Chorus2 playlist UI |
-| Settings | `/settings` plus settings subroutes | Chorus2 settings UI |
-| Help | `/help` plus help subroutes | Chorus2 help/about UI |
+| Chorus2 UI Surface | Route(s)                                                                         | Required Status                       |
+| ------------------ | -------------------------------------------------------------------------------- | ------------------------------------- |
+| Music              | `/`, `/music`                                                                    | Working page, clickable submenu       |
+| Music genres       | `/music/genres`                                                                  | Working or Chorus2-shaped placeholder |
+| Top music          | `/music/top`                                                                     | Working or Chorus2-shaped placeholder |
+| Artists            | `/music/artists`                                                                 | Working or Chorus2-shaped placeholder |
+| Albums             | `/music/albums`                                                                  | Working or Chorus2-shaped placeholder |
+| Music videos       | `/music/videos`                                                                  | Working or Chorus2-shaped placeholder |
+| Movies             | `/video/movies`                                                                  | Working page, no not-found            |
+| TV shows           | `/video/tv`                                                                      | Working page, no not-found            |
+| Files/browser      | `/files`, `/browser`                                                             | Working page, no lab URL              |
+| Add-ons            | `/addons`, `/addons/all`, `/addons/video`, `/addons/audio`, `/addons/executable` | Chorus2 add-ons UI                    |
+| Remote             | `/remote`                                                                        | Working remote-control UI             |
+| Playlists          | `/playlists`                                                                     | Chorus2 playlist UI                   |
+| Settings           | `/settings` plus settings subroutes                                              | Chorus2 settings UI                   |
+| Help               | `/help` plus help subroutes                                                      | Chorus2 help/about UI                 |
 
 ## Testing Requirements
 

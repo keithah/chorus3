@@ -159,9 +159,15 @@ describe('parseAppRoute', () => {
     'parses primary route %s to an explicit typed identity',
     (path, route) => {
       expect(parseAppRoute(path, '?token=secret')).toEqual({ kind: 'primary', route });
-      expect(parseAppRoute(`${KODI_WEBINTERFACE_BASE_PATH}${path === '/' ? '' : path}`, '?token=secret', {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
-      })).toEqual({ kind: 'primary', route });
+      expect(
+        parseAppRoute(
+          `${KODI_WEBINTERFACE_BASE_PATH}${path === '/' ? '' : path}`,
+          '?token=secret',
+          {
+            packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+          }
+        )
+      ).toEqual({ kind: 'primary', route });
     }
   );
 
@@ -172,9 +178,9 @@ describe('parseAppRoute', () => {
 
       expect(buildPrimaryAppRoute(route)).toBe(canonicalPath);
       expect(buildAppRoute({ kind: 'primary', route })).toBe(canonicalPath);
-      expect(buildPrimaryAppRoute(route, { packageBasePath: `${KODI_WEBINTERFACE_BASE_PATH}/` })).toBe(
-        `${KODI_WEBINTERFACE_BASE_PATH}${canonicalPath === '/' ? '' : canonicalPath}`
-      );
+      expect(
+        buildPrimaryAppRoute(route, { packageBasePath: `${KODI_WEBINTERFACE_BASE_PATH}/` })
+      ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}${canonicalPath === '/' ? '' : canonicalPath}`);
     }
   );
 
@@ -211,7 +217,10 @@ describe('parseAppRoute', () => {
   });
 
   test('keeps Chorus3 video aliases delegated to the video router', () => {
-    expect(parseAppRoute('/video/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
+    expect(parseAppRoute('/video/movies')).toEqual({
+      kind: 'video',
+      route: { kind: 'videoMovies' }
+    });
     expect(parseAppRoute('/video/tv')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
     expect(parseAppRoute('/video/movies/4401')).toEqual({
       kind: 'video',
@@ -270,12 +279,15 @@ describe('parseAppRoute', () => {
       '/tvshow/5501/1/6601',
       { kind: 'tvshowEpisodeDetail', tvshowid: '5501', season: '1', episodeid: '6601' }
     ]
-  ] as const)('parses reference-compatible video route %s as primary route identity', (path, route) => {
-    expect(parseAppRoute(path, '?Authorization=Basic&ignored=1')).toEqual({
-      kind: 'primary',
-      route
-    });
-  });
+  ] as const)(
+    'parses reference-compatible video route %s as primary route identity',
+    (path, route) => {
+      expect(parseAppRoute(path, '?Authorization=Basic&ignored=1')).toEqual({
+        kind: 'primary',
+        route
+      });
+    }
+  );
 
   test('parses package-mounted reference-compatible video routes to the same primary identity', () => {
     expect(

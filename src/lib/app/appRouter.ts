@@ -5,11 +5,7 @@ import {
   type VideoRoute
 } from '../video/videoRouter';
 import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
-import {
-  buildPrimaryRoutePath,
-  parsePrimaryRoutePath,
-  type PrimaryRoute
-} from './primaryRoutes';
+import { buildPrimaryRoutePath, parsePrimaryRoutePath, type PrimaryRoute } from './primaryRoutes';
 
 export type AppDashboardRoute = DashboardRoute;
 export type PrimaryAppRoute = { kind: 'primary'; route: PrimaryRoute };

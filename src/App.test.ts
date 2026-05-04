@@ -1376,6 +1376,24 @@ function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement 
   return link as HTMLAnchorElement;
 }
 
+function requirePrimaryShellStage(target: HTMLElement): HTMLElement {
+  const shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
+  expect(shell).toBeInstanceOf(HTMLElement);
+  expect(shell?.classList.contains('chorus-app')).toBe(true);
+
+  const stage = target.querySelector<HTMLElement>('.c2-stage[aria-label]');
+  expect(stage).toBeInstanceOf(HTMLElement);
+  return stage as HTMLElement;
+}
+
+function requirePrimaryPageFrame(target: HTMLElement, title: string): HTMLElement {
+  const frame = target.querySelector<HTMLElement>('.app-page-frame');
+  expect(frame).toBeInstanceOf(HTMLElement);
+  expect(frame?.textContent).toContain(title);
+  expect(frame?.textContent).not.toContain('Route not found');
+  return frame as HTMLElement;
+}
+
 function requirePackageShellButtonByAria(
   target: HTMLElement,
   ariaLabel: string
@@ -1479,50 +1497,6 @@ async function waitForText(target: HTMLElement, text: string): Promise<void> {
   });
 }
 
-function setInputValue(input: HTMLInputElement, value: string): void {
-  input.value = value;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
-function setCheckbox(input: HTMLInputElement, checked: boolean): void {
-  input.checked = checked;
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-}
-
-async function submitHostForm(target: HTMLElement): Promise<void> {
-  const form = target.querySelector<HTMLFormElement>('form[aria-label="Kodi host settings"]');
-  expect(form).toBeInstanceOf(HTMLFormElement);
-  form?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
-  await tick();
-}
-
-async function addHost(
-  target: HTMLElement,
-  {
-    label = 'Living Room Kodi',
-    host = 'kodi.local',
-    port = '8080',
-    username = 'kodi',
-    password = 'super-secret-password',
-    useWebSocket = false
-  }: {
-    label?: string;
-    host?: string;
-    port?: string;
-    username?: string;
-    password?: string;
-    useWebSocket?: boolean;
-  } = {}
-): Promise<void> {
-  setInputValue(target.querySelector<HTMLInputElement>('#host-label')!, label);
-  setInputValue(target.querySelector<HTMLInputElement>('#host-address')!, host);
-  setInputValue(target.querySelector<HTMLInputElement>('#host-port')!, port);
-  setInputValue(target.querySelector<HTMLInputElement>('#host-username')!, username);
-  setInputValue(target.querySelector<HTMLInputElement>('#host-password')!, password);
-  setCheckbox(target.querySelector<HTMLInputElement>('#host-websocket')!, useWebSocket);
-  await submitHostForm(target);
-}
-
 beforeEach(() => {
   vi.restoreAllMocks();
   configStore.reset();
@@ -1553,15 +1527,15 @@ describe('App shell', () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
 
     let target = renderApp({ route: { kind: 'dashboard' } });
-    let shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
-    expect(shell).toBeInstanceOf(HTMLElement);
-    expect(shell?.classList.contains('chorus-app')).toBe(true);
+    requirePrimaryShellStage(target);
     expect(requireRailLink(target, 'Music').getAttribute('href')).toBe(
       buildAppRoute({ kind: 'primary', route: { kind: 'music' } })
     );
     expect(requireRailLink(target, 'Movies').getAttribute('href')).toBe(
       buildAppRoute({ kind: 'primary', route: { kind: 'movies' } })
     );
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
 
     unmountCurrentApp();
 
@@ -1569,9 +1543,7 @@ describe('App shell', () => {
       route: { kind: 'dashboard' },
       packageMountedHost: createPackageMountedHost()
     });
-    shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
-    expect(shell).toBeInstanceOf(HTMLElement);
-    expect(shell?.classList.contains('chorus-app')).toBe(true);
+    requirePrimaryShellStage(target);
     expect(requireRailLink(target, 'Music').getAttribute('href')).toBe(
       buildAppRoute(
         { kind: 'primary', route: { kind: 'music' } },
@@ -1584,6 +1556,60 @@ describe('App shell', () => {
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }
       )
     );
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+  });
+
+  it.each([
+    ['/', 'Home'],
+    ['/addons/webinterface.chorus3/', 'Home'],
+    ['/home', 'Home'],
+    ['/addons/webinterface.chorus3/home', 'Home'],
+    ['/music', 'Music'],
+    ['/movies', 'Movies'],
+    ['/tvshows', 'TV shows'],
+    ['/browser', 'Browser'],
+    ['/addons/all', 'Add-ons'],
+    ['/playlists', 'Playlists'],
+    ['/settings/web', 'Web settings'],
+    ['/help', 'Help'],
+    ['/remote', 'Remote'],
+    ['/browser/music/safe-item', 'Browser item']
+  ] as const)('renders %s as a primary shell route with app-shaped content', (pathname, title) => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const isPackagePath = pathname.startsWith(KODI_WEBINTERFACE_BASE_PATH);
+    const target = renderApp({
+      route: parseAppRoute(pathname, '', {
+        packageBasePath: isPackagePath ? KODI_WEBINTERFACE_BASE_PATH : ''
+      }),
+      packageMountedHost: isPackagePath ? createPackageMountedHost() : null,
+      remoteSnapshot: createRemoteSnapshot(),
+      remoteInputDispatch: createRemoteInputDispatch(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch: createPlayerDispatch(),
+      videoLibrarySnapshot: createVideoLibrarySnapshot(),
+      videoTvSnapshot: createVideoTvSnapshot(),
+      addonsSnapshot: createAddonsSnapshot(),
+      addonsDispatch: createAddonsDispatch(),
+      settingsSnapshot: createSettingsSnapshot(),
+      settingsDispatch: createSettingsDispatch(),
+      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch(),
+      mediaFilesSnapshot: createMediaFilesSnapshot(),
+      mediaFilesDispatch: createMediaFilesDispatch(),
+      mediaFilesActionDispatch: createMediaFilesActionDispatch(),
+      musicLibrarySnapshot: createMusicLibrarySnapshot(),
+      musicBrowseSnapshot: createMusicBrowseSnapshot(),
+      musicBrowseDispatch: createMusicBrowseDispatch(),
+      musicActionDispatch: createMusicActionDispatch()
+    });
+
+    const stage = requirePrimaryShellStage(target);
+    expect(stage.textContent).not.toContain('Route not found');
+    requirePrimaryPageFrame(target, title);
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
   });
 
   it('keeps the extracted primary shell safe with empty nav, disabled drawer/player defaults, and trailing package base', () => {
@@ -1921,8 +1947,11 @@ describe('App shell', () => {
     const target = renderApp({ route: { kind: 'dashboard' } });
 
     expect(target.textContent).toContain('chorus3');
+    expect(target.textContent).toContain('Home');
     expect(target.textContent).toContain('Music Library');
-    expect(target.textContent).toContain('Kodi host settings');
+    expect(target.textContent).not.toContain('Kodi host settings');
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
     expect(target.textContent).not.toContain('Video Movies');
   });
 
@@ -2419,7 +2448,7 @@ describe('App shell', () => {
     const modified = window.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true, cancelable: true })
     );
-    const editable = target.querySelector<HTMLInputElement>('#host-label');
+    const editable = target.querySelector<HTMLInputElement>('.c2-search input[type="search"]');
     expect(editable).toBeInstanceOf(HTMLInputElement);
     editable?.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true })
@@ -4303,11 +4332,10 @@ describe('App shell', () => {
     expect(target.textContent).toContain('No Kodi host configured yet');
   });
 
-  it('renders the shell with store-backed idle Kodi connection diagnostics and host controls', () => {
+  it('renders the shell with store-backed idle Kodi connection diagnostics without root host controls', () => {
     const target = renderApp();
 
     expect(target.textContent).toContain('chorus3');
-    expect(target.textContent).toContain('Multi-host console');
     expect(target.textContent).toContain('No Kodi host configured yet');
     expect(target.textContent).toContain('Connection');
     expect(target.textContent).toContain('no host');
@@ -4318,85 +4346,39 @@ describe('App shell', () => {
     expect(target.textContent).not.toContain('Library sync');
     expect(target.textContent).toContain('Music Library');
     expect(target.textContent).toContain('Music library is empty.');
-    expect(target.textContent).toContain('Kodi host settings');
-    expect(target.textContent).toContain('Only save credentials on a trusted device');
+    expect(target.textContent).not.toContain('Kodi host settings');
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.querySelector('form[aria-label="Kodi host settings"]')).toBeNull();
   });
 
-  it('validates host fields accessibly and rejects credential-bearing host text', async () => {
+  it('does not render root host settings form validation controls', () => {
     const target = renderApp();
 
-    await submitHostForm(target);
-
-    const labelInput = target.querySelector<HTMLInputElement>('#host-label');
-    const hostInput = target.querySelector<HTMLInputElement>('#host-address');
-    expect(labelInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(labelInput?.getAttribute('aria-describedby')).toContain('host-label-error');
-    expect(hostInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(target.textContent).toContain('Label is required.');
-    expect(target.textContent).toContain('Host is required.');
-
-    setInputValue(labelInput!, 'Office Kodi');
-    setInputValue(hostInput!, 'http://admin:secret@kodi.local/jsonrpc');
-    setInputValue(target.querySelector<HTMLInputElement>('#host-port')!, '70000');
-    await submitHostForm(target);
-
-    expect(target.textContent).toContain(
-      'Host must not include a protocol, path, query string, or credentials.'
-    );
-    expect(target.textContent).toContain('HTTP port must be an integer between 1 and 65535.');
+    expect(target.querySelector('form[aria-label="Kodi host settings"]')).toBeNull();
+    expect(target.querySelector('#host-label')).toBeNull();
+    expect(target.querySelector('#host-address')).toBeNull();
+    expect(target.textContent).not.toContain('Label is required.');
+    expect(target.textContent).not.toContain('Host is required.');
     expect(target.textContent).not.toContain('admin:secret');
     expect(target.textContent).not.toContain('Basic ');
   });
 
-  it('adds, tests, activates, edits, and deletes saved hosts without exposing secrets', async () => {
+  it('keeps saved-host mutation controls off the primary root while preserving safe diagnostics', async () => {
     const fetchMock = createKodiFetchMock();
     vi.stubGlobal('fetch', fetchMock);
     const target = renderApp();
 
-    await addHost(target);
-
-    expect(target.textContent).toContain('Living Room Kodi');
-    expect(target.textContent).toContain('kodi.local:8080');
-    expect(target.textContent).toContain('Credentials saved');
+    expect(target.querySelector('button[aria-label="Test Living Room Kodi"]')).toBeNull();
+    expect(target.querySelector('button[aria-label="Activate Living Room Kodi"]')).toBeNull();
+    expect(target.querySelector('button[aria-label^="Edit "]')).toBeNull();
+    expect(target.querySelector('button[aria-label^="Delete "]')).toBeNull();
+    expect(target.textContent).toContain('No Kodi host configured yet');
     expect(target.textContent).not.toContain('super-secret-password');
     expect(target.textContent).not.toContain('Basic ');
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Test Living Room Kodi"]')?.click();
-    await waitForText(target, 'Test passed');
-
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(target.textContent).toContain('Test passed');
-    expect(target.textContent).toContain('Kodi 21.1');
-    expect(target.textContent).toContain('Application Kodi');
-
-    const activateButton = target.querySelector<HTMLButtonElement>(
-      'button[aria-label="Activate Living Room Kodi"]'
-    );
-    activateButton?.click();
-    await waitForText(target, 'connected');
-
-    expect(target.textContent).toContain('Active host');
-    expect(target.textContent).toContain('connected');
-    expect(target.textContent).toContain('Kodi HTTP diagnostics are connected. Kodi 21.1');
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Edit Living Room Kodi"]')?.click();
-    await tick();
-    setInputValue(target.querySelector<HTMLInputElement>('#host-label')!, 'Media Room Kodi');
-    await submitHostForm(target);
-
-    expect(target.textContent).toContain('Media Room Kodi');
-    expect(target.textContent).not.toContain('super-secret-password');
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Delete Media Room Kodi"]')?.click();
-    await tick();
-
-    expect(target.textContent).toContain('No saved hosts yet');
-    expect(target.textContent).toContain('No active host selected');
-    expect(target.textContent).not.toContain('super-secret-password');
-    expect(target.textContent).not.toContain('Basic ');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('shows safe host test and connection failures while preserving saved-host controls', async () => {
+  it('keeps host test and activation controls off root when fetch would fail', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -4405,24 +4387,9 @@ describe('App shell', () => {
     );
     const target = renderApp();
 
-    await addHost(target, { label: 'Failed Kodi', host: 'failed.local', password: 'bad-password' });
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Test Failed Kodi"]')?.click();
-    await waitForText(target, 'Test failed');
-
-    expect(target.textContent).toContain('Test failed');
-    expect(target.textContent).toContain(
-      'Kodi rejected the configured username or password while calling JSONRPC.Ping.'
-    );
-    expect(
-      target.querySelector<HTMLButtonElement>('button[aria-label="Test Failed Kodi"]')
-    ).not.toBe(null);
-
-    target.querySelector<HTMLButtonElement>('button[aria-label="Activate Failed Kodi"]')?.click();
-    await waitForText(target, 'Kodi connection failed (http/auth)');
-
-    expect(target.textContent).toContain('failed');
-    expect(target.textContent).toContain('Kodi connection failed (http/auth)');
+    expect(target.querySelector('form[aria-label="Kodi host settings"]')).toBeNull();
+    expect(target.textContent).toContain('No Kodi host configured yet');
+    expect(target.textContent).not.toContain('Kodi connection failed (http/auth)');
     expect(target.textContent).not.toContain('bad-password');
     expect(target.textContent).not.toContain('Basic ');
   });

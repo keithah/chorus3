@@ -120,8 +120,10 @@
     type PrimaryAppRoute
   } from '$lib/app/appRouter';
   import PrimaryAppShell from '$lib/app-shell/AppShell.svelte';
+  import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import { createAppNavigationItems } from '$lib/app-shell/appNavigation';
   import type { AppShellPlayerSnapshot } from '$lib/app-shell/appShellTypes';
+  import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
@@ -381,6 +383,9 @@
   }: Props = $props();
   const currentRoute = $derived(toAppRoute(route));
   const currentPrimaryRoute = $derived(currentRoute.kind === 'primary' ? currentRoute.route : null);
+  const currentPrimaryShellRoute = $derived<PrimaryRoute | null>(
+    currentPrimaryRoute ?? (currentRoute.kind === 'dashboard' ? { kind: 'home' } : null)
+  );
   const currentVideoRoute = $derived(
     currentRoute.kind === 'video'
       ? currentRoute.route
@@ -418,11 +423,11 @@
   );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isPackageMounted = $derived(packageMountedHost !== null);
+  const isPrimaryShellRoute = $derived(currentPrimaryShellRoute !== null);
   const currentShellNavigationItems = $derived(
     createAppNavigationItems({
       packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : '',
-      activeRoute:
-        currentPrimaryRoute ?? (currentRoute.kind === 'dashboard' ? { kind: 'home' } : null)
+      activeRoute: currentPrimaryShellRoute
     })
   );
   const currentShellPlayer = $derived(toAppShellPlayerSnapshot(currentPlayerSnapshot));
@@ -479,12 +484,6 @@
     }
 
     return { kind: 'video', route: input };
-  }
-
-  function appHref(route: AppRoute): string {
-    return buildAppRoute(route, {
-      packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''
-    });
   }
 
   function primaryRouteToVideoRoute(
@@ -550,6 +549,121 @@
     }
 
     return null;
+  }
+
+  function primaryRouteTitle(route: PrimaryRoute | null): string {
+    if (!route) {
+      return 'Home';
+    }
+
+    const titles: Partial<Record<PrimaryRoute['kind'], string>> = {
+      home: 'Home',
+      music: 'Music',
+      musicTop: 'Top music',
+      musicArtists: 'Artists',
+      musicAlbums: 'Albums',
+      musicGenres: 'Genres',
+      musicAlbumDetail: 'Album detail',
+      musicArtistDetail: 'Artist detail',
+      musicGenreDetail: 'Genre detail',
+      movies: 'Movies',
+      moviesRecent: 'Recent movies',
+      movieDetail: 'Movie detail',
+      tvshows: 'TV shows',
+      tvshowsRecent: 'Recent TV shows',
+      tvshowDetail: 'TV show detail',
+      tvshowSeasonDetail: 'Season detail',
+      tvshowEpisodeDetail: 'Episode detail',
+      browser: 'Browser',
+      browserItem: 'Browser item',
+      addonsAll: 'Add-ons',
+      addonsVideo: 'Video add-ons',
+      addonsAudio: 'Audio add-ons',
+      addonsExecutable: 'Executable add-ons',
+      addonExecute: 'Execute add-on',
+      playlists: 'Playlists',
+      playlistDetail: 'Playlist detail',
+      settingsWeb: 'Web settings',
+      settingsKodi: 'Kodi settings',
+      settingsKodiSection: 'Kodi settings section',
+      settingsAddons: 'Add-on settings',
+      settingsNav: 'Navigation settings',
+      settingsSearch: 'Search settings',
+      help: 'Help',
+      helpOverview: 'Help overview',
+      helpPage: 'Help page',
+      remote: 'Remote',
+      search: 'Search',
+      searchMedia: 'Media search',
+      thumbsup: 'Thumbs up',
+      pvrTv: 'PVR TV',
+      pvrRadio: 'PVR Radio',
+      pvrRecordings: 'PVR recordings'
+    };
+
+    return titles[route.kind] ?? 'Chorus route';
+  }
+
+  function primaryRouteDescription(route: PrimaryRoute | null): string {
+    if (!route || route.kind === 'home') {
+      return 'chorus3 home: a package-safe Chorus media controller home stage for direct root loads.';
+    }
+
+    if (route.kind === 'music') {
+      return 'Browse music library, discovery, search, files, and playlist surfaces through the app shell.';
+    }
+
+    if (route.kind === 'movies') {
+      return 'Browse movie library surfaces without falling back to setup or unknown-route UI.';
+    }
+
+    if (route.kind === 'tvshows') {
+      return 'Browse TV library surfaces without falling back to setup or unknown-route UI.';
+    }
+
+    if (route.kind === 'remote') {
+      return 'Send safe Kodi remote input and playback commands from the primary app shell.';
+    }
+
+    if (route.kind === 'addonsAll') {
+      return 'Inspect installed add-ons and write-state diagnostics inside the primary app shell.';
+    }
+
+    if (route.kind === 'settingsWeb') {
+      return 'Manage Kodi settings through the primary app shell without exposing host setup as the root default.';
+    }
+
+    if (route.kind === 'browser') {
+      return 'Browse media sources in an app-native frame while deeper browser parity lands in later slices.';
+    }
+
+    if (route.kind === 'playlists') {
+      return 'Browse media playlists in an app-native frame while fuller playlist parity remains deferred.';
+    }
+
+    return 'This supported primary route is wired to an app-native shell frame; fuller behavior can land without changing the route boundary.';
+  }
+
+  function primaryRouteDeferredMessage(route: PrimaryRoute | null): string {
+    if (!route) {
+      return '';
+    }
+
+    const implemented = new Set<PrimaryRoute['kind']>([
+      'home',
+      'music',
+      'movies',
+      'tvshows',
+      'browser',
+      'addonsAll',
+      'playlists',
+      'settingsWeb',
+      'remote'
+    ]);
+
+    return implemented.has(route.kind)
+      ? ''
+      : 'Detailed parity for this route is deferred, but the route itself is supported by the primary app shell.';
   }
 
   function parsePositiveSafeInteger(value: string): number | null {
@@ -954,6 +1068,213 @@
     i18n={currentI18n}
     onRefresh={refreshNowPlayingEmbed}
   />
+{:else if isPrimaryShellRoute}
+  <PrimaryAppShell
+    routeIdentity={{ kind: 'primary', route: currentPrimaryShellRoute ?? { kind: 'home' } }}
+    navigationItems={currentShellNavigationItems}
+    stageLabel={primaryRouteTitle(currentPrimaryShellRoute)}
+    logoHref={buildAppRoute(
+      { kind: 'primary', route: { kind: 'home' } },
+      { packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : '' }
+    )}
+    player={currentShellPlayer}
+    playerActions={{
+      previous: () => playerDispatch.previous(),
+      playPause: () => playerDispatch.playPause(),
+      next: () => playerDispatch.next(),
+      toggleMute: () => playerDispatch.toggleMute(),
+      fullscreen: toggleAppFullscreen
+    }}
+  >
+    <PageFrame
+      title={primaryRouteTitle(currentPrimaryShellRoute)}
+      eyebrow="Primary route"
+      description={primaryRouteDescription(currentPrimaryShellRoute)}
+      deferredMessage={primaryRouteDeferredMessage(currentPrimaryShellRoute)}
+    >
+      {#if currentPrimaryShellRoute?.kind === 'home'}
+        <div class="hero-actions">
+          <LocaleToggle
+            locale={currentLocaleSnapshot.locale}
+            i18n={currentI18n}
+            dispatch={localeDispatch}
+          />
+          <ThemeToggle i18n={currentI18n} />
+        </div>
+        <section class="mission surface" aria-labelledby="primary-home-status-title">
+          <p class="section-kicker">Runtime surface</p>
+          <h3 id="primary-home-status-title">
+            {packageMountedHost?.label ??
+              configStore.snapshot.activeHost?.label ??
+              currentI18n.t('app.mission.noHost')}
+          </h3>
+          <p>{currentI18n.t('app.mission.description')}</p>
+          {#if configStore.snapshot.storageWarning}
+            <p>{configStore.snapshot.storageWarning.message}</p>
+          {/if}
+        </section>
+        <section class="status-grid" aria-label={currentI18n.t('app.statusGrid.aria')}>
+          <StatusCard
+            title={currentI18n.t('app.connection.title')}
+            status={connectionStatusText(connectionStore.snapshot)}
+            tone={connectionTone(connectionStore.snapshot)}
+            description={connectionDescription(connectionStore.snapshot)}
+          />
+          <StatusCard
+            title={currentI18n.t('app.themeContract.title')}
+            status={currentI18n.t('app.themeContract.status')}
+            tone="success"
+            description={currentI18n.t('app.themeContract.description')}
+          />
+        </section>
+        <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} i18n={currentI18n} />
+        <MusicBrowsePanel
+          librarySnapshot={currentMusicLibrarySnapshot}
+          browseSnapshot={currentMusicBrowseSnapshot}
+          dispatch={musicBrowseDispatch}
+          actionDispatch={musicActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaSearchPanel
+          snapshot={currentMediaSearchSnapshot}
+          dispatch={mediaSearchDispatch}
+          actionDispatch={mediaSearchActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaFilesPanel
+          snapshot={currentMediaFilesSnapshot}
+          dispatch={mediaFilesDispatch}
+          actionDispatch={mediaFilesActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaPlaylistsPanel
+          snapshot={currentMediaPlaylistsSnapshot}
+          dispatch={mediaPlaylistsDispatch}
+          actionDispatch={mediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+        <NowPlayingPanel
+          snapshot={currentPlayerSnapshot}
+          dispatch={playerDispatch}
+          localPlayerSnapshot={currentLocalSnapshot}
+          i18n={currentI18n}
+        />
+        <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
+      {:else if currentPrimaryShellRoute?.kind === 'music'}
+        <MusicLibraryPanel snapshot={currentMusicLibrarySnapshot} i18n={currentI18n} />
+        <MusicBrowsePanel
+          librarySnapshot={currentMusicLibrarySnapshot}
+          browseSnapshot={currentMusicBrowseSnapshot}
+          dispatch={musicBrowseDispatch}
+          actionDispatch={musicActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaSearchPanel
+          snapshot={currentMediaSearchSnapshot}
+          dispatch={mediaSearchDispatch}
+          actionDispatch={mediaSearchActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaFilesPanel
+          snapshot={currentMediaFilesSnapshot}
+          dispatch={mediaFilesDispatch}
+          actionDispatch={mediaFilesActionDispatch}
+          i18n={currentI18n}
+        />
+        <MediaPlaylistsPanel
+          snapshot={currentMediaPlaylistsSnapshot}
+          dispatch={mediaPlaylistsDispatch}
+          actionDispatch={mediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'movies' || currentPrimaryShellRoute?.kind === 'moviesRecent'}
+        <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
+        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
+        <MediaPlaylistsPanel
+          snapshot={currentVideoMediaPlaylistsSnapshot}
+          dispatch={videoMediaPlaylistsDispatch}
+          actionDispatch={videoMediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'movieDetail'}
+        <VideoMovieDetailShell
+          snapshot={currentVideoLibrarySnapshot}
+          route={currentRenderableVideoRoute}
+          detailSnapshot={videoMovieDetailSnapshot}
+          actionDispatch={videoMovieActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'tvshows' || currentPrimaryShellRoute?.kind === 'tvshowsRecent'}
+        <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
+        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
+      {:else if currentPrimaryShellRoute?.kind === 'tvshowDetail'}
+        <VideoTvShowDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'tvshowSeasonDetail'}
+        <VideoSeasonDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          artworkDispatch={videoSeasonArtworkDispatch}
+          writeDispatch={videoSeasonWriteDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'tvshowEpisodeDetail'}
+        <VideoEpisodeDetailShell
+          snapshot={currentVideoTvSnapshot}
+          route={currentRenderableVideoRoute}
+          actionDispatch={videoEpisodeActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'browser'}
+        <MediaFilesPanel
+          snapshot={currentMediaFilesSnapshot}
+          dispatch={mediaFilesDispatch}
+          actionDispatch={mediaFilesActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'playlists'}
+        <MediaPlaylistsPanel
+          snapshot={currentMediaPlaylistsSnapshot}
+          dispatch={mediaPlaylistsDispatch}
+          actionDispatch={mediaPlaylistsActionDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'addonsAll'}
+        <AddonsPanel
+          snapshot={currentAddonsSnapshot}
+          dispatch={addonsDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'settingsWeb'}
+        <SettingsPanel
+          snapshot={currentSettingsSnapshot}
+          dispatch={settingsDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentPrimaryShellRoute?.kind === 'remote'}
+        <RemoteInputPanel
+          remoteSnapshot={currentRemoteSnapshot}
+          {remoteInputDispatch}
+          playerSnapshot={currentPlayerSnapshot}
+          {playerDispatch}
+          i18n={currentI18n}
+        />
+      {:else if currentChorus2Placeholder}
+        <ParityPlaceholder
+          placeholder={currentChorus2Placeholder}
+          packageBasePath={isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''}
+          i18n={currentI18n}
+        />
+      {/if}
+    </PageFrame>
+
+    {#snippet localRuntime()}
+      <LocalMediaRuntime />
+    {/snippet}
+  </PrimaryAppShell>
 {:else}
   <AmbientAppShell chrome={isPackageMounted ? 'media' : 'default'}>
     {#if !(isDashboardRoute && isPackageMounted)}

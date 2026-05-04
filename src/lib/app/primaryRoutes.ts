@@ -43,7 +43,6 @@ export type PrimaryRoute =
   | { kind: 'pvrRecordings' };
 
 const MAX_DYNAMIC_SEGMENT_LENGTH = 128;
-const UNSAFE_SEGMENT = '[redacted]';
 const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
@@ -90,15 +89,24 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
   const segments = path.split('/').filter(Boolean);
 
   if (segments.length === 3 && segments[0] === 'music' && segments[1] === 'album') {
-    return withSafeDynamicSegment(segments[2], (albumid) => ({ kind: 'musicAlbumDetail', albumid }));
+    return withSafeDynamicSegment(segments[2], (albumid) => ({
+      kind: 'musicAlbumDetail',
+      albumid
+    }));
   }
 
   if (segments.length === 3 && segments[0] === 'music' && segments[1] === 'artist') {
-    return withSafeDynamicSegment(segments[2], (artistid) => ({ kind: 'musicArtistDetail', artistid }));
+    return withSafeDynamicSegment(segments[2], (artistid) => ({
+      kind: 'musicArtistDetail',
+      artistid
+    }));
   }
 
   if (segments.length === 3 && segments[0] === 'music' && segments[1] === 'genre') {
-    return withSafeDynamicSegment(segments[2], (genreid) => ({ kind: 'musicGenreDetail', genreid }));
+    return withSafeDynamicSegment(segments[2], (genreid) => ({
+      kind: 'musicGenreDetail',
+      genreid
+    }));
   }
 
   if (segments.length === 2 && segments[0] === 'movie') {
@@ -135,11 +143,17 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
   }
 
   if (segments.length === 2 && segments[0] === 'playlist') {
-    return withSafeDynamicSegment(segments[1], (playlistid) => ({ kind: 'playlistDetail', playlistid }));
+    return withSafeDynamicSegment(segments[1], (playlistid) => ({
+      kind: 'playlistDetail',
+      playlistid
+    }));
   }
 
   if (segments.length === 3 && segments[0] === 'settings' && segments[1] === 'kodi') {
-    return withSafeDynamicSegment(segments[2], (section) => ({ kind: 'settingsKodiSection', section }));
+    return withSafeDynamicSegment(segments[2], (section) => ({
+      kind: 'settingsKodiSection',
+      section
+    }));
   }
 
   if (segments.length === 2 && segments[0] === 'help') {
