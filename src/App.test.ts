@@ -2873,16 +2873,84 @@ describe('App shell', () => {
     expect(addonsDispatch.setGroupBy).toHaveBeenCalledWith('enabled');
   });
 
+  it('filters primary add-ons category routes without mutating add-ons search state', () => {
+    const addonsDispatch = createAddonsDispatch();
+    const target = renderApp({
+      route: { kind: 'primary', route: { kind: 'addonsVideo' } },
+      addonsSnapshot: createAddonsSnapshot({
+        addons: [
+          createAddonSnapshot({ type: 'xbmc.addon.video' }),
+          createAddonSnapshot({
+            addonid: 'plugin.audio.safe-radio',
+            name: 'Safe Radio',
+            type: 'xbmc.addon.audio'
+          }),
+          createAddonSnapshot({
+            addonid: 'script.safe-runner',
+            name: 'Safe Runner',
+            type: 'xbmc.addon.executable'
+          })
+        ],
+        visibleAddons: [
+          createAddonSnapshot({ type: 'xbmc.addon.video' }),
+          createAddonSnapshot({
+            addonid: 'plugin.audio.safe-radio',
+            name: 'Safe Radio',
+            type: 'xbmc.addon.audio'
+          }),
+          createAddonSnapshot({
+            addonid: 'script.safe-runner',
+            name: 'Safe Runner',
+            type: 'xbmc.addon.executable'
+          })
+        ],
+        groups: []
+      }),
+      addonsDispatch
+    });
+    const addonsText = getAddonsPanelText(target);
+
+    expect(
+      target.querySelector('[data-app-page-surface]')?.getAttribute('data-app-page-route')
+    ).toBe('addonsVideo');
+    expect(target.querySelector('#addons-page-title')?.textContent).toBe('Video add-ons');
+    expect(addonsText).toContain('Safe Video Demo');
+    expect(addonsText).not.toContain('Safe Radio');
+    expect(addonsText).not.toContain('Safe Runner');
+    expect(addonsText).toContain('1 of 3 add-ons');
+    expect(addonsDispatch.setSearchQuery).not.toHaveBeenCalled();
+  });
+
+  it('keeps primary add-ons category detail links under the package mount path', () => {
+    const target = renderApp({
+      route: { kind: 'primary', route: { kind: 'addonsVideo' } },
+      packageMountedHost: createPackageMountedHost(),
+      addonsSnapshot: createAddonsSnapshot({
+        addons: [createAddonSnapshot({ type: 'xbmc.addon.video' })],
+        visibleAddons: [createAddonSnapshot({ type: 'xbmc.addon.video' })],
+        groups: []
+      })
+    });
+
+    expect(getVideoLink(target, 'Open Safe Video Demo details').getAttribute('href')).toBe(
+      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
+    );
+  });
+
   it('renders the add-on detail route with injected snapshots and confirmation dispatches', async () => {
     const addonDetailDispatch = createAddonDetailDispatch();
     const target = renderApp({
-      route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' },
+      route: { kind: 'primary', route: { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' } },
       addonsSnapshot: createAddonsSnapshot(),
       addonDetailDispatch,
       videoLibrarySnapshot: createVideoLibrarySnapshot()
     });
     const detailText = getAddonDetailText(target);
 
+    expect(
+      target.querySelector('[data-app-page-surface]')?.getAttribute('data-app-page-route')
+    ).toBe('addonDetail');
+    expect(target.querySelector('#addons-page-title')?.textContent).toBe('Add-on details');
     expect(detailText).toContain('Safe Video Demo');
     expect(detailText).toContain('Add-on detail loaded.');
     expect(detailText).toContain('Add-on write failed.');

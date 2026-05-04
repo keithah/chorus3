@@ -2,9 +2,12 @@
   import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsGroupBy,
+    AddonsGroupSnapshot,
     AddonsStoreSnapshot,
     AddonSnapshot
   } from '$lib/stores/addonsStore.svelte';
+
+  export type AddonsTypeFilter = 'video' | 'audio' | 'executable';
 
   export interface AddonsPanelDispatch {
     load: () => void | Promise<void>;
@@ -21,19 +24,17 @@
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonsPanelDispatch;
     i18n: TranslationContext;
+    typeFilter?: AddonsTypeFilter | null;
     packageBasePath?: string;
   }
 
-  let { snapshot, dispatch, i18n, packageBasePath = '' }: Props = $props();
+  let { snapshot, dispatch, i18n, typeFilter = null, packageBasePath = '' }: Props = $props();
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');
+  const filteredVisibleAddons = $derived(filterVisibleAddons(snapshot.visibleAddons, typeFilter));
   const hasInstalledAddons = $derived(snapshot.addons.length > 0);
-  const hasVisibleAddons = $derived(snapshot.visibleAddons.length > 0);
-  const renderedGroups = $derived(
-    snapshot.groupBy === 'none'
-      ? [{ key: 'all', label: i18n.t('addons.panel.group.none'), addons: snapshot.visibleAddons }]
-      : snapshot.groups
-  );
+  const hasVisibleAddons = $derived(filteredVisibleAddons.length > 0);
+  const renderedGroups = $derived(createRenderedGroups());
 
   function callLoad(): void {
     if (isLoading) return;
@@ -70,6 +71,61 @@
     if (snapshot.groupBy === 'none') return i18n.t('addons.panel.grouping.none');
     if (snapshot.groupBy === 'type') return i18n.t('addons.panel.grouping.type');
     return i18n.t('addons.panel.grouping.enabled');
+  }
+
+  function filterVisibleAddons(
+    addons: readonly AddonSnapshot[],
+    filter: AddonsTypeFilter | null
+  ): AddonSnapshot[] {
+    if (!filter) return [...addons];
+    return addons.filter((addon) => addonMatchesTypeFilter(addon, filter));
+  }
+
+  function addonMatchesTypeFilter(addon: AddonSnapshot, filter: AddonsTypeFilter): boolean {
+    const normalizedType = safeText(addon.type).trim().toLowerCase();
+    if (!normalizedType) return false;
+    return normalizedType === `xbmc.addon.${filter}` || normalizedType.includes(`.${filter}`);
+  }
+
+  function createRenderedGroups(): AddonsGroupSnapshot[] {
+    if (snapshot.groupBy === 'none') {
+      return [
+        { key: 'all', label: i18n.t('addons.panel.group.none'), addons: filteredVisibleAddons }
+      ];
+    }
+
+    if (snapshot.groupBy === 'enabled') {
+      return [
+        {
+          key: 'enabled',
+          label: i18n.t('addons.panel.enabled'),
+          addons: filteredVisibleAddons.filter((addon) => addon.enabled === true)
+        },
+        {
+          key: 'disabled',
+          label: i18n.t('addons.panel.disabled'),
+          addons: filteredVisibleAddons.filter((addon) => addon.enabled === false)
+        },
+        {
+          key: 'unknown',
+          label: i18n.t('addons.panel.enablementUnknown'),
+          addons: filteredVisibleAddons.filter(
+            (addon) => addon.enabled !== true && addon.enabled !== false
+          )
+        }
+      ].filter((group) => group.addons.length > 0);
+    }
+
+    const groups = new Map<string, AddonsGroupSnapshot>();
+    for (const addon of filteredVisibleAddons) {
+      const label = typeLabel(addon);
+      const key = label || 'unknown';
+      const group = groups.get(key) ?? { key, label, addons: [] };
+      group.addons = [...group.addons, addon];
+      groups.set(key, group);
+    }
+
+    return [...groups.values()];
   }
 
   function addonLabel(addon: AddonSnapshot): string {
@@ -179,7 +235,7 @@
       <span>{i18n.t('addons.panel.visible')}</span>
       <strong
         >{i18n.t('addons.panel.visibleCount', {
-          visible: snapshot.visibleAddons.length,
+          visible: filteredVisibleAddons.length,
           total: snapshot.addons.length
         })}</strong
       >

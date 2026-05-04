@@ -133,7 +133,13 @@ function createDispatch(overrides: Partial<AddonsPanelDispatch> = {}): AddonsPan
 }
 
 function renderPanel(
-  props: { snapshot?: AddonsStoreSnapshot; dispatch?: AddonsPanelDispatch; locale?: Locale } = {}
+  props: {
+    snapshot?: AddonsStoreSnapshot;
+    dispatch?: AddonsPanelDispatch;
+    locale?: Locale;
+    typeFilter?: 'video' | 'audio' | 'executable' | null;
+    packageBasePath?: string;
+  } = {}
 ): AddonsPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
   mounted = mount(AddonsPanel, {
@@ -141,7 +147,9 @@ function renderPanel(
     props: {
       snapshot: props.snapshot ?? createSnapshot(),
       dispatch,
-      i18n: createTranslationContext(props.locale ?? 'en')
+      i18n: createTranslationContext(props.locale ?? 'en'),
+      typeFilter: props.typeFilter,
+      packageBasePath: props.packageBasePath
     }
   });
   return dispatch;
@@ -370,7 +378,84 @@ describe('AddonsPanel', () => {
     });
 
     expect(screenText()).toContain('[redacted');
-    expect(document.querySelector('a')?.getAttribute('href')).toBe('/addons/[redacted]');
+    expect(document.querySelector('a')?.getAttribute('href')).toBe('/[redacted]');
     expectNoForbiddenText(screenText());
+  });
+
+  it('filters visible add-ons locally by route category without mutating search state', async () => {
+    const dispatch = renderPanel({
+      typeFilter: 'video',
+      snapshot: createSnapshot({
+        addons: [
+          { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
+          { ...BETA_ADDON, type: 'xbmc.addon.audio' },
+          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
+          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+        ],
+        visibleAddons: [
+          { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
+          { ...BETA_ADDON, type: 'xbmc.addon.audio' },
+          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
+          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+        ],
+        groupBy: 'type'
+      })
+    });
+    await tick();
+
+    expect(screenText()).toContain('Alpha Video');
+    expect(screenText()).not.toContain('Beta Service');
+    expect(screenText()).not.toContain('Runner');
+    expect(screenText()).not.toContain('Unknown Script');
+    expect(screenText()).not.toContain('Missing Type');
+    expect(screenText()).toContain('1 of 5 add-ons');
+    expect(dispatch.setSearchQuery).not.toHaveBeenCalled();
+    expect(dispatch.setGroupBy).not.toHaveBeenCalled();
+  });
+
+  it('matches category filters case-insensitively and excludes unknown or missing types', () => {
+    renderPanel({
+      typeFilter: 'audio',
+      snapshot: createSnapshot({
+        addons: [
+          { ...ALPHA_ADDON, addonid: 'plugin.audio.upper', name: 'Upper Audio', type: 'XBMC.ADDON.AUDIO' },
+          { ...BETA_ADDON, addonid: 'plugin.video.mixed', name: 'Mixed Video', type: 'Addon.Video.Source' },
+          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
+          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+        ],
+        visibleAddons: [
+          { ...ALPHA_ADDON, addonid: 'plugin.audio.upper', name: 'Upper Audio', type: 'XBMC.ADDON.AUDIO' },
+          { ...BETA_ADDON, addonid: 'plugin.video.mixed', name: 'Mixed Video', type: 'Addon.Video.Source' },
+          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
+          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+        ],
+        groupBy: 'none'
+      })
+    });
+
+    expect(screenText()).toContain('Upper Audio');
+    expect(screenText()).not.toContain('Mixed Video');
+    expect(screenText()).not.toContain('Runner');
+    expect(screenText()).not.toContain('Unknown Script');
+    expect(screenText()).not.toContain('Missing Type');
+  });
+
+  it('keeps detail links underneath the package base path', () => {
+    renderPanel({
+      packageBasePath: '/addons/webinterface.chorus3',
+      snapshot: createSnapshot({
+        addons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
+        visibleAddons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
+        groups: []
+      })
+    });
+
+    expect(document.querySelector('a')?.getAttribute('href')).toBe(
+      '/addons/webinterface.chorus3/addons/plugin.video.alpha'
+    );
   });
 });

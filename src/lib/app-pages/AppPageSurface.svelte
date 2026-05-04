@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
+  import type { AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import AddonsPage from './AddonsPage.svelte';
   import BrowserFilesPage from './BrowserFilesPage.svelte';
@@ -351,10 +351,15 @@
         {route}
         {i18n}
       />
-    {:else if route.kind === 'addonsAll' || route.kind === 'addonsVideo' || route.kind === 'addonsAudio' || route.kind === 'addonsExecutable'}
-      <AddonsPage {route} snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} {packageBasePath} />
-    {:else if route.kind === 'addonDetail'}
-      <AddonDetailShell snapshot={addonsSnapshot} dispatch={addonDetailDispatch} {i18n} />
+    {:else if route.kind === 'addonsAll' || route.kind === 'addonsVideo' || route.kind === 'addonsAudio' || route.kind === 'addonsExecutable' || route.kind === 'addonDetail'}
+      <AddonsPage
+        {route}
+        snapshot={addonsSnapshot}
+        dispatch={addonsDispatch}
+        {addonDetailDispatch}
+        {i18n}
+        {packageBasePath}
+      />
     {:else if route.kind === 'addonExecute'}
       <DeferredPrimaryPage {route} {metadata} />
     {:else if route.kind === 'settingsWeb' || route.kind === 'settingsKodi' || route.kind === 'settingsAddons' || route.kind === 'settingsNav' || route.kind === 'settingsSearch'}
