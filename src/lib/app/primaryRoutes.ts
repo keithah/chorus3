@@ -61,6 +61,7 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/tvshows', { kind: 'tvshows' }],
   ['/tvshows/recent', { kind: 'tvshowsRecent' }],
   ['/browser', { kind: 'browser' }],
+  ['/files', { kind: 'browser' }],
   ['/addons', { kind: 'addonsAll' }],
   ['/addons/all', { kind: 'addonsAll' }],
   ['/addons/video', { kind: 'addonsVideo' }],

@@ -130,6 +130,7 @@ const PRIMARY_ROUTE_CASES = [
     { kind: 'tvshowEpisodeDetail', tvshowid: 'series', season: '1', episodeid: '2' }
   ],
   ['/browser', { kind: 'browser' }],
+  ['/files', { kind: 'browser' }],
   ['/browser/music/root', { kind: 'browserItem', media: 'music', itemid: 'root' }],
   ['/addons', { kind: 'addonsAll' }],
   ['/addons/all', { kind: 'addonsAll' }],
@@ -161,6 +162,7 @@ const PRIMARY_ROUTE_CASES = [
 ] as const;
 
 const PRIMARY_ROUTE_CANONICAL_PATHS = new Map<PrimaryRoute['kind'], string>([
+  ['browser', '/browser'],
   ['addonsAll', '/addons/all'],
   ['settingsWeb', '/settings/web'],
   ['settingsNav', '/settings/nav']
@@ -417,7 +419,6 @@ describe('parseAppRoute', () => {
     });
 
     const placeholderCases = [
-      ['/files', 'files'],
       ['/browser/video/%2Fstorage', 'browserMedia'],
       ['/localPlaylist', 'localPlaylist'],
       ['/lab', 'lab'],
@@ -446,7 +447,6 @@ describe('parseAppRoute', () => {
     ).toBe('/addons/webinterface.chorus3/remote');
 
     const packageCases = [
-      ['/addons/webinterface.chorus3/files', '/files', 'files'],
       ['/addons/webinterface.chorus3/lab/screenshot', '/lab/screenshot', 'labScreenshot']
     ] as const;
 

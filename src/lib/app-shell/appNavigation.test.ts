@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { KODI_WEBINTERFACE_BASE_PATH } from '$lib/app/appRouter';
+import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute } from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 import { createAppNavigationItems } from './appNavigation';
 
@@ -8,6 +8,18 @@ function byId(id: string, activeRoute: PrimaryRoute = { kind: 'home' }) {
   const item = createAppNavigationItems({ activeRoute }).find((candidate) => candidate.id === id);
   expect(item, `navigation item ${id}`).toBeDefined();
   return item!;
+}
+
+function primaryRouteFromPath(path: string): PrimaryRoute {
+  const route = parseAppRoute(path);
+
+  expect(route.kind, path).toBe('primary');
+
+  if (route.kind !== 'primary') {
+    throw new Error(`Expected primary route for ${path}`);
+  }
+
+  return route.route;
 }
 
 describe('createAppNavigationItems', () => {
@@ -83,7 +95,8 @@ describe('createAppNavigationItems', () => {
       [{ kind: 'settingsKodiSection', section: 'library' }, 'settings'],
       [{ kind: 'helpPage', pageid: 'keyboard' }, 'help'],
       [{ kind: 'playlistDetail', playlistid: 'local' }, 'playlists'],
-      [{ kind: 'browserItem', media: 'music', itemid: 'root' }, 'browser']
+      [{ kind: 'browserItem', media: 'music', itemid: 'root' }, 'browser'],
+      [primaryRouteFromPath('/files'), 'browser']
     ];
 
     for (const [route, expectedActiveId] of cases) {

@@ -69,22 +69,67 @@ const CREDENTIAL_DOC_PATTERN =
   /(?:\b(?:username|password|token)=|:\/\/[^\s/@]+:[^\s/@]+@|\bAuthorization\b|\bBasic\s+)/i;
 const SETUP_CONSOLE_FALLBACK_PATTERN =
   /\b(?:primaryShellFallback|primaryRouteFallback|wrongShellFallback)\b\s*=\s*['"](?:Multi-host console|Save trusted Kodi endpoints)['"]/i;
-const BROWSER_FILES_LAB_API_TARGET_PATTERN = /\b(?:browser|files)[\w$.-]{0,32}\s*=\s*['"]\/lab\/api-browser['"]/i;
+const BROWSER_FILES_LAB_API_TARGET_PATTERN =
+  /\b(?:browser|files)[\w$.-]{0,32}\s*=\s*['"]\/lab\/api-browser['"]/i;
 const PRIMARY_ROUTE_CHECKS = [
   { name: 'primary-home-root', path: '/', expected: { kind: 'primary', routeKind: 'home' } },
-  { name: 'primary-home-alias-root', path: '/home', expected: { kind: 'primary', routeKind: 'home' } },
+  {
+    name: 'primary-home-alias-root',
+    path: '/home',
+    expected: { kind: 'primary', routeKind: 'home' }
+  },
   { name: 'primary-music-root', path: '/music', expected: { kind: 'primary', routeKind: 'music' } },
-  { name: 'primary-movies-root', path: '/movies', expected: { kind: 'primary', routeKind: 'movies' } },
-  { name: 'primary-tvshows-root', path: '/tvshows', expected: { kind: 'primary', routeKind: 'tvshows' } },
-  { name: 'primary-browser-root', path: '/browser', expected: { kind: 'primary', routeKind: 'browser' } },
-  { name: 'primary-files-alias-root', path: '/files', expected: { kind: 'chorus2Placeholder', placeholderId: 'files' } },
-  { name: 'primary-addons-root', path: '/addons/all', expected: { kind: 'primary', routeKind: 'addonsAll' } },
-  { name: 'primary-remote-root', path: '/remote', expected: { kind: 'primary', routeKind: 'remote' } },
-  { name: 'primary-playlists-root', path: '/playlists', expected: { kind: 'primary', routeKind: 'playlists' } },
-  { name: 'primary-settings-root', path: '/settings/web', expected: { kind: 'primary', routeKind: 'settingsWeb' } },
+  {
+    name: 'primary-movies-root',
+    path: '/movies',
+    expected: { kind: 'primary', routeKind: 'movies' }
+  },
+  {
+    name: 'primary-tvshows-root',
+    path: '/tvshows',
+    expected: { kind: 'primary', routeKind: 'tvshows' }
+  },
+  {
+    name: 'primary-browser-root',
+    path: '/browser',
+    expected: { kind: 'primary', routeKind: 'browser' }
+  },
+  {
+    name: 'primary-files-alias-root',
+    path: '/files',
+    expected: { kind: 'primary', routeKind: 'browser' }
+  },
+  {
+    name: 'primary-addons-root',
+    path: '/addons/all',
+    expected: { kind: 'primary', routeKind: 'addonsAll' }
+  },
+  {
+    name: 'primary-remote-root',
+    path: '/remote',
+    expected: { kind: 'primary', routeKind: 'remote' }
+  },
+  {
+    name: 'primary-playlists-root',
+    path: '/playlists',
+    expected: { kind: 'primary', routeKind: 'playlists' }
+  },
+  {
+    name: 'primary-settings-root',
+    path: '/settings/web',
+    expected: { kind: 'primary', routeKind: 'settingsWeb' }
+  },
   { name: 'primary-help-root', path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
-  { name: 'legacy-video-movies-root', path: '/video/movies', expected: { kind: 'video', routeKind: 'videoMovies' } },
-  { name: 'legacy-video-tv-root', path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
+  {
+    name: 'legacy-video-movies-root',
+    path: '/video/movies',
+    expected: { kind: 'video', routeKind: 'videoMovies' }
+  },
+  {
+    name: 'legacy-video-tv-root',
+    path: '/video/tv',
+    expected: { kind: 'video', routeKind: 'videoTvShows' }
+  },
   { name: 'now-playing-root', path: '/now-playing', expected: { kind: 'nowPlaying' } }
 ];
 const SUBMENU_ROUTE_CHECKS = [
@@ -409,11 +454,15 @@ function validateStagedBundleAssetReferences({ root, addonId, lines }) {
     const escapingRoots = findPackageEscapingAssetRoots(contents);
 
     if (SETUP_CONSOLE_FALLBACK_PATTERN.test(contents)) {
-      lines.push('[bundle-shell] primary shell bundle must not include setup-console fallback copy.');
+      lines.push(
+        '[bundle-shell] primary shell bundle must not include setup-console fallback copy.'
+      );
     }
 
     if (BROWSER_FILES_LAB_API_TARGET_PATTERN.test(contents)) {
-      lines.push('[bundle-shell] Browser/Files primary targets must not point at /lab/api-browser.');
+      lines.push(
+        '[bundle-shell] Browser/Files primary targets must not point at /lab/api-browser.'
+      );
     }
 
     for (const rootName of escapingRoots) {
@@ -466,8 +515,7 @@ function expandPrimaryRouteChecks(packageBasePath) {
   for (const check of [...PRIMARY_ROUTE_CHECKS, ...SUBMENU_ROUTE_CHECKS]) {
     checks.push({ ...check, packageBasePath: '', path: check.path });
 
-    const packagePath =
-      check.path === '/' ? packageBasePath : `${packageBasePath}${check.path}`;
+    const packagePath = check.path === '/' ? packageBasePath : `${packageBasePath}${check.path}`;
     checks.push({
       ...check,
       name: check.name.replace(/-root$/u, '-package'),
@@ -612,9 +660,8 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/tvshows/recent':
       return { kind: 'primary', route: { kind: 'tvshowsRecent' } };
     case '/browser':
-      return { kind: 'primary', route: { kind: 'browser' } };
     case '/files':
-      return { kind: 'chorus2Placeholder', placeholder: { id: 'files' } };
+      return { kind: 'primary', route: { kind: 'browser' } };
     case '/addons/all':
       return { kind: 'primary', route: { kind: 'addonsAll' } };
     case '/addons/video':
@@ -689,7 +736,11 @@ function formatActualRouteIdentity(route) {
     return `video/${route.route.kind || 'unknown'}`;
   }
 
-  if (route.kind === 'chorus2Placeholder' && route.placeholder && typeof route.placeholder === 'object') {
+  if (
+    route.kind === 'chorus2Placeholder' &&
+    route.placeholder &&
+    typeof route.placeholder === 'object'
+  ) {
     return `chorus2Placeholder/${route.placeholder.id || 'unknown'}`;
   }
 

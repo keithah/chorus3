@@ -381,13 +381,13 @@ describe('Kodi package structural verification', () => {
         '[route] primary-music-package /addons/webinterface.chorus3/music resolves to primary/music.',
         '[route] primary-movies-package /addons/webinterface.chorus3/movies resolves to primary/movies.',
         '[route] primary-browser-package /addons/webinterface.chorus3/browser resolves to primary/browser.',
+        '[route] primary-files-alias-package /addons/webinterface.chorus3/files resolves to primary/browser.',
         '[route] submenu-music-genres-package /addons/webinterface.chorus3/music/genres resolves to primary/musicGenres.',
         '[route] submenu-movies-recent-package /addons/webinterface.chorus3/movies/recent resolves to primary/moviesRecent.',
         '[route] submenu-tvshows-recent-package /addons/webinterface.chorus3/tvshows/recent resolves to primary/tvshowsRecent.',
         '[route] submenu-addons-video-package /addons/webinterface.chorus3/addons/video resolves to primary/addonsVideo.',
         '[route] submenu-settings-kodi-section-package /addons/webinterface.chorus3/settings/kodi/interface resolves to primary/settingsKodiSection.',
         '[route] submenu-help-page-package /addons/webinterface.chorus3/help/keyboard resolves to primary/helpPage.',
-        '[route] primary-files-alias-package /addons/webinterface.chorus3/files resolves to chorus2Placeholder/files.',
         '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
         '[route] now-playing-package /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
       ])
