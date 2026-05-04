@@ -1413,6 +1413,18 @@ function requirePrimaryPageFrame(target: HTMLElement, title: string): HTMLElemen
   return frame as HTMLElement;
 }
 
+function requireAppPageSurface(
+  target: HTMLElement,
+  routeKind: string,
+  surfaceKind: string
+): HTMLElement {
+  const surface = target.querySelector<HTMLElement>('[data-app-page-surface]');
+  expect(surface).toBeInstanceOf(HTMLElement);
+  expect(surface?.dataset.appPageRoute).toBe(routeKind);
+  expect(surface?.dataset.appPageSurfaceKind).toBe(surfaceKind);
+  return surface as HTMLElement;
+}
+
 function requirePackageShellButtonByAria(
   target: HTMLElement,
   ariaLabel: string
@@ -1580,55 +1592,78 @@ describe('App shell', () => {
   });
 
   it.each([
-    ['/', 'Home'],
-    ['/addons/webinterface.chorus3/', 'Home'],
-    ['/home', 'Home'],
-    ['/addons/webinterface.chorus3/home', 'Home'],
-    ['/music', 'Music'],
-    ['/movies', 'Movies'],
-    ['/tvshows', 'TV shows'],
-    ['/browser', 'Browser'],
-    ['/addons/all', 'Add-ons'],
-    ['/playlists', 'Playlists'],
-    ['/settings/web', 'Web settings'],
-    ['/help', 'Help'],
-    ['/remote', 'Remote'],
-    ['/browser/music/safe-item', 'Browser item']
-  ] as const)('renders %s as a primary shell route with app-shaped content', (pathname, title) => {
-    vi.stubGlobal('fetch', createKodiFetchMock());
-    const isPackagePath = pathname.startsWith(KODI_WEBINTERFACE_BASE_PATH);
-    const target = renderApp({
-      route: parseAppRoute(pathname, '', {
-        packageBasePath: isPackagePath ? KODI_WEBINTERFACE_BASE_PATH : ''
-      }),
-      packageMountedHost: isPackagePath ? createPackageMountedHost() : null,
-      remoteSnapshot: createRemoteSnapshot(),
-      remoteInputDispatch: createRemoteInputDispatch(),
-      playerSnapshot: activeVideoSnapshot(),
-      playerDispatch: createPlayerDispatch(),
-      videoLibrarySnapshot: createVideoLibrarySnapshot(),
-      videoTvSnapshot: createVideoTvSnapshot(),
-      addonsSnapshot: createAddonsSnapshot(),
-      addonsDispatch: createAddonsDispatch(),
-      settingsSnapshot: createSettingsSnapshot(),
-      settingsDispatch: createSettingsDispatch(),
-      mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
-      mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
-      mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch(),
-      mediaFilesSnapshot: createMediaFilesSnapshot(),
-      mediaFilesDispatch: createMediaFilesDispatch(),
-      mediaFilesActionDispatch: createMediaFilesActionDispatch(),
-      musicLibrarySnapshot: createMusicLibrarySnapshot(),
-      musicBrowseSnapshot: createMusicBrowseSnapshot(),
-      musicBrowseDispatch: createMusicBrowseDispatch(),
-      musicActionDispatch: createMusicActionDispatch()
-    });
+    ['/', 'Music', 'home', 'home'],
+    ['/addons/webinterface.chorus3/', 'Music', 'home', 'home'],
+    ['/home', 'Music', 'home', 'home'],
+    ['/addons/webinterface.chorus3/home', 'Music', 'home', 'home'],
+    ['/music', 'Music', 'music', 'music'],
+    ['/movies', 'Movies', 'movies', 'movies'],
+    ['/tvshows', 'TV shows', 'tvshows', 'tv'],
+    ['/browser', 'Browser / Files', 'browser', 'browser'],
+    ['/addons/all', 'Add-ons', 'addonsAll', 'addons'],
+    ['/playlists', 'Playlists', 'playlists', 'playlists'],
+    ['/settings/web', 'Web interface settings', 'settingsWeb', 'settings'],
+    ['/help', 'Help', 'help', 'help'],
+    ['/remote', 'Remote', 'remote', 'remote'],
+    ['/browser/music/safe-item', 'Browser item', 'browserItem', 'browser']
+  ] as const)(
+    'renders %s as a primary shell route with app-shaped content',
+    (pathname, title, routeKind, surfaceKind) => {
+      vi.stubGlobal('fetch', createKodiFetchMock());
+      const isPackagePath = pathname.startsWith(KODI_WEBINTERFACE_BASE_PATH);
+      const target = renderApp({
+        route: parseAppRoute(pathname, '', {
+          packageBasePath: isPackagePath ? KODI_WEBINTERFACE_BASE_PATH : ''
+        }),
+        packageMountedHost: isPackagePath ? createPackageMountedHost() : null,
+        remoteSnapshot: createRemoteSnapshot(),
+        remoteInputDispatch: createRemoteInputDispatch(),
+        playerSnapshot: activeVideoSnapshot(),
+        playerDispatch: createPlayerDispatch(),
+        videoLibrarySnapshot: createVideoLibrarySnapshot(),
+        videoTvSnapshot: createVideoTvSnapshot(),
+        addonsSnapshot: createAddonsSnapshot(),
+        addonsDispatch: createAddonsDispatch(),
+        settingsSnapshot: createSettingsSnapshot(),
+        settingsDispatch: createSettingsDispatch(),
+        mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+        mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+        mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch(),
+        mediaFilesSnapshot: createMediaFilesSnapshot(),
+        mediaFilesDispatch: createMediaFilesDispatch(),
+        mediaFilesActionDispatch: createMediaFilesActionDispatch(),
+        musicLibrarySnapshot: createMusicLibrarySnapshot(),
+        musicBrowseSnapshot: createMusicBrowseSnapshot(),
+        musicBrowseDispatch: createMusicBrowseDispatch(),
+        musicActionDispatch: createMusicActionDispatch()
+      });
 
-    const stage = requirePrimaryShellStage(target);
-    expect(stage.textContent).not.toContain('Route not found');
-    requirePrimaryPageFrame(target, title);
-    expect(target.textContent).not.toContain('Multi-host console');
-    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+      const stage = requirePrimaryShellStage(target);
+      expect(stage.textContent).not.toContain('Route not found');
+      requirePrimaryPageFrame(target, title);
+      requireAppPageSurface(target, routeKind, surfaceKind);
+      expect(target.textContent).not.toContain('Multi-host console');
+      expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+    }
+  );
+
+  it('keeps primary shell modules store-agnostic and panel-free after app page extraction', () => {
+    for (const file of [
+      'src/lib/app-shell/AppShell.svelte',
+      'src/lib/app-shell/appNavigation.ts'
+    ]) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, `${file} must not import stores`).not.toMatch(
+        /['"]\$lib\/stores|['"]\.\.\/stores|['"]\.\/stores/u
+      );
+      expect(source, `${file} must not import app page panels`).not.toMatch(
+        /MusicLibraryPanel|MusicBrowsePanel|MediaFilesPanel|MediaPlaylistsPanel|MediaSearchPanel|VideoMoviesPanel|VideoTvShowsPanel|AddonsPanel|SettingsPanel|RemoteInputPanel/u
+      );
+    }
+
+    const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
+    expect(surfaceSource).toContain('data-app-page-surface');
+    expect(surfaceSource).not.toMatch(/import\s+(?!type)[^;]+from ['"]\$lib\/stores/u);
   });
 
   it('keeps the extracted primary shell safe with empty nav, disabled drawer/player defaults, and trailing package base', () => {
@@ -1748,9 +1783,10 @@ describe('App shell', () => {
     for (const [railTitle, submenuLabel, route] of submenuExpectations) {
       const href = requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('href');
       expect(href, `${railTitle} / ${submenuLabel} standalone href`).toBe(buildAppRoute(route));
-      expect(href, `${railTitle} / ${submenuLabel} standalone href avoids package prefix`).not.toMatch(
-        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
-      );
+      expect(
+        href,
+        `${railTitle} / ${submenuLabel} standalone href avoids package prefix`
+      ).not.toMatch(/^\/addons\/webinterface\.chorus3(?:\/|$)/u);
     }
 
     unmountCurrentApp();
@@ -1777,25 +1813,28 @@ describe('App shell', () => {
     ['/addons/webinterface.chorus3/music/genres', 'Music', 'Genres'],
     ['/addons/webinterface.chorus3/settings/kodi/interface', 'Settings', 'Kodi'],
     ['/addons/webinterface.chorus3/help/keyboard', 'Help', 'Overview']
-  ] as const)('marks package submenu %s as active without route fallback copy', (pathname, railTitle, submenuLabel) => {
-    vi.stubGlobal('fetch', createKodiFetchMock());
+  ] as const)(
+    'marks package submenu %s as active without route fallback copy',
+    (pathname, railTitle, submenuLabel) => {
+      vi.stubGlobal('fetch', createKodiFetchMock());
 
-    const target = renderApp({
-      route: parseAppRoute(pathname, '', { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }),
-      packageMountedHost: createPackageMountedHost(),
-      settingsSnapshot: createSettingsSnapshot(),
-      settingsDispatch: createSettingsDispatch()
-    });
+      const target = renderApp({
+        route: parseAppRoute(pathname, '', { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }),
+        packageMountedHost: createPackageMountedHost(),
+        settingsSnapshot: createSettingsSnapshot(),
+        settingsDispatch: createSettingsDispatch()
+      });
 
-    requirePrimaryShellStage(target);
-    expect(target.textContent).not.toContain('Route not found');
-    expect(target.textContent).not.toContain('Multi-host console');
-    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
-    expect(requireRailLink(target, railTitle).getAttribute('aria-current')).toBe('page');
-    expect(requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('aria-current')).toBe(
-      'page'
-    );
-  });
+      requirePrimaryShellStage(target);
+      expect(target.textContent).not.toContain('Route not found');
+      expect(target.textContent).not.toContain('Multi-host console');
+      expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+      expect(requireRailLink(target, railTitle).getAttribute('aria-current')).toBe('page');
+      expect(requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('aria-current')).toBe(
+        'page'
+      );
+    }
+  );
 
   it('guards package-mounted broad and deferred controls while keeping wired playback controls enabled', () => {
     vi.stubGlobal('fetch', createKodiFetchMock());

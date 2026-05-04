@@ -22,9 +22,14 @@ export interface AppPageMetadata {
   readonly heading: string;
   readonly stageLabel: string;
   readonly statusLabel: string;
+  readonly description: string;
+  readonly deferredMessage: string;
 }
 
-type StaticAppPageMetadata = Omit<AppPageMetadata, 'routeKind'>;
+type StaticAppPageMetadata = Pick<
+  AppPageMetadata,
+  'surfaceKind' | 'status' | 'heading' | 'stageLabel' | 'statusLabel'
+>;
 
 const APP_PAGE_METADATA_BY_KIND = {
   home: implemented('home', 'Music', 'Music home', 'Library landing'),
@@ -96,12 +101,60 @@ export function getAppPageMetadata(route: PrimaryRoute): AppPageMetadata {
     status: metadata.status,
     heading: metadata.heading,
     stageLabel: metadata.stageLabel,
-    statusLabel: metadata.statusLabel
+    statusLabel: metadata.statusLabel,
+    description: appPageDescription(route),
+    deferredMessage: appPageDeferredMessage(route, metadata.status)
   };
 }
 
 export function getAppPageLabel(route: PrimaryRoute): string {
   return getAppPageMetadata(route).heading;
+}
+
+function appPageDescription(route: PrimaryRoute): string {
+  if (route.kind === 'home') {
+    return 'chorus3 home: a package-safe Chorus media controller home stage for direct root loads.';
+  }
+
+  if (route.kind === 'music') {
+    return 'Browse music library, discovery, search, files, and playlist surfaces through the app shell.';
+  }
+
+  if (route.kind === 'movies') {
+    return 'Browse movie library surfaces without falling back to setup or unknown-route UI.';
+  }
+
+  if (route.kind === 'tvshows') {
+    return 'Browse TV library surfaces without falling back to setup or unknown-route UI.';
+  }
+
+  if (route.kind === 'remote') {
+    return 'Send safe Kodi remote input and playback commands from the primary app shell.';
+  }
+
+  if (route.kind === 'addonsAll') {
+    return 'Inspect installed add-ons and write-state diagnostics inside the primary app shell.';
+  }
+
+  if (route.kind === 'settingsWeb') {
+    return 'Manage Kodi settings through the primary app shell without exposing host setup as the root default.';
+  }
+
+  if (route.kind === 'browser') {
+    return 'Browse media sources in an app-native frame while deeper browser parity lands in later slices.';
+  }
+
+  if (route.kind === 'playlists') {
+    return 'Browse media playlists in an app-native frame while fuller playlist parity remains deferred.';
+  }
+
+  return 'This supported primary route is wired to an app-native shell frame; fuller behavior can land without changing the route boundary.';
+}
+
+function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): string {
+  return status === 'implemented' || route.kind === 'home'
+    ? ''
+    : 'Detailed parity for this route is deferred, but the route itself is supported by the primary app shell.';
 }
 
 function implemented(
