@@ -372,15 +372,15 @@ describe('Kodi package structural verification', () => {
     expect(result.ok).toBe(true);
     expect(result.lines).toEqual(
       expect.arrayContaining([
-        '[route] /addons/webinterface.chorus3/ resolves to dashboard.',
+        '[route] /addons/webinterface.chorus3/ resolves to primary/home.',
         '[route] /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
         '[route] /addons/webinterface.chorus3/video/tv resolves to video/videoTvShows.',
-        '[route] /addons/webinterface.chorus3/browser resolves to chorus2Placeholder/browser.',
+        '[route] /addons/webinterface.chorus3/browser resolves to primary/browser.',
         '[route] /addons/webinterface.chorus3/addons resolves to addons.',
-        '[route] /addons/webinterface.chorus3/remote resolves to remote.',
-        '[route] /addons/webinterface.chorus3/playlists resolves to chorus2Placeholder/playlists.',
+        '[route] /addons/webinterface.chorus3/remote resolves to primary/remote.',
+        '[route] /addons/webinterface.chorus3/playlists resolves to primary/playlists.',
         '[route] /addons/webinterface.chorus3/settings resolves to settings.',
-        '[route] /addons/webinterface.chorus3/help resolves to chorus2Placeholder/help.',
+        '[route] /addons/webinterface.chorus3/help resolves to primary/help.',
         '[route] /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
       ])
     );
@@ -391,7 +391,7 @@ describe('Kodi package structural verification', () => {
       addonId: DEFAULT_PACKAGE_ROOT,
       parsePackageRoute: (path, packageBasePath) => {
         if (path === `${packageBasePath}/playlists`) {
-          return { kind: 'chorus2Placeholder', placeholder: { id: 'help' } };
+          return { kind: 'primary', route: { kind: 'help' } };
         }
 
         return parseAppRoute(path, '', { packageBasePath });
@@ -400,7 +400,7 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route] /addons/webinterface.chorus3/playlists must resolve to chorus2Placeholder/playlists.'
+      '[route] /addons/webinterface.chorus3/playlists must resolve to primary/playlists.'
     );
   });
 });

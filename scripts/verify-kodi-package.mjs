@@ -180,15 +180,15 @@ export function validatePackageRouteSupport({
 } = {}) {
   const packageBasePath = `/addons/${addonId}`;
   const routeChecks = [
-    { path: '/', expected: { kind: 'dashboard' } },
+    { path: '/', expected: { kind: 'primary', routeKind: 'home' } },
     { path: '/video/movies', expected: { kind: 'video', routeKind: 'videoMovies' } },
     { path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
-    { path: '/browser', expected: { kind: 'chorus2Placeholder', placeholderId: 'browser' } },
+    { path: '/browser', expected: { kind: 'primary', routeKind: 'browser' } },
     { path: '/addons', expected: { kind: 'addons' } },
-    { path: '/remote', expected: { kind: 'remote' } },
-    { path: '/playlists', expected: { kind: 'chorus2Placeholder', placeholderId: 'playlists' } },
+    { path: '/remote', expected: { kind: 'primary', routeKind: 'remote' } },
+    { path: '/playlists', expected: { kind: 'primary', routeKind: 'playlists' } },
     { path: '/settings', expected: { kind: 'settings' } },
-    { path: '/help', expected: { kind: 'chorus2Placeholder', placeholderId: 'help' } },
+    { path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
     { path: '/now-playing', expected: { kind: 'nowPlaying' } }
   ];
   const lines = [];
@@ -516,23 +516,23 @@ function defaultPackageRouteParser(path, packageBasePath) {
 
   switch (stripped) {
     case '/':
-      return { kind: 'dashboard' };
+      return { kind: 'primary', route: { kind: 'home' } };
     case '/video/movies':
       return { kind: 'video', route: { kind: 'videoMovies' } };
     case '/video/tv':
       return { kind: 'video', route: { kind: 'videoTvShows' } };
     case '/browser':
-      return { kind: 'chorus2Placeholder', placeholder: { id: 'browser' } };
+      return { kind: 'primary', route: { kind: 'browser' } };
     case '/addons':
       return { kind: 'addons' };
     case '/remote':
-      return { kind: 'remote' };
+      return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':
-      return { kind: 'chorus2Placeholder', placeholder: { id: 'playlists' } };
+      return { kind: 'primary', route: { kind: 'playlists' } };
     case '/settings':
       return { kind: 'settings' };
     case '/help':
-      return { kind: 'chorus2Placeholder', placeholder: { id: 'help' } };
+      return { kind: 'primary', route: { kind: 'help' } };
     case '/now-playing':
       return { kind: 'nowPlaying' };
     default:

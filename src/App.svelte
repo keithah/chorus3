@@ -119,7 +119,8 @@
     buildAppRoute,
     getChorus2PlaceholderMetadata,
     KODI_WEBINTERFACE_BASE_PATH,
-    type AppRoute
+    type AppRoute,
+    type PrimaryAppRoute
   } from '$lib/app/appRouter';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
@@ -451,7 +452,10 @@
     videoSeasonWriteDispatch = defaultVideoSeasonWriteDispatch
   }: Props = $props();
   const currentRoute = $derived(toAppRoute(route));
-  const currentVideoRoute = $derived(currentRoute.kind === 'video' ? currentRoute.route : null);
+  const currentPrimaryRoute = $derived(currentRoute.kind === 'primary' ? currentRoute.route : null);
+  const currentVideoRoute = $derived(
+    currentRoute.kind === 'video' ? currentRoute.route : primaryRouteToVideoRoute(currentPrimaryRoute)
+  );
   const currentRenderableVideoRoute = $derived(currentVideoRoute ?? dashboardVideoRoute);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentRemoteSnapshot = $derived(remoteSnapshot ?? remoteInputDispatch.snapshot);
@@ -486,13 +490,17 @@
   const isPackageMounted = $derived(packageMountedHost !== null);
   const isDashboardRoute = $derived(currentRoute.kind === 'dashboard');
   const isSettingsRoute = $derived(currentRoute.kind === 'settings');
-  const isRemoteRoute = $derived(currentRoute.kind === 'remote');
+  const isRemoteRoute = $derived(
+    currentRoute.kind === 'remote' || currentPrimaryRoute?.kind === 'remote'
+  );
   const isSettingsUnknownRoute = $derived(currentRoute.kind === 'settingsUnknown');
   const isAddonsRoute = $derived(currentRoute.kind === 'addons');
   const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
   const isAddonsUnknownRoute = $derived(currentRoute.kind === 'addonsUnknown');
   const currentChorus2Placeholder = $derived(
-    currentRoute.kind === 'chorus2Placeholder' ? currentRoute.placeholder : null
+    currentRoute.kind === 'chorus2Placeholder'
+      ? currentRoute.placeholder
+      : primaryRouteToPlaceholder(currentPrimaryRoute)
   );
   const isLabShortcutsRoute = $derived(currentRoute.kind === 'labShortcuts');
   const isLabApiBrowserRoute = $derived(currentRoute.kind === 'labApiBrowser');
@@ -520,6 +528,7 @@
       input.kind === 'labApiBrowser' ||
       input.kind === 'labUnknown' ||
       input.kind === 'nowPlaying' ||
+      input.kind === 'primary' ||
       input.kind === 'chorus2Placeholder'
     ) {
       return input;
@@ -536,6 +545,80 @@
     return buildAppRoute(route, {
       packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''
     });
+  }
+
+  function primaryRouteToVideoRoute(
+    primaryRoute: PrimaryAppRoute['route'] | null
+  ): Exclude<VideoRoute, { kind: 'dashboard' }> | null {
+    if (!primaryRoute) {
+      return null;
+    }
+
+    if (primaryRoute.kind === 'movies' || primaryRoute.kind === 'moviesRecent') {
+      return { kind: 'videoMovies' };
+    }
+
+    if (primaryRoute.kind === 'tvshows' || primaryRoute.kind === 'tvshowsRecent') {
+      return { kind: 'videoTvShows' };
+    }
+
+    if (primaryRoute.kind === 'movieDetail') {
+      const movieid = parsePositiveSafeInteger(primaryRoute.movieid);
+      return movieid === null ? null : { kind: 'videoMovieDetail', movieid };
+    }
+
+    if (primaryRoute.kind === 'tvshowDetail') {
+      const tvshowid = parsePositiveSafeInteger(primaryRoute.tvshowid);
+      return tvshowid === null ? null : { kind: 'videoTvShowDetail', tvshowid };
+    }
+
+    if (primaryRoute.kind === 'tvshowSeasonDetail') {
+      const tvshowid = parsePositiveSafeInteger(primaryRoute.tvshowid);
+      const season = parsePositiveSafeInteger(primaryRoute.season);
+      return tvshowid === null || season === null
+        ? null
+        : { kind: 'videoTvSeasonDetail', tvshowid, season };
+    }
+
+    if (primaryRoute.kind === 'tvshowEpisodeDetail') {
+      const tvshowid = parsePositiveSafeInteger(primaryRoute.tvshowid);
+      const season = parsePositiveSafeInteger(primaryRoute.season);
+      const episodeid = parsePositiveSafeInteger(primaryRoute.episodeid);
+      return tvshowid === null || season === null || episodeid === null
+        ? null
+        : { kind: 'videoEpisodeDetail', tvshowid, season, episodeid };
+    }
+
+    return null;
+  }
+
+  function primaryRouteToPlaceholder(primaryRoute: PrimaryAppRoute['route'] | null) {
+    if (!primaryRoute) {
+      return null;
+    }
+
+    if (primaryRoute.kind === 'pvrTv') {
+      return getChorus2PlaceholderMetadata('pvrTv') ?? null;
+    }
+
+    if (primaryRoute.kind === 'pvrRadio') {
+      return getChorus2PlaceholderMetadata('pvrRadio') ?? null;
+    }
+
+    if (primaryRoute.kind === 'pvrRecordings') {
+      return getChorus2PlaceholderMetadata('pvrRecordings') ?? null;
+    }
+
+    return null;
+  }
+
+  function parsePositiveSafeInteger(value: string): number | null {
+    if (!/^\d+$/u.test(value)) {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
   onMount(() => {

@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
+  buildPrimaryAppRoute,
   getChorus2PlaceholderMetadata,
   getChorus2PlaceholderMetadataTable,
   isDelegatedVideoRoute,
@@ -104,10 +105,130 @@ describe('chorus2 placeholder metadata', () => {
   });
 });
 
+const PRIMARY_ROUTE_CASES = [
+  ['/', { kind: 'home' }],
+  ['/home', { kind: 'home' }],
+  ['/music', { kind: 'music' }],
+  ['/music/top', { kind: 'musicTop' }],
+  ['/music/artists', { kind: 'musicArtists' }],
+  ['/music/albums', { kind: 'musicAlbums' }],
+  ['/music/genres', { kind: 'musicGenres' }],
+  ['/music/album/abc', { kind: 'musicAlbumDetail', albumid: 'abc' }],
+  ['/music/artist/abc', { kind: 'musicArtistDetail', artistid: 'abc' }],
+  ['/music/genre/recent', { kind: 'musicGenreDetail', genreid: 'recent' }],
+  ['/movies/recent', { kind: 'moviesRecent' }],
+  ['/movies', { kind: 'movies' }],
+  ['/movie/abc', { kind: 'movieDetail', movieid: 'abc' }],
+  ['/tvshows/recent', { kind: 'tvshowsRecent' }],
+  ['/tvshows', { kind: 'tvshows' }],
+  ['/tvshow/series', { kind: 'tvshowDetail', tvshowid: 'series' }],
+  ['/tvshow/series/1', { kind: 'tvshowSeasonDetail', tvshowid: 'series', season: '1' }],
+  [
+    '/tvshow/series/1/2',
+    { kind: 'tvshowEpisodeDetail', tvshowid: 'series', season: '1', episodeid: '2' }
+  ],
+  ['/browser', { kind: 'browser' }],
+  ['/browser/music/root', { kind: 'browserItem', media: 'music', itemid: 'root' }],
+  ['/addons/all', { kind: 'addonsAll' }],
+  ['/addons/video', { kind: 'addonsVideo' }],
+  ['/addons/audio', { kind: 'addonsAudio' }],
+  ['/addons/executable', { kind: 'addonsExecutable' }],
+  ['/addon/execute/plugin.video.demo', { kind: 'addonExecute', addonid: 'plugin.video.demo' }],
+  ['/playlists', { kind: 'playlists' }],
+  ['/playlist/local', { kind: 'playlistDetail', playlistid: 'local' }],
+  ['/settings/web', { kind: 'settingsWeb' }],
+  ['/settings/kodi', { kind: 'settingsKodi' }],
+  ['/settings/kodi/library', { kind: 'settingsKodiSection', section: 'library' }],
+  ['/settings/addons', { kind: 'settingsAddons' }],
+  ['/settings/nav', { kind: 'settingsNav' }],
+  ['/settings/search', { kind: 'settingsSearch' }],
+  ['/help', { kind: 'help' }],
+  ['/help/overview', { kind: 'helpOverview' }],
+  ['/help/keyboard', { kind: 'helpPage', pageid: 'keyboard' }],
+  ['/remote', { kind: 'remote' }],
+  ['/search', { kind: 'search' }],
+  ['/search/music/query', { kind: 'searchMedia', media: 'music', query: 'query' }],
+  ['/thumbsup', { kind: 'thumbsup' }],
+  ['/pvr/tv', { kind: 'pvrTv' }],
+  ['/pvr/radio', { kind: 'pvrRadio' }],
+  ['/pvr/recordings', { kind: 'pvrRecordings' }]
+] as const;
+
 describe('parseAppRoute', () => {
+  test.each(PRIMARY_ROUTE_CASES)(
+    'parses primary route %s to an explicit typed identity',
+    (path, route) => {
+      expect(parseAppRoute(path, '?token=secret')).toEqual({ kind: 'primary', route });
+      expect(parseAppRoute(`${KODI_WEBINTERFACE_BASE_PATH}${path === '/' ? '' : path}`, '?token=secret', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      })).toEqual({ kind: 'primary', route });
+    }
+  );
+
+  test.each(PRIMARY_ROUTE_CASES)(
+    'builds canonical primary route for parsed route %s with and without package base',
+    (path, route) => {
+      const canonicalPath = route.kind === 'home' ? '/' : path;
+
+      expect(buildPrimaryAppRoute(route)).toBe(canonicalPath);
+      expect(buildAppRoute({ kind: 'primary', route })).toBe(canonicalPath);
+      expect(buildPrimaryAppRoute(route, { packageBasePath: `${KODI_WEBINTERFACE_BASE_PATH}/` })).toBe(
+        `${KODI_WEBINTERFACE_BASE_PATH}${canonicalPath === '/' ? '' : canonicalPath}`
+      );
+    }
+  );
+
+  test('handles malformed and unsupported primary route inputs without throwing or leaking secrets', () => {
+    const unsafeInputs = [
+      '/music/album/%E0%A4%A',
+      '/movie/',
+      `/movie/${'a'.repeat(129)}`,
+      '/tvshow/series/%20/2',
+      '/browser/music/smb://nas/passwords',
+      '/addon/execute/user:pass@host',
+      '/search/music/token',
+      '/addons/webinterface.chorus3/unsupported/admin:p@ssword'
+    ];
+
+    for (const input of unsafeInputs) {
+      expect(() =>
+        parseAppRoute(input, '?token=secret&password=CHORUS3_SENTINEL_SECRET', {
+          packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+        })
+      ).not.toThrow();
+      const route = parseAppRoute(input, '?token=secret&password=CHORUS3_SENTINEL_SECRET', {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+      });
+      const serialized = JSON.stringify(route);
+
+      expect(serialized).not.toMatch(
+        /user:pass|token=|password=|secret|CHORUS3_SENTINEL_SECRET|smb:\/\/|admin:p@ssword|aaaaaaaaaaaaaaaa/i
+      );
+      if (route.kind === 'primary') {
+        expect(route.route.kind).not.toMatch(/Detail|Execute|Media|Item/u);
+      }
+    }
+  });
+
+  test('keeps Chorus3 video aliases delegated to the video router', () => {
+    expect(parseAppRoute('/video/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
+    expect(parseAppRoute('/video/tv')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
+    expect(parseAppRoute('/video/movies/4401')).toEqual({
+      kind: 'video',
+      route: { kind: 'videoMovieDetail', movieid: 4401 }
+    });
+    expect(parseAppRoute('/video/tv/5501/seasons/1/episodes/6601')).toEqual({
+      kind: 'video',
+      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
+    });
+  });
+
   test('parses dashboard and settings routes without using query identity', () => {
-    expect(parseAppRoute('/')).toEqual({ kind: 'dashboard' });
-    expect(parseAppRoute('', '?m005-browser-proof=1')).toEqual({ kind: 'dashboard' });
+    expect(parseAppRoute('/')).toEqual({ kind: 'primary', route: { kind: 'home' } });
+    expect(parseAppRoute('', '?m005-browser-proof=1')).toEqual({
+      kind: 'primary',
+      route: { kind: 'home' }
+    });
     expect(parseAppRoute('/settings')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/settings', '?m005-browser-proof=1')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/addons')).toEqual({ kind: 'addons' });
@@ -139,52 +260,45 @@ describe('parseAppRoute', () => {
     }
   });
 
-  test.each<[string, VideoRoute]>([
-    ['/movies/recent', { kind: 'videoMovies' }],
-    ['/tvshows/recent', { kind: 'videoTvShows' }],
-    ['/movie/4401', { kind: 'videoMovieDetail', movieid: 4401 }],
-    ['/tvshow/5501', { kind: 'videoTvShowDetail', tvshowid: 5501 }],
-    ['/tvshow/5501/1', { kind: 'videoTvSeasonDetail', tvshowid: 5501, season: 1 }],
+  test.each([
+    ['/movies/recent', { kind: 'moviesRecent' }],
+    ['/tvshows/recent', { kind: 'tvshowsRecent' }],
+    ['/movie/4401', { kind: 'movieDetail', movieid: '4401' }],
+    ['/tvshow/5501', { kind: 'tvshowDetail', tvshowid: '5501' }],
+    ['/tvshow/5501/1', { kind: 'tvshowSeasonDetail', tvshowid: '5501', season: '1' }],
     [
       '/tvshow/5501/1/6601',
-      { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
+      { kind: 'tvshowEpisodeDetail', tvshowid: '5501', season: '1', episodeid: '6601' }
     ]
-  ])('promotes safe Chorus2 video alias %s to an existing video route', (path, videoRoute) => {
+  ] as const)('parses reference-compatible video route %s as primary route identity', (path, route) => {
     expect(parseAppRoute(path, '?Authorization=Basic&ignored=1')).toEqual({
-      kind: 'video',
-      route: videoRoute
+      kind: 'primary',
+      route
     });
-    expect(unwrapVideoRoute(parseAppRoute(path))).toEqual(videoRoute);
   });
 
-  test('parses package-mounted Chorus2 video aliases to the same promoted route identity', () => {
+  test('parses package-mounted reference-compatible video routes to the same primary identity', () => {
     expect(
       parseAppRoute('/addons/webinterface.chorus3/movie/4401', '?token=secret', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'video', route: { kind: 'videoMovieDetail', movieid: 4401 } });
+    ).toEqual({ kind: 'primary', route: { kind: 'movieDetail', movieid: '4401' } });
     expect(
       parseAppRoute('/addons/webinterface.chorus3/tvshow/5501/1/6601', '?token=secret', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
     ).toEqual({
-      kind: 'video',
-      route: { kind: 'videoEpisodeDetail', tvshowid: 5501, season: 1, episodeid: 6601 }
+      kind: 'primary',
+      route: { kind: 'tvshowEpisodeDetail', tvshowid: '5501', season: '1', episodeid: '6601' }
     });
   });
 
   test('rejects malformed Chorus2 video aliases without leaking raw path or query payloads', () => {
     const unsafeCases = [
-      '/movie/0',
-      '/movie/-1',
-      '/movie/1.5',
-      '/movie/9007199254740992',
+      `/movie/${'a'.repeat(129)}`,
       '/movie/4401/stream',
       '/movie/4401%2Fstream',
-      '/tvshow/5501/0',
-      '/tvshow/5501/-1',
-      '/tvshow/5501/1.5',
-      '/tvshow/5501/1/0',
+      '/tvshow/5501/%20',
       '/tvshow/5501%2F1',
       '/movie/Authorization',
       '/movie/admin:p@ssword'
@@ -197,51 +311,32 @@ describe('parseAppRoute', () => {
 
       expect(route.kind).not.toBe('video');
       expect(serialized).not.toMatch(
-        /Authorization|Basic|admin:p@ssword|token=|secret|9007199254740992|4401%2Fstream|5501%2F1/i
+        /Authorization|Basic|admin:p@ssword|token=|secret|aaaaaaaaaaaaaaaa|4401%2Fstream|5501%2F1/i
       );
     }
   });
 
   test('parses curated Chorus2 URLs to implemented routes or safe placeholders', () => {
-    expect(parseAppRoute('/movies')).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
-    expect(parseAppRoute('/tvshows')).toEqual({ kind: 'video', route: { kind: 'videoTvShows' } });
+    expect(parseAppRoute('/movies')).toEqual({ kind: 'primary', route: { kind: 'movies' } });
+    expect(parseAppRoute('/tvshows')).toEqual({ kind: 'primary', route: { kind: 'tvshows' } });
     expect(parseAppRoute('/remote', '?endpoint=http://user:pass@example/jsonrpc')).toEqual({
-      kind: 'remote'
+      kind: 'primary',
+      route: { kind: 'remote' }
     });
 
     const placeholderCases = [
-      ['/playlists', 'playlists'],
-      ['/help', 'help'],
-      ['/help/overview', 'helpOverview'],
-      ['/help/app-readme', 'helpPage'],
-      ['/browser', 'browser'],
       ['/files', 'files'],
       ['/browser/video/%2Fstorage', 'browserMedia'],
       ['/localPlaylist', 'localPlaylist'],
-      ['/settings/web', 'settingsWeb'],
-      ['/settings/kodi', 'settingsKodi'],
-      ['/settings/kodi/player', 'settingsKodiSection'],
-      ['/settings/nav', 'settingsNav'],
-      ['/settings/search', 'settingsSearch'],
-      ['/settings/addons', 'settingsAddons'],
       ['/lab', 'lab'],
       ['/lab/screenshot', 'labScreenshot'],
       ['/lab/icon-browser', 'labIconBrowser'],
       ['/lab/api-browser/JSONRPC.Ping', 'labApiBrowserMethod'],
-      ['/addons/video', 'addonsVideo'],
-      ['/addons/audio', 'addonsAudio'],
-      ['/addons/executable', 'addonsExecutable'],
-      ['/addon/execute/plugin.video.youtube', 'addonExecute'],
-      ['/search', 'search'],
       ['/search/video/star wars', 'searchVideo'],
       ['/pvr', 'pvr'],
-      ['/pvr/tv', 'pvrTv'],
       ['/pvr/tv/42', 'pvrTvChannel'],
-      ['/pvr/radio', 'pvrRadio'],
       ['/pvr/radio/99', 'pvrRadioChannel'],
-      ['/pvr/recordings', 'pvrRecordings'],
-      ['/music/videos', 'musicVideos'],
-      ['/thumbsup', 'thumbsup']
+      ['/music/videos', 'musicVideos']
     ] as const;
 
     for (const [path, expectedId] of placeholderCases) {
@@ -254,15 +349,15 @@ describe('parseAppRoute', () => {
       parseAppRoute('/addons/webinterface.chorus3/remote', '?Authorization=Basic', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'remote' });
+    ).toEqual({ kind: 'primary', route: { kind: 'remote' } });
     expect(
       buildAppRoute({ kind: 'remote' }, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
     ).toBe('/addons/webinterface.chorus3/remote');
 
     const packageCases = [
-      ['/addons/webinterface.chorus3/help', '/help', 'help'],
-      ['/addons/webinterface.chorus3/playlists', '/playlists', 'playlists'],
-      ['/addons/webinterface.chorus3/pvr/tv', '/pvr/tv', 'pvrTv']
+      ['/addons/webinterface.chorus3/files', '/files', 'files'],
+      ['/addons/webinterface.chorus3/lab/screenshot', '/lab/screenshot', 'labScreenshot'],
+      ['/addons/webinterface.chorus3/music/videos', '/music/videos', 'musicVideos']
     ] as const;
 
     for (const [path, unmountedPath, expectedId] of packageCases) {
@@ -371,14 +466,17 @@ describe('parseAppRoute', () => {
   test('normalizes edge inputs without throwing', () => {
     expect(() => parseAppRoute(null)).not.toThrow();
     expect(() => parseAppRoute({ raw: '/settings' })).not.toThrow();
-    expect(parseAppRoute(null)).toEqual({ kind: 'dashboard' });
-    expect(parseAppRoute(undefined)).toEqual({ kind: 'dashboard' });
+    expect(parseAppRoute(null)).toEqual({ kind: 'primary', route: { kind: 'home' } });
+    expect(parseAppRoute(undefined)).toEqual({ kind: 'primary', route: { kind: 'home' } });
     expect(parseAppRoute({ raw: '/settings' })).toEqual({
       kind: 'settingsUnknown',
       pathLabel: '/[redacted]'
     });
-    expect(parseAppRoute('')).toEqual({ kind: 'dashboard' });
-    expect(parseAppRoute('?m005-browser-proof=1')).toEqual({ kind: 'dashboard' });
+    expect(parseAppRoute('')).toEqual({ kind: 'primary', route: { kind: 'home' } });
+    expect(parseAppRoute('?m005-browser-proof=1')).toEqual({
+      kind: 'primary',
+      route: { kind: 'home' }
+    });
     expect(parseAppRoute('//settings//')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/settings/')).toEqual({ kind: 'settings' });
     expect(parseAppRoute('/video/movies/4401')).toEqual({
@@ -454,12 +552,12 @@ describe('parseAppRoute', () => {
       parseAppRoute('/addons/webinterface.chorus3', '', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'dashboard' });
+    ).toEqual({ kind: 'primary', route: { kind: 'home' } });
     expect(
       parseAppRoute('/addons/webinterface.chorus3/', '', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'dashboard' });
+    ).toEqual({ kind: 'primary', route: { kind: 'home' } });
     expect(
       parseAppRoute('/addons/webinterface.chorus3/now-playing', '?theme=light', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH

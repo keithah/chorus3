@@ -5,8 +5,14 @@ import {
   type VideoRoute
 } from '../video/videoRouter';
 import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
+import {
+  buildPrimaryRoutePath,
+  parsePrimaryRoutePath,
+  type PrimaryRoute
+} from './primaryRoutes';
 
 export type AppDashboardRoute = DashboardRoute;
+export type PrimaryAppRoute = { kind: 'primary'; route: PrimaryRoute };
 export type SettingsRoute = { kind: 'settings' };
 export type SettingsUnknownRoute = { kind: 'settingsUnknown'; pathLabel: string };
 export type RemoteRoute = { kind: 'remote' };
@@ -38,6 +44,7 @@ export type Chorus2PlaceholderRoute = {
 };
 
 export type AppRoute =
+  | PrimaryAppRoute
   | AppDashboardRoute
   | SettingsRoute
   | SettingsUnknownRoute
@@ -490,6 +497,12 @@ export function parseAppRoute(
     normalizePackageBasePath(options.packageBasePath)
   );
 
+  const primaryRoute = parsePrimaryRoutePath(path);
+
+  if (primaryRoute) {
+    return { kind: 'primary', route: primaryRoute };
+  }
+
   if (path === ROOT_PATH) {
     return { kind: 'dashboard' };
   }
@@ -579,6 +592,16 @@ export function buildAppRoute(route: AppRoute, options: BuildAppRouteOptions = {
   return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
 }
 
+export function buildPrimaryAppRoute(
+  route: PrimaryRoute,
+  options: BuildAppRouteOptions = {}
+): string {
+  const path = buildPrimaryRoutePath(route);
+  const packageBasePath = normalizePackageBasePath(options.packageBasePath);
+
+  return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+}
+
 function buildAppRoutePath(route: AppRoute): string {
   if (!isRouteLike(route)) {
     return ROOT_PATH;
@@ -586,6 +609,10 @@ function buildAppRoutePath(route: AppRoute): string {
 
   if (route.kind === 'dashboard') {
     return ROOT_PATH;
+  }
+
+  if (route.kind === 'primary') {
+    return buildPrimaryRoutePath(route.route);
   }
 
   if (route.kind === 'settings') {
