@@ -1647,6 +1647,80 @@ describe('App shell', () => {
     }
   );
 
+  it.each([
+    ['/browser', ['Browse files and add-ons', 'Media files'], []],
+    ['/files', ['Browse files and add-ons', 'Media files'], []],
+    ['/addons/all', ['Add-on catalog', 'Installed add-ons'], []],
+    ['/addons/video', ['Video add-ons', 'Installed add-ons'], []],
+    ['/addons/audio', ['Audio add-ons', 'Installed add-ons'], []],
+    ['/addons/executable', ['Executable add-ons', 'Installed add-ons'], []],
+    ['/playlists', ['Playlist library', 'New playlist', 'Media playlists'], []],
+    ['/settings/web', ['Web interface settings', 'General options', 'Appearance'], []],
+    ['/settings/kodi', ['Kodi settings', 'General options', 'Appearance'], []],
+    ['/settings/main-menu', ['Navigation settings', 'General options', 'Appearance'], []],
+    [
+      '/help',
+      ['About Chorus', 'Status report', 'What is Chorus?', 'Keyboard controls', 'Readme', 'Changelog', 'Translations', 'License'],
+      []
+    ],
+    ['/help/overview', ['About Chorus', 'Status report', 'What is Chorus?'], []],
+    ['/help/keyboard', ['Keyboard controls', 'Remote shortcuts', 'Playback shortcuts'], []],
+    ['/remote', ['Remote control', 'Directional pad'], []],
+    [
+      '/browser/music/1',
+      ['Browser item', 'Deferred file browser detail', 'S06-owned browser behavior'],
+      ['music/1', 'smb://', 'special://']
+    ],
+    [
+      '/playlists/music',
+      ['Playlist details', 'Deferred playlist detail', 'S05-owned playlist editing'],
+      ['playlists/music', 'smb://', 'special://']
+    ],
+    [
+      '/settings/kodi/interface',
+      ['Kodi settings section', 'Deferred Kodi settings section', 'S06-owned Kodi settings behavior'],
+      ['settings/kodi/interface', 'smb://', 'special://']
+    ]
+  ] as const)(
+    'renders S03 route %s with app-native safe surface copy',
+    (pathname, expectedCopy, forbiddenCopy) => {
+      vi.stubGlobal('fetch', createKodiFetchMock());
+
+      const target = renderApp({
+        route: parseAppRoute(pathname),
+        remoteSnapshot: createRemoteSnapshot(),
+        remoteInputDispatch: createRemoteInputDispatch(),
+        playerSnapshot: activeVideoSnapshot(),
+        playerDispatch: createPlayerDispatch(),
+        addonsSnapshot: createAddonsSnapshot(),
+        addonsDispatch: createAddonsDispatch(),
+        settingsSnapshot: createSettingsSnapshot(),
+        settingsDispatch: createSettingsDispatch(),
+        mediaPlaylistsSnapshot: createMediaPlaylistsSnapshot(),
+        mediaPlaylistsDispatch: createMediaPlaylistsDispatch(),
+        mediaPlaylistsActionDispatch: createMediaPlaylistsActionDispatch(),
+        mediaFilesSnapshot: createMediaFilesSnapshot(),
+        mediaFilesDispatch: createMediaFilesDispatch(),
+        mediaFilesActionDispatch: createMediaFilesActionDispatch()
+      });
+
+      requirePrimaryShellStage(target);
+      const text = target.textContent ?? '';
+      for (const expected of expectedCopy) {
+        expect(text, `${pathname} should include ${expected}`).toContain(expected);
+      }
+      for (const forbidden of [
+        'Route not found',
+        'Multi-host console',
+        'Save trusted Kodi endpoints',
+        'Detailed parity for this route is deferred',
+        ...forbiddenCopy
+      ]) {
+        expect(text, `${pathname} should not include ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+  );
+
   it('keeps primary shell modules store-agnostic and panel-free after app page extraction', () => {
     for (const file of [
       'src/lib/app-shell/AppShell.svelte',

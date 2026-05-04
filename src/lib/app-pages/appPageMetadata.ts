@@ -152,9 +152,21 @@ function appPageDescription(route: PrimaryRoute): string {
 }
 
 function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): string {
-  return status === 'implemented' || route.kind === 'home'
-    ? ''
-    : 'Detailed parity for this route is deferred, but the route itself is supported by the primary app shell.';
+  if (status === 'implemented' || route.kind === 'home') {
+    return '';
+  }
+
+  if (
+    route.kind === 'browserItem' ||
+    route.kind === 'playlistDetail' ||
+    route.kind === 'settingsKodiSection' ||
+    route.kind === 'helpPage' ||
+    route.kind === 'addonExecute'
+  ) {
+    return 'This route has a safe app-native deferred frame while deeper behavior remains owned by a later slice.';
+  }
+
+  return 'This route is supported by the primary app shell while fuller behavior lands behind the same safe boundary.';
 }
 
 function implemented(

@@ -1,5 +1,9 @@
 <script lang="ts">
-  import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
+  import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
+  import AddonsPage from './AddonsPage.svelte';
+  import BrowserFilesPage from './BrowserFilesPage.svelte';
+  import DeferredPrimaryPage from './DeferredPrimaryPage.svelte';
+  import HelpPage from './HelpPage.svelte';
   import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
   import MediaFilesPanel, {
     type MediaFilesActionDispatch,
@@ -20,12 +24,14 @@
   import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
   import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
+  import PlaylistsPage from './PlaylistsPage.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import RemoteInputPanel, {
     type RemoteInputPanelRemoteDispatch
   } from '$components/RemoteInputPanel.svelte';
-  import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
+  import SettingsPage from './SettingsPage.svelte';
+  import type { SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import VideoEpisodeDetailShell, {
@@ -302,31 +308,48 @@
         {i18n}
       />
     {:else if route.kind === 'browser'}
-      <MediaFilesPanel
+      <BrowserFilesPage
         snapshot={mediaFilesSnapshot}
         dispatch={mediaFilesDispatch}
         actionDispatch={mediaFilesActionDispatch}
         {i18n}
       />
+    {:else if route.kind === 'browserItem'}
+      <DeferredPrimaryPage {route} {metadata} />
     {:else if route.kind === 'playlists'}
-      <MediaPlaylistsPanel
+      <PlaylistsPage
         snapshot={mediaPlaylistsSnapshot}
         dispatch={mediaPlaylistsDispatch}
         actionDispatch={mediaPlaylistsActionDispatch}
         {i18n}
       />
-    {:else if route.kind === 'addonsAll'}
-      <AddonsPanel snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} />
-    {:else if route.kind === 'settingsWeb'}
-      <SettingsPanel snapshot={settingsSnapshot} dispatch={settingsDispatch} {i18n} />
+    {:else if route.kind === 'playlistDetail'}
+      <DeferredPrimaryPage {route} {metadata} />
+    {:else if route.kind === 'addonsAll' || route.kind === 'addonsVideo' || route.kind === 'addonsAudio' || route.kind === 'addonsExecutable'}
+      <AddonsPage {route} snapshot={addonsSnapshot} dispatch={addonsDispatch} {i18n} />
+    {:else if route.kind === 'addonExecute'}
+      <DeferredPrimaryPage {route} {metadata} />
+    {:else if route.kind === 'settingsWeb' || route.kind === 'settingsKodi' || route.kind === 'settingsAddons' || route.kind === 'settingsNav' || route.kind === 'settingsSearch'}
+      <SettingsPage {route} snapshot={settingsSnapshot} dispatch={settingsDispatch} {i18n} />
+    {:else if route.kind === 'settingsKodiSection'}
+      <DeferredPrimaryPage {route} {metadata} />
+    {:else if route.kind === 'help' || route.kind === 'helpOverview' || route.kind === 'helpPage'}
+      <HelpPage {route} />
     {:else if route.kind === 'remote'}
-      <RemoteInputPanel
-        {remoteSnapshot}
-        {remoteInputDispatch}
-        {playerSnapshot}
-        {playerDispatch}
-        {i18n}
-      />
+      <section class="remote-app-page" aria-labelledby="remote-app-page-title">
+        <div class="remote-app-page__header">
+          <p class="section-kicker">Remote control</p>
+          <h2 id="remote-app-page-title">Remote control</h2>
+          <p>Directional pad and playback commands are wired to the existing Kodi remote input panel.</p>
+        </div>
+        <RemoteInputPanel
+          {remoteSnapshot}
+          {remoteInputDispatch}
+          {playerSnapshot}
+          {playerDispatch}
+          {i18n}
+        />
+      </section>
     {:else if chorus2Placeholder}
       <ParityPlaceholder placeholder={chorus2Placeholder} {packageBasePath} {i18n} />
     {/if}
@@ -374,6 +397,31 @@
     color: var(--color-text-muted);
     font-size: 1rem;
     line-height: 1.7;
+  }
+
+  .remote-app-page {
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .remote-app-page__header {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .remote-app-page__header h2,
+  .remote-app-page__header p {
+    margin: 0;
+  }
+
+  .remote-app-page__header p:not(.section-kicker) {
+    max-width: 48rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
   }
 
   .status-grid {
