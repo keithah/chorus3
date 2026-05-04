@@ -1856,8 +1856,11 @@ describe('App shell', () => {
     expect(shortHeightRule, 'rail scroll gestures stay contained').toMatch(
       /overscroll-behavior(?:-y)?\s*:\s*contain/u
     );
-    expect(shortHeightRule, 'hover labels cannot widen phone landscape layouts').toMatch(
-      /\.c2-rail\s+a(?::hover|\.active)::after[\s\S]*display\s*:\s*none/u
+    expect(shortHeightRule, 'real hover labels cannot widen phone landscape layouts').toMatch(
+      /\.c2-rail-label,\s*\.c2-submenu[\s\S]*display\s*:\s*none/u
+    );
+    expect(shortHeightRule, 'short-height submenus stay bounded').toMatch(
+      /\.c2-rail-label,\s*\.c2-submenu[\s\S]*max-height\s*:\s*0/u
     );
   });
 

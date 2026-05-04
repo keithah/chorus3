@@ -4,6 +4,8 @@
     AppShellDestinationState,
     AppShellDrawerState,
     AppShellNavigationItem,
+    AppShellNavigationSubmenuGroup,
+    AppShellNavigationSubmenuItem,
     AppShellPlayerActions,
     AppShellPlayerSnapshot,
     AppShellRouteIdentity
@@ -62,7 +64,8 @@
       .map((item) => ({
         ...item,
         title: safeText(item.title, item.id),
-        label: safeText(item.label, item.title)
+        label: safeText(item.label, item.title),
+        submenuGroups: normalizeSubmenuGroups(item.submenuGroups ?? [])
       }))
   );
   const safeStageLabel = $derived(safeText(stageLabel, 'Kodi dashboard'));
@@ -92,6 +95,30 @@
 
   function safeText(value: unknown, fallback: string): string {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  function normalizeSubmenuGroups(
+    groups: readonly AppShellNavigationSubmenuGroup[]
+  ): readonly AppShellNavigationSubmenuGroup[] {
+    return groups
+      .map((group) => ({
+        ...group,
+        label: safeText(group.label, group.id),
+        items: normalizeSubmenuItems(group.items ?? [])
+      }))
+      .filter((group) => group.items.length > 0);
+  }
+
+  function normalizeSubmenuItems(
+    items: readonly AppShellNavigationSubmenuItem[]
+  ): readonly AppShellNavigationSubmenuItem[] {
+    return items
+      .filter((item) => item && typeof item.href === 'string' && item.href.trim())
+      .map((item) => ({
+        ...item,
+        title: safeText(item.title, item.id),
+        label: safeText(item.label, safeText(item.title, item.id))
+      }));
   }
 
   function normalizePlayer(value: AppShellPlayerSnapshot | undefined): AppShellPlayerSnapshot {
@@ -176,15 +203,38 @@
   <aside class="c2-rail" aria-label="Primary navigation">
     <nav aria-label="Kodi sections">
       {#each safeNavigationItems as item}
-        <a
-          href={item.href}
-          class:active={item.isActive}
-          aria-current={item.isActive ? 'page' : undefined}
-          title={item.title}
-        >
-          <span class={`mdi ${item.icon}`} aria-hidden="true"></span>
-          <span class="visually-hidden">{item.label}</span>
-        </a>
+        <div class="c2-rail-item" class:active={item.isActive}>
+          <a
+            class="c2-rail-primary"
+            href={item.href}
+            class:active={item.isActive}
+            aria-current={item.isActive ? 'page' : undefined}
+            title={item.title}
+          >
+            <span class={`mdi ${item.icon}`} aria-hidden="true"></span>
+            <span class="c2-rail-label">{item.label}</span>
+          </a>
+          {#if item.submenuGroups?.length}
+            <div class="c2-submenu" aria-label={`${item.label} submenu`}>
+              {#each item.submenuGroups as group}
+                <div class="c2-submenu-group" aria-label={group.label}>
+                  <span class="c2-submenu-heading">{group.label}</span>
+                  {#each group.items as submenuItem}
+                    <a
+                      class="c2-submenu-link"
+                      class:active={submenuItem.isActive}
+                      href={submenuItem.href}
+                      title={submenuItem.title}
+                      aria-current={submenuItem.isActive ? 'page' : undefined}
+                    >
+                      {submenuItem.label}
+                    </a>
+                  {/each}
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
       {/each}
     </nav>
   </aside>
@@ -556,8 +606,14 @@
     padding-top: 10px;
   }
 
-  .c2-rail a {
+  .c2-rail-item {
     position: relative;
+    width: 50px;
+  }
+
+  .c2-rail-primary {
+    position: relative;
+    z-index: 2;
     display: grid;
     place-items: center;
     width: 50px;
@@ -567,26 +623,111 @@
     text-decoration: none;
   }
 
-  .c2-rail a.active,
-  .c2-rail a:hover {
-    color: #fff;
-    background: var(--c2-blue);
-  }
-
-  .c2-rail a.active::after,
-  .c2-rail a:hover::after {
+  .c2-rail-label {
     position: absolute;
     left: 50px;
     top: 0;
+    z-index: 3;
     height: 39px;
-    padding: 0 22px 0 19px;
+    max-width: 0;
+    overflow: hidden;
+    padding: 0;
     color: #fff;
     background: var(--c2-blue);
-    content: attr(title);
     font-size: 15px;
     font-weight: 600;
     line-height: 39px;
     white-space: nowrap;
+    opacity: 0;
+    transition-property: max-width, padding-inline, opacity;
+    transition-duration: 140ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .c2-rail-item.active .c2-rail-primary,
+  .c2-rail-primary.active,
+  .c2-rail-primary:hover,
+  .c2-rail-primary:focus-visible,
+  .c2-rail-item:focus-within .c2-rail-primary {
+    color: #fff;
+    background: var(--c2-blue);
+  }
+
+  .c2-rail-primary:focus-visible,
+  .c2-submenu-link:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -3px;
+    box-shadow: 0 0 0 3px rgb(77 179 230 / 0.55);
+  }
+
+  .c2-rail-item:hover .c2-rail-label,
+  .c2-rail-item:focus-within .c2-rail-label,
+  .c2-rail-item.active .c2-rail-label {
+    max-width: 220px;
+    padding-inline: 19px 22px;
+    opacity: 1;
+  }
+
+  .c2-submenu {
+    position: absolute;
+    left: 50px;
+    top: 39px;
+    z-index: 4;
+    display: grid;
+    min-width: 176px;
+    max-height: min(320px, calc(100vh - 149px));
+    overflow-y: auto;
+    padding-block: 7px;
+    color: #303336;
+    background: #f7f7f7;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition-property: opacity, transform;
+    transition-duration: 140ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .c2-rail-item:hover .c2-submenu,
+  .c2-rail-item:focus-within .c2-submenu,
+  .c2-rail-item.active .c2-submenu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .c2-submenu-group {
+    display: grid;
+  }
+
+  .c2-submenu-heading {
+    padding: 5px 17px 4px;
+    color: #7a7f82;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .c2-submenu-link {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 17px;
+    color: #303336;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .c2-submenu-link:hover,
+  .c2-submenu-link.active {
+    color: #fff;
+    background: var(--c2-blue);
   }
 
   .c2-stage {
@@ -831,9 +972,10 @@
       padding-block: 0;
     }
 
-    .c2-rail a:hover::after,
-    .c2-rail a.active::after {
+    .c2-rail-label,
+    .c2-submenu {
       display: none;
+      max-height: 0;
     }
   }
 </style>
