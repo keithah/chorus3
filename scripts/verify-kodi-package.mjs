@@ -87,6 +87,38 @@ const PRIMARY_ROUTE_CHECKS = [
   { name: 'legacy-video-tv-root', path: '/video/tv', expected: { kind: 'video', routeKind: 'videoTvShows' } },
   { name: 'now-playing-root', path: '/now-playing', expected: { kind: 'nowPlaying' } }
 ];
+const SUBMENU_ROUTE_CHECKS = [
+  {
+    name: 'submenu-music-genres-root',
+    path: '/music/genres',
+    expected: { kind: 'primary', routeKind: 'musicGenres' }
+  },
+  {
+    name: 'submenu-movies-recent-root',
+    path: '/movies/recent',
+    expected: { kind: 'primary', routeKind: 'moviesRecent' }
+  },
+  {
+    name: 'submenu-tvshows-recent-root',
+    path: '/tvshows/recent',
+    expected: { kind: 'primary', routeKind: 'tvshowsRecent' }
+  },
+  {
+    name: 'submenu-addons-video-root',
+    path: '/addons/video',
+    expected: { kind: 'primary', routeKind: 'addonsVideo' }
+  },
+  {
+    name: 'submenu-settings-kodi-section-root',
+    path: '/settings/kodi/interface',
+    expected: { kind: 'primary', routeKind: 'settingsKodiSection' }
+  },
+  {
+    name: 'submenu-help-page-root',
+    path: '/help/keyboard',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  }
+];
 
 export async function runKodiPackageVerification({
   root = cwd(),
@@ -431,7 +463,7 @@ function findPackageEscapingAssetRoots(contents) {
 function expandPrimaryRouteChecks(packageBasePath) {
   const checks = [];
 
-  for (const check of PRIMARY_ROUTE_CHECKS) {
+  for (const check of [...PRIMARY_ROUTE_CHECKS, ...SUBMENU_ROUTE_CHECKS]) {
     checks.push({ ...check, packageBasePath: '', path: check.path });
 
     const packagePath =
@@ -569,24 +601,36 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'home' } };
     case '/music':
       return { kind: 'primary', route: { kind: 'music' } };
+    case '/music/genres':
+      return { kind: 'primary', route: { kind: 'musicGenres' } };
     case '/movies':
       return { kind: 'primary', route: { kind: 'movies' } };
+    case '/movies/recent':
+      return { kind: 'primary', route: { kind: 'moviesRecent' } };
     case '/tvshows':
       return { kind: 'primary', route: { kind: 'tvshows' } };
+    case '/tvshows/recent':
+      return { kind: 'primary', route: { kind: 'tvshowsRecent' } };
     case '/browser':
       return { kind: 'primary', route: { kind: 'browser' } };
     case '/files':
       return { kind: 'chorus2Placeholder', placeholder: { id: 'files' } };
     case '/addons/all':
       return { kind: 'primary', route: { kind: 'addonsAll' } };
+    case '/addons/video':
+      return { kind: 'primary', route: { kind: 'addonsVideo' } };
     case '/remote':
       return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':
       return { kind: 'primary', route: { kind: 'playlists' } };
     case '/settings/web':
       return { kind: 'primary', route: { kind: 'settingsWeb' } };
+    case '/settings/kodi/interface':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'interface' } };
     case '/help':
       return { kind: 'primary', route: { kind: 'help' } };
+    case '/help/keyboard':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'keyboard' } };
     case '/video/movies':
       return { kind: 'video', route: { kind: 'videoMovies' } };
     case '/video/tv':

@@ -381,6 +381,12 @@ describe('Kodi package structural verification', () => {
         '[route] primary-music-package /addons/webinterface.chorus3/music resolves to primary/music.',
         '[route] primary-movies-package /addons/webinterface.chorus3/movies resolves to primary/movies.',
         '[route] primary-browser-package /addons/webinterface.chorus3/browser resolves to primary/browser.',
+        '[route] submenu-music-genres-package /addons/webinterface.chorus3/music/genres resolves to primary/musicGenres.',
+        '[route] submenu-movies-recent-package /addons/webinterface.chorus3/movies/recent resolves to primary/moviesRecent.',
+        '[route] submenu-tvshows-recent-package /addons/webinterface.chorus3/tvshows/recent resolves to primary/tvshowsRecent.',
+        '[route] submenu-addons-video-package /addons/webinterface.chorus3/addons/video resolves to primary/addonsVideo.',
+        '[route] submenu-settings-kodi-section-package /addons/webinterface.chorus3/settings/kodi/interface resolves to primary/settingsKodiSection.',
+        '[route] submenu-help-page-package /addons/webinterface.chorus3/help/keyboard resolves to primary/helpPage.',
         '[route] primary-files-alias-package /addons/webinterface.chorus3/files resolves to chorus2Placeholder/files.',
         '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
         '[route] now-playing-package /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
@@ -416,6 +422,38 @@ describe('Kodi package structural verification', () => {
     );
   });
 
+  it('names submenu and guarded route failures when package route support regresses', () => {
+    const result = validatePackageRouteSupport({
+      addonId: DEFAULT_PACKAGE_ROOT,
+      parsePackageRoute: (path, packageBasePath) => {
+        if (path === `${packageBasePath}/music/genres`) {
+          return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
+        }
+
+        if (path === `${packageBasePath}/settings/kodi/interface`) {
+          return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
+        }
+
+        if (path === `${packageBasePath}/help/keyboard`) {
+          return { kind: 'labUnknown', pathLabel: '/[redacted]' };
+        }
+
+        return parseAppRoute(path, '', { packageBasePath });
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route] submenu-music-genres-package /addons/webinterface.chorus3/music/genres must resolve to primary/musicGenres; got settingsUnknown.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[route] submenu-settings-kodi-section-package /addons/webinterface.chorus3/settings/kodi/interface must resolve to primary/settingsKodiSection; got settingsUnknown.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[route] submenu-help-page-package /addons/webinterface.chorus3/help/keyboard must resolve to primary/helpPage; got labUnknown.'
+    );
+  });
+
   it('treats route parser exceptions as route-specific verifier failures', () => {
     const result = validatePackageRouteSupport({
       addonId: DEFAULT_PACKAGE_ROOT,
@@ -441,6 +479,7 @@ describe('Kodi package structural verification', () => {
         [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]: [
           'const primaryShellFallback = "Multi-host console";',
           'const browserHref = "/lab/api-browser";',
+          'const filesHref = "/lab/api-browser";',
           'const secret = "token=secret-value";'
         ].join('\n')
       })

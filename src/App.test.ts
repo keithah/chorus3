@@ -1376,6 +1376,25 @@ function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement 
   return link as HTMLAnchorElement;
 }
 
+function requireSubmenuLink(
+  target: HTMLElement,
+  railTitle: string,
+  submenuLabel: string
+): HTMLAnchorElement {
+  const nav = target.querySelector<HTMLElement>('aside[aria-label="Primary navigation"]');
+  expect(nav).toBeInstanceOf(HTMLElement);
+
+  const railLink = requireRailLink(target, railTitle);
+  const railItem = railLink.closest('.c2-rail-item');
+  expect(railItem).toBeInstanceOf(HTMLElement);
+
+  const link = Array.from(
+    (railItem as HTMLElement).querySelectorAll<HTMLAnchorElement>('.c2-submenu-link')
+  ).find((candidate) => candidate.textContent?.trim() === submenuLabel);
+  expect(link).toBeInstanceOf(HTMLAnchorElement);
+  return link as HTMLAnchorElement;
+}
+
 function requirePrimaryShellStage(target: HTMLElement): HTMLElement {
   const shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
   expect(shell).toBeInstanceOf(HTMLElement);
@@ -1710,6 +1729,72 @@ describe('App shell', () => {
         null
       );
     }
+  });
+
+  it('renders representative standalone and package-mounted submenu hrefs under the primary rail', () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const submenuExpectations = [
+      ['Music', 'Genres', { kind: 'primary', route: { kind: 'musicGenres' } }],
+      ['Movies', 'Recent', { kind: 'primary', route: { kind: 'moviesRecent' } }],
+      ['TV shows', 'Recent', { kind: 'primary', route: { kind: 'tvshowsRecent' } }],
+      ['Add-ons', 'Video', { kind: 'primary', route: { kind: 'addonsVideo' } }],
+      ['Settings', 'Kodi', { kind: 'primary', route: { kind: 'settingsKodi' } }],
+      ['Help', 'Overview', { kind: 'primary', route: { kind: 'helpOverview' } }]
+    ] as const satisfies readonly (readonly [string, string, AppRoute])[];
+
+    let target = renderApp({ route: { kind: 'dashboard' } });
+
+    for (const [railTitle, submenuLabel, route] of submenuExpectations) {
+      const href = requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('href');
+      expect(href, `${railTitle} / ${submenuLabel} standalone href`).toBe(buildAppRoute(route));
+      expect(href, `${railTitle} / ${submenuLabel} standalone href avoids package prefix`).not.toMatch(
+        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
+      );
+    }
+
+    unmountCurrentApp();
+
+    target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost()
+    });
+
+    for (const [railTitle, submenuLabel, route] of submenuExpectations) {
+      const href = requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('href');
+      const expectedHref = buildAppRoute(route, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH });
+      expect(href, `${railTitle} / ${submenuLabel} package href`).toBe(expectedHref);
+      expect(href, `${railTitle} / ${submenuLabel} package prefix`).toMatch(
+        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
+      );
+      expect(href, `${railTitle} / ${submenuLabel} avoids doubled slashes`).not.toMatch(
+        /webinterface\.chorus3\/\//u
+      );
+    }
+  });
+
+  it.each([
+    ['/addons/webinterface.chorus3/music/genres', 'Music', 'Genres'],
+    ['/addons/webinterface.chorus3/settings/kodi/interface', 'Settings', 'Kodi'],
+    ['/addons/webinterface.chorus3/help/keyboard', 'Help', 'Overview']
+  ] as const)('marks package submenu %s as active without route fallback copy', (pathname, railTitle, submenuLabel) => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+
+    const target = renderApp({
+      route: parseAppRoute(pathname, '', { packageBasePath: KODI_WEBINTERFACE_BASE_PATH }),
+      packageMountedHost: createPackageMountedHost(),
+      settingsSnapshot: createSettingsSnapshot(),
+      settingsDispatch: createSettingsDispatch()
+    });
+
+    requirePrimaryShellStage(target);
+    expect(target.textContent).not.toContain('Route not found');
+    expect(target.textContent).not.toContain('Multi-host console');
+    expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
+    expect(requireRailLink(target, railTitle).getAttribute('aria-current')).toBe('page');
+    expect(requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('aria-current')).toBe(
+      'page'
+    );
   });
 
   it('guards package-mounted broad and deferred controls while keeping wired playback controls enabled', () => {
