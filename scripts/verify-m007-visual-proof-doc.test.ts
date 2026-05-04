@@ -15,18 +15,19 @@ const REFERENCE_SCREENSHOTS = [
   'chorus2-21.x-1.0.1/dist/screenshots/now-playing.jpg'
 ] as const;
 
-const PLANNED_CURRENT_SCREENSHOTS = [
-  'docs/m007-visual-parity-screenshots/music-artists.png',
-  'docs/m007-visual-parity-screenshots/movie-library.png',
-  'docs/m007-visual-parity-screenshots/tv-library.png',
-  'docs/m007-visual-parity-screenshots/addons-all.png',
-  'docs/m007-visual-parity-screenshots/settings-kodi-addons.png',
-  'docs/m007-visual-parity-screenshots/now-playing.png',
-  'docs/m007-visual-parity-screenshots/files-browser.png',
-  'docs/m007-visual-parity-screenshots/local-playlists.png',
-  'docs/m007-visual-parity-screenshots/help-about.png',
-  'docs/m007-visual-parity-screenshots/drawer-kodi-audio.png',
-  'docs/m007-visual-parity-screenshots/drawer-local-video.png'
+const CURRENT_SCREENSHOTS = [
+  'docs/m007-visual-parity-screenshots/current-music-home.png',
+  'docs/m007-visual-parity-screenshots/current-music-submenu.png',
+  'docs/m007-visual-parity-screenshots/current-movies.png',
+  'docs/m007-visual-parity-screenshots/current-tvshows.png',
+  'docs/m007-visual-parity-screenshots/current-browser-files.png',
+  'docs/m007-visual-parity-screenshots/current-addons-list.png',
+  'docs/m007-visual-parity-screenshots/current-addon-detail.png',
+  'docs/m007-visual-parity-screenshots/current-playlists-local.png',
+  'docs/m007-visual-parity-screenshots/current-settings-kodi.png',
+  'docs/m007-visual-parity-screenshots/current-help-overview.png',
+  'docs/m007-visual-parity-screenshots/current-drawer-expanded-menu.png',
+  'docs/m007-visual-parity-screenshots/current-drawer-collapsed.png'
 ] as const;
 
 const REQUIRED_SECTIONS = [
@@ -43,17 +44,18 @@ const REQUIRED_SECTIONS = [
 ] as const;
 
 const REQUIRED_ROUTE_STATES = [
-  '| Music artists | `/music/artists?m007-visual-proof=1` |',
-  '| Movie library | `/video/movies?m007-visual-proof=1` |',
-  '| TV library | `/video/tv?m007-visual-proof=1` |',
-  '| Add-ons all | `/addons/all?m007-visual-proof=1` |',
-  '| Settings Kodi add-ons | `/settings/addons?m007-visual-proof=1` |',
-  '| Now playing | `/now-playing?m007-visual-proof=1` |',
-  '| Files browser | `/files?m007-visual-proof=1` |',
+  '| Music home | `/music?m007-visual-proof=1` |',
+  '| Music submenu | `/music/artists?m007-visual-proof=1` |',
+  '| Movies | `/movies?m007-visual-proof=1` |',
+  '| TV shows | `/tvshows?m007-visual-proof=1` |',
+  '| Browser files | `/files?m007-visual-proof=1` |',
+  '| Add-ons list | `/addons/all?m007-visual-proof=1` |',
+  '| Add-on detail | `/addons/plugin.video.safe-demo?m007-visual-proof=1` |',
   '| Local playlists | `/playlists?m007-visual-proof=1` |',
-  '| Help about | `/help?m007-visual-proof=1` |',
-  '| Drawer Kodi audio | `/music?m007-visual-proof=1&drawer=kodi-audio` |',
-  '| Drawer local video | `/video/movies?m007-visual-proof=1&drawer=local-video` |'
+  '| Settings Kodi | `/settings/addons?m007-visual-proof=1` |',
+  '| Help overview | `/help?m007-visual-proof=1` |',
+  '| Drawer expanded menu | `/music?m007-visual-proof=1 plus playlist menu action` |',
+  '| Drawer collapsed | `/music?m007-visual-proof=1 plus collapse action` |'
 ] as const;
 
 const REQUIRED_DIAGNOSTIC_TERMS = [
@@ -138,10 +140,7 @@ function normalizeMarkdownTablePipes(value: string): string {
     .join('\n');
 }
 
-function validateM007VisualProofDoc(
-  doc: string,
-  options = { requireCurrentFiles: false }
-): string[] {
+function validateM007VisualProofDoc(doc: string): string[] {
   const errors: string[] = [];
   const normalizedDoc = normalizeMarkdownTablePipes(doc);
 
@@ -165,7 +164,7 @@ function validateM007VisualProofDoc(
     }
   }
 
-  for (const currentPath of PLANNED_CURRENT_SCREENSHOTS) {
+  for (const currentPath of CURRENT_SCREENSHOTS) {
     if (!currentPath.startsWith(CURRENT_SCREENSHOT_DIR)) {
       errors.push(`Current screenshot ${currentPath} must stay under ${CURRENT_SCREENSHOT_DIR}.`);
     }
@@ -173,9 +172,9 @@ function validateM007VisualProofDoc(
       errors.push(`Current screenshot ${currentPath} must use a png extension.`);
     }
     if (!doc.includes(currentPath)) {
-      errors.push(`${DOC_PATH} must inventory planned current screenshot ${currentPath}.`);
+      errors.push(`${DOC_PATH} must inventory current screenshot ${currentPath}.`);
     }
-    if (options.requireCurrentFiles && !existsSync(currentPath)) {
+    if (!existsSync(currentPath)) {
       errors.push(`Current screenshot ${currentPath} is required after capture.`);
     }
   }
@@ -254,10 +253,10 @@ function validateM007VisualProofDoc(
 function minimalValidDoc(): string {
   const sections = REQUIRED_SECTIONS.join('\n\n');
   const references = REFERENCE_SCREENSHOTS.map((path) => `- ${path}`).join('\n');
-  const current = PLANNED_CURRENT_SCREENSHOTS.map((path) => `- ${path}`).join('\n');
+  const current = CURRENT_SCREENSHOTS.map((path) => `- ${path}`).join('\n');
   const routes = REQUIRED_ROUTE_STATES.map(
     (row, index) =>
-      `${row} ${REFERENCE_SCREENSHOTS[index % REFERENCE_SCREENSHOTS.length]} | ${PLANNED_CURRENT_SCREENSHOTS[index]} | \`match\` |`
+      `${row} ${REFERENCE_SCREENSHOTS[index % REFERENCE_SCREENSHOTS.length]} | ${CURRENT_SCREENSHOTS[index]} | \`match\` |`
   ).join('\n');
   const deltas = REQUIRED_DELTA_CATEGORIES.map(
     (category) => `| ${category} | \`${category}\` |`
@@ -271,19 +270,23 @@ function minimalValidDoc(): string {
     deltas,
     REQUIRED_DIAGNOSTIC_TERMS.join('\n'),
     '| Check | Status | Evidence owner | Notes |',
-    '| Doc skeleton | Planned | T03 | Contract exists. |',
+    '| Doc proof | Pass | T04 | Contract exists. |',
     'S08 owns live Kodi install proof after this no-live screenshot proof.',
     'Automated pixel-diff parity is not blocking for M007.'
   ].join('\n\n');
 }
 
 describe('M007 visual proof documentation contract', () => {
-  it('keeps required reference screenshots and tracked proof-doc files available', () => {
+  it('keeps required reference screenshots, current screenshots, and tracked proof-doc files available', () => {
     expect(() => readTrackedFile(DOC_PATH)).not.toThrow();
     expect(() => readTrackedFile(SCREENSHOT_README_PATH)).not.toThrow();
 
     for (const path of REFERENCE_SCREENSHOTS) {
       expect(() => readTrackedFile(path)).not.toThrow();
+    }
+
+    for (const path of CURRENT_SCREENSHOTS) {
+      expect(existsSync(path), `${path} must exist after T04 capture.`).toBe(true);
     }
   });
 
@@ -293,14 +296,14 @@ describe('M007 visual proof documentation contract', () => {
     expect(validateM007VisualProofDoc(doc)).toEqual([]);
   });
 
-  it('documents planned current screenshot names in the README without requiring placeholder binaries', () => {
+  it('documents captured current screenshot names in the README without placeholder language drift', () => {
     const readme = readTrackedFile(SCREENSHOT_README_PATH);
 
     expect(readme).toContain('Do not add placeholder binary images');
     expect(readme).toContain('m007-visual-proof=1');
     expect(readme).toContain('tracked documentation directory');
 
-    for (const currentPath of PLANNED_CURRENT_SCREENSHOTS) {
+    for (const currentPath of CURRENT_SCREENSHOTS) {
       expect(readme, `${SCREENSHOT_README_PATH} must list ${currentPath}.`).toContain(currentPath);
     }
 
@@ -309,13 +312,8 @@ describe('M007 visual proof documentation contract', () => {
     }
   });
 
-  it('allows the skeleton to plan current screenshots before T04 captures binary files', () => {
-    const doc = minimalValidDoc();
-
-    expect(validateM007VisualProofDoc(doc, { requireCurrentFiles: false })).toEqual([]);
-    expect(validateM007VisualProofDoc(doc, { requireCurrentFiles: true })).toContain(
-      `Current screenshot ${PLANNED_CURRENT_SCREENSHOTS[0]} is required after capture.`
-    );
+  it('requires current screenshot files once the T04 capture contract is active', () => {
+    expect(validateM007VisualProofDoc(minimalValidDoc())).toEqual([]);
   });
 
   it('rejects malformed docs with missing sections, route rows, inventories, evidence, and boundaries', () => {
@@ -327,7 +325,7 @@ describe('M007 visual proof documentation contract', () => {
       `${DOC_PATH} must link reference screenshot ${REFERENCE_SCREENSHOTS[0]}.`
     );
     expect(output).toContain(
-      `${DOC_PATH} must inventory planned current screenshot ${PLANNED_CURRENT_SCREENSHOTS[0]}.`
+      `${DOC_PATH} must inventory current screenshot ${CURRENT_SCREENSHOTS[0]}.`
     );
     expect(output).toContain(
       `${DOC_PATH} must include route/state row ${REQUIRED_ROUTE_STATES[0]}.`

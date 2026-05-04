@@ -1,8 +1,8 @@
 # M007 visual parity screenshots
 
-This directory is the tracked documentation directory for M007 AppShell visual parity screenshots. T03 defines the contract; T04 captures the binary images.
+This directory is the tracked documentation directory for M007 AppShell visual parity screenshots. T04 captured the binary images after semantic browser assertions passed.
 
-Do not add placeholder binary images in this task. Only add real screenshots after the browser route/state has been exercised and the evidence can be recorded in `docs/m007-visual-parity-proof.md`.
+Do not add placeholder binary images. Only update these screenshots after the browser route/state has been exercised and the evidence is recorded in `docs/m007-visual-parity-proof.md`.
 
 ## Naming rules
 
@@ -28,16 +28,17 @@ For each screenshot:
 
 Screenshots and notes must not expose raw credentials, credential-bearing endpoints, auth header names or values, raw transport bodies, browser storage dumps or keys, raw media paths, sentinel token values, ignored local artifact paths, or generated browser session paths. Record only sanitized diagnostic categories and pass/fail outcomes.
 
-## Planned current screenshot filenames
+## Captured current screenshot filenames
 
-- `docs/m007-visual-parity-screenshots/music-artists.png`
-- `docs/m007-visual-parity-screenshots/movie-library.png`
-- `docs/m007-visual-parity-screenshots/tv-library.png`
-- `docs/m007-visual-parity-screenshots/addons-all.png`
-- `docs/m007-visual-parity-screenshots/settings-kodi-addons.png`
-- `docs/m007-visual-parity-screenshots/now-playing.png`
-- `docs/m007-visual-parity-screenshots/files-browser.png`
-- `docs/m007-visual-parity-screenshots/local-playlists.png`
-- `docs/m007-visual-parity-screenshots/help-about.png`
-- `docs/m007-visual-parity-screenshots/drawer-kodi-audio.png`
-- `docs/m007-visual-parity-screenshots/drawer-local-video.png`
+- `docs/m007-visual-parity-screenshots/current-music-home.png`
+- `docs/m007-visual-parity-screenshots/current-music-submenu.png`
+- `docs/m007-visual-parity-screenshots/current-movies.png`
+- `docs/m007-visual-parity-screenshots/current-tvshows.png`
+- `docs/m007-visual-parity-screenshots/current-browser-files.png`
+- `docs/m007-visual-parity-screenshots/current-addons-list.png`
+- `docs/m007-visual-parity-screenshots/current-addon-detail.png`
+- `docs/m007-visual-parity-screenshots/current-playlists-local.png`
+- `docs/m007-visual-parity-screenshots/current-settings-kodi.png`
+- `docs/m007-visual-parity-screenshots/current-help-overview.png`
+- `docs/m007-visual-parity-screenshots/current-drawer-expanded-menu.png`
+- `docs/m007-visual-parity-screenshots/current-drawer-collapsed.png`

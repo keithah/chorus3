@@ -328,7 +328,6 @@ function createQueueSnapshot(): QueueStoreSnapshot {
     activePosition: 1,
     items: [
       {
-        id: 1,
         position: 0,
         label: 'M007 Safe Groove',
         title: 'M007 Safe Groove',
@@ -338,7 +337,6 @@ function createQueueSnapshot(): QueueStoreSnapshot {
         type: 'song'
       },
       {
-        id: 2,
         position: 1,
         label: 'Blue in Green',
         title: 'Blue in Green',
