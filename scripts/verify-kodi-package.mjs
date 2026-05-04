@@ -154,6 +154,21 @@ const SUBMENU_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'addonsVideo' }
   },
   {
+    name: 'submenu-addons-audio-root',
+    path: '/addons/audio',
+    expected: { kind: 'primary', routeKind: 'addonsAudio' }
+  },
+  {
+    name: 'submenu-addons-executable-root',
+    path: '/addons/executable',
+    expected: { kind: 'primary', routeKind: 'addonsExecutable' }
+  },
+  {
+    name: 'submenu-settings-kodi-root',
+    path: '/settings/kodi',
+    expected: { kind: 'primary', routeKind: 'settingsKodi' }
+  },
+  {
     name: 'submenu-settings-kodi-section-root',
     path: '/settings/kodi/interface',
     expected: { kind: 'primary', routeKind: 'settingsKodiSection' }
@@ -666,12 +681,18 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'addonsAll' } };
     case '/addons/video':
       return { kind: 'primary', route: { kind: 'addonsVideo' } };
+    case '/addons/audio':
+      return { kind: 'primary', route: { kind: 'addonsAudio' } };
+    case '/addons/executable':
+      return { kind: 'primary', route: { kind: 'addonsExecutable' } };
     case '/remote':
       return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':
       return { kind: 'primary', route: { kind: 'playlists' } };
     case '/settings/web':
       return { kind: 'primary', route: { kind: 'settingsWeb' } };
+    case '/settings/kodi':
+      return { kind: 'primary', route: { kind: 'settingsKodi' } };
     case '/settings/kodi/interface':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'interface' } };
     case '/help':
