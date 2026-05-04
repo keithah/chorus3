@@ -10,6 +10,21 @@ export interface AppShellBaseHrefOptions {
   readonly packageBasePath?: string;
 }
 
+export interface AppShellNavigationSubmenuItem {
+  readonly id: string;
+  readonly title: string;
+  readonly label: string;
+  readonly href: string;
+  readonly route: PrimaryRoute;
+  readonly isActive?: boolean;
+}
+
+export interface AppShellNavigationSubmenuGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly items: readonly AppShellNavigationSubmenuItem[];
+}
+
 export interface AppShellNavigationItem {
   readonly id: string;
   readonly title: string;
@@ -18,6 +33,7 @@ export interface AppShellNavigationItem {
   readonly href: string;
   readonly route: PrimaryRoute;
   readonly isActive?: boolean;
+  readonly submenuGroups?: readonly AppShellNavigationSubmenuGroup[];
 }
 
 export interface AppShellContentStage {

@@ -86,6 +86,7 @@ const UNKNOWN_SETTINGS_PATH = '/settings/unknown';
 const UNKNOWN_ADDONS_PATH = '/addons/[redacted]';
 const UNKNOWN_LAB_PATH = '/lab/[redacted]';
 const UNSAFE_SEGMENT = '[redacted]';
+const MAX_SAFE_PATH_SEGMENT_LENGTH = 128;
 const FORBIDDEN_SEGMENT_PATTERN =
   /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
@@ -922,7 +923,12 @@ function normalizeUnknownNowPlayingPathLabel(pathname: string): string {
 function sanitizePathSegment(segment: string): string {
   const decoded = safeDecode(segment).trim();
 
-  if (!decoded || FORBIDDEN_SEGMENT_PATTERN.test(decoded) || decoded.includes('/')) {
+  if (
+    !decoded ||
+    decoded.length > MAX_SAFE_PATH_SEGMENT_LENGTH ||
+    FORBIDDEN_SEGMENT_PATTERN.test(decoded) ||
+    decoded.includes('/')
+  ) {
     return UNSAFE_SEGMENT;
   }
 

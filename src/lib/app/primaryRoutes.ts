@@ -5,6 +5,7 @@ export type PrimaryRoute =
   | { kind: 'musicArtists' }
   | { kind: 'musicAlbums' }
   | { kind: 'musicGenres' }
+  | { kind: 'musicVideos' }
   | { kind: 'musicAlbumDetail'; albumid: string }
   | { kind: 'musicArtistDetail'; artistid: string }
   | { kind: 'musicGenreDetail'; genreid: string }
@@ -54,20 +55,25 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/music/artists', { kind: 'musicArtists' }],
   ['/music/albums', { kind: 'musicAlbums' }],
   ['/music/genres', { kind: 'musicGenres' }],
+  ['/music/videos', { kind: 'musicVideos' }],
   ['/movies', { kind: 'movies' }],
   ['/movies/recent', { kind: 'moviesRecent' }],
   ['/tvshows', { kind: 'tvshows' }],
   ['/tvshows/recent', { kind: 'tvshowsRecent' }],
   ['/browser', { kind: 'browser' }],
+  ['/addons', { kind: 'addonsAll' }],
   ['/addons/all', { kind: 'addonsAll' }],
   ['/addons/video', { kind: 'addonsVideo' }],
   ['/addons/audio', { kind: 'addonsAudio' }],
   ['/addons/executable', { kind: 'addonsExecutable' }],
   ['/playlists', { kind: 'playlists' }],
+  ['/settings', { kind: 'settingsWeb' }],
   ['/settings/web', { kind: 'settingsWeb' }],
+  ['/settings/web-interface', { kind: 'settingsWeb' }],
   ['/settings/kodi', { kind: 'settingsKodi' }],
   ['/settings/addons', { kind: 'settingsAddons' }],
   ['/settings/nav', { kind: 'settingsNav' }],
+  ['/settings/main-menu', { kind: 'settingsNav' }],
   ['/settings/search', { kind: 'settingsSearch' }],
   ['/help', { kind: 'help' }],
   ['/help/overview', { kind: 'helpOverview' }],
@@ -188,6 +194,8 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return '/music/albums';
     case 'musicGenres':
       return '/music/genres';
+    case 'musicVideos':
+      return '/music/videos';
     case 'musicAlbumDetail':
       return buildDynamicPath('/music/album', route.albumid);
     case 'musicArtistDetail':
