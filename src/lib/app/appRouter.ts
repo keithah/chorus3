@@ -928,20 +928,6 @@ function sanitizePathSegment(segment: string): string {
   return decoded;
 }
 
-function isSafeAddonId(addonid: unknown): addonid is string {
-  if (typeof addonid !== 'string') {
-    return false;
-  }
-
-  const decoded = safeDecode(addonid).trim();
-
-  return (
-    decoded === addonid &&
-    /^[A-Za-z0-9._-]+$/.test(decoded) &&
-    !FORBIDDEN_SEGMENT_PATTERN.test(decoded)
-  );
-}
-
 function placeholder(input: Chorus2RoutePlaceholder): Chorus2RoutePlaceholder {
   return {
     ...input,

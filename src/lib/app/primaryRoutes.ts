@@ -154,7 +154,10 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
     return withSafeDynamicSegment(segments[2], (addonid) => ({ kind: 'addonExecute', addonid }));
   }
 
-  if ((segments.length === 2 && segments[0] === 'playlist') || (segments.length === 2 && segments[0] === 'playlists')) {
+  if (
+    (segments.length === 2 && segments[0] === 'playlist') ||
+    (segments.length === 2 && segments[0] === 'playlists')
+  ) {
     return withSafeDynamicSegment(segments[1], (playlistid) => ({
       kind: 'playlistDetail',
       playlistid

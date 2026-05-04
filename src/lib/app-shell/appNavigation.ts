@@ -373,12 +373,42 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             route: { kind: 'helpOverview' },
             activeRouteKinds: ['helpOverview']
           },
-          { id: 'changelog', title: 'Changelog', label: 'Changelog', route: { kind: 'helpPage', pageid: 'changelog' } },
-          { id: 'keyboard', title: 'Keyboard controls', label: 'Keyboard', route: { kind: 'helpPage', pageid: 'keyboard' } },
-          { id: 'addons', title: 'Add-ons help', label: 'Add-ons', route: { kind: 'helpPage', pageid: 'addons' } },
-          { id: 'developers', title: 'Developer help', label: 'Developers', route: { kind: 'helpPage', pageid: 'developers' } },
-          { id: 'translations', title: 'Translations', label: 'Translations', route: { kind: 'helpPage', pageid: 'translations' } },
-          { id: 'license', title: 'License', label: 'License', route: { kind: 'helpPage', pageid: 'license' } }
+          {
+            id: 'changelog',
+            title: 'Changelog',
+            label: 'Changelog',
+            route: { kind: 'helpPage', pageid: 'changelog' }
+          },
+          {
+            id: 'keyboard',
+            title: 'Keyboard controls',
+            label: 'Keyboard',
+            route: { kind: 'helpPage', pageid: 'keyboard' }
+          },
+          {
+            id: 'addons',
+            title: 'Add-ons help',
+            label: 'Add-ons',
+            route: { kind: 'helpPage', pageid: 'addons' }
+          },
+          {
+            id: 'developers',
+            title: 'Developer help',
+            label: 'Developers',
+            route: { kind: 'helpPage', pageid: 'developers' }
+          },
+          {
+            id: 'translations',
+            title: 'Translations',
+            label: 'Translations',
+            route: { kind: 'helpPage', pageid: 'translations' }
+          },
+          {
+            id: 'license',
+            title: 'License',
+            label: 'License',
+            route: { kind: 'helpPage', pageid: 'license' }
+          }
         ]
       }
     ]

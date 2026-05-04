@@ -10,7 +10,9 @@ const SECRET_SEARCH =
   '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage';
 
 function stringifyFixture(value: unknown): string {
-  return JSON.stringify(value, (_key, nested) => (typeof nested === 'function' ? '[function]' : nested));
+  return JSON.stringify(value, (_key, nested) =>
+    typeof nested === 'function' ? '[function]' : nested
+  );
 }
 
 describe('M007 visual proof fixtures', () => {

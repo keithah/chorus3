@@ -35,9 +35,18 @@ export const HELP_TOPICS = {
     title: 'About Chorus',
     summary: 'Safe static help for the app-native Chorus shell.',
     cards: [
-      { title: 'About Chorus', copy: 'A Kodi web interface shaped around safe app-native media control.' },
-      { title: 'Status report', copy: 'Use visible route headings and status labels to identify the active surface.' },
-      { title: 'What is Chorus?', copy: 'Chorus is a browser-based controller for Kodi libraries, playback, settings, and add-ons.' }
+      {
+        title: 'About Chorus',
+        copy: 'A Kodi web interface shaped around safe app-native media control.'
+      },
+      {
+        title: 'Status report',
+        copy: 'Use visible route headings and status labels to identify the active surface.'
+      },
+      {
+        title: 'What is Chorus?',
+        copy: 'Chorus is a browser-based controller for Kodi libraries, playback, settings, and add-ons.'
+      }
     ]
   },
   keyboard: {
@@ -45,9 +54,18 @@ export const HELP_TOPICS = {
     title: 'Keyboard controls',
     summary: 'Keyboard shortcuts for safe shell navigation and media control.',
     cards: [
-      { title: 'Keyboard controls', copy: 'Remote shortcuts, playback shortcuts, and focus-safe shell controls.' },
-      { title: 'Remote shortcuts', copy: 'Arrow keys, Enter, Back, and Home map to Kodi remote input when focus is not editing text.' },
-      { title: 'Playback shortcuts', copy: 'Media keys and guarded shell controls operate the active Kodi player.' }
+      {
+        title: 'Keyboard controls',
+        copy: 'Remote shortcuts, playback shortcuts, and focus-safe shell controls.'
+      },
+      {
+        title: 'Remote shortcuts',
+        copy: 'Arrow keys, Enter, Back, and Home map to Kodi remote input when focus is not editing text.'
+      },
+      {
+        title: 'Playback shortcuts',
+        copy: 'Media keys and guarded shell controls operate the active Kodi player.'
+      }
     ]
   },
   readme: {
@@ -56,8 +74,14 @@ export const HELP_TOPICS = {
     summary: 'Static package guidance for running Chorus inside Kodi or a browser.',
     cards: [
       { title: 'Readme', copy: 'Project usage guidance is represented as safe static app help.' },
-      { title: 'Package usage', copy: 'Kodi package routes mount under the add-on base path without credential-bearing examples.' },
-      { title: 'Primary shell routes', copy: 'Primary routes render in the app shell with stable headings and status labels.' }
+      {
+        title: 'Package usage',
+        copy: 'Kodi package routes mount under the add-on base path without credential-bearing examples.'
+      },
+      {
+        title: 'Primary shell routes',
+        copy: 'Primary routes render in the app shell with stable headings and status labels.'
+      }
     ]
   },
   changelog: {
@@ -65,19 +89,38 @@ export const HELP_TOPICS = {
     title: 'Changelog',
     summary: 'Static release-history guidance without loading external files at runtime.',
     cards: [
-      { title: 'Changelog', copy: 'Release notes summarize app changes without exposing local environment details.' },
-      { title: 'Release notes', copy: 'Use route-specific verification output to identify which packaged surface changed.' },
-      { title: 'Verification history', copy: 'Build, package, and browser checks provide repeatable release confidence.' }
+      {
+        title: 'Changelog',
+        copy: 'Release notes summarize app changes without exposing local environment details.'
+      },
+      {
+        title: 'Release notes',
+        copy: 'Use route-specific verification output to identify which packaged surface changed.'
+      },
+      {
+        title: 'Verification history',
+        copy: 'Build, package, and browser checks provide repeatable release confidence.'
+      }
     ]
   },
   addons: {
     id: 'addons',
     title: 'Add-ons',
-    summary: 'Static guidance for add-on browsing, settings, and package-safe execution boundaries.',
+    summary:
+      'Static guidance for add-on browsing, settings, and package-safe execution boundaries.',
     cards: [
-      { title: 'Add-ons', copy: 'Browse installed add-ons through static shell routes before opening add-on-specific details.' },
-      { title: 'Add-on browser', copy: 'Catalog routes group all, video, audio, and executable add-ons without reflecting add-on identifiers.' },
-      { title: 'Add-on settings', copy: 'Settings surfaces describe add-on configuration boundaries without exposing host paths or credentials.' }
+      {
+        title: 'Add-ons',
+        copy: 'Browse installed add-ons through static shell routes before opening add-on-specific details.'
+      },
+      {
+        title: 'Add-on browser',
+        copy: 'Catalog routes group all, video, audio, and executable add-ons without reflecting add-on identifiers.'
+      },
+      {
+        title: 'Add-on settings',
+        copy: 'Settings surfaces describe add-on configuration boundaries without exposing host paths or credentials.'
+      }
     ]
   },
   developers: {
@@ -85,9 +128,18 @@ export const HELP_TOPICS = {
     title: 'Developers',
     summary: 'Static implementation notes for route, package, and verification boundaries.',
     cards: [
-      { title: 'Developers', copy: 'Use typed primary routes and stable data attributes when extending the app shell.' },
-      { title: 'Integration boundaries', copy: 'Keep package-aware href building centralized so browser and Kodi package routes stay aligned.' },
-      { title: 'Package verification', copy: 'Run targeted route and package checks before relying on screenshot proof evidence.' }
+      {
+        title: 'Developers',
+        copy: 'Use typed primary routes and stable data attributes when extending the app shell.'
+      },
+      {
+        title: 'Integration boundaries',
+        copy: 'Keep package-aware href building centralized so browser and Kodi package routes stay aligned.'
+      },
+      {
+        title: 'Package verification',
+        copy: 'Run targeted route and package checks before relying on screenshot proof evidence.'
+      }
     ]
   },
   translations: {
@@ -95,9 +147,18 @@ export const HELP_TOPICS = {
     title: 'Translations',
     summary: 'Locale help for the app shell and package-safe language controls.',
     cards: [
-      { title: 'Translations', copy: 'Language support is available through the shell locale selector.' },
-      { title: 'Language support', copy: 'Translated labels stay inside app UI and avoid reflecting route payloads.' },
-      { title: 'Locale selector', copy: 'Choose a supported locale from the app shell when translation data is available.' }
+      {
+        title: 'Translations',
+        copy: 'Language support is available through the shell locale selector.'
+      },
+      {
+        title: 'Language support',
+        copy: 'Translated labels stay inside app UI and avoid reflecting route payloads.'
+      },
+      {
+        title: 'Locale selector',
+        copy: 'Choose a supported locale from the app shell when translation data is available.'
+      }
     ]
   },
   license: {
@@ -106,23 +167,42 @@ export const HELP_TOPICS = {
     summary: 'Static open-source notice for Chorus package users.',
     cards: [
       { title: 'License', copy: 'License details are represented as static project information.' },
-      { title: 'Project license', copy: 'Review the tracked project license before redistributing modified builds.' },
-      { title: 'Open source notice', copy: 'Third-party and project notices should remain free of local host or credential details.' }
+      {
+        title: 'Project license',
+        copy: 'Review the tracked project license before redistributing modified builds.'
+      },
+      {
+        title: 'Open source notice',
+        copy: 'Third-party and project notices should remain free of local host or credential details.'
+      }
     ]
   }
 } as const satisfies Record<HelpTopicId, HelpTopic>;
 
 const HELP_LANDING_TOPIC: ResolvedHelpTopic = {
   title: 'About Chorus',
-  summary: 'Find safe static help for the primary shell without reflecting raw route or storage details.',
+  summary:
+    'Find safe static help for the primary shell without reflecting raw route or storage details.',
   known: true,
   cards: [
     ...HELP_TOPICS.overview.cards,
-    { title: 'Keyboard controls', copy: 'Use keyboard and media keys for remote input and playback where supported.' },
-    { title: 'Readme', copy: 'Package usage and primary shell guidance live as safe static app help.' },
-    { title: 'Changelog', copy: 'Release notes summarize changes without embedding local environment details.' },
+    {
+      title: 'Keyboard controls',
+      copy: 'Use keyboard and media keys for remote input and playback where supported.'
+    },
+    {
+      title: 'Readme',
+      copy: 'Package usage and primary shell guidance live as safe static app help.'
+    },
+    {
+      title: 'Changelog',
+      copy: 'Release notes summarize changes without embedding local environment details.'
+    },
     { title: 'Add-ons', copy: 'Add-on browsing and settings help stays static and package-safe.' },
-    { title: 'Developers', copy: 'Developer notes document typed route and package verification boundaries.' },
+    {
+      title: 'Developers',
+      copy: 'Developer notes document typed route and package verification boundaries.'
+    },
     { title: 'Translations', copy: 'Locale support is available from the shell controls.' },
     { title: 'License', copy: 'License details remain available as static project information.' }
   ]
@@ -130,12 +210,22 @@ const HELP_LANDING_TOPIC: ResolvedHelpTopic = {
 
 const GENERIC_HELP_TOPIC: ResolvedHelpTopic = {
   title: 'Help page',
-  summary: 'This safe help route is available as an app-native frame while detailed content remains deferred.',
+  summary:
+    'This safe help route is available as an app-native frame while detailed content remains deferred.',
   known: false,
   cards: [
-    { title: 'Help content placeholder', copy: 'This help route is supported by a safe app-native frame.' },
-    { title: 'Deferred help topic', copy: 'Detailed content can land later without changing route or package boundaries.' },
-    { title: 'Safe fallback', copy: 'Unknown help identifiers are not reflected into visible copy.' }
+    {
+      title: 'Help content placeholder',
+      copy: 'This help route is supported by a safe app-native frame.'
+    },
+    {
+      title: 'Deferred help topic',
+      copy: 'Detailed content can land later without changing route or package boundaries.'
+    },
+    {
+      title: 'Safe fallback',
+      copy: 'Unknown help identifiers are not reflected into visible copy.'
+    }
   ]
 };
 

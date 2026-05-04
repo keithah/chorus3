@@ -389,15 +389,35 @@ describe('AddonsPanel', () => {
         addons: [
           { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
           { ...BETA_ADDON, type: 'xbmc.addon.audio' },
-          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
-          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.runner',
+            name: 'Runner',
+            type: 'xbmc.addon.executable'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.unknown',
+            name: 'Unknown Script',
+            type: 'xbmc.python.script'
+          },
           { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
         ],
         visibleAddons: [
           { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
           { ...BETA_ADDON, type: 'xbmc.addon.audio' },
-          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
-          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.runner',
+            name: 'Runner',
+            type: 'xbmc.addon.executable'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.unknown',
+            name: 'Unknown Script',
+            type: 'xbmc.python.script'
+          },
           { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
         ],
         groupBy: 'type'
@@ -420,17 +440,57 @@ describe('AddonsPanel', () => {
       typeFilter: 'audio',
       snapshot: createSnapshot({
         addons: [
-          { ...ALPHA_ADDON, addonid: 'plugin.audio.upper', name: 'Upper Audio', type: 'XBMC.ADDON.AUDIO' },
-          { ...BETA_ADDON, addonid: 'plugin.video.mixed', name: 'Mixed Video', type: 'Addon.Video.Source' },
-          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
-          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'plugin.audio.upper',
+            name: 'Upper Audio',
+            type: 'XBMC.ADDON.AUDIO'
+          },
+          {
+            ...BETA_ADDON,
+            addonid: 'plugin.video.mixed',
+            name: 'Mixed Video',
+            type: 'Addon.Video.Source'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.runner',
+            name: 'Runner',
+            type: 'xbmc.addon.executable'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.unknown',
+            name: 'Unknown Script',
+            type: 'xbmc.python.script'
+          },
           { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
         ],
         visibleAddons: [
-          { ...ALPHA_ADDON, addonid: 'plugin.audio.upper', name: 'Upper Audio', type: 'XBMC.ADDON.AUDIO' },
-          { ...BETA_ADDON, addonid: 'plugin.video.mixed', name: 'Mixed Video', type: 'Addon.Video.Source' },
-          { ...ALPHA_ADDON, addonid: 'script.runner', name: 'Runner', type: 'xbmc.addon.executable' },
-          { ...ALPHA_ADDON, addonid: 'script.unknown', name: 'Unknown Script', type: 'xbmc.python.script' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'plugin.audio.upper',
+            name: 'Upper Audio',
+            type: 'XBMC.ADDON.AUDIO'
+          },
+          {
+            ...BETA_ADDON,
+            addonid: 'plugin.video.mixed',
+            name: 'Mixed Video',
+            type: 'Addon.Video.Source'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.runner',
+            name: 'Runner',
+            type: 'xbmc.addon.executable'
+          },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.unknown',
+            name: 'Unknown Script',
+            type: 'xbmc.python.script'
+          },
           { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
         ],
         groupBy: 'none'

@@ -11,12 +11,27 @@ let mounted: MountedComponent | null = null;
 const HELP_TOPIC_CASES = [
   [{ kind: 'helpOverview' }, 'About Chorus', 'Status report', 'What is Chorus?'],
   [{ kind: 'helpPage', pageid: 'overview' }, 'About Chorus', 'Status report', 'What is Chorus?'],
-  [{ kind: 'helpPage', pageid: 'keyboard' }, 'Keyboard controls', 'Remote shortcuts', 'Playback shortcuts'],
+  [
+    { kind: 'helpPage', pageid: 'keyboard' },
+    'Keyboard controls',
+    'Remote shortcuts',
+    'Playback shortcuts'
+  ],
   [{ kind: 'helpPage', pageid: 'readme' }, 'Readme', 'Package usage', 'Primary shell routes'],
   [{ kind: 'helpPage', pageid: 'changelog' }, 'Changelog', 'Release notes', 'Verification history'],
   [{ kind: 'helpPage', pageid: 'addons' }, 'Add-ons', 'Add-on browser', 'Add-on settings'],
-  [{ kind: 'helpPage', pageid: 'developers' }, 'Developers', 'Integration boundaries', 'Package verification'],
-  [{ kind: 'helpPage', pageid: 'translations' }, 'Translations', 'Language support', 'Locale selector'],
+  [
+    { kind: 'helpPage', pageid: 'developers' },
+    'Developers',
+    'Integration boundaries',
+    'Package verification'
+  ],
+  [
+    { kind: 'helpPage', pageid: 'translations' },
+    'Translations',
+    'Language support',
+    'Locale selector'
+  ],
   [{ kind: 'helpPage', pageid: 'license' }, 'License', 'Project license', 'Open source notice']
 ] as const satisfies readonly [PrimaryRoute, string, string, string][];
 

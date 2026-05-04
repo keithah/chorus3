@@ -71,10 +71,16 @@ describe('main entrypoint', () => {
     for (const [pathname, expectedRoute] of [
       ['/addons/webinterface.chorus3/help', { kind: 'primary', route: { kind: 'help' } }],
       ['/addons/webinterface.chorus3/playlists', { kind: 'primary', route: { kind: 'playlists' } }],
-      ['/addons/webinterface.chorus3/settings/web', { kind: 'primary', route: { kind: 'settingsWeb' } }],
+      [
+        '/addons/webinterface.chorus3/settings/web',
+        { kind: 'primary', route: { kind: 'settingsWeb' } }
+      ],
       [
         '/addons/webinterface.chorus3/lab/screenshot',
-        { kind: 'chorus2Placeholder', placeholder: expect.objectContaining({ id: 'labScreenshot' }) }
+        {
+          kind: 'chorus2Placeholder',
+          placeholder: expect.objectContaining({ id: 'labScreenshot' })
+        }
       ],
       ['/addons/webinterface.chorus3/pvr/tv', { kind: 'primary', route: { kind: 'pvrTv' } }]
     ] as const) {
@@ -197,10 +203,7 @@ describe('main entrypoint', () => {
     for (const [pathname, expectedRoute] of [
       [`${KODI_WEBINTERFACE_BASE_PATH}/`, { kind: 'primary', route: { kind: 'home' } }],
       [`${KODI_WEBINTERFACE_BASE_PATH}/remote`, { kind: 'primary', route: { kind: 'remote' } }],
-      [
-        `${KODI_WEBINTERFACE_BASE_PATH}/help`,
-        { kind: 'primary', route: { kind: 'help' } }
-      ]
+      [`${KODI_WEBINTERFACE_BASE_PATH}/help`, { kind: 'primary', route: { kind: 'help' } }]
     ] as const) {
       expect(
         resolveEntrypointAppProps({

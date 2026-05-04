@@ -802,7 +802,9 @@
         label,
         file: `queue-item:${item.position}`,
         sourceId: `queue:${item.position}`,
-        ...(typeof item.duration === 'number' && Number.isFinite(item.duration) && item.duration >= 0
+        ...(typeof item.duration === 'number' &&
+        Number.isFinite(item.duration) &&
+        item.duration >= 0
           ? { durationSeconds: item.duration }
           : {})
       }

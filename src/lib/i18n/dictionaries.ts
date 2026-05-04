@@ -151,8 +151,7 @@ export const DICTIONARIES = {
     'settings.panel.value.unavailable': 'unavailable',
     'settings.panel.readOnly.unrepresentable':
       'Read-only: this value cannot be represented safely.',
-    'settings.panel.readOnly.action':
-      'Read-only: Kodi action settings are not safe to edit here.',
+    'settings.panel.readOnly.action': 'Read-only: Kodi action settings are not safe to edit here.',
     'settings.panel.readOnly.unsafeType':
       'Read-only: Kodi {type} settings are not safe to edit here.',
     'settings.panel.readOnly.custom':

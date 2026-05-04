@@ -210,11 +210,7 @@ function appPageDeferredMessage(route: PrimaryRoute, status: AppPageStatus): str
     return '';
   }
 
-  if (
-    route.kind === 'browserItem' ||
-    route.kind === 'helpPage' ||
-    route.kind === 'addonExecute'
-  ) {
+  if (route.kind === 'browserItem' || route.kind === 'helpPage' || route.kind === 'addonExecute') {
     return 'This route has a safe app-native deferred frame while deeper behavior remains owned by a later slice.';
   }
 

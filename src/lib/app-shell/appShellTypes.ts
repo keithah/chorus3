@@ -86,7 +86,9 @@ export interface AppShellDestinationState {
 }
 
 export interface AppShellCallbacks {
-  readonly onDestinationModeChange?: (mode: AppShellPlaylistDestinationMode) => void | Promise<void>;
+  readonly onDestinationModeChange?: (
+    mode: AppShellPlaylistDestinationMode
+  ) => void | Promise<void>;
   readonly onMediaModeChange?: (mode: AppShellPlaylistMediaMode) => void | Promise<void>;
   readonly onPlaylistMenuAction?: (action: AppShellPlaylistMenuAction) => void | Promise<void>;
   readonly onPlaylistMenuToggle?: (open: boolean) => void | Promise<void>;

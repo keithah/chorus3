@@ -22,7 +22,8 @@
     <h2 id="browser-files-title">Browse files and add-ons</h2>
     <p>
       Open Kodi media sources from the app shell, then use supported file actions without exposing
-      raw media paths or transport details. Media files stay inside the existing redacted browser panel.
+      raw media paths or transport details. Media files stay inside the existing redacted browser
+      panel.
     </p>
   </div>
 
@@ -42,7 +43,11 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background:
-      linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 56%),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-accent) 12%, transparent),
+        transparent 56%
+      ),
       var(--color-surface);
   }
 

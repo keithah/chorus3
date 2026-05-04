@@ -69,7 +69,9 @@ describe('AppShell navigation DOM', () => {
       routeIdentity: { kind: 'primary', route: { kind: 'musicArtists' } }
     });
 
-    const primaryNav = target.querySelector('aside[aria-label="Primary navigation"] nav[aria-label="Kodi sections"]');
+    const primaryNav = target.querySelector(
+      'aside[aria-label="Primary navigation"] nav[aria-label="Kodi sections"]'
+    );
     expect(primaryNav).toBeInstanceOf(HTMLElement);
 
     const musicRailLink = requireRailLink(target, 'Music');
@@ -100,12 +102,16 @@ describe('AppShell navigation DOM', () => {
     });
 
     const currentLinks = Array.from(
-      target.querySelectorAll<HTMLAnchorElement>('aside[aria-label="Primary navigation"] a[aria-current="page"]')
+      target.querySelectorAll<HTMLAnchorElement>(
+        'aside[aria-label="Primary navigation"] a[aria-current="page"]'
+      )
     );
 
     expect(currentLinks.map((link) => link.title)).toEqual(['Settings', 'Kodi settings']);
     expect(requireRailLink(target, 'Music').getAttribute('aria-current')).toBeNull();
-    expect(requireSubmenuLink(target, 'Web interface settings').getAttribute('aria-current')).toBeNull();
+    expect(
+      requireSubmenuLink(target, 'Web interface settings').getAttribute('aria-current')
+    ).toBeNull();
   });
 
   it('filters invalid submenu hrefs while safely labeling malformed text', () => {
@@ -152,7 +158,9 @@ describe('AppShell navigation DOM', () => {
     expect(target.querySelector('a[href="   "]')).toBeNull();
     expect(target.textContent).not.toContain('Blank href');
 
-    const fallbackLink = target.querySelector<HTMLAnchorElement>('.c2-submenu-link[href="/music/genres"]');
+    const fallbackLink = target.querySelector<HTMLAnchorElement>(
+      '.c2-submenu-link[href="/music/genres"]'
+    );
     expect(fallbackLink).toBeInstanceOf(HTMLAnchorElement);
     expect(fallbackLink?.textContent).toContain('fallback-label');
     expect(fallbackLink?.getAttribute('title')).toBe('fallback-label');
@@ -165,7 +173,9 @@ describe('AppShell navigation DOM', () => {
       routeIdentity: { kind: 'unknown', label: 'fixture' }
     });
 
-    expect(target.querySelector('[aria-label="Chorus media controller"]')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('[aria-label="Chorus media controller"]')).toBeInstanceOf(
+      HTMLElement
+    );
     expect(target.querySelectorAll('aside[aria-label="Primary navigation"] a')).toHaveLength(0);
   });
 

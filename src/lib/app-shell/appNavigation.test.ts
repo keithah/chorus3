@@ -115,7 +115,10 @@ describe('createAppNavigationItems', () => {
   test('exposes reference-aligned submenu labels for screenshot proof anchors', () => {
     const music = byId('music');
     expect(
-      music.submenuGroups?.flatMap((group) => [group.label, ...group.items.map((item) => item.label)])
+      music.submenuGroups?.flatMap((group) => [
+        group.label,
+        ...group.items.map((item) => item.label)
+      ])
     ).toEqual(['Music', 'Music', 'Top music', 'Artists', 'Albums', 'Genres', 'Videos']);
 
     const addons = byId('addons');
@@ -140,15 +143,27 @@ describe('createAppNavigationItems', () => {
       ['movies', { kind: 'moviesRecent' }, ['library', 'recent', '/movies/recent']],
       ['tvshows', { kind: 'tvshowsRecent' }, ['library', 'recent', '/tvshows/recent']],
       ['addons', { kind: 'addonsVideo' }, ['types', 'video', '/addons/video']],
-      ['addons', { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }, ['types', 'all', '/addons/all']],
+      [
+        'addons',
+        { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' },
+        ['types', 'all', '/addons/all']
+      ],
       ['settings', { kind: 'settingsNav' }, ['general', 'main-menu', '/settings/nav']],
       ['settings', { kind: 'settingsWeb' }, ['general', 'web-interface', '/settings/web']],
       ['settings', { kind: 'settingsAddons' }, ['kodi-settings', 'addons', '/settings/addons']],
       ['settings', { kind: 'settingsSearch' }, ['kodi-settings', 'search', '/settings/search']],
-      ['settings', { kind: 'settingsKodiSection', section: 'library' }, ['kodi-settings', 'addons', '/settings/addons']],
+      [
+        'settings',
+        { kind: 'settingsKodiSection', section: 'library' },
+        ['kodi-settings', 'addons', '/settings/addons']
+      ],
       ['help', { kind: 'helpOverview' }, ['help', 'overview', '/help/overview']],
       ['help', { kind: 'helpPage', pageid: 'addons' }, ['help', 'addons', '/help/addons']],
-      ['help', { kind: 'helpPage', pageid: 'developers' }, ['help', 'developers', '/help/developers']]
+      [
+        'help',
+        { kind: 'helpPage', pageid: 'developers' },
+        ['help', 'developers', '/help/developers']
+      ]
     ];
 
     for (const [railId, activeRoute, [groupId, submenuId, expectedHref]] of cases) {

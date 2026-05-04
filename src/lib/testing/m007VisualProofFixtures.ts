@@ -9,7 +9,6 @@ import type {
   QueueStoreSnapshot
 } from '$lib/stores';
 import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute, type AppRoute } from '$lib/app/appRouter';
-import type { VideoRoute } from '$lib/video/videoRouter';
 import {
   createM003BrowserProofAppProps,
   isM003BrowserProofFixtureSecretSafe,
@@ -47,7 +46,9 @@ export type M007VisualProofAppProps = {
     fixture: 'm007-visual-proof';
     visibleLabels: string[];
   };
-} & Partial<Omit<M003BrowserProofAppProps & M004BrowserProofAppProps & M005BrowserProofAppProps, 'route'>>;
+} & Partial<
+  Omit<M003BrowserProofAppProps & M004BrowserProofAppProps & M005BrowserProofAppProps, 'route'>
+>;
 
 export const M007_VISUAL_PROOF_FORBIDDEN_TEXT = [
   ...M003_BROWSER_PROOF_FORBIDDEN_TEXT,
@@ -94,7 +95,9 @@ export function isM007VisualProofFixtureSecretSafe(value: unknown): boolean {
     isM003BrowserProofFixtureSecretSafe(value) &&
     isM004BrowserProofFixtureSecretSafe(value) &&
     isM005BrowserProofFixtureSecretSafe(value) &&
-    M007_VISUAL_PROOF_FORBIDDEN_TEXT.every((forbidden) => !collectFixtureText(value).includes(forbidden))
+    M007_VISUAL_PROOF_FORBIDDEN_TEXT.every(
+      (forbidden) => !collectFixtureText(value).includes(forbidden)
+    )
   );
 }
 
@@ -204,7 +207,11 @@ function normalizeM005AddonsForM007(props: M005BrowserProofAppProps): M005Browse
       visibleAddons,
       detail,
       groups: [
-        { key: 'xbmc.addon.video', label: 'xbmc.addon.video', addons: addons.filter((addon) => addon.addonid === 'plugin.video.safe-demo') },
+        {
+          key: 'xbmc.addon.video',
+          label: 'xbmc.addon.video',
+          addons: addons.filter((addon) => addon.addonid === 'plugin.video.safe-demo')
+        },
         ...props.addonsSnapshot.groups.filter((group) => group.key !== 'xbmc.python.pluginsource')
       ]
     }
@@ -247,7 +254,8 @@ function toVideoFixturePathname(route: AppRoute): string | undefined {
 }
 
 function withoutRoute<T extends { route?: unknown }>(value: T): Omit<T, 'route'> {
-  const { route: _route, ...rest } = value;
+  const { route, ...rest } = value;
+  void route;
   return rest;
 }
 

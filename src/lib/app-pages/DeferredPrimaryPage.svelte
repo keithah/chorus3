@@ -59,7 +59,11 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background:
-      linear-gradient(135deg, color-mix(in srgb, var(--color-warning) 14%, transparent), transparent 58%),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-warning) 14%, transparent),
+        transparent 58%
+      ),
       var(--color-surface);
   }
 

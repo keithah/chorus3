@@ -4,7 +4,10 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
-import { createM007VisualProofAppProps, M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofFixtures';
+import {
+  createM007VisualProofAppProps,
+  M007_VISUAL_PROOF_FORBIDDEN_TEXT
+} from './lib/testing/m007VisualProofFixtures';
 import PrimaryAppShell from './lib/app-shell/AppShell.svelte';
 import { createAppNavigationItems } from './lib/app-shell/appNavigation';
 import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from './lib/stores';
@@ -1784,11 +1787,47 @@ describe('App shell', () => {
     ['/addons/audio', ['Audio add-ons', 'Installed add-ons'], []],
     ['/addons/executable', ['Executable add-ons', 'Installed add-ons'], []],
     ['/playlists', ['Playlist library', 'Local Playlists', 'Media Playlists'], []],
-    ['/settings/web', ['Web interface settings', 'Package-safe web settings', 'Browser storage editing remains read-only here.'], []],
-    ['/settings/kodi', ['Kodi settings', 'Kodi settings browser', 'Browse Kodi sections and categories from the existing settings panel.'], []],
-    ['/settings/main-menu', ['Navigation settings', 'Navigation settings', 'Menu editing is represented as read-only route context.'], []],
-    ['/settings/addons', ['Add-on settings', 'Add-on settings', 'Deep add-on-specific settings remain deferred.'], []],
-    ['/settings/search', ['Search settings', 'Search settings', 'Search-provider editing is represented as read-only route context.'], []],
+    [
+      '/settings/web',
+      [
+        'Web interface settings',
+        'Package-safe web settings',
+        'Browser storage editing remains read-only here.'
+      ],
+      []
+    ],
+    [
+      '/settings/kodi',
+      [
+        'Kodi settings',
+        'Kodi settings browser',
+        'Browse Kodi sections and categories from the existing settings panel.'
+      ],
+      []
+    ],
+    [
+      '/settings/main-menu',
+      [
+        'Navigation settings',
+        'Navigation settings',
+        'Menu editing is represented as read-only route context.'
+      ],
+      []
+    ],
+    [
+      '/settings/addons',
+      ['Add-on settings', 'Add-on settings', 'Deep add-on-specific settings remain deferred.'],
+      []
+    ],
+    [
+      '/settings/search',
+      [
+        'Search settings',
+        'Search settings',
+        'Search-provider editing is represented as read-only route context.'
+      ],
+      []
+    ],
     [
       '/help',
       [
@@ -1828,7 +1867,13 @@ describe('App shell', () => {
         'Selects a known Kodi settings section once, then leaves panel navigation in control.',
         'Kodi Settings'
       ],
-      ['settings/kodi/interface', 'Deferred Kodi settings section', 'S06-owned Kodi settings behavior', 'smb://', 'special://']
+      [
+        'settings/kodi/interface',
+        'Deferred Kodi settings section',
+        'S06-owned Kodi settings behavior',
+        'smb://',
+        'special://'
+      ]
     ]
   ] as const)(
     'renders S03 route %s with app-native safe surface copy',
@@ -1881,7 +1926,10 @@ describe('App shell', () => {
       ['/addons/video', ['Video add-ons', 'Safe Video Demo']],
       ['/addons/plugin.video.safe-demo', ['Safe Video Demo', 'Add-on detail loaded.']],
       ['/playlists', ['Playlists', 'Browser Jazz', 'Blue in Green']],
-      ['/settings/kodi/interface', ['Kodi settings section', 'Kodi Settings', 'Autoplay next item']],
+      [
+        '/settings/kodi/interface',
+        ['Kodi settings section', 'Kodi Settings', 'Autoplay next item']
+      ],
       ['/help', ['Help', 'About Chorus', 'Add-ons', 'Developers']],
       ['/help/readme', ['Readme', 'Package usage']]
     ] as const;

@@ -122,20 +122,48 @@ function expectSecretSafe(value: string): void {
 
 describe('SettingsPage', () => {
   it.each([
-    [{ kind: 'settingsWeb' } as const, 'Web interface settings', 'Package-safe web settings', 'Browser storage editing remains read-only here.'],
-    [{ kind: 'settingsKodi' } as const, 'Kodi settings', 'Kodi settings browser', 'Browse Kodi sections and categories from the existing settings panel.'],
-    [{ kind: 'settingsAddons' } as const, 'Add-on settings', 'Add-on settings', 'Deep add-on-specific settings remain deferred.'],
-    [{ kind: 'settingsNav' } as const, 'Navigation settings', 'Navigation settings', 'Menu editing is represented as read-only route context.'],
-    [{ kind: 'settingsSearch' } as const, 'Search settings', 'Search settings', 'Search-provider editing is represented as read-only route context.']
-  ])('renders route-specific static settings copy for %s', (route, heading, cardTitle, cardCopy) => {
-    const dispatch = renderPage(route);
+    [
+      { kind: 'settingsWeb' } as const,
+      'Web interface settings',
+      'Package-safe web settings',
+      'Browser storage editing remains read-only here.'
+    ],
+    [
+      { kind: 'settingsKodi' } as const,
+      'Kodi settings',
+      'Kodi settings browser',
+      'Browse Kodi sections and categories from the existing settings panel.'
+    ],
+    [
+      { kind: 'settingsAddons' } as const,
+      'Add-on settings',
+      'Add-on settings',
+      'Deep add-on-specific settings remain deferred.'
+    ],
+    [
+      { kind: 'settingsNav' } as const,
+      'Navigation settings',
+      'Navigation settings',
+      'Menu editing is represented as read-only route context.'
+    ],
+    [
+      { kind: 'settingsSearch' } as const,
+      'Search settings',
+      'Search settings',
+      'Search-provider editing is represented as read-only route context.'
+    ]
+  ])(
+    'renders route-specific static settings copy for %s',
+    (route, heading, cardTitle, cardCopy) => {
+      const dispatch = renderPage(route);
 
-    expect(document.querySelector('#settings-page-title')?.textContent).toBe(heading);
-    expect(text()).toContain(cardTitle);
-    expect(text()).toContain(cardCopy);
-    expect(text()).toContain('Kodi Settings');
-    expect(dispatch.selectSection).not.toHaveBeenCalled();
-  });
+      expect(document.querySelector('#settings-page-title')?.textContent).toBe(heading);
+      expect(text()).toContain(cardTitle);
+      expect(text()).toContain(cardCopy);
+      expect(text()).toContain('Kodi Settings');
+      expect(dispatch.selectSection).not.toHaveBeenCalled();
+    }
+  );
 
   it('selects a present Kodi section route at most once and keeps SettingsPanel active markers visible', async () => {
     const dispatch = renderPage({ kind: 'settingsKodiSection', section: 'interface' });
@@ -143,12 +171,18 @@ describe('SettingsPage', () => {
     await tick();
     await tick();
 
-    expect(document.querySelector('#settings-page-title')?.textContent).toBe('Kodi settings section');
+    expect(document.querySelector('#settings-page-title')?.textContent).toBe(
+      'Kodi settings section'
+    );
     expect(text()).toContain('Kodi section deep link');
-    expect(text()).toContain('Selects a known Kodi settings section once, then leaves panel navigation in control.');
+    expect(text()).toContain(
+      'Selects a known Kodi settings section once, then leaves panel navigation in control.'
+    );
     expect(dispatch.selectSection).toHaveBeenCalledTimes(1);
     expect(dispatch.selectSection).toHaveBeenCalledWith('interface');
-    expect(document.querySelector('button[aria-label="Select settings section Player"]')).not.toBeNull();
+    expect(
+      document.querySelector('button[aria-label="Select settings section Player"]')
+    ).not.toBeNull();
   });
 
   it('does not dispatch section selection when the routed section is already selected', async () => {
@@ -160,7 +194,11 @@ describe('SettingsPage', () => {
     await tick();
 
     expect(dispatch.selectSection).not.toHaveBeenCalled();
-    expect(document.querySelector('button[aria-label="Select settings section Interface"]')?.getAttribute('aria-current')).toBe('page');
+    expect(
+      document
+        .querySelector('button[aria-label="Select settings section Interface"]')
+        ?.getAttribute('aria-current')
+    ).toBe('page');
   });
 
   it('ignores absent or unsafe Kodi section route text without reflecting it into visible copy', async () => {
@@ -179,62 +217,65 @@ describe('SettingsPage', () => {
   });
 
   it('keeps unsupported path, file, folder, custom, and action values read-only and redacted', () => {
-    renderPage({ kind: 'settingsKodiSection', section: 'interface' }, {
-      snapshot: createSnapshot({
-        settings: [
-          {
-            id: 'path.setting',
-            label: 'Path setting',
-            type: 'path',
-            editKind: 'unsupported',
-            value: 'smb://admin:p@ssword@nas.local/private/movie.mkv',
-            defaultValue: null,
-            options: [],
-            readOnly: true
-          },
-          {
-            id: 'file.setting',
-            label: 'File setting',
-            type: 'file',
-            editKind: 'unsupported',
-            value: 'C:\\Users\\admin\\secret.mkv',
-            defaultValue: null,
-            options: [],
-            readOnly: true
-          },
-          {
-            id: 'folder.setting',
-            label: 'Folder setting',
-            type: 'folder',
-            editKind: 'unsupported',
-            value: '/mnt/media/private/movie.mkv',
-            defaultValue: null,
-            options: [],
-            readOnly: true
-          },
-          {
-            id: 'custom.setting',
-            label: 'Custom setting',
-            type: 'custom',
-            editKind: 'unsupported',
-            value: '{"jsonrpc":"2.0","method":"Input.SendText"}',
-            defaultValue: null,
-            options: [],
-            readOnly: true
-          },
-          {
-            id: 'action.setting',
-            label: 'Action setting',
-            type: 'action',
-            editKind: 'unsupported',
-            value: 'Input.SendText',
-            defaultValue: null,
-            options: [],
-            readOnly: true
-          }
-        ]
-      })
-    });
+    renderPage(
+      { kind: 'settingsKodiSection', section: 'interface' },
+      {
+        snapshot: createSnapshot({
+          settings: [
+            {
+              id: 'path.setting',
+              label: 'Path setting',
+              type: 'path',
+              editKind: 'unsupported',
+              value: 'smb://admin:p@ssword@nas.local/private/movie.mkv',
+              defaultValue: null,
+              options: [],
+              readOnly: true
+            },
+            {
+              id: 'file.setting',
+              label: 'File setting',
+              type: 'file',
+              editKind: 'unsupported',
+              value: 'C:\\Users\\admin\\secret.mkv',
+              defaultValue: null,
+              options: [],
+              readOnly: true
+            },
+            {
+              id: 'folder.setting',
+              label: 'Folder setting',
+              type: 'folder',
+              editKind: 'unsupported',
+              value: '/mnt/media/private/movie.mkv',
+              defaultValue: null,
+              options: [],
+              readOnly: true
+            },
+            {
+              id: 'custom.setting',
+              label: 'Custom setting',
+              type: 'custom',
+              editKind: 'unsupported',
+              value: '{"jsonrpc":"2.0","method":"Input.SendText"}',
+              defaultValue: null,
+              options: [],
+              readOnly: true
+            },
+            {
+              id: 'action.setting',
+              label: 'Action setting',
+              type: 'action',
+              editKind: 'unsupported',
+              value: 'Input.SendText',
+              defaultValue: null,
+              options: [],
+              readOnly: true
+            }
+          ]
+        })
+      }
+    );
 
     expect(document.querySelector('[data-setting-control="path.setting"]')).toBeNull();
     expect(document.querySelector('[data-setting-control="file.setting"]')).toBeNull();

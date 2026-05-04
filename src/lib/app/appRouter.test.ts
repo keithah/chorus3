@@ -751,9 +751,9 @@ describe('buildAppRoute', () => {
     expect(buildPrimaryAppRoute({ kind: 'addonDetail', addonid: 'http:example' })).toBe(
       '/[redacted]'
     );
-    expect(buildPrimaryAppRoute({ kind: 'addonDetail', addonid: 'plugin.video.youtube/extra' })).toBe(
-      '/[redacted]'
-    );
+    expect(
+      buildPrimaryAppRoute({ kind: 'addonDetail', addonid: 'plugin.video.youtube/extra' })
+    ).toBe('/[redacted]');
   });
 });
 
