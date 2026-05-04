@@ -123,7 +123,14 @@
   import { createAppNavigationItems } from '$lib/app-shell/appNavigation';
   import AppPageSurface from '$lib/app-pages/AppPageSurface.svelte';
   import { getAppPageMetadata } from '$lib/app-pages/appPageMetadata';
-  import type { AppShellPlayerSnapshot } from '$lib/app-shell/appShellTypes';
+  import type {
+    AppShellCallbacks,
+    AppShellDrawerState,
+    AppShellPlayerSnapshot,
+    AppShellPlaylistDestinationMode,
+    AppShellPlaylistMediaMode,
+    AppShellPlaylistMenuAction
+  } from '$lib/app-shell/appShellTypes';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import { createTranslationContext } from '$lib/i18n';
@@ -435,6 +442,54 @@
     })
   );
   const currentShellPlayer = $derived(toAppShellPlayerSnapshot(currentPlayerSnapshot));
+  let drawerMediaMode = $state<AppShellPlaylistMediaMode>('audio');
+  let drawerCollapsed = $state(false);
+  let drawerMenuOpen = $state(false);
+  const currentDrawerDestinationMode = $derived<AppShellPlaylistDestinationMode>(
+    playerDispatch.snapshot?.mode === 'local' ? 'local' : 'kodi'
+  );
+  const isPlayerDestinationCommandRunning = $derived(
+    playerDispatch.snapshot?.commandStatus === 'running'
+  );
+  const isQueueCommandRunning = $derived(queueDispatch.snapshot?.commandStatus === 'running');
+  const currentPlaylistDrawer = $derived<AppShellDrawerState>({
+    label: 'Current playlist',
+    mediaMode: drawerMediaMode,
+    collapsed: drawerCollapsed,
+    menuOpen: drawerMenuOpen,
+    menuDisabledReasons: {
+      currentPlaylist: 'Current playlist is already selected.',
+      clear: isQueueCommandRunning
+        ? 'Queue command is running. Clear playlist is temporarily disabled.'
+        : undefined,
+      refresh: 'Refresh playlist is deferred to playlist persistence work.',
+      partyMode: 'Party mode is deferred to Kodi playlist controls.',
+      saveKodiPlaylist: 'Saving Kodi playlists is deferred to durable playlist persistence.'
+    }
+  });
+  const currentPlaylistDestination = $derived({
+    mode: currentDrawerDestinationMode,
+    mediaMode: drawerMediaMode,
+    disabledReasons: isPlayerDestinationCommandRunning
+      ? {
+          kodi: 'A player command is running. Destination changes are temporarily disabled.',
+          local: 'A player command is running. Destination changes are temporarily disabled.'
+        }
+      : undefined
+  });
+  const playlistDrawerCallbacks = $derived<AppShellCallbacks>({
+    onDestinationModeChange: handlePlaylistDestinationModeChange,
+    onMediaModeChange: (mode) => {
+      drawerMediaMode = mode;
+    },
+    onPlaylistMenuAction: handlePlaylistMenuAction,
+    onPlaylistMenuToggle: (open) => {
+      drawerMenuOpen = open;
+    },
+    onPlaylistCollapseToggle: (collapsed) => {
+      drawerCollapsed = collapsed;
+    }
+  });
   const isDashboardRoute = $derived(
     currentRoute.kind === 'dashboard' || currentPrimaryRoute?.kind === 'home'
   );
@@ -607,6 +662,38 @@
     }
 
     await playerStore.refresh('manual');
+  }
+
+  async function handlePlaylistDestinationModeChange(
+    mode: AppShellPlaylistDestinationMode
+  ): Promise<void> {
+    if (playerDispatch.snapshot?.commandStatus === 'running') {
+      return;
+    }
+
+    const currentMode: AppShellPlaylistDestinationMode =
+      playerDispatch.snapshot?.mode === 'local' ? 'local' : 'kodi';
+
+    if (mode === currentMode) {
+      return;
+    }
+
+    if (mode === 'local') {
+      await playerDispatch.startLocalPlayback();
+      return;
+    }
+
+    if (currentMode === 'local') {
+      await playerDispatch.resumeOnKodi();
+    }
+  }
+
+  async function handlePlaylistMenuAction(action: AppShellPlaylistMenuAction): Promise<void> {
+    if (action !== 'clear' || queueDispatch.snapshot?.commandStatus === 'running') {
+      return;
+    }
+
+    await queueDispatch.clear();
   }
 
   function toggleAppFullscreen(): void {
@@ -974,6 +1061,9 @@
       toggleMute: () => playerDispatch.toggleMute(),
       fullscreen: toggleAppFullscreen
     }}
+    drawer={currentPlaylistDrawer}
+    destination={currentPlaylistDestination}
+    callbacks={playlistDrawerCallbacks}
   >
     <AppPageSurface
       route={currentPrimaryShellRoute ?? { kind: 'home' }}
@@ -1086,6 +1176,9 @@
           toggleMute: () => playerDispatch.toggleMute(),
           fullscreen: toggleAppFullscreen
         }}
+        drawer={currentPlaylistDrawer}
+        destination={currentPlaylistDestination}
+        callbacks={playlistDrawerCallbacks}
       >
         {#if !isPackageMounted}
           <div class="dashboard" aria-label={currentI18n.t('app.dashboard.aria')}>

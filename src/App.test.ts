@@ -1237,6 +1237,29 @@ function createPlayerDispatch(
   };
 }
 
+function createQueueDispatchSnapshot(
+  overrides: Partial<QueueDispatchSnapshot> = {}
+): QueueDispatchSnapshot {
+  return {
+    commandStatus: 'idle',
+    lastCommand: null,
+    lastError: null,
+    lastCompletedAt: null,
+    ...overrides
+  };
+}
+
+function createQueuePanelDispatch(
+  snapshot: QueueDispatchSnapshot = createQueueDispatchSnapshot()
+): QueuePanelDispatch {
+  return {
+    snapshot,
+    removeAt: vi.fn(),
+    clear: vi.fn(),
+    swap: vi.fn()
+  };
+}
+
 function getButton(target: HTMLElement, name: string): HTMLButtonElement {
   const button = Array.from(target.querySelectorAll('button')).find(
     (candidate) => candidate.textContent?.trim() === name
@@ -1439,6 +1462,17 @@ function requirePackageShellButtonByAria(
 function requirePackageShellButtonByText(target: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(target.querySelectorAll<HTMLButtonElement>('.chorus-app button')).find(
     (candidate) => candidate.textContent?.trim() === text
+  );
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
+
+function requirePackageShellButtonContainingText(
+  target: HTMLElement,
+  text: string
+): HTMLButtonElement {
+  const button = Array.from(target.querySelectorAll<HTMLButtonElement>('.chorus-app button')).find(
+    (candidate) => candidate.textContent?.includes(text)
   );
   expect(button).toBeInstanceOf(HTMLButtonElement);
   return button as HTMLButtonElement;
@@ -1924,27 +1958,181 @@ describe('App shell', () => {
     }
   );
 
-  it('guards package-mounted broad and deferred controls while keeping wired playback controls enabled', () => {
+  it('wires primary drawer destination, media, collapse, and menu actions through App dispatch seams', async () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(
+      createDispatchSnapshot({ mode: 'local', lastCommand: 'startLocalPlayback' })
+    );
+    const queueDispatch = createQueuePanelDispatch();
 
     const target = renderApp({
       route: { kind: 'dashboard' },
       packageMountedHost: createPackageMountedHost(),
       playerSnapshot: activeVideoSnapshot(),
-      playerDispatch: createPlayerDispatch()
+      playerDispatch,
+      queueDispatch
+    });
+
+    expect(
+      requirePackageShellButtonContainingText(target, 'Local').getAttribute('aria-pressed')
+    ).toBe('true');
+    expect(
+      requirePackageShellButtonContainingText(target, 'Kodi').getAttribute('aria-pressed')
+    ).toBe('false');
+
+    requirePackageShellButtonContainingText(target, 'Local').click();
+    await tick();
+    expect(playerDispatch.startLocalPlayback).not.toHaveBeenCalled();
+    expect(playerDispatch.resumeOnKodi).not.toHaveBeenCalled();
+
+    requirePackageShellButtonContainingText(target, 'Kodi').click();
+    await tick();
+    expect(playerDispatch.resumeOnKodi).toHaveBeenCalledTimes(1);
+
+    const playlist = target.querySelector<HTMLElement>('aside.c2-playlist');
+    expect(playlist).toBeInstanceOf(HTMLElement);
+    expect(playlist?.dataset.collapsed).toBe('false');
+    requirePackageShellButtonByAria(target, 'Collapse playlist').click();
+    await tick();
+    expect(playlist?.dataset.collapsed).toBe('true');
+    expect(target.querySelector<HTMLElement>('.chorus-app')?.dataset.playlistLayout).toBe(
+      'collapsed'
+    );
+
+    expect(requirePackageShellButtonByText(target, 'Audio').getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    requirePackageShellButtonByText(target, 'Video').click();
+    await tick();
+    expect(requirePackageShellButtonByText(target, 'Video').getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(requirePackageShellButtonByText(target, 'Audio').getAttribute('aria-selected')).toBe(
+      'false'
+    );
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    expect(
+      requirePackageShellButtonByAria(target, 'Playlist menu').getAttribute('aria-expanded')
+    ).toBe('true');
+    expect(requirePackageShellButtonByText(target, 'Clear playlist').disabled).toBe(false);
+    requirePackageShellButtonByText(target, 'Clear playlist').click();
+    await tick();
+    expect(queueDispatch.clear).toHaveBeenCalledTimes(1);
+    expect(requirePackageShellButtonByText(target, 'Refresh playlist').disabled).toBe(true);
+    expect(requirePackageShellButtonByText(target, 'Party mode').disabled).toBe(true);
+    expect(requirePackageShellButtonByText(target, 'Save Kodi playlist').disabled).toBe(true);
+  });
+
+  it('guards redundant and running drawer commands without leaking rejected dispatch details', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
+    vi.mocked(playerDispatch.startLocalPlayback).mockRejectedValue(
+      new Error('smb://admin:p@ssword@nas.local/private/token')
+    );
+    vi.mocked(playerDispatch.resumeOnKodi).mockRejectedValue(
+      new Error('http://admin:p@ssword@kodi.local:8080/jsonrpc token')
+    );
+    const queueDispatch = createQueuePanelDispatch(
+      createQueueDispatchSnapshot({ commandStatus: 'running', lastCommand: 'clear' })
+    );
+    vi.mocked(queueDispatch.clear).mockRejectedValue(
+      new Error('Authorization Basic abc123 localStorage')
+    );
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch,
+      queueDispatch
+    });
+
+    requirePackageShellButtonContainingText(target, 'Kodi').click();
+    await tick();
+    expect(playerDispatch.resumeOnKodi).not.toHaveBeenCalled();
+    expect(playerDispatch.startLocalPlayback).not.toHaveBeenCalled();
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    expect(clearButton.disabled).toBe(true);
+    clearButton.click();
+    await tick();
+    expect(queueDispatch.clear).not.toHaveBeenCalled();
+
+    expect(target.textContent).not.toContain('admin:p@ssword');
+    expect(target.textContent).not.toContain('smb://');
+    expect(target.textContent).not.toContain('Authorization Basic');
+    expect(target.textContent).not.toContain('localStorage');
+  });
+
+  it('does not resume Kodi when Kodi destination is already active', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch
+    });
+
+    requirePackageShellButtonContainingText(target, 'Kodi').click();
+    await tick();
+
+    expect(playerDispatch.resumeOnKodi).not.toHaveBeenCalled();
+    expect(playerDispatch.startLocalPlayback).not.toHaveBeenCalled();
+  });
+
+  it('disables drawer Clear while the queue dispatch command is running', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const queueDispatch = createQueuePanelDispatch(
+      createQueueDispatchSnapshot({ commandStatus: 'running', lastCommand: 'clear' })
+    );
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      queueDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    expect(clearButton.disabled).toBe(true);
+    expect(clearButton.title).toContain('Queue command is running');
+  });
+
+  it('guards package-mounted broad and deferred controls while keeping wired drawer and playback controls enabled', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch();
+    const queueDispatch = createQueuePanelDispatch();
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch,
+      queueDispatch
     });
 
     const searchInput = target.querySelector<HTMLInputElement>('.c2-search input[type="search"]');
     expect(searchInput).toBeInstanceOf(HTMLInputElement);
     expect(isDisabledOrGuarded(searchInput as HTMLInputElement), 'shell search').toBe(true);
 
-    for (const label of ['Local', 'Playlist menu', 'Collapse playlist']) {
-      const button =
-        label === 'Local'
-          ? requirePackageShellButtonByText(target, label)
-          : requirePackageShellButtonByAria(target, label);
-      expect(button.disabled, `${label} enabled for drawer contract`).toBe(false);
-    }
+    expect(
+      requirePackageShellButtonContainingText(target, 'Kodi').getAttribute('aria-pressed')
+    ).toBe('true');
+    expect(requirePackageShellButtonContainingText(target, 'Local').disabled).toBe(false);
+    expect(requirePackageShellButtonByAria(target, 'Playlist menu').disabled).toBe(false);
+    expect(requirePackageShellButtonByAria(target, 'Collapse playlist').disabled).toBe(false);
+
+    requirePackageShellButtonContainingText(target, 'Local').click();
+    await tick();
+    expect(playerDispatch.startLocalPlayback).toHaveBeenCalledTimes(1);
 
     const playlistMenuButton = requirePackageShellButtonByAria(target, 'Playlist menu');
     playlistMenuButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -1956,12 +2144,22 @@ describe('App shell', () => {
       expect(button.disabled, `${label} enabled for drawer contract`).toBe(false);
     }
 
-    for (const label of [
-      'Current playlist',
-      'Clear playlist',
-      'Party mode',
-      'Save Kodi playlist'
-    ]) {
+    requirePackageShellButtonByText(target, 'Video').click();
+    await tick();
+    expect(requirePackageShellButtonByText(target, 'Video').getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    expect(requirePackageShellButtonByText(target, 'Audio').getAttribute('aria-selected')).toBe(
+      'false'
+    );
+
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    expect(clearButton.disabled, 'Clear playlist wired to queue dispatch').toBe(false);
+    clearButton.click();
+    await tick();
+    expect(queueDispatch.clear).toHaveBeenCalledTimes(1);
+
+    for (const label of ['Current playlist', 'Party mode', 'Save Kodi playlist']) {
       const button = requirePackageShellButtonByText(target, label);
       expect(button.disabled, `${label} guarded until downstream playlist support`).toBe(true);
     }
