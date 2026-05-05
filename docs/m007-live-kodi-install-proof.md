@@ -46,6 +46,34 @@ Expected command evidence:
 - no-live package browser proof exits successfully before live Kodi evidence is attempted.
 - proof-document verifiers exit successfully so the recorded evidence remains mechanically bounded.
 
+## S09 Local Live Runner
+
+Use the local-only S09 runner to classify live availability and, when Chorus3 is reachable, record route, browser-diagnostic, asset, visible-DOM redaction, and remote-safe command classes:
+
+```text
+node scripts/verify-m007-live-kodi-browser-proof.mjs --origin http://localhost:8080 --dry-run
+node scripts/verify-m007-live-kodi-browser-proof.mjs --origin http://localhost:8080 --output docs/m007-live-kodi-install-proof.md
+```
+
+The runner defaults to `http://localhost:8080/`. It accepts only loopback origins, rejects credential-bearing origins, and uses environment-provided credentials only for live HTTP contexts without printing them.
+
+Sanitized runner classes:
+
+| Class                                                            | Meaning                                                                                                                                                                                    | R069 effect                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `passed`                                                         | Active root, package root, bounded package routes, `/remote`, `/now-playing`, assets, browser diagnostics, visible DOM redaction, and safe remote command all passed against live Chorus3. | R069 may be validated only with this live-pass evidence plus command gates. |
+| `unavailable`                                                    | The local Kodi webserver could not be reached.                                                                                                                                             | R069 remains blocked.                                                       |
+| `auth-required`                                                  | The local Kodi webserver required credentials that were absent or rejected.                                                                                                                | R069 remains blocked.                                                       |
+| `timeout`                                                        | A probe, route, browser, or remote phase timed out.                                                                                                                                        | R069 remains blocked.                                                       |
+| `wrong-webinterface`                                             | The active or package route did not serve Chorus3 AppShell markers.                                                                                                                        | R069 remains blocked.                                                       |
+| `malformed-response`                                             | The status endpoint returned a malformed envelope; no raw body is recorded.                                                                                                                | R069 remains blocked.                                                       |
+| `route-failed`                                                   | A bounded route returned an unexpected status or redaction failure.                                                                                                                        | R069 remains blocked.                                                       |
+| `asset-failed`                                                   | A JavaScript, CSS, image, or font asset failed during route checks.                                                                                                                        | R069 remains blocked.                                                       |
+| `browser-error`, `browser-timeout`, `console-error`              | Browser diagnostics reported a sanitized network, timeout, or script class.                                                                                                                | R069 remains blocked.                                                       |
+| `remote-sanitized-failure`, `remote-timeout`, `remote-malformed` | The bounded non-destructive remote command did not produce a sanitized pass class.                                                                                                         | R069 remains blocked.                                                       |
+
+Dry-run output is status-only and does not edit this document. The output mode may append or replace the S09 runner evidence block, but it must still preserve the redaction rules below and must not claim live proof has passed unless the runner status is `passed`.
+
 ## Package Artifact
 
 The installable artifact pattern is:
@@ -117,16 +145,16 @@ Do not infer the third classification from deterministic screenshots, package zi
 
 ## Evidence Log
 
-| Check                        | Status                         | Evidence owner | Notes                                                                                                                                                             |
-| ---------------------------- | ------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Proof document contract      | Pass                           | T04            | The proof document and verifier define live, no-live, and unavailable-live boundaries.                                                                            |
-| S07 visual baseline link     | Pass                           | T04            | `docs/m007-visual-parity-proof.md` is referenced as visual baseline only and not live proof.                                                                      |
-| Command gates                | Pass                           | T05            | `npm run verify`, `npm run verify:chorus2-parity`, `npm run verify:kodi-package`, and the targeted S08/S07/package browser/main test command exited 0.            |
-| Package artifact             | Pass                           | T05            | `dist/kodi/webinterface.chorus3-<version>.zip` exists after the command gates.                                                                                    |
-| Active root                  | Blocked: Live Kodi unavailable | T05            | Status-only probe and browser navigation reported connection refused for the active root; no live route assertions were run.                                      |
-| Package root                 | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable before package-mounted route checks.                                                                     |
-| Direct route fallback matrix | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable; no-live package browser proof passed but does not validate R069.                                        |
+| Check                          | Status                         | Evidence owner | Notes                                                                                                                                                             |
+| ------------------------------ | ------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof document contract        | Pass                           | T04            | The proof document and verifier define live, no-live, and unavailable-live boundaries.                                                                            |
+| S07 visual baseline link       | Pass                           | T04            | `docs/m007-visual-parity-proof.md` is referenced as visual baseline only and not live proof.                                                                      |
+| Command gates                  | Pass                           | T05            | `npm run verify`, `npm run verify:chorus2-parity`, `npm run verify:kodi-package`, and the targeted S08/S07/package browser/main test command exited 0.            |
+| Package artifact               | Pass                           | T05            | `dist/kodi/webinterface.chorus3-<version>.zip` exists after the command gates.                                                                                    |
+| Active root                    | Blocked: Live Kodi unavailable | T05            | Status-only probe and browser navigation reported connection refused for the active root; no live route assertions were run.                                      |
+| Package root                   | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable before package-mounted route checks.                                                                     |
+| Direct route fallback matrix   | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable; no-live package browser proof passed but does not validate R069.                                        |
 | Remote route and command proof | Blocked: Live Kodi unavailable | T01            | Remote surface and remote-safe command proof are not run until live Kodi is available; allowed commands stay bounded and non-destructive.                         |
-| Browser diagnostics          | Blocked: Live Kodi unavailable | T05            | Browser diagnostics are limited to unavailable connection class; console, asset, route fallback, and visible DOM redaction checks were not run against live Kodi. |
-| R069                         | Blocked: Live Kodi unavailable | T05            | R069 remains blocked because successful live Kodi install/browser proof was not available.                                                                        |
-| R073                         | Boundary documented            | T04            | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation.                                                     |
+| Browser diagnostics            | Blocked: Live Kodi unavailable | T05            | Browser diagnostics are limited to unavailable connection class; console, asset, route fallback, and visible DOM redaction checks were not run against live Kodi. |
+| R069                           | Blocked: Live Kodi unavailable | T05            | R069 remains blocked because successful live Kodi install/browser proof was not available.                                                                        |
+| R073                           | Boundary documented            | T04            | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation.                                                     |
