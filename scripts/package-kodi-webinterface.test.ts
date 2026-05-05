@@ -13,6 +13,10 @@ import {
   stageKodiWebinterfacePackage,
   validateAddonInputs
 } from './package-kodi-webinterface.mjs';
+import {
+  KODI_PACKAGE_BASE_PATH,
+  getKodiPackageRouteFallbacks
+} from './kodi-package-route-contract.mjs';
 
 const testRoots: string[] = [];
 
@@ -53,7 +57,13 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
       '  </extension>',
       '</addon>'
     ].join('\n'),
-    'dist/index.html': '<!doctype html><script type="module" src="./assets/app.js"></script>',
+    'dist/index.html': [
+      '<!doctype html>',
+      '<html>',
+      '<head><title>Chorus3</title></head>',
+      '<body><script type="module" src="./assets/app.js"></script></body>',
+      '</html>'
+    ].join(''),
     'dist/assets/app.js': 'console.log("chorus3")',
     'dist/assets/app.css': ':root { color-scheme: dark; }',
     'dist/now-playing/index.html': '<!doctype html><main>Now playing</main>',
@@ -145,11 +155,25 @@ describe('Kodi package staging', () => {
 
     expect(result.entries).toEqual([
       'webinterface.chorus3/addon.xml',
+      'webinterface.chorus3/addons/all/index.html',
+      'webinterface.chorus3/addons/plugin.video.safe-demo/index.html',
       'webinterface.chorus3/assets/app.css',
       'webinterface.chorus3/assets/app.js',
+      'webinterface.chorus3/browser/index.html',
       'webinterface.chorus3/favicon.svg',
+      'webinterface.chorus3/files/index.html',
+      'webinterface.chorus3/help/index.html',
+      'webinterface.chorus3/help/keyboard/index.html',
       'webinterface.chorus3/index.html',
-      'webinterface.chorus3/now-playing/index.html'
+      'webinterface.chorus3/movies/index.html',
+      'webinterface.chorus3/music/genres/index.html',
+      'webinterface.chorus3/music/index.html',
+      'webinterface.chorus3/now-playing/index.html',
+      'webinterface.chorus3/playlists/index.html',
+      'webinterface.chorus3/remote/index.html',
+      'webinterface.chorus3/settings/kodi/interface/index.html',
+      'webinterface.chorus3/settings/web/index.html',
+      'webinterface.chorus3/tvshows/index.html'
     ]);
     expect(readFileSync(join(result.stageDir, 'addon.xml'), 'utf8')).toContain('version="1.2.3"');
     expect(readFileSync(join(result.stageDir, 'index.html'), 'utf8')).toContain(
@@ -211,15 +235,111 @@ describe('Kodi package staging', () => {
 
     expect(result.entries).toEqual([
       'webinterface.chorus3/addon.xml',
+      'webinterface.chorus3/addons/all/index.html',
+      'webinterface.chorus3/addons/plugin.video.safe-demo/index.html',
       'webinterface.chorus3/assets/app.css',
       'webinterface.chorus3/assets/app.js',
       'webinterface.chorus3/assets/nested/chunk.js',
+      'webinterface.chorus3/browser/index.html',
       'webinterface.chorus3/empty-assets/.keep',
       'webinterface.chorus3/favicon.svg',
+      'webinterface.chorus3/files/index.html',
+      'webinterface.chorus3/help/index.html',
+      'webinterface.chorus3/help/keyboard/index.html',
       'webinterface.chorus3/index.html',
+      'webinterface.chorus3/movies/index.html',
+      'webinterface.chorus3/music/genres/index.html',
+      'webinterface.chorus3/music/index.html',
       'webinterface.chorus3/now-playing/index.html',
-      'webinterface.chorus3/robots.txt'
+      'webinterface.chorus3/playlists/index.html',
+      'webinterface.chorus3/remote/index.html',
+      'webinterface.chorus3/robots.txt',
+      'webinterface.chorus3/settings/kodi/interface/index.html',
+      'webinterface.chorus3/settings/web/index.html',
+      'webinterface.chorus3/tvshows/index.html'
     ]);
+  });
+
+  it('stages every fallback from the shared route contract with deterministic package entries', () => {
+    const root = createFixture(baseFiles());
+
+    const result = stageKodiWebinterfacePackage({ root });
+    const fallbackEntries = getKodiPackageRouteFallbacks().map(
+      (fallback) => `${DEFAULT_ADDON_ID}/${fallback.stagedIndexPath}`
+    );
+
+    for (const entry of fallbackEntries) {
+      expect(result.entries).toContain(entry);
+      expect(existsSync(join(result.stageDir, entry.replace(`${DEFAULT_ADDON_ID}/`, '')))).toBe(true);
+    }
+
+    expect(result.entries.filter((entry) => entry === `${DEFAULT_ADDON_ID}/now-playing/index.html`))
+      .toHaveLength(1);
+    expect(result.entries).not.toContain(`${DEFAULT_ADDON_ID}//index.html`);
+    expect(result.entries).not.toContain(`${DEFAULT_ADDON_ID}/./index.html`);
+  });
+
+  it('overwrites now-playing with the resolved SPA shell instead of preserving an emitted nested page', () => {
+    const root = createFixture(baseFiles());
+
+    const result = stageKodiWebinterfacePackage({ root });
+    const rootHtml = readFileSync(join(result.stageDir, 'index.html'), 'utf8');
+    const nowPlayingHtml = readFileSync(join(result.stageDir, 'now-playing/index.html'), 'utf8');
+
+    expect(nowPlayingHtml).toBe(rootHtml);
+    expect(nowPlayingHtml).not.toContain('<main>Now playing</main>');
+  });
+
+  it('injects the package base resolver before asset script and stylesheet tags', () => {
+    const root = createFixture(
+      baseFiles({
+        'dist/index.html': [
+          '<!doctype html>',
+          '<html><head>',
+          '<link rel="stylesheet" href="./assets/app.css">',
+          '</head><body>',
+          '<script type="module" src="./assets/app.js"></script>',
+          '</body></html>'
+        ].join('')
+      })
+    );
+
+    const result = stageKodiWebinterfacePackage({ root });
+    const nestedHtml = readFileSync(join(result.stageDir, 'settings/kodi/interface/index.html'), 'utf8');
+    const resolverIndex = nestedHtml.indexOf('data-chorus3-kodi-base-resolver');
+    const firstAssetIndex = Math.min(
+      nestedHtml.indexOf('href="./assets/app.css"'),
+      nestedHtml.indexOf('src="./assets/app.js"')
+    );
+
+    expect(nestedHtml).toContain(KODI_PACKAGE_BASE_PATH);
+    expect(resolverIndex).toBeGreaterThan(-1);
+    expect(firstAssetIndex).toBeGreaterThan(resolverIndex);
+  });
+
+  it.each([
+    ['blank fallback path', { name: 'blank', routePath: '/blank', stagedIndexPath: '' }],
+    ['traversal fallback path', { name: 'escape', routePath: '/escape', stagedIndexPath: '../escape/index.html' }],
+    ['root duplicate fallback path', { name: 'root', routePath: '/', stagedIndexPath: 'index.html' }]
+  ])('rejects malformed route fallback contract entries: %s', (_name, fallback) => {
+    const root = createFixture(baseFiles());
+
+    expect(() =>
+      stageKodiWebinterfacePackage({
+        root,
+        routeFallbacks: [fallback]
+      })
+    ).toThrow('[fallback]');
+  });
+
+  it('rejects unsafe HTML when the resolver injection point would follow asset tags', () => {
+    const root = createFixture(
+      baseFiles({
+        'dist/index.html': '<!doctype html><script type="module" src="./assets/app.js"></script>'
+      })
+    );
+
+    expect(() => stageKodiWebinterfacePackage({ root })).toThrow('[fallback]');
   });
 });
 
@@ -247,7 +367,7 @@ describe('Kodi package zip creation', () => {
     expect(result.zipPath).toBe(join(root, 'dist/kodi/webinterface.chorus3-1.2.3.zip'));
     expect(result.lines).toEqual([
       '[metadata] rendered addon.xml for webinterface.chorus3 1.2.3.',
-      '[staging] staged 6 entries under dist/kodi/webinterface.chorus3.',
+      '[staging] staged 20 entries under dist/kodi/webinterface.chorus3.',
       '[zip] created dist/kodi/webinterface.chorus3-1.2.3.zip.'
     ]);
   });

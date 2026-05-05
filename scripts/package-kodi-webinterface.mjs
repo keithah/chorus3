@@ -14,6 +14,10 @@ import { basename, dirname, extname, join, relative, sep } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  KODI_PACKAGE_BASE_PATH,
+  getKodiPackageRouteFallbacks
+} from './kodi-package-route-contract.mjs';
 
 export const DEFAULT_ADDON_ID = 'webinterface.chorus3';
 export const PACKAGE_ROOT = 'dist/kodi';
@@ -22,6 +26,14 @@ export const METADATA_PATH = 'kodi/addon-metadata.json';
 export const PACKAGE_JSON_PATH = 'package.json';
 export const DIST_INDEX_PATH = 'dist/index.html';
 export const KODI_WEBINTERFACE_MARKER = '<meta name="chorus3:kodi-webinterface" content="{{id}}">';
+export const KODI_WEBINTERFACE_BASE_RESOLVER = `<script data-chorus3-kodi-base-resolver>
+(function () {
+  var packageBase = '${KODI_PACKAGE_BASE_PATH}/';
+  var pathname = (window.location && window.location.pathname) || '/';
+  var baseHref = pathname === '${KODI_PACKAGE_BASE_PATH}' || pathname.indexOf(packageBase) === 0 ? packageBase : '/';
+  document.write('<base href="' + baseHref.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">');
+})();
+</script>`;
 
 const REQUIRED_METADATA_FIELDS = [
   'id',
@@ -129,7 +141,10 @@ export function renderAddonXml({ root = cwd() } = {}) {
   };
 }
 
-export function stageKodiWebinterfacePackage({ root = cwd() } = {}) {
+export function stageKodiWebinterfacePackage({
+  root = cwd(),
+  routeFallbacks = getKodiPackageRouteFallbacks()
+} = {}) {
   const indexPath = join(root, DIST_INDEX_PATH);
 
   if (!existsSync(indexPath) || !statSync(indexPath).isFile()) {
@@ -158,7 +173,13 @@ export function stageKodiWebinterfacePackage({ root = cwd() } = {}) {
   }
 
   injectKodiWebinterfaceMarker({ addonId, stageDir: paths.stageDir });
-  ensureNowPlayingEntrypoint({ addonId, entries, stageDir: paths.stageDir });
+  stageRouteFallbackEntrypoints({
+    addonId,
+    entries,
+    routeFallbacks,
+    sourceHtml: readFileSync(join(paths.stageDir, 'index.html'), 'utf8'),
+    stageDir: paths.stageDir
+  });
 
   entries.sort((left, right) => left.localeCompare(right));
   normalizeTimestamps(paths.stageDir);
@@ -369,35 +390,111 @@ function collectBuildFiles(distDir, packageRoot, root) {
   );
 }
 
-function ensureNowPlayingEntrypoint({ addonId, entries, stageDir }) {
-  const nowPlayingEntry = `${addonId}/now-playing/index.html`;
+function stageRouteFallbackEntrypoints({ addonId, entries, routeFallbacks, sourceHtml, stageDir }) {
+  for (const fallback of routeFallbacks) {
+    validateRouteFallback(fallback);
+    const target = join(stageDir, fallback.stagedIndexPath);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, sourceHtml);
 
-  if (entries.includes(nowPlayingEntry)) {
-    return;
+    const entry = `${addonId}/${fallback.stagedIndexPath}`;
+    if (!entries.includes(entry)) {
+      entries.push(entry);
+    }
+  }
+}
+
+function validateRouteFallback(fallback) {
+  if (!fallback || typeof fallback !== 'object') {
+    throw new Error('[fallback] route fallback must be an object.');
   }
 
-  const source = join(stageDir, 'index.html');
-  const target = join(stageDir, 'now-playing/index.html');
-  mkdirSync(dirname(target), { recursive: true });
-  copyFileSync(source, target);
-  entries.push(nowPlayingEntry);
+  if (typeof fallback.name !== 'string' || fallback.name.trim() === '') {
+    throw new Error('[fallback] route fallback name must be a non-blank string.');
+  }
+
+  if (typeof fallback.routePath !== 'string' || !fallback.routePath.startsWith('/')) {
+    throw new Error(`[fallback] ${fallback.name} routePath must be an absolute app route.`);
+  }
+
+  const stagedIndexPath = fallback.stagedIndexPath;
+  if (typeof stagedIndexPath !== 'string' || stagedIndexPath.trim() === '') {
+    throw new Error(`[fallback] ${fallback.name} stagedIndexPath must be non-blank.`);
+  }
+
+  const normalizedPath = toPosixPath(stagedIndexPath);
+  const segments = normalizedPath.split('/');
+  if (
+    normalizedPath !== stagedIndexPath ||
+    normalizedPath.startsWith('/') ||
+    normalizedPath.includes('//') ||
+    segments.includes('..') ||
+    segments.includes('.') ||
+    normalizedPath === 'index.html' ||
+    !normalizedPath.endsWith('/index.html')
+  ) {
+    throw new Error(
+      `[fallback] ${fallback.name} stagedIndexPath ${stagedIndexPath} must be a nested safe index.html path.`
+    );
+  }
 }
 
 function injectKodiWebinterfaceMarker({ addonId, stageDir }) {
   const indexPath = join(stageDir, 'index.html');
   const html = readFileSync(indexPath, 'utf8');
   const marker = KODI_WEBINTERFACE_MARKER.replace('{{id}}', escapeHtmlAttribute(addonId));
+  const transformed = injectKodiWebinterfaceHead({ html, marker, sourceLabel: 'dist/index.html' });
 
-  if (html.includes('name="chorus3:kodi-webinterface"')) {
-    return;
+  writeFileSync(indexPath, transformed);
+}
+
+function injectKodiWebinterfaceHead({ html, marker, sourceLabel }) {
+  if (html.includes('data-chorus3-kodi-base-resolver')) {
+    if (!html.includes('name="chorus3:kodi-webinterface"')) {
+      throw new Error(`[fallback] ${sourceLabel} has resolver but is missing Kodi webinterface marker.`);
+    }
+    assertResolverBeforeAssets({ html, sourceLabel });
+    return html;
   }
 
-  if (/<head\b[^>]*>/i.test(html)) {
-    writeFileSync(indexPath, html.replace(/<head\b([^>]*)>/i, `<head$1>\n    ${marker}`));
-    return;
+  const headMatch = /<head\b[^>]*>/i.exec(html);
+  if (!headMatch || headMatch.index === undefined) {
+    throw new Error(
+      `[fallback] ${sourceLabel} is missing a <head> injection point before staged asset tags.`
+    );
   }
 
-  writeFileSync(indexPath, `${marker}\n${html}`);
+  const firstAssetIndex = findFirstAssetTagIndex(html);
+  if (firstAssetIndex !== -1 && firstAssetIndex < headMatch.index) {
+    throw new Error(
+      `[fallback] ${sourceLabel} has asset tags before the safe base resolver injection point.`
+    );
+  }
+
+  const insertion = `\n    ${marker}\n    ${KODI_WEBINTERFACE_BASE_RESOLVER.replaceAll('\n', '\n    ')}`;
+  const transformed = html.replace(/<head\b([^>]*)>/i, `<head$1>${insertion}`);
+  assertResolverBeforeAssets({ html: transformed, sourceLabel });
+  return transformed;
+}
+
+function assertResolverBeforeAssets({ html, sourceLabel }) {
+  const resolverIndex = html.indexOf('data-chorus3-kodi-base-resolver');
+  const firstAssetIndex = findFirstAssetTagIndex(html);
+
+  if (resolverIndex === -1) {
+    throw new Error(`[fallback] ${sourceLabel} is missing the Kodi package base resolver.`);
+  }
+
+  if (firstAssetIndex !== -1 && resolverIndex > firstAssetIndex) {
+    throw new Error(`[fallback] ${sourceLabel} places the Kodi package base resolver after asset tags.`);
+  }
+}
+
+function findFirstAssetTagIndex(html) {
+  const indexes = [...html.matchAll(/\b(?:src|href)=(['"])\.\/assets\//gi)].map(
+    (match) => match.index ?? -1
+  );
+  return indexes.length === 0 ? -1 : Math.min(...indexes);
 }
 
 function normalizeTimestamps(path) {
