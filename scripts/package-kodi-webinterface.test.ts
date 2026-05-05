@@ -290,7 +290,7 @@ describe('Kodi package staging', () => {
     expect(nowPlayingHtml).not.toContain('<main>Now playing</main>');
   });
 
-  it('injects the package base resolver before asset script and stylesheet tags', () => {
+  it('injects the package base resolver before package-rooted asset script and stylesheet tags', () => {
     const root = createFixture(
       baseFiles({
         'dist/index.html': [
@@ -307,12 +307,15 @@ describe('Kodi package staging', () => {
     const result = stageKodiWebinterfacePackage({ root });
     const nestedHtml = readFileSync(join(result.stageDir, 'settings/kodi/interface/index.html'), 'utf8');
     const resolverIndex = nestedHtml.indexOf('data-chorus3-kodi-base-resolver');
-    const firstAssetIndex = Math.min(
-      nestedHtml.indexOf('href="./assets/app.css"'),
-      nestedHtml.indexOf('src="./assets/app.js"')
-    );
+    const cssAsset = `href="${KODI_PACKAGE_BASE_PATH}/assets/app.css"`;
+    const jsAsset = `src="${KODI_PACKAGE_BASE_PATH}/assets/app.js"`;
+    const firstAssetIndex = Math.min(nestedHtml.indexOf(cssAsset), nestedHtml.indexOf(jsAsset));
 
     expect(nestedHtml).toContain(KODI_PACKAGE_BASE_PATH);
+    expect(nestedHtml).toContain(cssAsset);
+    expect(nestedHtml).toContain(jsAsset);
+    expect(nestedHtml).not.toContain('href="./assets/app.css"');
+    expect(nestedHtml).not.toContain('src="./assets/app.js"');
     expect(resolverIndex).toBeGreaterThan(-1);
     expect(firstAssetIndex).toBeGreaterThan(resolverIndex);
   });

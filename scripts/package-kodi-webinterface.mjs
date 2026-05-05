@@ -472,9 +472,18 @@ function injectKodiWebinterfaceHead({ html, marker, sourceLabel }) {
   }
 
   const insertion = `\n    ${marker}\n    ${KODI_WEBINTERFACE_BASE_RESOLVER.replaceAll('\n', '\n    ')}`;
-  const transformed = html.replace(/<head\b([^>]*)>/i, `<head$1>${insertion}`);
+  const transformed = rewriteKodiPackageAssetTags(
+    html.replace(/<head\b([^>]*)>/i, `<head$1>${insertion}`)
+  );
   assertResolverBeforeAssets({ html: transformed, sourceLabel });
   return transformed;
+}
+
+function rewriteKodiPackageAssetTags(html) {
+  return html.replace(
+    /\b(src|href)=(['"])\.\/assets\//gi,
+    (_match, attribute, quote) => `${attribute}=${quote}${KODI_PACKAGE_BASE_PATH}/assets/`
+  );
 }
 
 function assertResolverBeforeAssets({ html, sourceLabel }) {
@@ -491,10 +500,17 @@ function assertResolverBeforeAssets({ html, sourceLabel }) {
 }
 
 function findFirstAssetTagIndex(html) {
-  const indexes = [...html.matchAll(/\b(?:src|href)=(['"])\.\/assets\//gi)].map(
-    (match) => match.index ?? -1
+  const packageAssetRoot = escapeRegExp(`${KODI_PACKAGE_BASE_PATH}/assets/`);
+  const assetTagPattern = new RegExp(
+    `\\b(?:src|href)=(['"])(?:\\./assets/|${packageAssetRoot})`,
+    'gi'
   );
+  const indexes = [...html.matchAll(assetTagPattern)].map((match) => match.index ?? -1);
   return indexes.length === 0 ? -1 : Math.min(...indexes);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeTimestamps(path) {

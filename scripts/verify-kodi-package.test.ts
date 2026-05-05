@@ -177,7 +177,7 @@ describe('Kodi package structural verification', () => {
     expect(validate).not.toHaveBeenCalled();
     expect(result.lines.join('\n')).toContain('run npm run build before packaging');
   });
-  it('accepts a staged package and zip listing with manifest, relative assets, and now-playing output', async () => {
+  it('accepts a staged package and zip listing with manifest, package-safe assets, and now-playing output', async () => {
     const root = createFixture(baseFiles());
 
     const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
@@ -185,7 +185,7 @@ describe('Kodi package structural verification', () => {
     expect(result.ok).toBe(true);
     expect(result.lines).toContain('[manifest] addon.xml matches webinterface.chorus3 1.2.3.');
     expect(result.lines).toContain(
-      '[html-assets] index.html uses relative asset URLs and Kodi webinterface marker.'
+      '[html-assets] index.html uses package-safe asset URLs and Kodi webinterface marker.'
     );
     expect(result.lines).toContain('[archive] zip root webinterface.chorus3 contains 19 entries.');
     expect(result.lines).toContain(
