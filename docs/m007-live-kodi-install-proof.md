@@ -158,3 +158,38 @@ Do not infer the third classification from deterministic screenshots, package zi
 | Browser diagnostics            | Blocked: Live Kodi unavailable | T05            | Browser diagnostics are limited to unavailable connection class; console, asset, route fallback, and visible DOM redaction checks were not run against live Kodi. |
 | R069                           | Blocked: Live Kodi unavailable | T05            | R069 remains blocked because successful live Kodi install/browser proof was not available.                                                                        |
 | R073                           | Boundary documented            | T04            | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation.                                                     |
+
+<!-- S09_LIVE_KODI_RUNNER_EVIDENCE_START -->
+## S09 Live Kodi Runner Evidence
+
+Recorded status classification: unavailable.
+
+```text
+M007 live Kodi proof status: unavailable.
+Origin class: local-loopback.
+R069 validation: blocked; live-pass evidence absent.
+Probe: unavailable.
+Status endpoint: unavailable.
+Remote safe command: remote-sanitized-failure.
+Routes:
+- active-root: unavailable; path=active-root; http=network-error; asset=not-run; visible-dom=not-run.
+- package-root: unavailable; path=package-root; http=network-error; asset=not-run; visible-dom=not-run.
+- package-music: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-music-genres: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-movies: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-tvshows: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-browser: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-files: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-addons-all: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-addon-detail-safe-demo: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-playlists: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-settings-web: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-settings-kodi-interface: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-help: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-help-keyboard: unavailable; path=package-route; http=network-error; asset=not-run; visible-dom=not-run.
+- package-remote: unavailable; path=package-remote; http=network-error; asset=not-run; visible-dom=not-run.
+- package-now-playing: unavailable; path=package-now-playing; http=network-error; asset=not-run; visible-dom=not-run.
+```
+
+R069 remains blocked until live Kodi install/browser proof passes.
+<!-- S09_LIVE_KODI_RUNNER_EVIDENCE_END -->
