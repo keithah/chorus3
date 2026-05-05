@@ -37,7 +37,15 @@ const REQUIRED_ROUTE_ROWS = [
   '| Package TV shows direct route | `http://localhost:8080/addons/webinterface.chorus3/tvshows` |',
   '| Package add-ons direct route | `http://localhost:8080/addons/webinterface.chorus3/addons/all` |',
   '| Package settings direct route | `http://localhost:8080/addons/webinterface.chorus3/settings/addons` |',
-  '| Package now-playing direct route | `http://localhost:8080/addons/webinterface.chorus3/now-playing` |'
+  '| Package now-playing direct route | `http://localhost:8080/addons/webinterface.chorus3/now-playing` |',
+  '| Package remote direct route | `http://localhost:8080/addons/webinterface.chorus3/remote` |'
+] as const;
+
+const REQUIRED_REMOTE_PROOF_TERMS = [
+  'remote-safe command proof',
+  'bounded non-destructive remote command',
+  'volume readback or GUI notification only',
+  'must not issue library mutations, playback changes, settings writes, file operations, or raw JSON-RPC bodies'
 ] as const;
 
 const REQUIRED_DIAGNOSTIC_TERMS = [
@@ -178,6 +186,12 @@ function validateM007LiveKodiProofDoc(doc: string): string[] {
     }
   }
 
+  for (const term of REQUIRED_REMOTE_PROOF_TERMS) {
+    if (!doc.includes(term)) {
+      errors.push(`${DOC_PATH} must include remote proof safety term ${term}.`);
+    }
+  }
+
   for (const term of REQUIRED_RESULT_TERMS) {
     if (!doc.includes(term)) {
       errors.push(`${DOC_PATH} must include result classification term ${term}.`);
@@ -247,6 +261,7 @@ function minimalValidDoc(): string {
     `\`${ACTIVE_ROOT_URL}\``,
     `\`${PACKAGE_ROOT_URL}\``,
     REQUIRED_ROUTE_ROWS.join('\n'),
+    REQUIRED_REMOTE_PROOF_TERMS.join('\n'),
     REQUIRED_DIAGNOSTIC_TERMS.join('\n'),
     REQUIRED_RESULT_TERMS.join('\n'),
     'Live Kodi unavailable means R069 remains blocked until a live browser run passes.',
@@ -271,10 +286,12 @@ describe('M007 live Kodi install proof documentation contract', () => {
     expect(validateM007LiveKodiProofDoc(minimalValidDoc())).toEqual([]);
   });
 
-  it('rejects missing route rows, live URLs, and unavailable-live status', () => {
+  it('rejects missing route rows, live URLs, remote proof language, and unavailable-live status', () => {
     const errors = validateM007LiveKodiProofDoc(
       minimalValidDoc()
         .replace(REQUIRED_ROUTE_ROWS[0], '')
+        .replace(REQUIRED_ROUTE_ROWS[REQUIRED_ROUTE_ROWS.length - 1], '')
+        .replace(REQUIRED_REMOTE_PROOF_TERMS[0], '')
         .replace(ACTIVE_ROOT_URL, '')
         .split('Live Kodi unavailable')
         .join('Live Kodi skipped')
@@ -282,6 +299,12 @@ describe('M007 live Kodi install proof documentation contract', () => {
 
     expect(errors).toContain(
       `${DOC_PATH} must include route matrix row ${REQUIRED_ROUTE_ROWS[0]}.`
+    );
+    expect(errors).toContain(
+      `${DOC_PATH} must include route matrix row ${REQUIRED_ROUTE_ROWS[REQUIRED_ROUTE_ROWS.length - 1]}.`
+    );
+    expect(errors).toContain(
+      `${DOC_PATH} must include remote proof safety term ${REQUIRED_REMOTE_PROOF_TERMS[0]}.`
     );
     expect(errors).toContain(`${DOC_PATH} must include active root URL ${ACTIVE_ROOT_URL}.`);
     expect(errors).toContain(
