@@ -53,9 +53,10 @@ let consoleErrors: string[] = [];
 
 describe('M007 no-live packaged browser proof', () => {
   beforeAll(async () => {
-    expect(existsSync(packageRoot), `${packageRoot} must exist; run npm run package:kodi first.`).toBe(
-      true
-    );
+    expect(
+      existsSync(packageRoot),
+      `${packageRoot} must exist; run npm run package:kodi first.`
+    ).toBe(true);
     assertRequiredFallbackFilesExist();
 
     server = createPackageStaticServer(packageRoot);
@@ -89,95 +90,94 @@ describe('M007 no-live packaged browser proof', () => {
     });
   });
 
-  it(
-    'serves every active-root and package-mounted direct route with clean package assets',
-    async () => {
-      expect.assertions(routeMatrix.length * 8);
+  it('serves every active-root and package-mounted direct route with clean package assets', async () => {
+    expect.assertions(routeMatrix.length * 8);
 
-      for (const route of routeMatrix) {
-        const result = await fetchRouteAndAssets(route.urlPath);
+    for (const route of routeMatrix) {
+      const result = await fetchRouteAndAssets(route.urlPath);
 
-        expect(result.status, `${route.name} route ${route.urlPath} should return HTML`).toBe(200);
-        expect(result.html, `${route.name} should include the Kodi webinterface marker`).toContain(
-          'chorus3:kodi-webinterface'
-        );
-        expect(result.html, `${route.name} should include the package base resolver`).toContain(
-          'data-chorus3-kodi-base-resolver'
-        );
-        expect(result.html, `${route.name} should not include setup console fallback copy`).not.toMatch(
-          /Setup console|Multi-host console|Save trusted Kodi endpoints/u
-        );
-        expect(result.html, `${route.name} should not include generic not-found copy`).not.toMatch(
-          /route not found|Route not found|Settings route not found|Add-ons route not found/u
-        );
+      expect(result.status, `${route.name} route ${route.urlPath} should return HTML`).toBe(200);
+      expect(result.html, `${route.name} should include the Kodi webinterface marker`).toContain(
+        'chorus3:kodi-webinterface'
+      );
+      expect(result.html, `${route.name} should include the package base resolver`).toContain(
+        'data-chorus3-kodi-base-resolver'
+      );
+      expect(
+        result.html,
+        `${route.name} should not include setup console fallback copy`
+      ).not.toMatch(/Setup console|Multi-host console|Save trusted Kodi endpoints/u);
+      expect(result.html, `${route.name} should not include generic not-found copy`).not.toMatch(
+        /route not found|Route not found|Settings route not found|Add-ons route not found/u
+      );
+      expect(
+        result.preBaseFailedAssets,
+        `${route.name} should not expose pre-base/speculative JS/CSS/font/image failures: ${result.preBaseFailedAssets.join(', ')}`
+      ).toEqual([]);
+      expect(
+        result.failedAssets,
+        `${route.name} should not have failed JS/CSS/font/image assets: ${result.failedAssets.join(', ')}`
+      ).toEqual([]);
+      expect(
+        result.assetCount,
+        `${route.name} should prove at least one JS and one CSS asset`
+      ).toBeGreaterThanOrEqual(2);
+    }
+  }, 60_000);
+
+  it('mounts every direct route with shell or now-playing anchors, clean console, and redacted visible DOM', async () => {
+    for (const route of routeMatrix) {
+      const target = await renderRoute(route.appPath);
+      const text = target.textContent ?? '';
+      const links = Array.from(target.querySelectorAll('a[href]'));
+
+      const isNowPlayingRoute = stripPackageMount(route.appPath) === '/now-playing';
+
+      expect(
+        target.querySelector('[data-app-page-surface], .embed-route'),
+        `${route.name} should render a primary shell surface or now-playing route`
+      ).toBeInstanceOf(HTMLElement);
+      if (isNowPlayingRoute) {
         expect(
-          result.preBaseFailedAssets,
-          `${route.name} should not expose pre-base/speculative JS/CSS/font/image failures: ${result.preBaseFailedAssets.join(', ')}`
-        ).toEqual([]);
-        expect(
-          result.failedAssets,
-          `${route.name} should not have failed JS/CSS/font/image assets: ${result.failedAssets.join(', ')}`
-        ).toEqual([]);
-        expect(result.assetCount, `${route.name} should prove at least one JS and one CSS asset`).toBeGreaterThanOrEqual(
-          2
-        );
-      }
-    },
-    60_000
-  );
-
-  it(
-    'mounts every direct route with shell or now-playing anchors, clean console, and redacted visible DOM',
-    async () => {
-      for (const route of routeMatrix) {
-        const target = await renderRoute(route.appPath);
-        const text = target.textContent ?? '';
-        const links = Array.from(target.querySelectorAll('a[href]'));
-
-        const isNowPlayingRoute = stripPackageMount(route.appPath) === '/now-playing';
-
-        expect(
-          target.querySelector('[data-app-page-surface], .embed-route'),
-          `${route.name} should render a primary shell surface or now-playing route`
+          target.querySelector('.embed-route [role="status"], .embed-route button'),
+          `${route.name} should render now-playing status or controls`
         ).toBeInstanceOf(HTMLElement);
-        if (isNowPlayingRoute) {
-          expect(
-            target.querySelector('.embed-route [role="status"], .embed-route button'),
-            `${route.name} should render now-playing status or controls`
-          ).toBeInstanceOf(HTMLElement);
-        } else {
-          expect(links.length, `${route.name} should render navigable shell anchors`).toBeGreaterThan(0);
-        }
-        expect(text, `${route.name} should not render setup console copy`).not.toMatch(
-          /Setup console|Multi-host console|Save trusted Kodi endpoints/u
+      } else {
+        expect(links.length, `${route.name} should render navigable shell anchors`).toBeGreaterThan(
+          0
         );
-        expect(text, `${route.name} should not render generic not-found copy`).not.toMatch(
-          /route not found|Route not found|Settings route not found|Add-ons route not found/u
-        );
-        expect(
-          consoleErrors,
-          `${route.name} should not emit console errors while mounting: ${consoleErrors.join('\n')}`
-        ).toEqual([]);
-        for (const expected of route.expectedText) {
-          expect(text, `${route.name} should include route anchor text ${expected}`).toContain(expected);
-        }
-        expect(scanVisibleDomForRedactionCategories(text), `${route.name} visible DOM redaction scan`).toEqual(
-          []
-        );
-        if (!isNowPlayingRoute) {
-          expect(
-            links.some((link) => link.getAttribute('href')?.startsWith(KODI_WEBINTERFACE_BASE_PATH)),
-            `${route.name} package-mounted shell should produce package-base anchors`
-          ).toBe(true);
-        }
-
-        unmountCurrentApp();
-        consoleErrors = [];
-        consoleErrorSpy?.mockClear();
       }
-    },
-    60_000
-  );
+      expect(text, `${route.name} should not render setup console copy`).not.toMatch(
+        /Setup console|Multi-host console|Save trusted Kodi endpoints/u
+      );
+      expect(text, `${route.name} should not render generic not-found copy`).not.toMatch(
+        /route not found|Route not found|Settings route not found|Add-ons route not found/u
+      );
+      expect(
+        consoleErrors,
+        `${route.name} should not emit console errors while mounting: ${consoleErrors.join('\n')}`
+      ).toEqual([]);
+      for (const expected of route.expectedText) {
+        expect(text, `${route.name} should include route anchor text ${expected}`).toContain(
+          expected
+        );
+      }
+      expect(
+        scanVisibleDomForRedactionCategories(text),
+        `${route.name} visible DOM redaction scan`
+      ).toEqual([]);
+      if (!isNowPlayingRoute) {
+        expect(
+          links.some((link) => link.getAttribute('href')?.startsWith(KODI_WEBINTERFACE_BASE_PATH)),
+          `${route.name} package-mounted shell should produce package-base anchors`
+        ).toBe(true);
+      }
+
+      unmountCurrentApp();
+      consoleErrors = [];
+      consoleErrorSpy?.mockClear();
+    }
+  }, 60_000);
 });
 
 function createPackageStaticServer(root: string): Server {
@@ -199,9 +199,10 @@ function createPackageStaticServer(root: string): Server {
 function resolvePackageRequestPath(root: string, pathname: string): string | null {
   const packageRelativePath = stripPackageMount(pathname);
   const normalizedPath = packageRelativePath.replace(/^\/+/, '');
-  const candidates = normalizedPath.endsWith('/') || normalizedPath === ''
-    ? [join(root, normalizedPath, 'index.html')]
-    : [join(root, normalizedPath), join(root, normalizedPath, 'index.html')];
+  const candidates =
+    normalizedPath.endsWith('/') || normalizedPath === ''
+      ? [join(root, normalizedPath, 'index.html')]
+      : [join(root, normalizedPath), join(root, normalizedPath, 'index.html')];
 
   for (const candidate of candidates) {
     if (isPathInside(root, candidate) && existsSync(candidate) && statSync(candidate).isFile()) {
@@ -229,7 +230,9 @@ function isPathInside(root: string, candidate: string): boolean {
   const normalizedCandidate = normalize(candidate);
   const pathFromRoot = relative(normalizedRoot, normalizedCandidate);
 
-  return pathFromRoot === '' || (!pathFromRoot.startsWith('..') && !pathFromRoot.includes(`..${sep}`));
+  return (
+    pathFromRoot === '' || (!pathFromRoot.startsWith('..') && !pathFromRoot.includes(`..${sep}`))
+  );
 }
 
 function contentTypeFor(path: string): string {
@@ -306,7 +309,13 @@ async function fetchRouteAndAssets(urlPath: string): Promise<{
     }
   }
 
-  return { status: routeResponse.status, html, assetCount: assetUrls.size, failedAssets, preBaseFailedAssets };
+  return {
+    status: routeResponse.status,
+    html,
+    assetCount: assetUrls.size,
+    failedAssets,
+    preBaseFailedAssets
+  };
 }
 
 async function fetchPreBaseAssetFailures(html: string, documentUrl: URL): Promise<string[]> {
@@ -326,14 +335,18 @@ async function fetchPreBaseAssetFailures(html: string, documentUrl: URL): Promis
 function resolveKodiBaseUrl(documentUrl: URL): URL {
   const pathname = documentUrl.pathname;
   const packageBase = `${KODI_WEBINTERFACE_BASE_PATH}/`;
-  const basePath = pathname === KODI_WEBINTERFACE_BASE_PATH || pathname.startsWith(packageBase) ? packageBase : '/';
+  const basePath =
+    pathname === KODI_WEBINTERFACE_BASE_PATH || pathname.startsWith(packageBase)
+      ? packageBase
+      : '/';
 
   return new URL(basePath, documentUrl.origin);
 }
 
 function extractHtmlAssetUrls(html: string, documentUrl: URL): string[] {
   const urls: string[] = [];
-  const assetPattern = /\b(?:src|href)=(['"])([^'"]+\.(?:js|css|woff2?|svg|png|jpe?g))(?:\?[^'"]*)?\1/giu;
+  const assetPattern =
+    /\b(?:src|href)=(['"])([^'"]+\.(?:js|css|woff2?|svg|png|jpe?g))(?:\?[^'"]*)?\1/giu;
 
   for (const match of html.matchAll(assetPattern)) {
     urls.push(new URL(match[2], documentUrl).href);
@@ -355,7 +368,8 @@ function extractCssAssetUrls(css: string, cssUrl: URL): string[] {
 
 function extractImportMetaAssetUrls(js: string, scriptUrl: URL): string[] {
   const urls: string[] = [];
-  const importMetaAssetPattern = /new URL\((['"])([^'"]+\.(?:woff2?|svg|png|jpe?g))\1,\s*import\.meta\.url\)/giu;
+  const importMetaAssetPattern =
+    /new URL\((['"])([^'"]+\.(?:woff2?|svg|png|jpe?g))\1,\s*import\.meta\.url\)/giu;
 
   for (const match of js.matchAll(importMetaAssetPattern)) {
     urls.push(new URL(match[2], scriptUrl).href);
@@ -387,7 +401,10 @@ async function renderRoute(pathname: string): Promise<HTMLElement> {
   consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     consoleErrors.push(args.map((arg) => String(arg)).join(' '));
   });
-  vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('{}', { status: 200 }))
+  );
 
   window.history.replaceState(null, '', `${pathname}${secretProbeSearch}`);
   const target = document.createElement('div');

@@ -270,11 +270,14 @@ describe('Kodi package staging', () => {
 
     for (const entry of fallbackEntries) {
       expect(result.entries).toContain(entry);
-      expect(existsSync(join(result.stageDir, entry.replace(`${DEFAULT_ADDON_ID}/`, '')))).toBe(true);
+      expect(existsSync(join(result.stageDir, entry.replace(`${DEFAULT_ADDON_ID}/`, '')))).toBe(
+        true
+      );
     }
 
-    expect(result.entries.filter((entry) => entry === `${DEFAULT_ADDON_ID}/now-playing/index.html`))
-      .toHaveLength(1);
+    expect(
+      result.entries.filter((entry) => entry === `${DEFAULT_ADDON_ID}/now-playing/index.html`)
+    ).toHaveLength(1);
     expect(result.entries).not.toContain(`${DEFAULT_ADDON_ID}//index.html`);
     expect(result.entries).not.toContain(`${DEFAULT_ADDON_ID}/./index.html`);
   });
@@ -305,7 +308,10 @@ describe('Kodi package staging', () => {
     );
 
     const result = stageKodiWebinterfacePackage({ root });
-    const nestedHtml = readFileSync(join(result.stageDir, 'settings/kodi/interface/index.html'), 'utf8');
+    const nestedHtml = readFileSync(
+      join(result.stageDir, 'settings/kodi/interface/index.html'),
+      'utf8'
+    );
     const resolverIndex = nestedHtml.indexOf('data-chorus3-kodi-base-resolver');
     const cssAsset = `href="${KODI_PACKAGE_BASE_PATH}/assets/app.css"`;
     const jsAsset = `src="${KODI_PACKAGE_BASE_PATH}/assets/app.js"`;
@@ -322,8 +328,14 @@ describe('Kodi package staging', () => {
 
   it.each([
     ['blank fallback path', { name: 'blank', routePath: '/blank', stagedIndexPath: '' }],
-    ['traversal fallback path', { name: 'escape', routePath: '/escape', stagedIndexPath: '../escape/index.html' }],
-    ['root duplicate fallback path', { name: 'root', routePath: '/', stagedIndexPath: 'index.html' }]
+    [
+      'traversal fallback path',
+      { name: 'escape', routePath: '/escape', stagedIndexPath: '../escape/index.html' }
+    ],
+    [
+      'root duplicate fallback path',
+      { name: 'root', routePath: '/', stagedIndexPath: 'index.html' }
+    ]
   ])('rejects malformed route fallback contract entries: %s', (_name, fallback) => {
     const root = createFixture(baseFiles());
 

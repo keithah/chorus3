@@ -107,7 +107,7 @@ describe('AppShell navigation DOM', () => {
       )
     );
 
-    expect(currentLinks.map((link) => link.title)).toEqual(['Settings', 'Kodi settings']);
+    expect(currentLinks.map((link) => link.title)).toEqual(['Settings', 'Add-on settings']);
     expect(requireRailLink(target, 'Music').getAttribute('aria-current')).toBeNull();
     expect(
       requireSubmenuLink(target, 'Web interface settings').getAttribute('aria-current')

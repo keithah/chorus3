@@ -70,16 +70,16 @@ Live Kodi install/browser proof passed may be recorded only after the same candi
 
 Use this matrix for live browser proof. The active root proves Chorus3 is selected as Kodi's active webinterface. The package root proves direct package mounting under the add-on path. Direct route rows prove package route fallback and asset resolution after page reload.
 
-| Surface | URL | Expected outcome | Status | Sanitized diagnostics |
-| --- | --- | --- | --- | --- |
-| Active root | `http://localhost:8080/` | AppShell loads as the active Kodi webinterface. | Blocked: Live Kodi unavailable | Not run. |
-| Package root | `http://localhost:8080/addons/webinterface.chorus3/` | AppShell loads from the package-mounted add-on root. | Blocked: Live Kodi unavailable | Not run. |
-| Package music direct route | `http://localhost:8080/addons/webinterface.chorus3/music` | Direct load falls back to AppShell and renders the Music surface. | Blocked: Live Kodi unavailable | Not run. |
-| Package movies direct route | `http://localhost:8080/addons/webinterface.chorus3/movies` | Direct load falls back to AppShell and renders the Movies surface. | Blocked: Live Kodi unavailable | Not run. |
-| Package TV shows direct route | `http://localhost:8080/addons/webinterface.chorus3/tvshows` | Direct load falls back to AppShell and renders the TV shows surface. | Blocked: Live Kodi unavailable | Not run. |
-| Package add-ons direct route | `http://localhost:8080/addons/webinterface.chorus3/addons/all` | Direct load falls back to AppShell and renders the Add-ons surface without confusing it with the package root. | Blocked: Live Kodi unavailable | Not run. |
-| Package settings direct route | `http://localhost:8080/addons/webinterface.chorus3/settings/addons` | Direct load falls back to AppShell and renders the Settings add-ons surface. | Blocked: Live Kodi unavailable | Not run. |
-| Package now-playing direct route | `http://localhost:8080/addons/webinterface.chorus3/now-playing` | Direct load renders the packaged Now Playing embed or safe setup guidance. | Blocked: Live Kodi unavailable | Not run. |
+| Surface                          | URL                                                                 | Expected outcome                                                                                               | Status                         | Sanitized diagnostics |
+| -------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------- |
+| Active root                      | `http://localhost:8080/`                                            | AppShell loads as the active Kodi webinterface.                                                                | Blocked: Live Kodi unavailable | Not run.              |
+| Package root                     | `http://localhost:8080/addons/webinterface.chorus3/`                | AppShell loads from the package-mounted add-on root.                                                           | Blocked: Live Kodi unavailable | Not run.              |
+| Package music direct route       | `http://localhost:8080/addons/webinterface.chorus3/music`           | Direct load falls back to AppShell and renders the Music surface.                                              | Blocked: Live Kodi unavailable | Not run.              |
+| Package movies direct route      | `http://localhost:8080/addons/webinterface.chorus3/movies`          | Direct load falls back to AppShell and renders the Movies surface.                                             | Blocked: Live Kodi unavailable | Not run.              |
+| Package TV shows direct route    | `http://localhost:8080/addons/webinterface.chorus3/tvshows`         | Direct load falls back to AppShell and renders the TV shows surface.                                           | Blocked: Live Kodi unavailable | Not run.              |
+| Package add-ons direct route     | `http://localhost:8080/addons/webinterface.chorus3/addons/all`      | Direct load falls back to AppShell and renders the Add-ons surface without confusing it with the package root. | Blocked: Live Kodi unavailable | Not run.              |
+| Package settings direct route    | `http://localhost:8080/addons/webinterface.chorus3/settings/addons` | Direct load falls back to AppShell and renders the Settings add-ons surface.                                   | Blocked: Live Kodi unavailable | Not run.              |
+| Package now-playing direct route | `http://localhost:8080/addons/webinterface.chorus3/now-playing`     | Direct load renders the packaged Now Playing embed or safe setup guidance.                                     | Blocked: Live Kodi unavailable | Not run.              |
 
 ## Browser Diagnostics
 
@@ -104,25 +104,25 @@ If a browser or Kodi diagnostic contains sensitive-looking material, write the c
 
 Use exactly one classification for the live proof status:
 
-| Classification | Meaning | R069 outcome | R073 outcome |
-| --- | --- | --- | --- |
-| Live Kodi unavailable | Kodi could not be reached, selected, or exercised during this proof run. | R069 remains blocked until live Kodi install/browser proof passes. | R073 is not weakened when no server settings were changed. |
-| No-live package proof passed | Package and no-live browser gates passed, but live Kodi was not exercised. | Does not validate R069. | R073 remains satisfied only if no extra server-setting changes were made. |
-| Live Kodi install/browser proof passed | The generated package was installed or selected through normal Kodi operation and every route row plus browser diagnostics passed. | R069 may be validated by this live evidence. | R073 remains satisfied only when Kodi server settings are not changed beyond normal webinterface installation, selection, and operation. |
+| Classification                         | Meaning                                                                                                                            | R069 outcome                                                       | R073 outcome                                                                                                                             |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Live Kodi unavailable                  | Kodi could not be reached, selected, or exercised during this proof run.                                                           | R069 remains blocked until live Kodi install/browser proof passes. | R073 is not weakened when no server settings were changed.                                                                               |
+| No-live package proof passed           | Package and no-live browser gates passed, but live Kodi was not exercised.                                                         | Does not validate R069.                                            | R073 remains satisfied only if no extra server-setting changes were made.                                                                |
+| Live Kodi install/browser proof passed | The generated package was installed or selected through normal Kodi operation and every route row plus browser diagnostics passed. | R069 may be validated by this live evidence.                       | R073 remains satisfied only when Kodi server settings are not changed beyond normal webinterface installation, selection, and operation. |
 
 Do not infer the third classification from deterministic screenshots, package zip inspection, or no-live browser proof alone.
 
 ## Evidence Log
 
-| Check | Status | Evidence owner | Notes |
-| --- | --- | --- | --- |
-| Proof document contract | Pass | T04 | The proof document and verifier define live, no-live, and unavailable-live boundaries. |
-| S07 visual baseline link | Pass | T04 | `docs/m007-visual-parity-proof.md` is referenced as visual baseline only and not live proof. |
-| Command gates | Pending live executor | S08 operator | Run the commands in this document before installing or selecting the package in Kodi. |
-| Package artifact | Pending live executor | S08 operator | Use `dist/kodi/webinterface.chorus3-<version>.zip` from the command gate output. |
-| Active root | Blocked: Live Kodi unavailable | S08 operator | `http://localhost:8080/` was not exercised in this document revision. |
-| Package root | Blocked: Live Kodi unavailable | S08 operator | `http://localhost:8080/addons/webinterface.chorus3/` was not exercised in this document revision. |
-| Direct route fallback matrix | Blocked: Live Kodi unavailable | S08 operator | Route rows remain not run until a live Kodi instance is available. |
-| Browser diagnostics | Blocked: Live Kodi unavailable | S08 operator | browser console errors, failed network requests, asset 404, route fallback, visible DOM redaction scan, and sanitized diagnostic class outcomes remain not run for live Kodi. |
-| R069 | Blocked: Live Kodi unavailable | S08 operator | R069 requires successful live Kodi install/browser proof. |
-| R073 | Boundary documented | T04 | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation. |
+| Check                        | Status                         | Evidence owner | Notes                                                                                                                                                             |
+| ---------------------------- | ------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof document contract      | Pass                           | T04            | The proof document and verifier define live, no-live, and unavailable-live boundaries.                                                                            |
+| S07 visual baseline link     | Pass                           | T04            | `docs/m007-visual-parity-proof.md` is referenced as visual baseline only and not live proof.                                                                      |
+| Command gates                | Pass                           | T05            | `npm run verify`, `npm run verify:chorus2-parity`, `npm run verify:kodi-package`, and the targeted S08/S07/package browser/main test command exited 0.            |
+| Package artifact             | Pass                           | T05            | `dist/kodi/webinterface.chorus3-<version>.zip` exists after the command gates.                                                                                    |
+| Active root                  | Blocked: Live Kodi unavailable | T05            | Status-only probe and browser navigation reported connection refused for the active root; no live route assertions were run.                                      |
+| Package root                 | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable before package-mounted route checks.                                                                     |
+| Direct route fallback matrix | Blocked: Live Kodi unavailable | T05            | Not run because the local Kodi webserver was unavailable; no-live package browser proof passed but does not validate R069.                                        |
+| Browser diagnostics          | Blocked: Live Kodi unavailable | T05            | Browser diagnostics are limited to unavailable connection class; console, asset, route fallback, and visible DOM redaction checks were not run against live Kodi. |
+| R069                         | Blocked: Live Kodi unavailable | T05            | R069 remains blocked because successful live Kodi install/browser proof was not available.                                                                        |
+| R073                         | Boundary documented            | T04            | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation.                                                     |

@@ -60,7 +60,8 @@ const FORBIDDEN_BASENAMES = new Set([
 const FORBIDDEN_EXTENSIONS = /\.(?:svelte|ts|tsx)$/i;
 const TEST_FILE_PATTERN = /(?:^|[/.])(?:test|spec)\.[cm]?[jt]sx?$/i;
 const ROOT_ABSOLUTE_ASSET_PATTERN = /\b(?:src|href)=(['"])\/assets\//i;
-const ASSET_TAG_PATTERN = /\b(?:src|href)=(['"])(?:\.\/|\/addons\/webinterface\.chorus3\/|\/)assets\//gi;
+const ASSET_TAG_PATTERN =
+  /\b(?:src|href)=(['"])(?:\.\/|\/addons\/webinterface\.chorus3\/|\/)assets\//gi;
 const KODI_BASE_RESOLVER_PATTERN = /\bdata-chorus3-kodi-base-resolver\b/i;
 const PACKAGE_BASE_PATH_PATTERN = /\/addons\/webinterface\.chorus3\//;
 const PACKAGE_ESCAPING_ASSET_ROOTS = ['chorus2-assets', 'images', 'themes', 'fonts'];
@@ -722,7 +723,9 @@ function findFirstAssetTagIndex(html) {
 }
 
 function safeRouteFallbackLabel(fallback) {
-  return typeof fallback?.name === 'string' && fallback.name.trim() ? fallback.name.trim() : 'unknown';
+  return typeof fallback?.name === 'string' && fallback.name.trim()
+    ? fallback.name.trim()
+    : 'unknown';
 }
 
 function safeStagedIndexPath(fallback) {

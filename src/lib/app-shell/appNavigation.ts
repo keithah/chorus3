@@ -111,7 +111,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
         items: [
           {
             id: 'home',
-            title: 'Music',
+            title: 'Music home',
             label: 'Music',
             route: { kind: 'music' },
             activeRouteKinds: ['home', 'music']

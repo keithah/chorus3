@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { buildAppRoute, parseAppRoute, type Chorus2RoutePlaceholder } from '$lib/app/appRouter';
+  import { type Chorus2RoutePlaceholder } from '$lib/app/appRouter';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 
   interface Props {
@@ -19,11 +19,30 @@
     deferred: 'neutral',
     intentionallyChanged: 'neutral'
   };
+  const unsafePathPattern =
+    /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
-  let recoveryHref = $derived(
-    buildAppRoute(parseAppRoute(placeholder.recoveryRoute), { packageBasePath })
-  );
+  let recoveryHref = $derived(buildPackageRecoveryHref(placeholder.recoveryRoute, packageBasePath));
   let statusTone = $derived(statusToneByStatus[placeholder.status] ?? 'neutral');
+
+  function buildPackageRecoveryHref(recoveryRoute: string, basePath: string): string {
+    const normalizedRoute = normalizePath(recoveryRoute);
+    const normalizedBase = normalizePath(basePath);
+
+    if (!normalizedBase || normalizedBase === '/') {
+      return normalizedRoute;
+    }
+
+    return normalizedRoute === '/' ? normalizedBase : `${normalizedBase}${normalizedRoute}`;
+  }
+
+  function normalizePath(path: string): string {
+    const pathOnly = path.split(/[?#]/u, 1)[0]?.trim() ?? '';
+    if (!pathOnly || unsafePathPattern.test(pathOnly)) return '';
+    const withLeadingSlash = pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`;
+    const compacted = withLeadingSlash.replace(/\/{2,}/gu, '/');
+    return compacted.length > 1 ? compacted.replace(/\/+$/gu, '') : compacted;
+  }
 </script>
 
 <article class="parity-placeholder" aria-labelledby={`parity-placeholder-${placeholder.id}-title`}>

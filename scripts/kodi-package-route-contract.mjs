@@ -21,7 +21,11 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     stagedIndexPath: 'settings/kodi/interface/index.html'
   },
   { name: 'help', routePath: '/help', stagedIndexPath: 'help/index.html' },
-  { name: 'help-keyboard', routePath: '/help/keyboard', stagedIndexPath: 'help/keyboard/index.html' },
+  {
+    name: 'help-keyboard',
+    routePath: '/help/keyboard',
+    stagedIndexPath: 'help/keyboard/index.html'
+  },
   { name: 'remote', routePath: '/remote', stagedIndexPath: 'remote/index.html' },
   { name: 'now-playing', routePath: '/now-playing', stagedIndexPath: 'now-playing/index.html' }
 ]);

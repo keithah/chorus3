@@ -451,7 +451,9 @@ function injectKodiWebinterfaceMarker({ addonId, stageDir }) {
 function injectKodiWebinterfaceHead({ html, marker, sourceLabel }) {
   if (html.includes('data-chorus3-kodi-base-resolver')) {
     if (!html.includes('name="chorus3:kodi-webinterface"')) {
-      throw new Error(`[fallback] ${sourceLabel} has resolver but is missing Kodi webinterface marker.`);
+      throw new Error(
+        `[fallback] ${sourceLabel} has resolver but is missing Kodi webinterface marker.`
+      );
     }
     assertResolverBeforeAssets({ html, sourceLabel });
     return html;
@@ -495,7 +497,9 @@ function assertResolverBeforeAssets({ html, sourceLabel }) {
   }
 
   if (firstAssetIndex !== -1 && resolverIndex > firstAssetIndex) {
-    throw new Error(`[fallback] ${sourceLabel} places the Kodi package base resolver after asset tags.`);
+    throw new Error(
+      `[fallback] ${sourceLabel} places the Kodi package base resolver after asset tags.`
+    );
   }
 }
 

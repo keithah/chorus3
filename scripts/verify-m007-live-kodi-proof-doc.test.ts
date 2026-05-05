@@ -184,15 +184,25 @@ function validateM007LiveKodiProofDoc(doc: string): string[] {
     }
   }
 
-  if (!/R069[\s\S]{0,180}(?:requires|only)[\s\S]{0,180}live Kodi install\/browser proof/i.test(doc)) {
+  if (
+    !/R069[\s\S]{0,180}(?:requires|only)[\s\S]{0,180}live Kodi install\/browser proof/i.test(doc)
+  ) {
     errors.push(`${DOC_PATH} must state R069 requires successful live Kodi install/browser proof.`);
   }
 
-  if (/R069[^\n|]*(?:validated|satisfied|passed|complete)[^\n|]*(?:no-live|screenshot|unavailable)/i.test(doc)) {
+  if (
+    /R069[^\n|]*(?:validated|satisfied|passed|complete)[^\n|]*(?:no-live|screenshot|unavailable)/i.test(
+      doc
+    )
+  ) {
     errors.push(`${DOC_PATH} must not mark R069 validated before live proof passes.`);
   }
 
-  if (/Live Kodi unavailable[^\n|]*(?:but|and)[^\n|]*(?:validated|satisfied|passed|complete)/i.test(doc)) {
+  if (
+    /Live Kodi unavailable[^\n|]*(?:but|and)[^\n|]*(?:validated|satisfied|passed|complete)/i.test(
+      doc
+    )
+  ) {
     errors.push(`${DOC_PATH} must not pair unavailable live Kodi with success wording.`);
   }
 
@@ -204,7 +214,11 @@ function validateM007LiveKodiProofDoc(doc: string): string[] {
     errors.push(`${DOC_PATH} must state no-live package proof does not validate R069.`);
   }
 
-  if (!/R073[\s\S]{0,240}not changed beyond normal webinterface installation, selection, and operation/i.test(doc)) {
+  if (
+    !/R073[\s\S]{0,240}not changed beyond normal webinterface installation, selection, and operation/i.test(
+      doc
+    )
+  ) {
     errors.push(`${DOC_PATH} must state R073 server-setting boundary.`);
   }
 
@@ -266,20 +280,32 @@ describe('M007 live Kodi install proof documentation contract', () => {
         .join('Live Kodi skipped')
     ).join('\n');
 
-    expect(errors).toContain(`${DOC_PATH} must include route matrix row ${REQUIRED_ROUTE_ROWS[0]}.`);
+    expect(errors).toContain(
+      `${DOC_PATH} must include route matrix row ${REQUIRED_ROUTE_ROWS[0]}.`
+    );
     expect(errors).toContain(`${DOC_PATH} must include active root URL ${ACTIVE_ROOT_URL}.`);
-    expect(errors).toContain(`${DOC_PATH} must include result classification term Live Kodi unavailable.`);
+    expect(errors).toContain(
+      `${DOC_PATH} must include result classification term Live Kodi unavailable.`
+    );
   });
 
   it('rejects success wording when live Kodi is unavailable or R069 is marked validated', () => {
     const badDoc = minimalValidDoc()
-      .replace('R069 remains blocked until live Kodi install/browser proof passes.', 'R069 validated by no-live proof.')
-      .replace('Live Kodi unavailable means R069 remains blocked until a live browser run passes.', 'Live Kodi unavailable but R069 passed.');
+      .replace(
+        'R069 remains blocked until live Kodi install/browser proof passes.',
+        'R069 validated by no-live proof.'
+      )
+      .replace(
+        'Live Kodi unavailable means R069 remains blocked until a live browser run passes.',
+        'Live Kodi unavailable but R069 passed.'
+      );
 
     const errors = validateM007LiveKodiProofDoc(badDoc).join('\n');
 
     expect(errors).toContain(`${DOC_PATH} must not mark R069 validated before live proof passes.`);
-    expect(errors).toContain(`${DOC_PATH} must not pair unavailable live Kodi with success wording.`);
+    expect(errors).toContain(
+      `${DOC_PATH} must not pair unavailable live Kodi with success wording.`
+    );
   });
 
   it('rejects forbidden secret, raw transport, ignored-artifact, path, media-scheme, and placeholder content', () => {
@@ -301,7 +327,9 @@ describe('M007 live Kodi install proof documentation contract', () => {
     expect(errors).toContain(`${DOC_PATH} must not include Basic auth literal values.`);
     expect(errors).toContain(`${DOC_PATH} must not include Bearer token literal values.`);
     expect(errors).toContain(`${DOC_PATH} must not include raw JSON-RPC object literals.`);
-    expect(errors).toContain(`${DOC_PATH} must not include ignored planning or agent artifact paths.`);
+    expect(errors).toContain(
+      `${DOC_PATH} must not include ignored planning or agent artifact paths.`
+    );
     expect(errors).toContain(`${DOC_PATH} must not include absolute local paths.`);
     expect(errors).toContain(`${DOC_PATH} must not include Kodi media path schemes.`);
     expect(errors).toContain(`${DOC_PATH} must not include TODO or TBD placeholders.`);

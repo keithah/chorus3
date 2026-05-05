@@ -446,8 +446,10 @@ describe('SettingsPanel', () => {
     });
 
     expect(screenText()).toContain('This category is read-only in Chorus.');
-    expect(screenText()).toContain('Read-only: Kodi action settings are not editable values.');
-    expect(screenText()).toContain('Read-only: Kodi custom settings are not supported.');
+    expect(screenText()).toContain('Read-only: Kodi action settings are not safe to edit here.');
+    expect(screenText()).toContain(
+      'Read-only: Kodi custom setting payloads are not safe to edit here.'
+    );
     expect(document.querySelectorAll('[data-setting-control]').length).toBe(0);
   });
 });
