@@ -17,7 +17,7 @@ Covered surfaces:
 - Drawer expanded menu and collapsed states.
 - Browser command diagnostics, visible DOM redaction scan, and package verifier boundary checks.
 
-The proof uses deterministic `m007-visual-proof=1` fixture state. Live Kodi install proof belongs to S08 live Kodi install proof and must not be claimed here.
+The proof uses deterministic `m007-visual-proof=1` fixture state. Live Kodi install proof belongs to S08 live Kodi install proof and must not be claimed here. Use `docs/m007-live-kodi-install-proof.md` for the S08 live Kodi install evidence contract.
 
 ## Redaction Rules
 
