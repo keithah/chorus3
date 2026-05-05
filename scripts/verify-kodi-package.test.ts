@@ -9,6 +9,7 @@ import {
   buildPrimaryAppRoute,
   parseAppRoute
 } from '../src/lib/app/appRouter';
+import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
 import {
   DEFAULT_DOC_PATH,
   DEFAULT_PACKAGE_ROOT,
@@ -47,12 +48,10 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
       platform: 'all'
     }),
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/addon.xml`]: validAddonXml(),
-    [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]:
-      '<!doctype html><meta name="chorus3:kodi-webinterface" content="webinterface.chorus3"><script type="module" src="./assets/app.js"></script><link rel="stylesheet" href="./assets/app.css">',
+    [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]: validPackageHtml(),
+    ...fallbackFiles(),
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]: 'console.log("chorus3")',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]: ':root { color-scheme: dark; }',
-    [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`]:
-      '<!doctype html><main>Now playing</main>',
     [DEFAULT_DOC_PATH]: [
       '# M005 Kodi package UAT',
       'Run `npm run verify`, `npm run package:kodi`, and `npm run verify:kodi-package`.',
@@ -62,6 +61,28 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     ].join('\n'),
     ...overrides
   };
+}
+
+function fallbackFiles(html = validPackageHtml()): Record<string, string> {
+  return Object.fromEntries(
+    getKodiPackageRouteFallbacks().map((fallback) => [
+      `dist/kodi/${DEFAULT_PACKAGE_ROOT}/${fallback.stagedIndexPath}`,
+      html
+    ])
+  );
+}
+
+function validPackageHtml() {
+  return [
+    '<!doctype html><html><head>',
+    '<meta name="chorus3:kodi-webinterface" content="webinterface.chorus3">',
+    '<script data-chorus3-kodi-base-resolver>',
+    `(function () { var packageBase = '/addons/${DEFAULT_PACKAGE_ROOT}/'; document.write('<base href="' + packageBase + '">'); })();`,
+    '</script>',
+    '<script type="module" src="./assets/app.js"></script>',
+    '<link rel="stylesheet" href="./assets/app.css">',
+    '</head><body><main>Chorus3</main></body></html>'
+  ].join('');
 }
 
 function validAddonXml(
@@ -96,7 +117,9 @@ function validZipEntries(extra: string[] = []) {
     `${DEFAULT_PACKAGE_ROOT}/index.html`,
     `${DEFAULT_PACKAGE_ROOT}/assets/app.js`,
     `${DEFAULT_PACKAGE_ROOT}/assets/app.css`,
-    `${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`,
+    ...getKodiPackageRouteFallbacks().map(
+      (fallback) => `${DEFAULT_PACKAGE_ROOT}/${fallback.stagedIndexPath}`
+    ),
     ...extra
   ];
 }
@@ -164,9 +187,103 @@ describe('Kodi package structural verification', () => {
     expect(result.lines).toContain(
       '[html-assets] index.html uses relative asset URLs and Kodi webinterface marker.'
     );
-    expect(result.lines).toContain('[archive] zip root webinterface.chorus3 contains 5 entries.');
+    expect(result.lines).toContain('[archive] zip root webinterface.chorus3 contains 19 entries.');
+    expect(result.lines).toContain(
+      '[route-fallback] 15 staged route fallback files include safe package asset prerequisites.'
+    );
     expect(result.lines).toContain(
       '[now-playing] packaged now-playing entry and route support are present.'
+    );
+  });
+
+  it('rejects missing nested route fallback files with route-specific diagnostics', async () => {
+    const root = createFixture(baseFiles());
+    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`));
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html is missing from staged package.'
+    );
+  });
+
+  it('rejects missing route fallback zip entries with route-specific diagnostics', async () => {
+    const root = createFixture(baseFiles());
+
+    const result = await validateKodiPackage({
+      root,
+      zipEntries: validZipEntries().filter(
+        (entry) => entry !== `${DEFAULT_PACKAGE_ROOT}/help/keyboard/index.html`
+      )
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] help-keyboard webinterface.chorus3/help/keyboard/index.html is missing from zip.'
+    );
+  });
+
+  it('rejects route fallback HTML with missing or reordered base resolver before assets', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`]: [
+          '<!doctype html><html><head>',
+          '<meta name="chorus3:kodi-webinterface" content="webinterface.chorus3">',
+          '<script type="module" src="./assets/app.js"></script>',
+          '<script data-chorus3-kodi-base-resolver></script>',
+          '</head></html>'
+        ].join('')
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html places the Kodi package base resolver after asset tags.'
+    );
+  });
+
+  it('rejects static root-absolute asset references in route fallback HTML without echoing raw paths', async () => {
+    const root = createFixture(
+      baseFiles({
+        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/help/keyboard/index.html`]: validPackageHtml().replace(
+          './assets/app.js',
+          '/assets/app.js?token=secret-value'
+        )
+      })
+    );
+
+    const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] help-keyboard dist/kodi/webinterface.chorus3/help/keyboard/index.html must not reference root-absolute /assets URLs.'
+    );
+    expect(result.lines.join('\n')).not.toContain('secret-value');
+  });
+
+  it('keeps high-risk now-playing and settings route fallbacks mechanically checked', async () => {
+    const root = createFixture(baseFiles());
+    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`));
+    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`));
+
+    const result = await validateKodiPackage({
+      root,
+      zipEntries: validZipEntries().filter(
+        (entry) =>
+          entry !== `${DEFAULT_PACKAGE_ROOT}/now-playing/index.html` &&
+          entry !== `${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`
+      )
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] now-playing dist/kodi/webinterface.chorus3/now-playing/index.html is missing from staged package.'
+    );
+    expect(result.lines.join('\n')).toContain(
+      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html is missing from staged package.'
     );
   });
 

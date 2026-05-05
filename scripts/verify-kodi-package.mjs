@@ -5,6 +5,7 @@ import { argv, cwd, exit } from 'node:process';
 import { packageKodiWebinterface } from './package-kodi-webinterface.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
 
 export const DEFAULT_PACKAGE_ROOT = 'webinterface.chorus3';
 export const DEFAULT_DOC_PATH = 'docs/m005-kodi-package-uat.md';
@@ -59,6 +60,9 @@ const FORBIDDEN_BASENAMES = new Set([
 const FORBIDDEN_EXTENSIONS = /\.(?:svelte|ts|tsx)$/i;
 const TEST_FILE_PATTERN = /(?:^|[/.])(?:test|spec)\.[cm]?[jt]sx?$/i;
 const ROOT_ABSOLUTE_ASSET_PATTERN = /\b(?:src|href)=(['"])\/assets\//i;
+const ASSET_TAG_PATTERN = /\b(?:src|href)=(['"])(?:\.\/|\/)assets\//gi;
+const KODI_BASE_RESOLVER_PATTERN = /\bdata-chorus3-kodi-base-resolver\b/i;
+const PACKAGE_BASE_PATH_PATTERN = /\/addons\/webinterface\.chorus3\//;
 const PACKAGE_ESCAPING_ASSET_ROOTS = ['chorus2-assets', 'images', 'themes', 'fonts'];
 const PACKAGE_ESCAPING_ASSET_PATTERN =
   /(?:["'(=:\s]|url\(\s*)(\/(?:chorus2-assets|images|themes|fonts)(?=\/|["')?\s]))/gi;
@@ -244,11 +248,12 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
     validateArchiveEntries({ entries, addonId, lines });
   }
 
+  validateRouteFallbackEntrypoints({ root, addonId, entries, lines });
   validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines });
   lines.push(...validateKodiPackageDocs({ root }).lines);
 
   const ok = !lines.some((line) =>
-    /^\[(?:metadata|manifest|html-assets|bundle-assets|bundle-shell|archive|forbidden|zip-listing|now-playing|route|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected)/i.test(
+    /^\[(?:metadata|manifest|html-assets|bundle-assets|bundle-shell|archive|forbidden|zip-listing|now-playing|route|route-fallback|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected|places|contains forbidden)/i.test(
       line
     )
   );
@@ -614,6 +619,131 @@ function validateArchiveEntries({ entries, addonId, lines }) {
   ) {
     lines.push(`[archive] zip root ${addonId} contains ${normalizedEntries.length} entries.`);
   }
+}
+
+function validateRouteFallbackEntrypoints({ root, addonId, entries, lines }) {
+  const stageRoot = join(root, PACKAGE_ROOT, addonId);
+  const normalizedEntries = Array.isArray(entries) ? entries.map(normalizeArchiveEntry) : null;
+  const fallbacks = getKodiPackageRouteFallbacks();
+  let validFallbacks = 0;
+
+  for (const fallback of fallbacks) {
+    const routeLabel = safeRouteFallbackLabel(fallback);
+    const stagedIndexPath = safeStagedIndexPath(fallback);
+
+    if (!stagedIndexPath) {
+      lines.push(`[route-fallback] ${routeLabel} has invalid fallback path in route contract.`);
+      continue;
+    }
+
+    const packageEntry = `${addonId}/${stagedIndexPath}`;
+    const relativePath = `${PACKAGE_ROOT}/${packageEntry}`;
+    const path = join(stageRoot, stagedIndexPath);
+    let valid = true;
+
+    if (!existsSync(path) || !statSync(path).isFile()) {
+      lines.push(`[route-fallback] ${routeLabel} ${relativePath} is missing from staged package.`);
+      valid = false;
+    } else {
+      const html = readFileSync(path, 'utf8');
+      valid = validateRouteFallbackHtml({ html, relativePath, routeLabel, lines });
+    }
+
+    if (normalizedEntries && !normalizedEntries.includes(packageEntry)) {
+      lines.push(`[route-fallback] ${routeLabel} ${packageEntry} is missing from zip.`);
+      valid = false;
+    }
+
+    if (valid) {
+      validFallbacks += 1;
+    }
+  }
+
+  if (validFallbacks === fallbacks.length) {
+    lines.push(
+      `[route-fallback] ${fallbacks.length} staged route fallback files include safe package asset prerequisites.`
+    );
+  }
+}
+
+function validateRouteFallbackHtml({ html, relativePath, routeLabel, lines }) {
+  let valid = true;
+
+  if (!KODI_WEBINTERFACE_MARKER_PATTERN.test(html)) {
+    lines.push(
+      `[route-fallback] ${routeLabel} ${relativePath} must include the Kodi webinterface marker.`
+    );
+    valid = false;
+  }
+
+  const resolverIndex = html.search(KODI_BASE_RESOLVER_PATTERN);
+  if (resolverIndex === -1) {
+    lines.push(
+      `[route-fallback] ${routeLabel} ${relativePath} is missing the Kodi package base resolver.`
+    );
+    valid = false;
+  } else {
+    if (!PACKAGE_BASE_PATH_PATTERN.test(html)) {
+      lines.push(
+        `[route-fallback] ${routeLabel} ${relativePath} resolver must reference the package mount base.`
+      );
+      valid = false;
+    }
+
+    const firstAssetIndex = findFirstAssetTagIndex(html);
+    if (firstAssetIndex !== -1 && resolverIndex > firstAssetIndex) {
+      lines.push(
+        `[route-fallback] ${routeLabel} ${relativePath} places the Kodi package base resolver after asset tags.`
+      );
+      valid = false;
+    }
+  }
+
+  if (ROOT_ABSOLUTE_ASSET_PATTERN.test(html)) {
+    lines.push(
+      `[route-fallback] ${routeLabel} ${relativePath} must not reference root-absolute /assets URLs.`
+    );
+    valid = false;
+  }
+
+  if (CREDENTIAL_DOC_PATTERN.test(html)) {
+    lines.push(
+      `[route-fallback] ${routeLabel} ${relativePath} contains forbidden credential-bearing content.`
+    );
+    valid = false;
+  }
+
+  return valid;
+}
+
+function findFirstAssetTagIndex(html) {
+  const indexes = [...html.matchAll(ASSET_TAG_PATTERN)].map((match) => match.index ?? -1);
+  return indexes.length === 0 ? -1 : Math.min(...indexes);
+}
+
+function safeRouteFallbackLabel(fallback) {
+  return typeof fallback?.name === 'string' && fallback.name.trim() ? fallback.name.trim() : 'unknown';
+}
+
+function safeStagedIndexPath(fallback) {
+  if (typeof fallback?.stagedIndexPath !== 'string') {
+    return '';
+  }
+
+  const stagedIndexPath = fallback.stagedIndexPath.trim().replace(/\\/g, '/');
+  const segments = stagedIndexPath.split('/');
+  if (
+    !stagedIndexPath ||
+    stagedIndexPath.startsWith('/') ||
+    stagedIndexPath.includes('//') ||
+    segments.includes('..') ||
+    segments.includes('.') ||
+    !stagedIndexPath.endsWith('/index.html')
+  ) {
+    return '';
+  }
+
+  return stagedIndexPath;
 }
 
 function validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines }) {
