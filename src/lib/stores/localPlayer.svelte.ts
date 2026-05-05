@@ -194,6 +194,17 @@ export class LocalPlayerStore {
     };
 
     const onError = () => {
+      if (!adapter.paused && !adapter.ended) {
+        this.#snapshot = {
+          ...this.#snapshot,
+          status: 'playing',
+          lastError: null,
+          currentSeconds: normalizeSeconds(adapter.currentTime),
+          lastUpdatedAt: this.#now()
+        };
+        return;
+      }
+
       this.#snapshot = {
         ...this.#snapshot,
         status: 'error',

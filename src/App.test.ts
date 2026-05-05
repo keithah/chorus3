@@ -2715,11 +2715,12 @@ describe('App shell', () => {
     expect(shortHeightRule, 'rail scroll gestures stay contained').toMatch(
       /overscroll-behavior(?:-y)?\s*:\s*contain/u
     );
-    expect(shortHeightRule, 'real hover labels cannot widen phone landscape layouts').toMatch(
-      /\.c2-rail-label,\s*\.c2-submenu[\s\S]*display\s*:\s*none/u
+    expect(source, 'rail section-name flyouts are not rendered').not.toContain('c2-rail-label');
+    expect(source, 'rail labels stay screen-reader only').toContain(
+      '<span class="visually-hidden">{item.label}</span>'
     );
     expect(shortHeightRule, 'short-height submenus stay bounded').toMatch(
-      /\.c2-rail-label,\s*\.c2-submenu[\s\S]*max-height\s*:\s*0/u
+      /\.c2-submenu[\s\S]*max-height\s*:\s*0/u
     );
   });
 

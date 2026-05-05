@@ -9,68 +9,70 @@
 
   type RemoteButtonDefinition = {
     command: RemoteInputCommand;
-    labelKey: string;
     ariaKey: string;
+    iconClass: string;
     className?: string;
   };
 
-  type PowerButtonDefinition = {
-    labelKey: string;
-  };
-
-  const REMOTE_BUTTONS: readonly RemoteButtonDefinition[] = [
-    {
-      command: 'up',
-      labelKey: 'remote.command.up',
-      ariaKey: 'remote.command.upAria',
-      className: 'up'
-    },
+  const DIRECTION_BUTTONS: readonly RemoteButtonDefinition[] = [
     {
       command: 'left',
-      labelKey: 'remote.command.left',
       ariaKey: 'remote.command.leftAria',
+      iconClass: 'mdi-hardware-keyboard-arrow-left',
       className: 'left'
     },
     {
-      command: 'select',
-      labelKey: 'remote.command.select',
-      ariaKey: 'remote.command.selectAria',
-      className: 'select'
-    },
-    {
-      command: 'right',
-      labelKey: 'remote.command.right',
-      ariaKey: 'remote.command.rightAria',
-      className: 'right'
+      command: 'up',
+      ariaKey: 'remote.command.upAria',
+      iconClass: 'mdi-hardware-keyboard-arrow-up',
+      className: 'up'
     },
     {
       command: 'down',
-      labelKey: 'remote.command.down',
       ariaKey: 'remote.command.downAria',
+      iconClass: 'mdi-hardware-keyboard-arrow-down',
       className: 'down'
     },
-    { command: 'back', labelKey: 'remote.command.back', ariaKey: 'remote.command.backAria' },
-    { command: 'info', labelKey: 'remote.command.info', ariaKey: 'remote.command.infoAria' },
     {
-      command: 'contextMenu',
-      labelKey: 'remote.command.contextMenu',
-      ariaKey: 'remote.command.contextMenuAria'
+      command: 'right',
+      ariaKey: 'remote.command.rightAria',
+      iconClass: 'mdi-hardware-keyboard-arrow-right',
+      className: 'right'
     },
-    { command: 'home', labelKey: 'remote.command.home', ariaKey: 'remote.command.homeAria' }
+    {
+      command: 'select',
+      ariaKey: 'remote.command.selectAria',
+      iconClass: 'mdi-image-brightness-1',
+      className: 'ok'
+    }
   ];
 
-  const POWER_BUTTONS: readonly PowerButtonDefinition[] = [
-    { labelKey: 'remote.power.quit' },
-    { labelKey: 'remote.power.shutdown' },
-    { labelKey: 'remote.power.reboot' },
-    { labelKey: 'remote.power.suspend' },
-    { labelKey: 'remote.power.hibernate' }
+  const SIDE_BUTTONS: readonly RemoteButtonDefinition[] = [
+    {
+      command: 'contextMenu',
+      ariaKey: 'remote.command.contextMenuAria',
+      iconClass: 'mdi-navigation-more-vert'
+    },
+    { command: 'info', ariaKey: 'remote.command.infoAria', iconClass: 'mdi-action-info' }
+  ];
+
+  const SECONDARY_INPUTS: readonly RemoteButtonDefinition[] = [
+    {
+      command: 'back',
+      ariaKey: 'remote.command.backAria',
+      iconClass: 'mdi-hardware-keyboard-return'
+    },
+    {
+      command: 'home',
+      ariaKey: 'remote.command.homeAria',
+      iconClass: 'mdi-maps-store-mall-directory'
+    }
   ];
 </script>
 
 <script lang="ts">
-  import PlayerControls, { type PlayerControlsDispatch } from './PlayerControls.svelte';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { PlayerControlsDispatch } from './PlayerControls.svelte';
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
 
   interface Props {
@@ -90,6 +92,7 @@
   }: Props = $props();
 
   const isRemoteRunning = $derived(remoteSnapshot.commandStatus === 'running');
+  const isPlayerRunning = $derived(playerDispatch.snapshot.commandStatus === 'running');
   const safeLastCommand = $derived(commandLabel(remoteSnapshot.lastCommand));
   const safeError = $derived(
     remoteSnapshot.lastError ? sanitizeDiagnostic(remoteSnapshot.lastError.message) : null
@@ -100,6 +103,16 @@
       await remoteInputDispatch.sendInput(command);
     } catch {
       // The dispatch snapshot is the only diagnostics surface. Do not render raw thrown values.
+    }
+  }
+
+  function handleStop(): void {
+    try {
+      void Promise.resolve(playerDispatch.stop()).catch(() => {
+        // Player command diagnostics are owned by the dispatch snapshot.
+      });
+    } catch {
+      // Keep the remote controller mounted if an injected action throws synchronously.
     }
   }
 
@@ -125,296 +138,361 @@
 </script>
 
 <article class="remote-input-panel" aria-labelledby="remote-input-title">
-  <header class="remote-hero">
-    <p class="remote-kicker">{i18n.t('remote.panel.eyebrow')}</p>
-    <h2 id="remote-input-title">{i18n.t('remote.panel.title')}</h2>
-    <p>{i18n.t('remote.panel.description')}</p>
-  </header>
+  <div class="remote-background" aria-hidden="true"></div>
 
-  <section class="remote-section remote-pad" aria-labelledby="remote-pad-title">
-    <div class="section-heading">
-      <h3 id="remote-pad-title">{i18n.t('remote.input.title')}</h3>
-      <p>{i18n.t('remote.input.help')}</p>
+  <section class="kodi-remote" aria-label={i18n.t('remote.input.aria')}>
+    <h2 id="remote-input-title" class="remote-visually-hidden">{i18n.t('remote.panel.title')}</h2>
+
+    <div class="playing-area" aria-live="polite" aria-atomic="true">
+      <p class="remote-kicker">{i18n.t('remote.panel.eyebrow')}</p>
+      <p>{i18n.t('remote.diagnostics.status', { status: remoteSnapshot.commandStatus })}</p>
+      <p>{i18n.t('remote.diagnostics.lastCommand', { command: safeLastCommand })}</p>
+      {#if remoteSnapshot.lastError && safeError}
+        <p class="remote-error">
+          {i18n.t('remote.diagnostics.error', {
+            source: remoteSnapshot.lastError.source,
+            code: remoteSnapshot.lastError.code,
+            message: safeError
+          })}
+        </p>
+      {/if}
     </div>
 
-    <div class="remote-button-grid" aria-label={i18n.t('remote.input.aria')}>
-      {#each REMOTE_BUTTONS as button}
+    <div class="main-controls">
+      <div class="direction">
+        <div class="pad">
+          {#each DIRECTION_BUTTONS as button}
+            <button
+              type="button"
+              class={`ibut input-button ${button.className ?? ''}`}
+              aria-label={i18n.t(button.ariaKey)}
+              disabled={isRemoteRunning}
+              onclick={() => handleRemoteCommand(button.command)}
+            >
+              <span class={`mdi ${button.iconClass}`} aria-hidden="true"></span>
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <div class="buttons">
         <button
           type="button"
-          class={`remote-command-button ${button.className ?? 'utility'}`}
-          aria-label={i18n.t(button.ariaKey)}
-          disabled={isRemoteRunning}
-          onclick={() => handleRemoteCommand(button.command)}
+          class="ibut power-button"
+          aria-label={i18n.t('remote.power.title')}
+          title={i18n.t('remote.power.guardCopy')}
+          disabled
         >
-          {i18n.t(button.labelKey)}
+          <span class="mdi mdi-action-settings-power" aria-hidden="true"></span>
         </button>
-      {/each}
-    </div>
-  </section>
-
-  <section class="remote-section diagnostics" aria-labelledby="remote-diagnostics-title">
-    <div class="section-heading">
-      <h3 id="remote-diagnostics-title">{i18n.t('remote.diagnostics.title')}</h3>
-      <p>{i18n.t('remote.diagnostics.help')}</p>
-    </div>
-
-    <dl aria-live="polite" aria-atomic="true">
-      <div>
-        <dt>{i18n.t('remote.diagnostics.statusLabel')}</dt>
-        <dd>{i18n.t('remote.diagnostics.status', { status: remoteSnapshot.commandStatus })}</dd>
+        {#each SIDE_BUTTONS as button}
+          <button
+            type="button"
+            class="ibut input-button"
+            aria-label={i18n.t(button.ariaKey)}
+            disabled={isRemoteRunning}
+            onclick={() => handleRemoteCommand(button.command)}
+          >
+            <span class={`mdi ${button.iconClass}`} aria-hidden="true"></span>
+          </button>
+        {/each}
       </div>
-      <div>
-        <dt>{i18n.t('remote.diagnostics.lastCommandLabel')}</dt>
-        <dd>{i18n.t('remote.diagnostics.lastCommand', { command: safeLastCommand })}</dd>
-      </div>
-      <div>
-        <dt>{i18n.t('remote.diagnostics.completedLabel')}</dt>
-        <dd>
-          {#if remoteSnapshot.lastCompletedAt}
-            {i18n.t('remote.diagnostics.completed', {
-              completedAt: remoteSnapshot.lastCompletedAt
-            })}
-          {:else}
-            {i18n.t('remote.diagnostics.completedNever')}
-          {/if}
-        </dd>
-      </div>
-      {#if remoteSnapshot.lastError && safeError}
-        <div class="diagnostic-error">
-          <dt>{i18n.t('remote.diagnostics.errorLabel')}</dt>
-          <dd>
-            {i18n.t('remote.diagnostics.error', {
-              source: remoteSnapshot.lastError.source,
-              code: remoteSnapshot.lastError.code,
-              message: safeError
-            })}
-          </dd>
-        </div>
-      {/if}
-    </dl>
-  </section>
-
-  <section class="remote-section playback" aria-labelledby="remote-playback-title">
-    <div class="section-heading">
-      <h3 id="remote-playback-title">{i18n.t('remote.playback.title')}</h3>
-      <p>{i18n.t('remote.playback.help')}</p>
-    </div>
-    <PlayerControls snapshot={playerSnapshot} dispatch={playerDispatch} {i18n} />
-  </section>
-
-  <section class="remote-section guarded-power" aria-labelledby="remote-power-title">
-    <div class="section-heading">
-      <h3 id="remote-power-title">{i18n.t('remote.power.title')}</h3>
-      <p>{i18n.t('remote.power.help')}</p>
     </div>
 
-    <div class="power-button-row" aria-label={i18n.t('remote.power.aria')}>
-      {#each POWER_BUTTONS as button}
-        <button type="button" class="power-button" disabled aria-describedby="remote-power-guard">
-          {i18n.t(button.labelKey)}
-        </button>
-      {/each}
+    <div class="secondary-controls">
+      <button
+        type="button"
+        class="ibut input-button"
+        aria-label={i18n.t(SECONDARY_INPUTS[0].ariaKey)}
+        disabled={isRemoteRunning}
+        onclick={() => handleRemoteCommand(SECONDARY_INPUTS[0].command)}
+      >
+        <span class={`mdi ${SECONDARY_INPUTS[0].iconClass}`} aria-hidden="true"></span>
+      </button>
+      <button
+        type="button"
+        class="ibut player-button"
+        aria-label={i18n.t('player.controls.stop')}
+        disabled={isPlayerRunning}
+        onclick={handleStop}
+      >
+        <span class="mdi mdi-av-stop" aria-hidden="true"></span>
+      </button>
+      <button
+        type="button"
+        class="ibut input-button"
+        aria-label={i18n.t(SECONDARY_INPUTS[1].ariaKey)}
+        disabled={isRemoteRunning}
+        onclick={() => handleRemoteCommand(SECONDARY_INPUTS[1].command)}
+      >
+        <span class={`mdi ${SECONDARY_INPUTS[1].iconClass}`} aria-hidden="true"></span>
+      </button>
     </div>
-    <p id="remote-power-guard" class="guard-copy">{i18n.t('remote.power.guardCopy')}</p>
   </section>
 </article>
 
 <style>
+  @font-face {
+    font-family: 'Material-Design-Icons';
+    src: url('../assets/chorus2/fonts/material/Material-Design-Icons.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+  }
+
   .remote-input-panel {
-    display: grid;
-    gap: var(--space-lg);
+    --remote-background: #282c2e;
+    --remote-button: #222324;
+    position: relative;
+    min-height: min(34rem, calc(100vh - 110px));
+    overflow: hidden;
+    color: #838b8d;
+    background: var(--remote-background);
   }
 
-  .remote-hero,
-  .remote-section {
-    padding: var(--space-xl);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-soft);
-  }
-
-  .remote-hero {
+  .remote-background {
+    position: absolute;
+    inset: 0 0 170px;
     background:
-      radial-gradient(
-        circle at top left,
-        color-mix(in srgb, var(--color-accent) 18%, transparent),
-        transparent 34%
-      ),
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-surface-raised) 82%, transparent),
-        var(--color-surface)
-      );
+      linear-gradient(rgb(35 38 40 / 0.42), rgb(35 38 40 / 0.76)), var(--color-surface-raised);
+    background-position: 50% 50%;
+    background-size: cover;
   }
 
-  .remote-kicker,
-  .section-heading p,
-  .remote-hero p,
-  h2,
-  h3,
-  dl,
-  .guard-copy {
+  .kodi-remote {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    width: min(100%, 320px);
+    margin-inline: auto;
+    overflow: hidden;
+    color: #6f7374;
+    font-size: 1.7rem;
+  }
+
+  .playing-area {
+    position: relative;
+    height: 150px;
+    padding: 18px 20px 35px;
+    color: #b1b6b8;
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .playing-area p {
     margin: 0;
   }
 
   .remote-kicker {
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-    font-weight: 900;
+    color: #d3d7d8;
+    font-size: 0.72rem;
+    font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
-  h2 {
-    margin-top: var(--space-xs);
-    font-size: clamp(2rem, 5vw, 3.8rem);
-    line-height: 0.95;
-  }
-
-  .remote-hero p:not(.remote-kicker),
-  .section-heading p,
-  .guard-copy {
-    max-width: 54rem;
-    color: var(--color-text-muted);
-    line-height: 1.6;
-  }
-
-  .remote-section {
-    display: grid;
-    gap: var(--space-md);
-  }
-
-  .section-heading {
-    display: grid;
-    gap: var(--space-xs);
-  }
-
-  .remote-button-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(5.5rem, 1fr));
-    gap: var(--space-sm);
-    max-width: 32rem;
-  }
-
-  .remote-command-button,
-  .power-button {
-    min-height: 3.75rem;
-    padding: var(--space-sm) var(--space-md);
-    color: var(--color-accent-contrast);
-    font: inherit;
-    font-weight: 900;
-    cursor: pointer;
-    background: var(--color-accent);
-    border: 0;
-    border-radius: var(--radius-lg);
-    transition:
-      transform 140ms ease,
-      box-shadow 140ms ease,
-      opacity 140ms ease;
-  }
-
-  .remote-command-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 0.9rem 1.7rem rgb(0 0 0 / 0.16);
-  }
-
-  .remote-command-button:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-
-  .remote-command-button.up {
-    grid-column: 2;
-  }
-
-  .remote-command-button.left {
-    grid-column: 1;
-  }
-
-  .remote-command-button.select {
-    grid-column: 2;
-  }
-
-  .remote-command-button.right {
-    grid-column: 3;
-  }
-
-  .remote-command-button.down {
-    grid-column: 2;
-  }
-
-  .remote-command-button.utility {
-    color: var(--color-text);
-    background: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-    gap: var(--space-sm);
-  }
-
-  dl div {
-    display: grid;
-    gap: var(--space-2xs);
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-  }
-
-  .diagnostic-error {
-    grid-column: 1 / -1;
-    color: var(--color-warning);
-    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-    border-color: color-mix(in srgb, var(--color-warning) 34%, transparent);
-  }
-
-  dt {
-    color: var(--color-text-muted);
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  dd {
-    margin: 0;
-    font-weight: 800;
+  .remote-error {
+    margin-top: 6px;
+    color: #ffba66;
+    font-size: 0.75rem;
     overflow-wrap: anywhere;
   }
 
-  .power-button-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
+  .main-controls {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    background: var(--remote-background);
+  }
+
+  .direction {
+    position: relative;
+    z-index: 2;
+    height: 155px;
+    margin-top: -12px;
+    background: var(--remote-button);
+  }
+
+  .pad {
+    position: relative;
+    width: 240px;
+    height: 145px;
+    margin: 5px auto;
+    text-align: center;
+  }
+
+  .ibut {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: #6f7374;
+    font: inherit;
+    cursor: pointer;
+    background: var(--remote-button);
+    border: 0;
+    border-radius: 0;
+    transition:
+      color 140ms ease,
+      background-color 140ms ease,
+      opacity 140ms ease;
+  }
+
+  .ibut:hover:not(:disabled),
+  .ibut:focus-visible {
+    color: #ccc;
+    background: #2c2f30;
+  }
+
+  .ibut:active:not(:disabled) {
+    color: #fff;
+  }
+
+  .pad .ibut {
+    position: absolute;
+    top: 0;
+    left: 80px;
+    width: 80px;
+    height: 145px;
+    font-size: 125%;
+  }
+
+  .pad .up,
+  .pad .down,
+  .pad .ok {
+    height: calc(145px / 3);
+    line-height: calc(145px / 3);
+  }
+
+  .pad .down {
+    top: calc((145px / 3) * 2);
+  }
+
+  .pad .ok {
+    top: calc(145px / 3);
+    font-size: 12px;
+  }
+
+  .pad .left {
+    left: 0;
+    padding-left: 20px;
+    line-height: 145px;
+  }
+
+  .pad .right {
+    right: 0;
+    left: auto;
+    padding-right: 20px;
+    line-height: 145px;
+  }
+
+  .buttons {
+    display: grid;
+    gap: 9px;
+    align-content: start;
+    padding: 6px 8px 4px;
+    margin-top: -20px;
+  }
+
+  .buttons .ibut {
+    height: 44px;
+    font-size: 1.05em;
+  }
+
+  .secondary-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    clear: both;
+    background: var(--remote-background);
+  }
+
+  .secondary-controls .ibut {
+    height: 75px;
+    font-size: 1.5em;
   }
 
   .power-button {
-    color: var(--color-text-muted);
     cursor: not-allowed;
-    background: color-mix(in srgb, var(--color-surface-raised) 78%, transparent);
-    border: 1px dashed color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+  }
+
+  .mdi {
+    font-family: 'Material-Design-Icons';
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .mdi-action-info::before {
+    content: '\e638';
+  }
+  .mdi-action-settings-power::before {
+    content: '\e66e';
+  }
+  .mdi-av-stop::before {
+    content: '\e6c9';
+  }
+  .mdi-hardware-keyboard-arrow-down::before {
+    content: '\e7b4';
+  }
+  .mdi-hardware-keyboard-arrow-left::before {
+    content: '\e7b5';
+  }
+  .mdi-hardware-keyboard-arrow-right::before {
+    content: '\e7b6';
+  }
+  .mdi-hardware-keyboard-arrow-up::before {
+    content: '\e7b7';
+  }
+  .mdi-hardware-keyboard-return::before {
+    content: '\e7bc';
+  }
+  .mdi-image-brightness-1::before {
+    content: '\e7da';
+  }
+  .mdi-maps-store-mall-directory::before {
+    content: '\e88f';
+  }
+  .mdi-navigation-more-vert::before {
+    content: '\e8a3';
   }
 
   button:disabled {
-    opacity: 0.62;
+    opacity: 0.52;
   }
 
   button:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-ring);
+    outline: 2px solid #fff;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 3px rgb(77 179 230 / 0.6);
   }
 
-  @media (max-width: 640px) {
-    .remote-hero,
-    .remote-section {
-      padding: var(--space-lg);
+  .remote-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (min-width: 760px) {
+    .remote-input-panel {
+      min-height: calc(100vh - 110px);
     }
 
-    .remote-button-grid {
-      grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+    .remote-background {
+      inset: 0;
+    }
+
+    .kodi-remote {
+      right: auto;
+      left: 0;
+      margin-inline: 0;
     }
   }
 </style>

@@ -40,15 +40,15 @@ afterEach(() => {
 });
 
 describe('RemoteInputPanel', () => {
-  it('renders translated headings, help copy, diagnostics, and accessible command buttons', () => {
+  it('renders the compact Chorus2-style controller with accessible command buttons', () => {
     mounted = mountPanel();
 
     expect(heading('Remote')).toBeTruthy();
-    expect(screenText()).toContain('Send safe input commands to Kodi');
     expect(screenText()).toContain('Last command: none');
     expect(screenText()).toContain('Status: idle');
-    expect(screenText()).toContain('Playback');
-    expect(screenText()).toContain('Power and system actions are guarded');
+    expect(document.body.querySelector('.kodi-remote')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.remote-hero')).toBeNull();
+    expect(document.body.querySelector('.remote-section')).toBeNull();
 
     for (const label of [
       'Move left',
@@ -63,7 +63,7 @@ describe('RemoteInputPanel', () => {
     ]) {
       const control = button(label);
       expect(control.disabled).toBe(false);
-      expect(control.className).toContain('remote-command-button');
+      expect(control.className).toContain('ibut');
     }
   });
 
@@ -84,7 +84,7 @@ describe('RemoteInputPanel', () => {
     expect(screenText()).not.toContain('Authorization: Basic');
   });
 
-  it('routes playback controls through the injected PlayerControlsDispatch seam', () => {
+  it('routes the compact stop control through the injected PlayerControlsDispatch seam', () => {
     const playerDispatch = createPlayerDispatch();
 
     mounted = mountPanel({
@@ -92,14 +92,12 @@ describe('RemoteInputPanel', () => {
       playerDispatch
     });
 
-    button('Play or pause').click();
     button('Stop').click();
 
-    expect(playerDispatch.playPause).toHaveBeenCalledTimes(1);
     expect(playerDispatch.stop).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps guarded power and system actions visible, disabled, and unable to call dispatches', () => {
+  it('keeps the Chorus2 power affordance visible, disabled, and unable to call dispatches', () => {
     const remoteDispatch = createRemoteDispatch();
     const playerDispatch = createPlayerDispatch();
 
@@ -109,15 +107,10 @@ describe('RemoteInputPanel', () => {
       playerSnapshot: createActivePlayerSnapshot()
     });
 
-    for (const label of ['Quit', 'Shutdown', 'Reboot', 'Suspend', 'Hibernate']) {
-      const control = button(label);
-      expect(control.disabled).toBe(true);
-      control.click();
-    }
+    const control = button('Power and system');
+    expect(control.disabled).toBe(true);
+    control.click();
 
-    expect(screenText()).toContain(
-      'Visible for parity, disabled until a guarded confirmation flow exists.'
-    );
     expect(remoteDispatch.sendInput).not.toHaveBeenCalled();
     expect(playerDispatch.playPause).not.toHaveBeenCalled();
     expect(playerDispatch.stop).not.toHaveBeenCalled();

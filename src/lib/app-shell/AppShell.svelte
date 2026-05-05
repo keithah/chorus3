@@ -193,7 +193,7 @@
             title={item.title}
           >
             <span class={`mdi ${item.icon}`} aria-hidden="true"></span>
-            <span class="c2-rail-label">{item.label}</span>
+            <span class="visually-hidden">{item.label}</span>
           </a>
           {#if item.submenuGroups?.length}
             <div class="c2-submenu" aria-label={`${item.label} submenu`}>
@@ -559,27 +559,6 @@
     text-decoration: none;
   }
 
-  .c2-rail-label {
-    position: absolute;
-    left: 50px;
-    top: 0;
-    z-index: 3;
-    height: 39px;
-    max-width: 0;
-    overflow: hidden;
-    padding: 0;
-    color: #fff;
-    background: var(--c2-blue);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 39px;
-    white-space: nowrap;
-    opacity: 0;
-    transition-property: max-width, padding-inline, opacity;
-    transition-duration: 140ms;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-  }
-
   .c2-rail-item.active .c2-rail-primary,
   .c2-rail-primary.active,
   .c2-rail-primary:hover,
@@ -594,14 +573,6 @@
     outline: 2px solid #fff;
     outline-offset: -3px;
     box-shadow: 0 0 0 3px rgb(77 179 230 / 0.55);
-  }
-
-  .c2-rail-item:hover .c2-rail-label,
-  .c2-rail-item:focus-within .c2-rail-label,
-  .c2-rail-item.active .c2-rail-label {
-    max-width: 220px;
-    padding-inline: 19px 22px;
-    opacity: 1;
   }
 
   .c2-submenu {
@@ -927,7 +898,6 @@
       padding-block: 0;
     }
 
-    .c2-rail-label,
     .c2-submenu {
       display: none;
       max-height: 0;

@@ -402,6 +402,7 @@ describe('local player store', () => {
       kodiWasPaused: false
     });
 
+    adapter.paused = true;
     adapter.emit('error');
 
     expect(store.snapshot).toMatchObject({
@@ -411,6 +412,30 @@ describe('local player store', () => {
       }
     });
     expectSecretSafe(store.snapshot);
+  });
+
+  it('keeps audible local playback in a playing state when a nonfatal media error event fires', async () => {
+    const adapter = new FakeMediaAdapter();
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    store.attach(adapter);
+
+    await store.loadAndPlay({
+      source: 'http://example.test/song.mp3',
+      item: { id: 6, label: 'Audible track', type: 'song' },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+
+    adapter.currentTime = 18;
+    adapter.paused = false;
+    adapter.emit('error');
+
+    expect(store.snapshot).toMatchObject({
+      status: 'playing',
+      mediaKind: 'audio',
+      currentSeconds: 18,
+      lastError: null
+    });
   });
 
   it('supports pause and stop state transitions', async () => {
