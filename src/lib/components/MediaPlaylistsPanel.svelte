@@ -241,12 +241,7 @@
     index: number
   ): MediaPlaylistsActionItem | null {
     const id = stringOrNull(playlist.id);
-    if (
-      !id ||
-      playlist.kind !== 'smart' ||
-      !playlist.capabilities.canPlay ||
-      !playlist.capabilities.canQueue
-    ) {
+    if (!id || !playlist.capabilities.canPlay || !playlist.capabilities.canQueue) {
       return null;
     }
 
@@ -294,15 +289,11 @@
 
   function playlistMeta(playlist: MediaPlaylistSnapshot): string {
     if (playlist.kind === 'smart') {
-      if (playlist.media === 'video') {
-        return 'Can open, but video playback and queueing are disabled';
-      }
-
       return 'Can open, play, and queue';
     }
 
     if (playlist.kind === 'basic') {
-      return 'Standard playlist files are visible but cannot be opened, played, or queued yet';
+      return 'Can play and queue';
     }
 
     return 'This playlist format is not supported';
@@ -328,7 +319,9 @@
     }
 
     if (entry.mediaKind === 'video') {
-      return 'Video item is browse-only in this view';
+      return entry.capabilities.canPlay && entry.capabilities.canQueue
+        ? 'Playable video item from the opened playlist'
+        : 'Video item without available actions';
     }
 
     return 'This playlist entry cannot be played or queued from this view';
@@ -432,8 +425,8 @@
     <p class="section-kicker">{i18n.t('media.playlists.kicker')}</p>
     <h2 id="media-playlists-title">{i18n.t('media.playlists.title')}</h2>
     <p class="summary-line">
-      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and {#if snapshot.media === 'video'}inspect
-        browse-only playlist IDs{:else}safely play or queue supported playlist IDs{/if}.
+      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and safely play or queue supported
+      playlist IDs.
     </p>
   </div>
 

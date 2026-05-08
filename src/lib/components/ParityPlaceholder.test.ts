@@ -2,17 +2,13 @@ import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTranslationContext } from '$lib/i18n';
-import {
-  getChorus2PlaceholderMetadata,
-  getChorus2PlaceholderMetadataTable,
-  type Chorus2RoutePlaceholder
-} from '$lib/app/appRouter';
+import { getParityPlaceholderMetadataTable, type ParityRoutePlaceholder } from '$lib/app/appRouter';
 import ParityPlaceholder from './ParityPlaceholder.svelte';
 
 let mountedComponent: Record<string, unknown> | undefined;
 
 function renderPlaceholder(
-  placeholder: Chorus2RoutePlaceholder,
+  placeholder: ParityRoutePlaceholder,
   props: Partial<{
     packageBasePath: string;
     i18n: ReturnType<typeof createTranslationContext>;
@@ -37,17 +33,23 @@ function renderPlaceholder(
   return target;
 }
 
-function requirePlaceholder(id: string): Chorus2RoutePlaceholder {
-  const placeholder = getChorus2PlaceholderMetadata(id);
-  expect(placeholder).toBeDefined();
-  return placeholder as Chorus2RoutePlaceholder;
-}
-
 function getPlaceholderText(target: HTMLElement): string {
   const panel = target.querySelector<HTMLElement>('.parity-placeholder');
   expect(panel).toBeInstanceOf(HTMLElement);
   return panel?.textContent ?? '';
 }
+
+const SYNTHETIC_PLACEHOLDER: ParityRoutePlaceholder = {
+  id: 'synthetic-route',
+  ledgerIds: ['route:synthetic'],
+  surface: 'synthetic',
+  title: 'Synthetic Route',
+  status: 'intentionallyChanged',
+  owner: 'test',
+  description: 'Synthetic incomplete-state route used only to exercise the component contract.',
+  recoveryRoute: '/settings',
+  routePath: '/synthetic'
+};
 
 const FORBIDDEN_COPY =
   /Authorization|Basic|CHORUS3_SENTINEL_SECRET|sentinel_secret|admin:p@ssword|password|token|smb:\/\/|special:\/\/|https?:\/\/|localStorage|sessionStorage|JSONRPC\.Ping|jsonrpc|endpoint|body/i;
@@ -62,34 +64,24 @@ afterEach(() => {
 });
 
 describe('ParityPlaceholder', () => {
-  it.each([
-    ['help', 'Chorus2 Help', 'help', 'missing', 'M006/S02'],
-    ['playlists', 'Chorus2 Playlists', 'playlists', 'deferred', 'R055/M006/S04'],
-    [
-      'labApiBrowserMethod',
-      'Lab API Browser Method',
-      'lab/api-browser/:method',
-      'missing',
-      'M006/S02'
-    ]
-  ])('renders honest incomplete-state copy for %s', (id, title, surface, status, owner) => {
-    const target = renderPlaceholder(requirePlaceholder(id));
+  it('renders honest incomplete-state copy for a curated placeholder', () => {
+    const target = renderPlaceholder(SYNTHETIC_PLACEHOLDER);
     const text = getPlaceholderText(target);
 
-    expect(text).toContain(title);
-    expect(text).toContain('Chorus2 surface');
-    expect(text).toContain(surface);
+    expect(text).toContain('Synthetic Route');
+    expect(text).toContain('Classic surface');
+    expect(text).toContain('synthetic');
     expect(text).toContain('Parity status');
-    expect(text).toContain(status);
+    expect(text).toContain('intentionallyChanged');
     expect(text).toContain('Future owner');
-    expect(text).toContain(owner);
+    expect(text).toContain('test');
     expect(text).toContain('not complete');
     expect(text).toContain('Recovery path');
     expect(target.querySelector('a')?.getAttribute('href')).toMatch(/^\//);
   });
 
   it('builds package-safe recovery links without using raw browser input', () => {
-    const target = renderPlaceholder(requirePlaceholder('settingsWeb'), {
+    const target = renderPlaceholder(SYNTHETIC_PLACEHOLDER, {
       packageBasePath: '/addons/webinterface.chorus3'
     });
     const link = target.querySelector<HTMLAnchorElement>('a');
@@ -101,13 +93,13 @@ describe('ParityPlaceholder', () => {
 
   it('ignores unsafe diagnostic-shaped fields that are not part of the curated component contract', () => {
     const unsafePlaceholder = {
-      ...requirePlaceholder('help'),
+      ...SYNTHETIC_PLACEHOLDER,
       pathname: '/help?token=CHORUS3_SENTINEL_SECRET',
       search: '?password=admin:p@ssword&url=smb://nas/private',
       endpoint: 'http://admin:p@ssword@kodi.local/jsonrpc',
       body: '{"jsonrpc":"2.0","method":"JSONRPC.Ping"}',
       storage: 'localStorage sessionStorage special://profile'
-    } as Chorus2RoutePlaceholder;
+    } as ParityRoutePlaceholder;
 
     const target = renderPlaceholder(unsafePlaceholder);
 
@@ -116,19 +108,21 @@ describe('ParityPlaceholder', () => {
   });
 
   it('keeps exported placeholder metadata free from unsafe raw transport, storage, and request strings', () => {
-    const serializedMetadata = JSON.stringify(getChorus2PlaceholderMetadataTable());
+    const metadata = getParityPlaceholderMetadataTable();
+    const serializedMetadata = JSON.stringify(metadata);
 
+    expect(metadata).toHaveLength(0);
     expect(serializedMetadata).not.toMatch(FORBIDDEN_COPY);
   });
 
-  it('renders shared labels in German while preserving curated Chorus2 metadata', () => {
-    const target = renderPlaceholder(requirePlaceholder('help'), {
+  it('renders shared labels in German while preserving curated placeholder metadata', () => {
+    const target = renderPlaceholder(SYNTHETIC_PLACEHOLDER, {
       i18n: createTranslationContext('de')
     });
     const text = getPlaceholderText(target);
 
-    expect(text).toContain('Chorus2 Help');
-    expect(text).toContain('Chorus2-Oberfläche');
+    expect(text).toContain('Synthetic Route');
+    expect(text).toContain('Klassische Oberfläche');
     expect(text).toContain('Paritätsstatus');
     expect(text).toContain('Zukünftiger Owner');
     expect(text).toContain('noch nicht vollständig');

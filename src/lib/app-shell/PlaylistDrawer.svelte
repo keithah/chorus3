@@ -16,7 +16,7 @@
     drawerContent?: Snippet;
   }
 
-  const MENU_ID = 'c2-playlist-menu';
+  const MENU_ID = 'classic-playlist-menu';
 
   const MENU_ACTION_LABELS: Record<AppShellPlaylistMenuAction, string> = {
     currentPlaylist: 'Current playlist',
@@ -92,22 +92,21 @@
         callbacks.onPlaylistMenuAction && reasons?.clear === undefined
           ? undefined
           : (reasons?.clear ?? DEFAULT_MENU_DISABLED_REASONS.clear),
-      refresh: reasons?.refresh ?? DEFAULT_MENU_DISABLED_REASONS.refresh,
-      partyMode: reasons?.partyMode ?? DEFAULT_MENU_DISABLED_REASONS.partyMode,
+      refresh:
+        callbacks.onPlaylistMenuAction && reasons?.refresh === undefined
+          ? undefined
+          : (reasons?.refresh ?? DEFAULT_MENU_DISABLED_REASONS.refresh),
+      partyMode:
+        callbacks.onPlaylistMenuAction && reasons?.partyMode === undefined
+          ? undefined
+          : (reasons?.partyMode ?? DEFAULT_MENU_DISABLED_REASONS.partyMode),
       saveKodiPlaylist:
-        callbacks.onPlaylistMenuAction && hasOwnDisabledReason(reasons, 'saveKodiPlaylist')
-          ? reasons?.saveKodiPlaylist
+        callbacks.onPlaylistMenuAction && reasons?.saveKodiPlaylist === undefined
+          ? undefined
           : (reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist)
     };
 
     return normalized;
-  }
-
-  function hasOwnDisabledReason(
-    reasons: AppShellDrawerState['menuDisabledReasons'],
-    action: AppShellPlaylistMenuAction
-  ): boolean {
-    return Boolean(reasons && Object.prototype.hasOwnProperty.call(reasons, action));
   }
 
   function selectDestinationMode(mode: AppShellPlaylistDestinationMode): void {
@@ -143,7 +142,7 @@
   }
 </script>
 
-<div class="c2-destination-tabs" aria-label="Playback destination">
+<div class="classic-destination-tabs" aria-label="Playback destination">
   <button
     type="button"
     class:active={localDestinationMode === 'kodi'}
@@ -155,7 +154,7 @@
     disabled={Boolean(destinationDisabledReasons.kodi)}
     onclick={() => selectDestinationMode('kodi')}
   >
-    <span class="c2-kodi-mark" aria-hidden="true">✣</span>
+    <span class="classic-kodi-mark" aria-hidden="true">✣</span>
     Kodi
   </button>
   <button
@@ -186,7 +185,7 @@
     onclick={toggleCollapsed}
   >
     <span
-      class="mdi mdi-hardware-keyboard-arrow-right c2-collapse-icon"
+      class="mdi mdi-hardware-keyboard-arrow-right classic-collapse-icon"
       class:collapsed={localCollapsed}
       aria-hidden="true"
     ></span>
@@ -194,11 +193,11 @@
 </div>
 
 <aside
-  class="c2-playlist"
+  class="classic-playlist"
   aria-label={safeDrawerLabel}
   data-collapsed={localCollapsed ? 'true' : 'false'}
 >
-  <div class="c2-media-tabs" role="tablist" aria-label="Playlist media type">
+  <div class="classic-media-tabs" role="tablist" aria-label="Playlist media type">
     <button
       type="button"
       role="tab"
@@ -218,7 +217,7 @@
   {#if drawerContent}
     {@render drawerContent()}
   {:else if localMenuOpen}
-    <div id={MENU_ID} class="c2-playlist-menu" role="menu" aria-label="Playlist menu">
+    <div id={MENU_ID} class="classic-playlist-menu" role="menu" aria-label="Playlist menu">
       <button
         type="button"
         role="menuitem"

@@ -76,8 +76,8 @@ export type MediaPlaylistsPlayablePlaylistResult =
       playlist: {
         id: string;
         label: string;
-        mediaKind: 'music';
-        playlistKind: 'smart';
+        mediaKind: MediaPlaylistsMedia;
+        playlistKind: Exclude<MediaPlaylistKind, 'unsupported'>;
         file: string;
       };
     }
@@ -282,7 +282,11 @@ export class MediaPlaylistsStore {
       return { ok: false, error: unknownPlaylistError() };
     }
 
-    if (!playlist.playable || this.#media !== 'music') {
+    if (!playlist.playable) {
+      return { ok: false, error: unsupportedPlaylistError() };
+    }
+
+    if (playlist.kind === 'unsupported') {
       return { ok: false, error: unsupportedPlaylistError() };
     }
 
@@ -291,8 +295,8 @@ export class MediaPlaylistsStore {
       playlist: {
         id: playlist.id,
         label: playlist.label,
-        mediaKind: 'music',
-        playlistKind: 'smart',
+        mediaKind: this.#media,
+        playlistKind: playlist.kind,
         file: playlist.path
       }
     };
@@ -328,7 +332,7 @@ export class MediaPlaylistsStore {
 
       const id = `playlist:${++counter}`;
       const label = normalizePublicLabel(item.label, path, `Playlist ${counter}`);
-      const playable = kind === 'smart' && this.#media === 'music';
+      const playable = kind === 'smart' || kind === 'basic';
       const browsable = kind === 'smart';
       const record: PlaylistRecord = {
         id,
@@ -371,7 +375,7 @@ export class MediaPlaylistsStore {
       const label = normalizePublicLabel(item.label, path, `Entry ${this.#entryCounter}`);
       const extension = extensionFromPath(path);
       const mediaKind = entryMediaKindForExtension(this.#media, item.filetype, extension);
-      const playable = mediaKind === 'audio';
+      const playable = mediaKind === 'audio' || mediaKind === 'video';
       const record: EntryRecord = {
         id,
         label,
@@ -581,7 +585,7 @@ function unsupportedPlaylistError(): MusicLibrarySafeErrorSnapshot {
   return createMusicLibrarySafeError(
     new MusicLibraryClientError(
       'client/unsupported-playlist',
-      'The selected playlist cannot be played or queued.'
+      'The selected playlist format is not supported.'
     )
   );
 }

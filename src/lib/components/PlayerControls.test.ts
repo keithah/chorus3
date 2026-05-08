@@ -17,6 +17,7 @@ type FakeDispatch = PlayerControlsDispatch & {
   setVolume: ReturnType<typeof vi.fn>;
   toggleMute: ReturnType<typeof vi.fn>;
   setShuffle: ReturnType<typeof vi.fn>;
+  setPartyMode: ReturnType<typeof vi.fn>;
   setRepeat: ReturnType<typeof vi.fn>;
   setSubtitle: ReturnType<typeof vi.fn>;
   setAudioStream: ReturnType<typeof vi.fn>;
@@ -124,6 +125,7 @@ function createDispatch(overrides: Partial<PlayerDispatchSnapshot> = {}): FakeDi
     setVolume: vi.fn().mockResolvedValue(undefined),
     toggleMute: vi.fn().mockResolvedValue(undefined),
     setShuffle: vi.fn().mockResolvedValue(undefined),
+    setPartyMode: vi.fn().mockResolvedValue(undefined),
     setRepeat: vi.fn().mockResolvedValue(undefined),
     setSubtitle: vi.fn().mockResolvedValue(undefined),
     setAudioStream: vi.fn().mockResolvedValue(undefined),

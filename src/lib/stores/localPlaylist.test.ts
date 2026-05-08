@@ -184,7 +184,8 @@ describe('local playlist store', () => {
           label: 'Song One',
           file: 'smb://admin:p@ssword@nas/Music/song-one.flac',
           sourceId: 'song:1',
-          durationSeconds: 180
+          durationSeconds: 180,
+          thumbnail: 'image://album-cover.jpg/'
         },
         {
           kind: 'video',
@@ -210,6 +211,34 @@ describe('local playlist store', () => {
     ]);
     expect(store.snapshot.selectedPlaylist?.items.map((item) => item.position)).toEqual([0, 1, 2]);
     expectNoUnsafeText(store.snapshot);
+    expect(store.getPlayableItems('playlist-1')).toEqual([
+      {
+        id: 'item-2',
+        kind: 'audio',
+        label: 'Song One',
+        file: 'smb://admin:p@ssword@nas/Music/song-one.flac',
+        position: 0,
+        sourceId: 'song:1',
+        durationSeconds: 180,
+        thumbnail: 'image://album-cover.jpg/'
+      },
+      {
+        id: 'item-3',
+        kind: 'video',
+        label: 'Movie One',
+        file: '/home/keith/private/movie-one.mkv',
+        position: 1,
+        sourceId: 'movie:1'
+      },
+      {
+        id: 'item-4',
+        kind: 'playlist',
+        label: 'Smart List',
+        file: 'special://profile/playlists/music/list.xsp',
+        position: 2
+      }
+    ]);
+    expect(store.getPlayableItems('playlist-missing')).toEqual([]);
 
     expect(store.moveItem('playlist-1', 'item-3', 'up')).toEqual({ ok: true });
     expect(store.moveItem('playlist-1', 'item-3', 'up')).toEqual({ ok: true });

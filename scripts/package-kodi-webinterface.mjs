@@ -41,6 +41,7 @@ const REQUIRED_METADATA_FIELDS = [
   'summary',
   'description',
   'source',
+  'license',
   'language',
   'platform'
 ];
@@ -51,6 +52,7 @@ const TEMPLATE_PLACEHOLDERS = new Set([
   'summary',
   'description',
   'source',
+  'license',
   'language',
   'platform'
 ]);
@@ -130,6 +132,7 @@ export function renderAddonXml({ root = cwd() } = {}) {
     summary: metadata.summary.trim(),
     description: metadata.description.trim(),
     source: metadata.source.trim(),
+    license: metadata.license.trim(),
     language: metadata.language.trim(),
     platform: metadata.platform.trim()
   };

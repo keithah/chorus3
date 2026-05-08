@@ -35,15 +35,7 @@ function linksForTitle(target: HTMLElement, title: string): HTMLAnchorElement[] 
 
 function requireRailLink(target: HTMLElement, title: string): HTMLAnchorElement {
   const link = target.querySelector<HTMLAnchorElement>(
-    `aside[aria-label="Primary navigation"] .c2-rail-primary[title="${title}"]`
-  );
-  expect(link).toBeInstanceOf(HTMLAnchorElement);
-  return link as HTMLAnchorElement;
-}
-
-function requireSubmenuLink(target: HTMLElement, title: string): HTMLAnchorElement {
-  const link = target.querySelector<HTMLAnchorElement>(
-    `aside[aria-label="Primary navigation"] .c2-submenu-link[title="${title}"]`
+    `aside[aria-label="Primary navigation"] .classic-rail-primary[title="${title}"]`
   );
   expect(link).toBeInstanceOf(HTMLAnchorElement);
   return link as HTMLAnchorElement;
@@ -63,7 +55,7 @@ afterEach(() => {
 });
 
 describe('AppShell navigation DOM', () => {
-  it('renders primary rail and grouped submenu destinations as keyboard-reachable anchors', () => {
+  it('renders the classic primary rail with Chorus2-style flyout submenu anchors', () => {
     const target = renderShell({
       navigationItems: createFixtureNavigation({ kind: 'musicArtists' }),
       routeIdentity: { kind: 'primary', route: { kind: 'musicArtists' } }
@@ -79,20 +71,15 @@ describe('AppShell navigation DOM', () => {
     expect(musicRailLink.textContent).toContain('Music');
     expect(musicRailLink.getAttribute('aria-current')).toBe('page');
 
-    const artistsLink = requireSubmenuLink(target, 'Music artists');
-    expect(artistsLink.href).toBe(new URL('/music/artists', window.location.href).href);
-    expect(artistsLink.textContent).toContain('Artists');
-    expect(artistsLink.getAttribute('aria-current')).toBe('page');
-
-    const albumsLink = requireSubmenuLink(target, 'Music albums');
-    expect(albumsLink.href).toBe(new URL('/music/albums', window.location.href).href);
-    expect(albumsLink.textContent).toContain('Albums');
-    expect(albumsLink.getAttribute('aria-current')).toBeNull();
-
     expect(linksForTitle(target, 'Music')).toHaveLength(1);
+    const submenuLinks = Array.from(
+      target.querySelectorAll<HTMLAnchorElement>('.classic-submenu-link')
+    );
+    expect(submenuLinks.length).toBeGreaterThan(0);
+    expect(submenuLinks.map((link) => link.textContent?.trim())).toContain('Artists');
   });
 
-  it('uses aria-current only for the active rail parent and active submenu item', () => {
+  it('uses aria-current only for the active rail parent', () => {
     const target = renderShell({
       navigationItems: createFixtureNavigation({ kind: 'settingsKodiSection', section: 'pvr' }),
       routeIdentity: {
@@ -107,14 +94,11 @@ describe('AppShell navigation DOM', () => {
       )
     );
 
-    expect(currentLinks.map((link) => link.title)).toEqual(['Settings', 'Add-on settings']);
+    expect(currentLinks.map((link) => link.title)).toEqual(['Settings', 'PVR & Live TV']);
     expect(requireRailLink(target, 'Music').getAttribute('aria-current')).toBeNull();
-    expect(
-      requireSubmenuLink(target, 'Web interface settings').getAttribute('aria-current')
-    ).toBeNull();
   });
 
-  it('filters invalid submenu hrefs while safely labeling malformed text', () => {
+  it('filters invalid primary hrefs while safely labeling malformed text', () => {
     const malformedNavigation = [
       {
         id: 'music',
@@ -157,14 +141,10 @@ describe('AppShell navigation DOM', () => {
 
     expect(target.querySelector('a[href="   "]')).toBeNull();
     expect(target.textContent).not.toContain('Blank href');
-
-    const fallbackLink = target.querySelector<HTMLAnchorElement>(
-      '.c2-submenu-link[href="/music/genres"]'
-    );
-    expect(fallbackLink).toBeInstanceOf(HTMLAnchorElement);
-    expect(fallbackLink?.textContent).toContain('fallback-label');
-    expect(fallbackLink?.getAttribute('title')).toBe('fallback-label');
-    expect(fallbackLink?.getAttribute('aria-current')).toBe('page');
+    const submenuLinks = target.querySelectorAll<HTMLAnchorElement>('.classic-submenu-link');
+    expect(submenuLinks).toHaveLength(1);
+    expect(submenuLinks[0]?.textContent?.trim()).toBe('fallback-label');
+    expect(submenuLinks[0]?.getAttribute('href')).toBe('/music/genres');
   });
 
   it('renders safely with empty navigation data', () => {
@@ -179,17 +159,185 @@ describe('AppShell navigation DOM', () => {
     expect(target.querySelectorAll('aside[aria-label="Primary navigation"] a')).toHaveLength(0);
   });
 
-  it('keeps submenu CSS focusable, visible on focus-within, and contained on short viewports', () => {
+  it('uses the pause icon while Kodi reports active playback', () => {
+    const target = renderShell({
+      player: {
+        title: '30 & Up',
+        subtitle: 'Aceyalone',
+        currentTime: '0:14',
+        totalTime: '2:54',
+        progressPercent: 8,
+        isPlaying: true
+      }
+    });
+
+    const button = target.querySelector<HTMLButtonElement>(
+      'footer[aria-label="Playback controls"] button[aria-label="Pause"]'
+    );
+    expect(button).toBeInstanceOf(HTMLButtonElement);
+    expect(button?.querySelector('.mdi-av-pause')).toBeInstanceOf(HTMLElement);
+    expect(button?.querySelector('.mdi-av-play-arrow')).toBeNull();
+  });
+
+  it('opens the classic-style Kodi remote from the footer thumbnail when provided', () => {
+    let opened = false;
+    const target = renderShell({
+      playerActions: {
+        openRemote: () => {
+          opened = true;
+        }
+      }
+    });
+
+    const button = target.querySelector<HTMLButtonElement>(
+      'footer[aria-label="Playback controls"] button[aria-label="Open Kodi remote"]'
+    );
+    expect(button).toBeInstanceOf(HTMLButtonElement);
+    expect(button?.querySelector('.mdi-action-settings-remote')).toBeInstanceOf(HTMLElement);
+
+    button?.click();
+    expect(opened).toBe(true);
+  });
+
+  it('uses the classic global search input to open search routes', () => {
+    const submitted: string[] = [];
+    let focused = false;
+    const target = renderShell({
+      callbacks: {
+        onSearchFocus: () => {
+          focused = true;
+        },
+        onSearchSubmit: (query: string) => {
+          submitted.push(query);
+        }
+      }
+    });
+
+    const input = target.querySelector<HTMLInputElement>('input[aria-label="Search Kodi"]');
+    const form = target.querySelector<HTMLFormElement>('form.classic-search');
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(input?.readOnly).toBe(false);
+    expect(input?.placeholder).toBe('Search');
+
+    input?.focus();
+    expect(focused).toBe(true);
+
+    if (input) {
+      input.value = '  blue scholars  ';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    form?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+
+    expect(submitted).toEqual(['blue scholars']);
+  });
+
+  it('keeps the classic shell fanart as a persistent stage background separate from the remote', () => {
+    const target = renderShell({
+      stageArtUrl: '/image/image%3A%2F%2Fmusic%40fanart%2F',
+      playerActions: {
+        openRemote: () => undefined
+      }
+    });
+
+    const shell = target.querySelector<HTMLElement>('[aria-label="Chorus media controller"]');
+    const stageArt = target.querySelector<HTMLElement>('.classic-stage-art');
+    const remoteButton = target.querySelector<HTMLButtonElement>(
+      'footer[aria-label="Playback controls"] button[aria-label="Open Kodi remote"]'
+    );
+
+    expect(shell).toBeInstanceOf(HTMLElement);
+    expect(stageArt).toBeInstanceOf(HTMLElement);
+    expect(remoteButton).toBeInstanceOf(HTMLButtonElement);
+    expect(shell?.getAttribute('style')).toContain(
+      "--classic-stage-art-url: url('/image/image%3A%2F%2Fmusic%40fanart%2F')"
+    );
+  });
+
+  it('enables footer shuffle when a real shuffle action is provided', () => {
+    let shuffled = false;
+    const target = renderShell({
+      player: {
+        title: 'Second Chapter',
+        subtitle: 'Blue Scholars',
+        currentTime: '0:00',
+        totalTime: '1:54',
+        progressPercent: 0,
+        isShuffled: true
+      },
+      playerActions: {
+        shuffle: () => {
+          shuffled = true;
+        }
+      }
+    });
+
+    const button = target.querySelector<HTMLButtonElement>(
+      'footer[aria-label="Playback controls"] button[aria-label="Shuffle"]'
+    );
+    expect(button).toBeInstanceOf(HTMLButtonElement);
+    expect(button?.disabled).toBe(false);
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+
+    button?.click();
+    expect(shuffled).toBe(true);
+  });
+
+  it('opens footer more actions for stop and repeat playback commands', () => {
+    const commands: string[] = [];
+    const target = renderShell({
+      playerActions: {
+        stop: () => {
+          commands.push('stop');
+        },
+        repeat: () => {
+          commands.push('repeat');
+        }
+      }
+    });
+
+    const moreButton = target.querySelector<HTMLButtonElement>(
+      'footer[aria-label="Playback controls"] button[aria-label="More"]'
+    );
+    expect(moreButton).toBeInstanceOf(HTMLButtonElement);
+    expect(moreButton?.disabled).toBe(false);
+    expect(moreButton?.getAttribute('aria-expanded')).toBe('false');
+
+    moreButton?.click();
+    flushSync();
+
+    const menu = target.querySelector<HTMLElement>(
+      'footer[aria-label="Playback controls"] [role="menu"][aria-label="More playback actions"]'
+    );
+    const stopButton = target.querySelector<HTMLButtonElement>('[role="menuitem"]:nth-child(1)');
+    const repeatButton = target.querySelector<HTMLButtonElement>('[role="menuitem"]:nth-child(2)');
+    expect(menu).toBeInstanceOf(HTMLElement);
+    expect(stopButton?.textContent).toContain('Stop');
+    expect(repeatButton?.textContent).toContain('Repeat');
+
+    stopButton?.click();
+    flushSync();
+    expect(commands).toEqual(['stop']);
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+
+    moreButton?.click();
+    flushSync();
+    target.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[1]?.click();
+    expect(commands).toEqual(['stop', 'repeat']);
+  });
+
+  it('keeps rail icons focusable with keyboard-accessible flyout submenus', () => {
     const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
 
-    expect(source).toContain('.c2-rail-primary:focus-visible');
-    expect(source).toContain('.c2-submenu-link:focus-visible');
-    expect(source).toMatch(/\.c2-rail-item(?::hover|:focus-within|\.active)[\s\S]*\.c2-submenu/u);
-    expect(source).toMatch(/\.c2-submenu[\s\S]*max-height/u);
-
-    const mediaStart = source.indexOf('@media (max-height: 420px)');
-    const shortHeightRule = mediaStart >= 0 ? source.slice(mediaStart) : '';
-    expect(shortHeightRule).toContain('.c2-submenu');
-    expect(shortHeightRule).toMatch(/max-height\s*:/u);
+    expect(source).toContain('.mdi-av-pause::before');
+    expect(source).toContain("content: '\\e6b6'");
+    expect(source).toContain('.mdi-action-settings-remote::before');
+    expect(source).toContain('.classic-player .classic-thumb');
+    expect(source).toContain('.classic-rail-primary:focus-visible');
+    expect(source).toMatch(/class="classic-submenu-link"/u);
+    expect(source).toContain('.classic-rail-item:focus-within .classic-submenu');
+    expect(source).not.toContain('classic-rail-label');
+    expect(source).not.toMatch(/\.classic-rail-item:hover\s+\.visually-hidden/u);
+    expect(source).not.toMatch(/\.classic-rail-item:focus-within\s+\.visually-hidden/u);
   });
 });

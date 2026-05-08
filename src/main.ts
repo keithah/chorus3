@@ -18,7 +18,12 @@ import {
   type M007VisualProofAppProps
 } from './lib/testing/m007VisualProofFixtures';
 import { applyTheme, resolveInitialTheme } from './lib/theme/theme';
-import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute, type AppRoute } from './lib/app/appRouter';
+import {
+  KODI_WEBINTERFACE_BASE_PATH,
+  parseAppRoute,
+  resolveKodiWebinterfacePackageBasePath,
+  type AppRoute
+} from './lib/app/appRouter';
 import { parseNowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type { SavedKodiHost } from './lib/stores';
 import type { VideoRoute } from './lib/video/videoRouter';
@@ -33,6 +38,7 @@ export interface EntrypointEnv {
 export interface EntrypointLocation {
   pathname?: unknown;
   search?: unknown;
+  hash?: unknown;
   protocol?: unknown;
   hostname?: unknown;
   port?: unknown;
@@ -51,7 +57,7 @@ type AppProps = { route: AppRoute; packageMountedHost?: SavedKodiHost | null } &
       M007VisualProofAppProps,
     'route'
   >
->;
+> & { packageBasePath?: string };
 
 const canLoadM003BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
 const canLoadM004BrowserProofFixtures = import.meta.env.DEV || import.meta.env.MODE === 'test';
@@ -96,15 +102,66 @@ function resolveEntrypointContext(
   location: EntrypointLocation | null | undefined = globalThis.window?.location
 ): EntrypointContext {
   try {
-    const route = parseAppRoute(location?.pathname, location?.search, {
-      packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+    const routeLocation = resolveHashRouteLocation(location);
+    const packageBasePath =
+      resolveKodiWebinterfacePackageBasePath(location?.pathname) || KODI_WEBINTERFACE_BASE_PATH;
+    const route = parseAppRoute(routeLocation.pathname, routeLocation.search, {
+      packageBasePath
     });
     return route.kind === 'nowPlaying'
-      ? { route, nowPlayingEmbedQuery: parseNowPlayingEmbedQuery(location?.search) }
+      ? { route, nowPlayingEmbedQuery: parseNowPlayingEmbedQuery(routeLocation.search) }
       : { route };
   } catch {
     return { route: { kind: 'dashboard' } };
   }
+}
+
+function resolveHashRouteLocation(
+  location: EntrypointLocation | null | undefined
+): Pick<EntrypointLocation, 'pathname' | 'search'> {
+  const pathname = location?.pathname;
+  const packageBasePath = resolveKodiWebinterfacePackageBasePath(pathname);
+  const hashRoute = parseHashRoute(location?.hash);
+  if (packageBasePath && hashRoute) {
+    return hashRoute;
+  }
+
+  if (packageBasePath && normalizeEntrypointPath(pathname) !== packageBasePath) {
+    return { pathname, search: location?.search };
+  }
+
+  const normalizedPathname = normalizeEntrypointPath(pathname);
+  if (hashRoute && (normalizedPathname === '/' || normalizedPathname === '/index.html')) {
+    return hashRoute;
+  }
+
+  return { pathname: location?.pathname, search: location?.search };
+}
+
+function normalizeEntrypointPath(pathname: unknown): string {
+  if (typeof pathname !== 'string' || pathname.trim() === '') {
+    return '/';
+  }
+
+  const path = pathname.trim().replace(/\/+$/u, '');
+  return path || '/';
+}
+
+function parseHashRoute(hash: unknown): Pick<EntrypointLocation, 'pathname' | 'search'> | null {
+  if (typeof hash !== 'string' || hash.length <= 1) {
+    return null;
+  }
+
+  const raw = hash.slice(1).trim();
+  if (!raw) {
+    return { pathname: '/', search: '' };
+  }
+
+  const [path = '', query = ''] = raw.split('?', 2);
+  return {
+    pathname: path.startsWith('/') ? path : `/${path}`,
+    search: query ? `?${query}` : ''
+  };
 }
 
 function shouldUseBrowserProofFixtures(
@@ -159,15 +216,24 @@ export function resolveEntrypointAppProps(
 
   if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
     const props = createM005BrowserProofAppProps(location);
-    return props.settingsSnapshot ||
-      props.addonsSnapshot ||
-      props.labApiBrowserSnapshot ||
-      props.nowPlayingEmbedQuery
+    return props.settingsSnapshot || props.addonsSnapshot || props.nowPlayingEmbedQuery
       ? props
       : { route, ...nowPlayingBaseProps };
   }
 
-  return { route, ...nowPlayingBaseProps, ...createPackageMountedHostProps(location) };
+  return {
+    route,
+    ...nowPlayingBaseProps,
+    ...createPackageMountedHostProps(location),
+    ...createPackageBasePathProps(location)
+  };
+}
+
+function createPackageBasePathProps(
+  location: EntrypointLocation | null | undefined
+): Pick<AppProps, 'packageBasePath'> {
+  const packageBasePath = resolveKodiWebinterfacePackageBasePath(location?.pathname);
+  return packageBasePath ? { packageBasePath } : {};
 }
 
 function createPackageMountedHostProps(
@@ -210,11 +276,7 @@ function isKodiPackageEntrypoint(pathname: unknown): boolean {
 }
 
 function isPackageMountedPath(pathname: unknown): boolean {
-  return (
-    typeof pathname === 'string' &&
-    (pathname === KODI_WEBINTERFACE_BASE_PATH ||
-      pathname.startsWith(`${KODI_WEBINTERFACE_BASE_PATH}/`))
-  );
+  return resolveKodiWebinterfacePackageBasePath(pathname) !== '';
 }
 
 function isRootPath(pathname: unknown): boolean {

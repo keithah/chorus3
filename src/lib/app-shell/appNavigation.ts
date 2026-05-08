@@ -1,5 +1,5 @@
 import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
-import type { PrimaryRoute } from '$lib/app/primaryRoutes';
+import { parsePrimaryRoutePath, type PrimaryRoute } from '$lib/app/primaryRoutes';
 import type {
   AppShellNavigationItem,
   AppShellNavigationSubmenuGroup,
@@ -8,6 +8,17 @@ import type {
 
 export interface AppNavigationOptions extends BuildAppRouteOptions {
   readonly activeRoute?: PrimaryRoute | null;
+  readonly mainNavRows?: readonly AppNavigationMainNavRow[];
+}
+
+export interface AppNavigationMainNavRow {
+  readonly id: string;
+  readonly title: string;
+  readonly path: string;
+  readonly icon: string;
+  readonly classes?: string;
+  readonly parent?: number;
+  readonly weight?: number;
 }
 
 interface AppNavigationTarget {
@@ -42,6 +53,7 @@ const MUSIC_ROUTE_KINDS = [
   'musicAlbums',
   'musicGenres',
   'musicVideos',
+  'musicVideoDetail',
   'musicAlbumDetail',
   'musicArtistDetail',
   'musicGenreDetail'
@@ -66,6 +78,14 @@ const BROWSER_ROUTE_KINDS = [
   'browserItem'
 ] as const satisfies readonly PrimaryRoute['kind'][];
 
+const PVR_ROUTE_KINDS = [
+  'pvrTv',
+  'pvrTvChannel',
+  'pvrRadio',
+  'pvrRadioChannel',
+  'pvrRecordings'
+] as const satisfies readonly PrimaryRoute['kind'][];
+
 const ADDON_ROUTE_KINDS = [
   'addonsAll',
   'addonsVideo',
@@ -77,8 +97,7 @@ const ADDON_ROUTE_KINDS = [
 
 const PLAYLIST_ROUTE_KINDS = [
   'playlists',
-  'playlistDetail',
-  'thumbsup'
+  'playlistDetail'
 ] as const satisfies readonly PrimaryRoute['kind'][];
 
 const SETTINGS_ROUTE_KINDS = [
@@ -117,6 +136,13 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             activeRouteKinds: ['home', 'music']
           },
           {
+            id: 'genres',
+            title: 'Music genres',
+            label: 'Genres',
+            route: { kind: 'musicGenres' },
+            activeRouteKinds: ['musicGenres', 'musicGenreDetail']
+          },
+          {
             id: 'recent',
             title: 'Top music',
             label: 'Top music',
@@ -137,13 +163,12 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             activeRouteKinds: ['musicAlbums', 'musicAlbumDetail']
           },
           {
-            id: 'genres',
-            title: 'Music genres',
-            label: 'Genres',
-            route: { kind: 'musicGenres' },
-            activeRouteKinds: ['musicGenres', 'musicGenreDetail']
-          },
-          { id: 'videos', title: 'Music videos', label: 'Videos', route: { kind: 'musicVideos' } }
+            id: 'videos',
+            title: 'Music videos',
+            label: 'Videos',
+            route: { kind: 'musicVideos' },
+            activeRouteKinds: ['musicVideos', 'musicVideoDetail']
+          }
         ]
       }
     ]
@@ -153,7 +178,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     title: 'Movies',
     label: 'Movies',
     icon: 'mdi-image-movie-creation',
-    route: { kind: 'movies' },
+    route: { kind: 'moviesRecent' },
     activeRouteKinds: MOVIE_ROUTE_KINDS,
     submenuGroups: [
       {
@@ -161,17 +186,17 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
         label: 'Movie library',
         items: [
           {
+            id: 'recent',
+            title: 'Movies',
+            label: 'Movies',
+            route: { kind: 'moviesRecent' }
+          },
+          {
             id: 'all',
             title: 'All movies',
             label: 'All movies',
             route: { kind: 'movies' },
             activeRouteKinds: ['movies', 'movieDetail']
-          },
-          {
-            id: 'recent',
-            title: 'Recently added movies',
-            label: 'Recent',
-            route: { kind: 'moviesRecent' }
           }
         ]
       }
@@ -182,13 +207,19 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     title: 'TV shows',
     label: 'TV shows',
     icon: 'mdi-hardware-tv',
-    route: { kind: 'tvshows' },
+    route: { kind: 'tvshowsRecent' },
     activeRouteKinds: TV_ROUTE_KINDS,
     submenuGroups: [
       {
         id: 'library',
         label: 'TV library',
         items: [
+          {
+            id: 'recent',
+            title: 'TV shows',
+            label: 'TV shows',
+            route: { kind: 'tvshowsRecent' }
+          },
           {
             id: 'all',
             title: 'All TV shows',
@@ -200,12 +231,6 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
               'tvshowSeasonDetail',
               'tvshowEpisodeDetail'
             ]
-          },
-          {
-            id: 'recent',
-            title: 'Recently added TV shows',
-            label: 'Recent',
-            route: { kind: 'tvshowsRecent' }
           }
         ]
       }
@@ -229,6 +254,35 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             label: 'Browser',
             route: { kind: 'browser' },
             activeRouteKinds: BROWSER_ROUTE_KINDS
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'pvr',
+    title: 'PVR',
+    label: 'PVR',
+    icon: 'mdi-action-settings-input-antenna',
+    route: { kind: 'pvrTv' },
+    activeRouteKinds: PVR_ROUTE_KINDS,
+    submenuGroups: [
+      {
+        id: 'pvr',
+        label: 'PVR',
+        items: [
+          { id: 'tv', title: 'TV Channels', label: 'TV Channels', route: { kind: 'pvrTv' } },
+          {
+            id: 'radio',
+            title: 'Radio Stations',
+            label: 'Radio Stations',
+            route: { kind: 'pvrRadio' }
+          },
+          {
+            id: 'recordings',
+            title: 'Recordings',
+            label: 'Recordings',
+            route: { kind: 'pvrRecordings' }
           }
         ]
       }
@@ -266,21 +320,12 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     ]
   },
   {
-    id: 'remote',
-    title: 'Remote',
-    label: 'Remote',
+    id: 'thumbsup',
+    title: 'Thumbs up',
+    label: 'Thumbs up',
     icon: 'mdi-action-thumb-up',
-    route: { kind: 'remote' },
-    activeRouteKinds: ['remote'],
-    submenuGroups: [
-      {
-        id: 'controls',
-        label: 'Remote controls',
-        items: [
-          { id: 'remote', title: 'Remote control', label: 'Remote', route: { kind: 'remote' } }
-        ]
-      }
-    ]
+    route: { kind: 'thumbsup' },
+    activeRouteKinds: ['thumbsup']
   },
   {
     id: 'playlists',
@@ -300,8 +345,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             label: 'Playlists',
             route: { kind: 'playlists' },
             activeRouteKinds: ['playlists', 'playlistDetail']
-          },
-          { id: 'thumbsup', title: 'Thumbs up', label: 'Thumbs up', route: { kind: 'thumbsup' } }
+          }
         ]
       }
     ]
@@ -329,6 +373,18 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
             title: 'Main menu settings',
             label: 'Main menu',
             route: { kind: 'settingsNav' }
+          },
+          {
+            id: 'addons',
+            title: 'Add-on settings',
+            label: 'Add-ons',
+            route: { kind: 'settingsAddons' }
+          },
+          {
+            id: 'search',
+            title: 'Search settings',
+            label: 'Search',
+            route: { kind: 'settingsSearch' }
           }
         ]
       },
@@ -337,17 +393,46 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
         label: 'KODI SETTINGS',
         items: [
           {
-            id: 'addons',
-            title: 'Add-on settings',
-            label: 'Add-ons',
-            route: { kind: 'settingsAddons' },
-            activeRouteKinds: ['settingsKodi', 'settingsKodiSection', 'settingsAddons']
+            id: 'games',
+            title: 'Games',
+            label: 'Games',
+            route: { kind: 'settingsKodiSection', section: 'games' }
           },
           {
-            id: 'search',
-            title: 'Search settings',
-            label: 'Search',
-            route: { kind: 'settingsSearch' }
+            id: 'interface',
+            title: 'Interface',
+            label: 'Interface',
+            route: { kind: 'settingsKodiSection', section: 'interface' }
+          },
+          {
+            id: 'media',
+            title: 'Media',
+            label: 'Media',
+            route: { kind: 'settingsKodiSection', section: 'media' }
+          },
+          {
+            id: 'player',
+            title: 'Player',
+            label: 'Player',
+            route: { kind: 'settingsKodiSection', section: 'player' }
+          },
+          {
+            id: 'pvr',
+            title: 'PVR & Live TV',
+            label: 'PVR & Live TV',
+            route: { kind: 'settingsKodiSection', section: 'pvr' }
+          },
+          {
+            id: 'services',
+            title: 'Services',
+            label: 'Services',
+            route: { kind: 'settingsKodiSection', section: 'services' }
+          },
+          {
+            id: 'system',
+            title: 'System',
+            label: 'System',
+            route: { kind: 'settingsKodiSection', section: 'system' }
           }
         ]
       }
@@ -363,15 +448,14 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
     submenuGroups: [
       {
         id: 'help',
-        label: 'Help',
+        label: 'HELP TOPICS',
         items: [
           { id: 'home', title: 'Help home', label: 'About', route: { kind: 'help' } },
           {
             id: 'overview',
             title: 'Help overview',
             label: 'Readme',
-            route: { kind: 'helpOverview' },
-            activeRouteKinds: ['helpOverview']
+            route: { kind: 'helpPage', pageid: 'readme' }
           },
           {
             id: 'changelog',
@@ -419,9 +503,16 @@ export function createAppNavigationItems(
   options: AppNavigationOptions = {}
 ): readonly AppShellNavigationItem[] {
   const activeRoute = options.activeRoute ?? null;
-  const buildOptions = { packageBasePath: options.packageBasePath };
+  const buildOptions = { packageBasePath: options.packageBasePath, routeMode: options.routeMode };
+  const customRows = options.mainNavRows?.filter((row) => row.title.trim() && row.path.trim());
 
-  return PRIMARY_APP_NAVIGATION_TARGETS.map((target) => ({
+  if (customRows?.length) {
+    return customRows.map((row, index) =>
+      createCustomNavigationItem(row, index, activeRoute, options)
+    );
+  }
+
+  return PRIMARY_APP_NAVIGATION_TARGETS.map((target: AppNavigationTarget) => ({
     id: target.id,
     title: safeNavigationText(target.title, target.id),
     label: safeNavigationText(target.label, target.title),
@@ -431,6 +522,39 @@ export function createAppNavigationItems(
     isActive: isActiveNavigationTarget(target, activeRoute),
     submenuGroups: createSubmenuGroups(target.submenuGroups ?? [], activeRoute, buildOptions)
   }));
+}
+
+function createCustomNavigationItem(
+  row: AppNavigationMainNavRow,
+  index: number,
+  activeRoute: PrimaryRoute | null,
+  options: BuildAppRouteOptions
+): AppShellNavigationItem {
+  const normalizedPath = row.path.replace(/^#+/, '').replace(/^\/+/, '');
+  const route = parsePrimaryRoutePath(`/${normalizedPath}`) ?? { kind: 'home' };
+  return {
+    id: row.id || `custom-${index}`,
+    title: safeNavigationText(row.title, `Menu item ${index + 1}`),
+    label: safeNavigationText(row.title, `Menu item ${index + 1}`),
+    icon: safeNavigationText(row.icon, 'mdi-action-extension'),
+    route,
+    href: buildCustomNavigationHref(normalizedPath, options),
+    isActive: activeRoute ? route.kind === activeRoute.kind : false
+  };
+}
+
+function buildCustomNavigationHref(path: string, options: BuildAppRouteOptions): string {
+  const cleanPath = path.replace(/[<>"']/g, '').replace(/^\/+/, '');
+  if (!cleanPath) {
+    return buildPrimaryAppRoute({ kind: 'home' }, options);
+  }
+
+  const base =
+    typeof options.packageBasePath === 'string' ? options.packageBasePath.replace(/\/+$/, '') : '';
+  if (options.routeMode === 'hash') {
+    return base ? `${base}/#${cleanPath}` : `#${cleanPath}`;
+  }
+  return `${base}/${cleanPath}`.replace(/\/{2,}/g, '/');
 }
 
 function createSubmenuGroups(
@@ -456,7 +580,9 @@ function createSubmenuItem(
     label: safeNavigationText(item.label, item.title),
     route: item.route,
     href: buildPrimaryAppRoute(item.route, buildOptions),
-    isActive: isActiveRouteKind(item.activeRouteKinds ?? [item.route.kind], activeRoute)
+    isActive: item.activeRouteKinds
+      ? isActiveRouteKind(item.activeRouteKinds, activeRoute)
+      : isSamePrimaryRoute(item.route, activeRoute)
   };
 }
 
@@ -472,6 +598,22 @@ function isActiveRouteKind(
   activeRoute: PrimaryRoute | null
 ): boolean {
   return activeRoute ? routeKinds.includes(activeRoute.kind) : false;
+}
+
+function isSamePrimaryRoute(route: PrimaryRoute, activeRoute: PrimaryRoute | null): boolean {
+  if (!activeRoute || route.kind !== activeRoute.kind) {
+    return false;
+  }
+
+  if ('section' in route || 'section' in activeRoute) {
+    return 'section' in route && 'section' in activeRoute && route.section === activeRoute.section;
+  }
+
+  if ('pageid' in route || 'pageid' in activeRoute) {
+    return 'pageid' in route && 'pageid' in activeRoute && route.pageid === activeRoute.pageid;
+  }
+
+  return true;
 }
 
 function safeNavigationText(value: unknown, fallback: string): string {

@@ -1,10 +1,11 @@
-import type { RemoteInputCommand } from '$lib/kodi';
+import type { RemoteInputAction, RemoteInputCommand } from '$lib/kodi';
 import { isEditableShortcutTarget } from './playbackShortcuts';
 
 export interface RemoteInputShortcutDefinition {
   key: string;
   label: string;
-  command: RemoteInputCommand;
+  command?: RemoteInputCommand;
+  action?: RemoteInputAction;
   description: string;
 }
 
@@ -15,6 +16,7 @@ export type RemoteInputShortcutEvent = Pick<
 
 export interface RemoteInputShortcutDispatch {
   sendInput(command: RemoteInputCommand): Promise<void> | void;
+  executeAction?(action: RemoteInputAction): Promise<void> | void;
 }
 
 export const REMOTE_INPUT_SHORTCUTS: readonly RemoteInputShortcutDefinition[] = [
@@ -77,14 +79,56 @@ export const REMOTE_INPUT_SHORTCUTS: readonly RemoteInputShortcutDefinition[] = 
     label: 'Home',
     command: 'home',
     description: 'Send Kodi Input.Home on the Remote route.'
+  },
+  {
+    key: 'T',
+    label: 'Toggle subtitles',
+    action: 'showsubtitles',
+    description: 'Send Kodi Input.ExecuteAction showsubtitles on the Remote route.'
+  },
+  {
+    key: 'Tab',
+    label: 'Close OSD',
+    action: 'close',
+    description: 'Send Kodi Input.ExecuteAction close on the Remote route.'
+  },
+  {
+    key: 'O',
+    label: 'Show OSD',
+    action: 'osd',
+    description: 'Send Kodi Input.ExecuteAction osd on the Remote route.'
+  },
+  {
+    key: '\\',
+    label: 'Kodi fullscreen',
+    action: 'fullscreen',
+    description: 'Send Kodi Input.ExecuteAction fullscreen on the Remote route.'
   }
 ] as const;
 
 const REMOTE_INPUT_SHORTCUT_COMMANDS: ReadonlyMap<string, RemoteInputCommand> = new Map(
-  REMOTE_INPUT_SHORTCUTS.flatMap((shortcut) => [
-    [normalizeRemoteShortcutKey(shortcut.key), shortcut.command],
-    ...(shortcut.key.length === 1 ? [[shortcut.key.toLowerCase(), shortcut.command] as const] : [])
-  ])
+  REMOTE_INPUT_SHORTCUTS.flatMap((shortcut) =>
+    shortcut.command
+      ? [
+          [normalizeRemoteShortcutKey(shortcut.key), shortcut.command],
+          ...(shortcut.key.length === 1
+            ? [[shortcut.key.toLowerCase(), shortcut.command] as const]
+            : [])
+        ]
+      : []
+  )
+);
+const REMOTE_INPUT_SHORTCUT_ACTIONS: ReadonlyMap<string, RemoteInputAction> = new Map(
+  REMOTE_INPUT_SHORTCUTS.flatMap((shortcut) =>
+    shortcut.action
+      ? [
+          [normalizeRemoteShortcutKey(shortcut.key), shortcut.action],
+          ...(shortcut.key.length === 1
+            ? [[shortcut.key.toLowerCase(), shortcut.action] as const]
+            : [])
+        ]
+      : []
+  )
 );
 
 export function handleRemoteInputShortcut(
@@ -96,11 +140,18 @@ export function handleRemoteInputShortcut(
   }
 
   const command = REMOTE_INPUT_SHORTCUT_COMMANDS.get(normalizeRemoteShortcutKey(event.key));
-  if (!command) {
+  const action = REMOTE_INPUT_SHORTCUT_ACTIONS.get(normalizeRemoteShortcutKey(event.key));
+  if (!command && !action) {
     return false;
   }
 
-  dispatch.sendInput(command);
+  if (command) {
+    dispatch.sendInput(command);
+  } else if (action && dispatch.executeAction) {
+    dispatch.executeAction(action);
+  } else {
+    return false;
+  }
   event.preventDefault();
 
   return true;

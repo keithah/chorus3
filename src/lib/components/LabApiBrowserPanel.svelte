@@ -20,8 +20,10 @@
     snapshot: LabApiBrowserStoreSnapshot;
     dispatch: LabApiBrowserPanelDispatch;
     i18n: TranslationContext;
+    initialMethod?: string;
   }
-  let { snapshot, dispatch, i18n }: Props = $props();
+  let { snapshot, dispatch, i18n, initialMethod = '' }: Props = $props();
+  let lastInitialMethod = $state('');
   const hasMethods = $derived(snapshot.methods.length > 0);
   const selectedMethod = $derived(snapshot.selectedMethod);
   const selectedMethodName = $derived(snapshot.selectedMethodName ?? '');
@@ -103,6 +105,32 @@
       : i18n.t('lab.api.endpoint.noCredentials');
     return i18n.t('lab.api.endpoint', { host, port, timeout, credentials });
   }
+
+  $effect(() => {
+    const requestedMethod = initialMethod.trim();
+
+    if (!requestedMethod || requestedMethod === lastInitialMethod) {
+      return;
+    }
+
+    lastInitialMethod = requestedMethod;
+
+    if (snapshot.introspectionStatus === 'idle') {
+      void dispatch.loadIntrospection();
+    }
+  });
+
+  $effect(() => {
+    const requestedMethod = initialMethod.trim();
+
+    if (
+      requestedMethod &&
+      snapshot.introspectionStatus === 'success' &&
+      snapshot.selectedMethodName !== requestedMethod
+    ) {
+      void dispatch.selectMethod(requestedMethod);
+    }
+  });
 </script>
 
 <section class="lab-api-browser-panel surface" aria-labelledby="lab-api-browser-title">

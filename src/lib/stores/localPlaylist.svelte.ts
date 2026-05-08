@@ -55,6 +55,7 @@ export interface LocalPlaylistItemInput {
   file: string;
   sourceId?: string;
   durationSeconds?: number;
+  thumbnail?: string;
 }
 
 export interface LocalPlaylistItemSnapshot {
@@ -65,6 +66,17 @@ export interface LocalPlaylistItemSnapshot {
   sourceId?: string;
   durationSeconds?: number;
   addedAt: string;
+}
+
+export interface LocalPlaylistPlayableItem {
+  id: string;
+  kind: LocalPlaylistItemKind;
+  label: string;
+  file: string;
+  position: number;
+  sourceId?: string;
+  durationSeconds?: number;
+  thumbnail?: string;
 }
 
 export interface LocalPlaylistSnapshot {
@@ -121,11 +133,13 @@ export interface LocalPlaylistDispatch {
     direction: LocalPlaylistMoveDirection
   ): LocalPlaylistMutationResult;
   reorderItems(playlistId: string, itemIds: string[]): LocalPlaylistMutationResult;
+  getPlayableItems?(playlistId: string): LocalPlaylistPlayableItem[];
   reset(): void;
 }
 
 interface LocalPlaylistItemRecord extends LocalPlaylistItemSnapshot {
   file: string;
+  thumbnail?: string;
 }
 
 interface LocalPlaylistRecord extends Omit<LocalPlaylistSnapshot, 'items'> {
@@ -419,6 +433,15 @@ export class LocalPlaylistStore implements LocalPlaylistDispatch {
     return { ok: true };
   }
 
+  getPlayableItems(playlistId: string): LocalPlaylistPlayableItem[] {
+    const playlist = this.#findPlaylist(playlistId);
+    if (!playlist) {
+      return [];
+    }
+
+    return playlist.items.map(clonePlayableItem);
+  }
+
   reset(): void {
     this.#startMutation('reset');
     this.#playlists = [];
@@ -616,6 +639,11 @@ export class LocalPlaylistStore implements LocalPlaylistDispatch {
       return { ok: false, errors: { items: 'Local playlist duration is invalid.' } };
     }
 
+    const thumbnail = normalizeOptionalPrivateText(value.thumbnail);
+    if (thumbnail === false) {
+      return { ok: false, errors: { items: 'Local playlist thumbnail is invalid.' } };
+    }
+
     return {
       ok: true,
       item: {
@@ -626,6 +654,7 @@ export class LocalPlaylistStore implements LocalPlaylistDispatch {
         position,
         ...(sourceId === undefined ? {} : { sourceId }),
         ...(durationSeconds === undefined ? {} : { durationSeconds }),
+        ...(thumbnail === undefined ? {} : { thumbnail }),
         addedAt
       }
     };
@@ -720,6 +749,11 @@ function validatePersistedItem(value: unknown): LocalPlaylistItemRecord {
     throw new Error('Persisted local playlist duration was invalid.');
   }
 
+  const thumbnail = normalizeOptionalPrivateText(value.thumbnail);
+  if (thumbnail === false) {
+    throw new Error('Persisted local playlist thumbnail was invalid.');
+  }
+
   return {
     id: value.id,
     kind: value.kind,
@@ -733,6 +767,7 @@ function validatePersistedItem(value: unknown): LocalPlaylistItemRecord {
         : 0,
     ...(sourceId === undefined ? {} : { sourceId }),
     ...(durationSeconds === undefined ? {} : { durationSeconds }),
+    ...(thumbnail === undefined ? {} : { thumbnail }),
     addedAt: validateIsoString(value.addedAt)
   };
 }
@@ -811,6 +846,19 @@ function normalizeOptionalDuration(value: unknown): number | undefined | false {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : false;
 }
 
+function normalizeOptionalPrivateText(value: unknown): string | undefined | false {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const text = value.trim();
+  return text ? text : undefined;
+}
+
 function validateIsoString(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw new Error('Persisted timestamp was invalid.');
@@ -857,6 +905,19 @@ function cloneItemSnapshot(item: LocalPlaylistItemRecord): LocalPlaylistItemSnap
     ...(item.sourceId === undefined ? {} : { sourceId: item.sourceId }),
     ...(item.durationSeconds === undefined ? {} : { durationSeconds: item.durationSeconds }),
     addedAt: item.addedAt
+  };
+}
+
+function clonePlayableItem(item: LocalPlaylistItemRecord): LocalPlaylistPlayableItem {
+  return {
+    id: item.id,
+    kind: item.kind,
+    label: item.label,
+    file: item.file,
+    position: item.position,
+    ...(item.sourceId === undefined ? {} : { sourceId: item.sourceId }),
+    ...(item.durationSeconds === undefined ? {} : { durationSeconds: item.durationSeconds }),
+    ...(item.thumbnail === undefined ? {} : { thumbnail: item.thumbnail })
   };
 }
 

@@ -34,8 +34,6 @@ const REQUIRED_ROUTES = [
   '/settings?m005-browser-proof=1&locale=de',
   '/addons?m005-browser-proof=1',
   '/addons/plugin.video.safe-demo?m005-browser-proof=1',
-  '/lab/shortcuts?m005-browser-proof=1',
-  '/lab/api-browser?m005-browser-proof=1',
   '/now-playing?m005-browser-proof=1&theme=light&locale=de',
   '/now-playing?m005-browser-proof=1&embed-state=setup&locale=de',
   '/now-playing?m005-browser-proof=1&theme=dark&locale=en',

@@ -1,9 +1,12 @@
 import {
   KodiHttpClientError,
+  executeInputAction,
   isKodiHttpClientError,
   sendInputCommand,
+  sendInputText,
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
+  type RemoteInputAction,
   type RemoteInputCommand
 } from '$lib/kodi';
 import { configStore as defaultConfigStore, type ConfigStore } from './config.svelte.ts';
@@ -21,7 +24,7 @@ export interface RemoteInputDispatchSafeErrorSnapshot {
 
 export interface RemoteInputDispatchSnapshot {
   commandStatus: RemoteInputCommandStatus;
-  lastCommand: RemoteInputCommand | null;
+  lastCommand: RemoteInputCommand | 'sendText' | 'executeAction' | null;
   lastError: RemoteInputDispatchSafeErrorSnapshot | null;
   lastCompletedAt: string | null;
 }
@@ -51,6 +54,13 @@ const REMOTE_INPUT_COMMAND_SET = new Set<RemoteInputCommand>([
   'info',
   'home'
 ]);
+const REMOTE_INPUT_ACTION_SET = new Set<RemoteInputAction>([
+  'showsubtitles',
+  'close',
+  'fullscreen',
+  'osd',
+  'screenshot'
+]);
 
 export class RemoteInputDispatch {
   #snapshot = $state<RemoteInputDispatchSnapshot>({ ...DEFAULT_SNAPSHOT });
@@ -76,6 +86,14 @@ export class RemoteInputDispatch {
 
   sendInput(command: RemoteInputCommand): Promise<void> {
     return this.send(command);
+  }
+
+  sendText(text: string): Promise<void> {
+    return this.#runTextCommand(text);
+  }
+
+  executeAction(action: RemoteInputAction): Promise<void> {
+    return this.#runActionCommand(action);
   }
 
   async send(command: RemoteInputCommand): Promise<void> {
@@ -126,7 +144,101 @@ export class RemoteInputDispatch {
     };
   }
 
-  #startCommand(command: RemoteInputCommand): void {
+  async #runTextCommand(text: string): Promise<void> {
+    const normalized = typeof text === 'string' ? text : '';
+    if (!normalized || normalized.length > 1000) {
+      this.#snapshot = {
+        ...this.#snapshot,
+        commandStatus: 'failed',
+        lastCommand: 'sendText',
+        lastError: createInputError('input/invalid-text', 'Enter text that Kodi can receive.'),
+        lastCompletedAt: this.#now()
+      };
+      return;
+    }
+
+    this.#startCommand('sendText');
+
+    const { client, error } = this.#resolveClient();
+    if (error) {
+      this.#failCommand(error);
+      return;
+    }
+
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before using remote controls.'
+        )
+      );
+      return;
+    }
+
+    try {
+      await sendInputText(client, normalized);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runActionCommand(action: RemoteInputAction): Promise<void> {
+    if (!isRemoteInputAction(action)) {
+      this.#snapshot = {
+        ...this.#snapshot,
+        commandStatus: 'failed',
+        lastCommand: 'executeAction',
+        lastError: createInputError(
+          'input/unknown-remote-action',
+          'Choose a supported remote input action.'
+        ),
+        lastCompletedAt: this.#now()
+      };
+      return;
+    }
+
+    this.#startCommand('executeAction');
+
+    const { client, error } = this.#resolveClient();
+    if (error) {
+      this.#failCommand(error);
+      return;
+    }
+
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before using remote controls.'
+        )
+      );
+      return;
+    }
+
+    try {
+      await executeInputAction(client, action);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  #startCommand(command: RemoteInputDispatchSnapshot['lastCommand']): void {
     this.#snapshot = {
       ...this.#snapshot,
       commandStatus: 'running',
@@ -158,6 +270,10 @@ export class RemoteInputDispatch {
 
 function isRemoteInputCommand(command: unknown): command is RemoteInputCommand {
   return typeof command === 'string' && REMOTE_INPUT_COMMAND_SET.has(command as RemoteInputCommand);
+}
+
+function isRemoteInputAction(action: unknown): action is RemoteInputAction {
+  return typeof action === 'string' && REMOTE_INPUT_ACTION_SET.has(action as RemoteInputAction);
 }
 
 function createInputError(code: string, message: string): RemoteInputDispatchSafeErrorSnapshot {

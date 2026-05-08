@@ -41,6 +41,153 @@ export type SystemPropertyName = 'canhibernate' | 'canreboot' | 'canshutdown' | 
 export type SystemPropertiesResult = Partial<Record<SystemPropertyName, boolean>> &
   Record<string, unknown>;
 
+export type PvrChannelPropertyName =
+  | 'thumbnail'
+  | 'channeltype'
+  | 'hidden'
+  | 'locked'
+  | 'channel'
+  | 'lastplayed'
+  | 'broadcastnow'
+  | 'isrecording';
+
+export type PvrRecordingPropertyName =
+  | 'channel'
+  | 'file'
+  | 'title'
+  | 'resume'
+  | 'plot'
+  | 'genre'
+  | 'playcount'
+  | 'starttime'
+  | 'endtime'
+  | 'runtime'
+  | 'icon'
+  | 'art'
+  | 'streamurl'
+  | 'directory'
+  | 'radio'
+  | 'isdeleted'
+  | 'channeluid';
+
+export type PvrBroadcastPropertyName =
+  | 'title'
+  | 'runtime'
+  | 'starttime'
+  | 'endtime'
+  | 'genre'
+  | 'progress'
+  | 'plot'
+  | 'plotoutline'
+  | 'progresspercentage'
+  | 'episodename'
+  | 'episodenum'
+  | 'episodepart'
+  | 'firstaired'
+  | 'hastimer'
+  | 'isactive'
+  | 'parentalrating'
+  | 'wasactive'
+  | 'thumbnail'
+  | 'rating'
+  | 'originaltitle'
+  | 'cast'
+  | 'director'
+  | 'writer'
+  | 'year'
+  | 'imdbnumber'
+  | 'hastimerrule'
+  | 'hasrecording'
+  | 'recording'
+  | 'isseries';
+
+export interface PvrChannel {
+  channelid: number;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface PvrRecording {
+  recordingid: number;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface PvrBroadcast {
+  broadcastid: number;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export type PvrRecordParams = {
+  channel: number | 'current';
+  record?: boolean | 'toggle';
+};
+
+export type PvrTimerBroadcastParams = {
+  broadcastid: number;
+  timerrule?: boolean;
+};
+
+export type PvrDeleteTimerParams = {
+  timerid: number;
+};
+
+export type PvrGetChannelsParams = {
+  channelgroupid: number | 'alltv' | 'allradio';
+  properties?: readonly PvrChannelPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+};
+
+export interface PvrGetChannelsResult {
+  channels?: PvrChannel[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export type PvrGetChannelDetailsParams = {
+  channelid: number;
+  properties?: readonly PvrChannelPropertyName[];
+};
+
+export interface PvrGetChannelDetailsResult {
+  channeldetails?: PvrChannel;
+  [key: string]: unknown;
+}
+
+export type PvrGetRecordingsParams = {
+  properties?: readonly PvrRecordingPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+};
+
+export interface PvrGetRecordingsResult {
+  recordings?: PvrRecording[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export type PvrGetRecordingDetailsParams = {
+  recordingid: number;
+  properties?: readonly PvrRecordingPropertyName[];
+};
+
+export interface PvrGetRecordingDetailsResult {
+  recordingdetails?: PvrRecording;
+  [key: string]: unknown;
+}
+
+export type PvrGetBroadcastsParams = {
+  channelid: number;
+  properties?: readonly PvrBroadcastPropertyName[];
+  limits?: Pick<KodiLimits, 'start' | 'end'>;
+};
+
+export interface PvrGetBroadcastsResult {
+  broadcasts?: PvrBroadcast[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
 export type SettingsLevel = 'basic' | 'standard' | 'advanced' | 'expert';
 export type SettingsSettingValue = string | number | boolean | null;
 export type SettingsGetSectionsParams = Record<string, unknown> & {
@@ -136,6 +283,14 @@ export type AddonsSetAddonEnabledParams = Record<string, unknown> & {
 };
 
 export type AddonsSetAddonEnabledResult = 'OK';
+
+export type AddonsExecuteAddonParams = Record<string, unknown> & {
+  addonid: string;
+  params?: Record<string, string> | readonly string[];
+  wait?: boolean;
+};
+
+export type AddonsExecuteAddonResult = 'OK';
 
 export interface KodiSettingsSection {
   id?: string;
@@ -424,8 +579,16 @@ export const REMOTE_INPUT_COMMANDS = [
   'info',
   'home'
 ] as const;
+export const REMOTE_INPUT_ACTIONS = [
+  'showsubtitles',
+  'close',
+  'fullscreen',
+  'osd',
+  'screenshot'
+] as const;
 
 export type RemoteInputCommand = (typeof REMOTE_INPUT_COMMANDS)[number];
+export type RemoteInputAction = (typeof REMOTE_INPUT_ACTIONS)[number];
 
 const REMOTE_INPUT_METHODS: Record<RemoteInputCommand, string> = {
   left: 'Input.Left',
@@ -457,6 +620,31 @@ export type KodiMovieLibraryItem = {
 export type KodiEpisodeLibraryItem = {
   episodeid: number;
   movieid?: never;
+  musicvideoid?: never;
+  songid?: never;
+  albumid?: never;
+  artistid?: never;
+  playlistid?: never;
+  file?: never;
+};
+
+export type KodiMusicVideoLibraryItem = {
+  musicvideoid: number;
+  movieid?: never;
+  episodeid?: never;
+  songid?: never;
+  albumid?: never;
+  artistid?: never;
+  playlistid?: never;
+  channelid?: never;
+  file?: never;
+};
+
+export type KodiPvrChannelItem = {
+  channelid: number;
+  movieid?: never;
+  episodeid?: never;
+  musicvideoid?: never;
   songid?: never;
   albumid?: never;
   artistid?: never;
@@ -466,7 +654,16 @@ export type KodiEpisodeLibraryItem = {
 
 export type PlayerOpenItem =
   | KodiMusicLibraryItem
-  | { playlistid: number; songid?: never; albumid?: never; artistid?: never; file?: never };
+  | KodiMusicVideoLibraryItem
+  | KodiPvrChannelItem
+  | {
+      playlistid: number;
+      songid?: never;
+      albumid?: never;
+      artistid?: never;
+      channelid?: never;
+      file?: never;
+    };
 
 export type PlayerOpenParams = {
   item: PlayerOpenItem;
@@ -491,6 +688,19 @@ export type PlaylistAddParams = {
   item: KodiMusicLibraryItem;
 };
 
+export type PlaylistInsertItem =
+  | KodiMusicLibraryItem
+  | KodiMovieLibraryItem
+  | KodiEpisodeLibraryItem
+  | KodiMusicVideoLibraryItem
+  | KodiFileItem;
+
+export type PlaylistInsertParams = {
+  playlistid: number;
+  position: number;
+  item: PlaylistInsertItem;
+};
+
 export type PlaylistAddMovieParams = {
   playlistid: number;
   item: KodiMovieLibraryItem;
@@ -501,13 +711,28 @@ export type PlaylistAddEpisodeParams = {
   item: KodiEpisodeLibraryItem;
 };
 
-export type KodiFileItem = {
-  file: string;
-  songid?: never;
-  albumid?: never;
-  artistid?: never;
-  playlistid?: never;
+export type PlaylistAddMusicVideoParams = {
+  playlistid: number;
+  item: KodiMusicVideoLibraryItem;
 };
+
+export type KodiFileItem =
+  | {
+      file: string;
+      directory?: never;
+      songid?: never;
+      albumid?: never;
+      artistid?: never;
+      playlistid?: never;
+    }
+  | {
+      directory: string;
+      file?: never;
+      songid?: never;
+      albumid?: never;
+      artistid?: never;
+      playlistid?: never;
+    };
 
 export type KodiPlaylistFileItem = {
   file: string;
@@ -537,10 +762,46 @@ export type PlaylistFileAddParams = {
 
 export type KodiLibraryWriteResult = 'OK';
 
+export type AudioLibrarySetAlbumDetailsParams = {
+  albumid: number;
+  title?: string;
+  artist?: string | readonly string[];
+  description?: string;
+  genre?: string | readonly string[];
+  year?: number;
+  rating?: number;
+  userrating?: number;
+  art?: Record<string, string>;
+};
+
+export type AudioLibrarySetArtistDetailsParams = {
+  artistid: number;
+  artist?: string;
+  instrument?: string | readonly string[];
+  style?: string | readonly string[];
+  mood?: string | readonly string[];
+  born?: string;
+  formed?: string;
+  description?: string;
+  genre?: string | readonly string[];
+  died?: string;
+  disbanded?: string;
+  yearsactive?: string | readonly string[];
+  art?: Record<string, string>;
+};
+
 export type AudioLibrarySetSongDetailsParams = {
   songid: number;
   playcount?: number;
   lastplayed?: string;
+};
+
+export type AudioLibraryScanParams = {
+  directory?: string;
+};
+
+export type AudioLibraryCleanParams = {
+  showdialogs?: boolean;
 };
 
 export type VideoResumePosition = {
@@ -555,11 +816,35 @@ export type VideoLibrarySetMovieDetailsParams = {
   resume?: VideoResumePosition;
 };
 
+export type VideoLibrarySetTvShowDetailsParams = {
+  tvshowid: number;
+  playcount?: number;
+  lastplayed?: string;
+  title?: string;
+  userrating?: number;
+  art?: Record<string, string>;
+};
+
 export type VideoLibrarySetEpisodeDetailsParams = {
   episodeid: number;
   playcount?: number;
   lastplayed?: string;
   resume?: VideoResumePosition;
+};
+
+export type VideoLibrarySetMusicVideoDetailsParams = {
+  musicvideoid: number;
+  playcount?: number;
+  lastplayed?: string;
+  resume?: VideoResumePosition;
+  title?: string;
+  artist?: string | readonly string[];
+  album?: string;
+  genre?: string | readonly string[];
+  track?: number;
+  year?: number;
+  userrating?: number;
+  art?: Record<string, string>;
 };
 
 export type VideoLibrarySetSeasonDetailsParams = {
@@ -629,6 +914,13 @@ export type PlayerSetShuffleParams = {
   shuffle: PlayerShuffleValue;
 };
 
+export type PlayerPartyModeValue = boolean | 'toggle';
+
+export type PlayerSetPartyModeParams = {
+  playerid: number;
+  partymode: PlayerPartyModeValue;
+};
+
 export type PlayerRepeatValue = 'off' | 'one' | 'all' | 'cycle';
 
 export type PlayerSetRepeatParams = {
@@ -684,6 +976,17 @@ export interface FileDirectoryEntry {
 export interface FileDirectoryResult {
   files?: FileDirectoryEntry[];
   limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export type FileDetailsParams = {
+  file: string;
+  media?: FileMediaType;
+  properties?: readonly FileDirectoryPropertyName[];
+};
+
+export interface FileDetailsResult {
+  filedetails?: FileDirectoryEntry;
   [key: string]: unknown;
 }
 
@@ -894,6 +1197,31 @@ export type VideoLibraryEpisodePropertyName =
   | 'votes'
   | 'writer';
 
+export type VideoLibraryMusicVideoPropertyName =
+  | 'album'
+  | 'art'
+  | 'artist'
+  | 'dateadded'
+  | 'director'
+  | 'fanart'
+  | 'file'
+  | 'genre'
+  | 'lastplayed'
+  | 'playcount'
+  | 'plot'
+  | 'rating'
+  | 'resume'
+  | 'runtime'
+  | 'streamdetails'
+  | 'studio'
+  | 'tag'
+  | 'thumbnail'
+  | 'title'
+  | 'track'
+  | 'userrating'
+  | 'votes'
+  | 'year';
+
 export interface LibraryItem {
   label: string;
   [key: string]: unknown;
@@ -930,6 +1258,10 @@ export interface VideoLibrarySeason extends LibraryItem {
 
 export interface VideoLibraryEpisode extends LibraryItem {
   episodeid: number;
+}
+
+export interface VideoLibraryMusicVideo extends LibraryItem {
+  musicvideoid: number;
 }
 
 export interface AudioLibraryArtistsResult {
@@ -995,6 +1327,17 @@ export interface VideoLibraryEpisodeDetailsResult {
   [key: string]: unknown;
 }
 
+export interface VideoLibraryMusicVideosResult {
+  musicvideos?: VideoLibraryMusicVideo[];
+  limits?: KodiLimits;
+  [key: string]: unknown;
+}
+
+export interface VideoLibraryMusicVideoDetailsResult {
+  musicvideodetails?: VideoLibraryMusicVideo;
+  [key: string]: unknown;
+}
+
 export type VideoLibraryAvailableArtMedia = 'movie' | 'tvshow' | 'season' | 'episode';
 
 export type VideoLibraryAvailableArtParams = {
@@ -1024,9 +1367,23 @@ export type VideoLibraryRefreshTvShowParams = {
   ignorenfo?: boolean;
 };
 
+export type VideoLibraryRefreshMovieParams = {
+  movieid: number;
+  ignorenfo?: boolean;
+};
+
 export type VideoLibraryRefreshEpisodeParams = {
   episodeid: number;
   ignorenfo?: boolean;
+};
+
+export type VideoLibraryScanParams = {
+  directory?: string;
+};
+
+export type VideoLibraryCleanParams = {
+  showdialogs?: boolean;
+  content?: 'movies' | 'tvshows' | 'musicvideos';
 };
 
 export type AudioLibraryArtistsParams = KodiListParams<AudioLibraryArtistPropertyName>;
@@ -1058,6 +1415,11 @@ export type VideoLibraryEpisodesParams = KodiListParams<VideoLibraryEpisodePrope
 export type VideoLibraryEpisodeDetailsParams = {
   episodeid: number;
   properties?: readonly VideoLibraryEpisodePropertyName[];
+};
+export type VideoLibraryMusicVideosParams = KodiListParams<VideoLibraryMusicVideoPropertyName>;
+export type VideoLibraryMusicVideoDetailsParams = {
+  musicvideoid: number;
+  properties?: readonly VideoLibraryMusicVideoPropertyName[];
 };
 
 export interface VideoLibraryMovieDetailsResult {
@@ -1118,6 +1480,22 @@ export function sendInputCommand(
   return callKodi<PlayerCommandResult>(client, REMOTE_INPUT_METHODS[command], undefined, options);
 }
 
+export function sendInputText(
+  client: KodiJsonRpcHttpClient,
+  text: string,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult>(client, 'Input.SendText', { text }, options);
+}
+
+export function executeInputAction(
+  client: KodiJsonRpcHttpClient,
+  action: RemoteInputAction,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult>(client, 'Input.ExecuteAction', { action }, options);
+}
+
 export function pingKodi(
   client: KodiJsonRpcHttpClient,
   options?: KodiHttpCallOptions
@@ -1167,6 +1545,118 @@ export function getSystemProperties(
     client,
     'System.GetProperties',
     { properties },
+    options
+  );
+}
+
+export function getPvrChannels(
+  client: KodiJsonRpcHttpClient,
+  params: PvrGetChannelsParams,
+  options?: KodiHttpCallOptions
+): Promise<PvrGetChannelsResult> {
+  return callKodi<PvrGetChannelsResult, PvrGetChannelsParams>(
+    client,
+    'PVR.GetChannels',
+    params,
+    options
+  );
+}
+
+export function getPvrChannelDetails(
+  client: KodiJsonRpcHttpClient,
+  params: PvrGetChannelDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<PvrGetChannelDetailsResult> {
+  return callKodi<PvrGetChannelDetailsResult, PvrGetChannelDetailsParams>(
+    client,
+    'PVR.GetChannelDetails',
+    params,
+    options
+  );
+}
+
+export function getPvrBroadcasts(
+  client: KodiJsonRpcHttpClient,
+  params: PvrGetBroadcastsParams,
+  options?: KodiHttpCallOptions
+): Promise<PvrGetBroadcastsResult> {
+  return callKodi<PvrGetBroadcastsResult, PvrGetBroadcastsParams>(
+    client,
+    'PVR.GetBroadcasts',
+    params,
+    options
+  );
+}
+
+export function getPvrRecordings(
+  client: KodiJsonRpcHttpClient,
+  params: PvrGetRecordingsParams = {},
+  options?: KodiHttpCallOptions
+): Promise<PvrGetRecordingsResult> {
+  return callKodi<PvrGetRecordingsResult, PvrGetRecordingsParams>(
+    client,
+    'PVR.GetRecordings',
+    params,
+    options
+  );
+}
+
+export function getPvrRecordingDetails(
+  client: KodiJsonRpcHttpClient,
+  params: PvrGetRecordingDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<PvrGetRecordingDetailsResult> {
+  return callKodi<PvrGetRecordingDetailsResult, PvrGetRecordingDetailsParams>(
+    client,
+    'PVR.GetRecordingDetails',
+    params,
+    options
+  );
+}
+
+export function recordPvrChannel(
+  client: KodiJsonRpcHttpClient,
+  params: PvrRecordParams,
+  options?: KodiHttpCallOptions
+): Promise<Record<string, unknown>> {
+  return callKodi<Record<string, unknown>, PvrRecordParams>(client, 'PVR.Record', params, options);
+}
+
+export function togglePvrTimer(
+  client: KodiJsonRpcHttpClient,
+  params: PvrTimerBroadcastParams,
+  options?: KodiHttpCallOptions
+): Promise<Record<string, unknown>> {
+  return callKodi<Record<string, unknown>, PvrTimerBroadcastParams>(
+    client,
+    'PVR.ToggleTimer',
+    params,
+    options
+  );
+}
+
+export function addPvrTimer(
+  client: KodiJsonRpcHttpClient,
+  params: PvrTimerBroadcastParams,
+  options?: KodiHttpCallOptions
+): Promise<Record<string, unknown>> {
+  return callKodi<Record<string, unknown>, PvrTimerBroadcastParams>(
+    client,
+    'PVR.AddTimer',
+    params,
+    options
+  );
+}
+
+export function deletePvrTimer(
+  client: KodiJsonRpcHttpClient,
+  params: PvrDeleteTimerParams,
+  options?: KodiHttpCallOptions
+): Promise<Record<string, unknown>> {
+  return callKodi<Record<string, unknown>, PvrDeleteTimerParams>(
+    client,
+    'PVR.DeleteTimer',
+    params,
     options
   );
 }
@@ -1257,6 +1747,19 @@ export function setAddonEnabled(
   return callKodi<AddonsSetAddonEnabledResult, AddonsSetAddonEnabledParams>(
     client,
     'Addons.SetAddonEnabled',
+    params,
+    options
+  );
+}
+
+export function executeAddon(
+  client: KodiJsonRpcHttpClient,
+  params: AddonsExecuteAddonParams,
+  options?: KodiHttpCallOptions
+): Promise<AddonsExecuteAddonResult> {
+  return callKodi<AddonsExecuteAddonResult, AddonsExecuteAddonParams>(
+    client,
+    'Addons.ExecuteAddon',
     params,
     options
   );
@@ -1390,6 +1893,19 @@ export function addPlaylistItem(
   return callKodi<PlayerCommandResult, PlaylistAddParams>(client, 'Playlist.Add', params, options);
 }
 
+export function insertPlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  params: PlaylistInsertParams,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistInsertParams>(
+    client,
+    'Playlist.Insert',
+    params,
+    options
+  );
+}
+
 export function addMusicPlaylistItem(
   client: KodiJsonRpcHttpClient,
   item: KodiMusicLibraryItem,
@@ -1406,7 +1922,7 @@ export function addMoviePlaylistItem(
   return callKodi<PlayerCommandResult, PlaylistAddMovieParams>(
     client,
     'Playlist.Add',
-    { playlistid: 0, item },
+    { playlistid: 1, item },
     options
   );
 }
@@ -1419,7 +1935,20 @@ export function addEpisodePlaylistItem(
   return callKodi<PlayerCommandResult, PlaylistAddEpisodeParams>(
     client,
     'Playlist.Add',
-    { playlistid: 0, item },
+    { playlistid: 1, item },
+    options
+  );
+}
+
+export function addMusicVideoPlaylistItem(
+  client: KodiJsonRpcHttpClient,
+  item: KodiMusicVideoLibraryItem,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlaylistAddMusicVideoParams>(
+    client,
+    'Playlist.Add',
+    { playlistid: 1, item },
     options
   );
 }
@@ -1507,6 +2036,58 @@ export function setSongDetails(
   );
 }
 
+export function setAlbumDetails(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibrarySetAlbumDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, AudioLibrarySetAlbumDetailsParams>(
+    client,
+    'AudioLibrary.SetAlbumDetails',
+    params,
+    options
+  );
+}
+
+export function setArtistDetails(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibrarySetArtistDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, AudioLibrarySetArtistDetailsParams>(
+    client,
+    'AudioLibrary.SetArtistDetails',
+    params,
+    options
+  );
+}
+
+export function scanAudioLibrary(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibraryScanParams = {},
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, AudioLibraryScanParams>(
+    client,
+    'AudioLibrary.Scan',
+    params,
+    options
+  );
+}
+
+export function cleanAudioLibrary(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibraryCleanParams = { showdialogs: false },
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, AudioLibraryCleanParams>(
+    client,
+    'AudioLibrary.Clean',
+    params,
+    options
+  );
+}
+
 export function setMovieDetails(
   client: KodiJsonRpcHttpClient,
   params: VideoLibrarySetMovieDetailsParams,
@@ -1515,6 +2096,32 @@ export function setMovieDetails(
   return callKodi<KodiLibraryWriteResult, VideoLibrarySetMovieDetailsParams>(
     client,
     'VideoLibrary.SetMovieDetails',
+    params,
+    options
+  );
+}
+
+export function setTvShowDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySetTvShowDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibrarySetTvShowDetailsParams>(
+    client,
+    'VideoLibrary.SetTVShowDetails',
+    params,
+    options
+  );
+}
+
+export function setMusicVideoDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibrarySetMusicVideoDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibrarySetMusicVideoDetailsParams>(
+    client,
+    'VideoLibrary.SetMusicVideoDetails',
     params,
     options
   );
@@ -1640,6 +2247,20 @@ export function setPlayerShuffle(
   );
 }
 
+export function setPlayerPartyMode(
+  client: KodiJsonRpcHttpClient,
+  playerid: number,
+  partymode: PlayerPartyModeValue,
+  options?: KodiHttpCallOptions
+): Promise<PlayerCommandResult> {
+  return callKodi<PlayerCommandResult, PlayerSetPartyModeParams>(
+    client,
+    'Player.SetPartymode',
+    { playerid, partymode },
+    options
+  );
+}
+
 export function setPlayerRepeat(
   client: KodiJsonRpcHttpClient,
   playerid: number,
@@ -1703,6 +2324,19 @@ export function getFileDirectory(
   return callKodi<FileDirectoryResult, FileDirectoryParams>(
     client,
     'Files.GetDirectory',
+    params,
+    options
+  );
+}
+
+export function getFileDetails(
+  client: KodiJsonRpcHttpClient,
+  params: FileDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<FileDetailsResult> {
+  return callKodi<FileDetailsResult, FileDetailsParams>(
+    client,
+    'Files.GetFileDetails',
     params,
     options
   );
@@ -1864,6 +2498,32 @@ export function getVideoLibraryEpisodes(
   );
 }
 
+export function getVideoLibraryMusicVideos(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryMusicVideosParams = {},
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryMusicVideosResult> {
+  return callKodi<VideoLibraryMusicVideosResult, VideoLibraryMusicVideosParams>(
+    client,
+    'VideoLibrary.GetMusicVideos',
+    params,
+    options
+  );
+}
+
+export function getVideoLibraryMusicVideoDetails(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryMusicVideoDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<VideoLibraryMusicVideoDetailsResult> {
+  return callKodi<VideoLibraryMusicVideoDetailsResult, VideoLibraryMusicVideoDetailsParams>(
+    client,
+    'VideoLibrary.GetMusicVideoDetails',
+    params,
+    options
+  );
+}
+
 export function getVideoLibraryEpisodeDetails(
   client: KodiJsonRpcHttpClient,
   params: VideoLibraryEpisodeDetailsParams,
@@ -1916,6 +2576,19 @@ export function refreshVideoLibraryTvShow(
   );
 }
 
+export function refreshVideoLibraryMovie(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryRefreshMovieParams,
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibraryRefreshMovieParams>(
+    client,
+    'VideoLibrary.RefreshMovie',
+    params,
+    options
+  );
+}
+
 export function refreshVideoLibraryEpisode(
   client: KodiJsonRpcHttpClient,
   params: VideoLibraryRefreshEpisodeParams,
@@ -1924,6 +2597,32 @@ export function refreshVideoLibraryEpisode(
   return callKodi<KodiLibraryWriteResult, VideoLibraryRefreshEpisodeParams>(
     client,
     'VideoLibrary.RefreshEpisode',
+    params,
+    options
+  );
+}
+
+export function scanVideoLibrary(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryScanParams = {},
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibraryScanParams>(
+    client,
+    'VideoLibrary.Scan',
+    params,
+    options
+  );
+}
+
+export function cleanVideoLibrary(
+  client: KodiJsonRpcHttpClient,
+  params: VideoLibraryCleanParams = { showdialogs: false },
+  options?: KodiHttpCallOptions
+): Promise<KodiLibraryWriteResult> {
+  return callKodi<KodiLibraryWriteResult, VideoLibraryCleanParams>(
+    client,
+    'VideoLibrary.Clean',
     params,
     options
   );

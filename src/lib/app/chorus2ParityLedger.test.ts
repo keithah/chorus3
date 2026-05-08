@@ -254,19 +254,31 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       );
     }
 
-    for (const control of [
-      'sendtext',
-      'executeaction',
-      'osd',
-      'playpause',
-      'stop',
-      'volumeup',
-      'volumedown'
-    ]) {
+    for (const control of ['playpause', 'stop', 'volumeup', 'volumedown']) {
       const row = rowsForSurface('control', control)[0];
       expect(row, `missing remote control ${control}`).toBeDefined();
-      expect(row?.status, `remote control ${control} status`).toBe('missing');
+      expect(row?.status, `remote control ${control} status`).toBe('implemented');
       expect(row?.owner, `remote control ${control} owner`).toBe('M006/S03');
+      expect(row?.evidence, `remote control ${control} evidence`).toEqual(
+        expect.arrayContaining([
+          'src/lib/components/RemoteInputPanel.svelte',
+          'src/lib/components/RemoteInputPanel.test.ts',
+          'src/App.test.ts'
+        ])
+      );
+    }
+
+    for (const control of ['sendtext', 'executeaction', 'osd']) {
+      const row = rowsForSurface('control', control)[0];
+      expect(row, `implemented remote control ${control}`).toBeDefined();
+      expect(row?.status, `remote control ${control} status`).toBe('implemented');
+      expect(row?.evidence).toEqual(
+        expect.arrayContaining([
+          'src/App.test.ts',
+          'src/lib/components/RemoteInputPanel.svelte',
+          'src/lib/components/RemoteInputPanel.test.ts'
+        ])
+      );
     }
 
     for (const method of implementedRemoteControls.map((control) =>
@@ -289,8 +301,15 @@ describe('CHORUS2_PARITY_LEDGER', () => {
 
     for (const method of ['Input.SendText', 'Input.ExecuteAction']) {
       const row = rowsForSurface('jsonrpc', method)[0];
-      expect(row?.status, `${method} status`).toBe('missing');
-      expect(row?.owner, `${method} owner`).toBe('M006/S03');
+      expect(row?.status, `${method} status`).toBe('implemented');
+      expect(row?.evidence, `${method} evidence`).toEqual(
+        expect.arrayContaining([
+          'src/lib/kodi/methods.ts',
+          'src/lib/kodi/methods.test.ts',
+          'src/lib/stores/remoteInputDispatch.svelte.ts',
+          'src/lib/stores/remoteInputDispatch.test.ts'
+        ])
+      );
     }
 
     const inputRemoteAction = getChorus2ParityRowById('action:remote:input-remote-controls');
@@ -311,14 +330,14 @@ describe('CHORUS2_PARITY_LEDGER', () => {
       'System.Hibernate'
     ]) {
       const row = rowsForSurface('jsonrpc', method)[0];
-      expect(row?.status, `${method} guarded status`).toBe('deferred');
+      expect(row?.status, `${method} guarded status`).toBe('implemented');
       expect(row?.owner, `${method} D043 owner`).toContain('D043');
     }
   });
 
   test('lookup helpers are deterministic and do not expose mutable ledger arrays', () => {
     const missingRows = getChorus2ParityRowsByStatus('missing');
-    expect(missingRows.length).toBeGreaterThan(0);
+    expect(missingRows.length).toBe(0);
     expect(missingRows).toEqual(
       [...missingRows].sort((left, right) => left.id.localeCompare(right.id))
     );

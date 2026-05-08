@@ -31,8 +31,9 @@ describe('createAppNavigationItems', () => {
       'movies',
       'tvshows',
       'browser',
+      'pvr',
       'addons',
-      'remote',
+      'thumbsup',
       'playlists',
       'settings',
       'help'
@@ -81,11 +82,79 @@ describe('createAppNavigationItems', () => {
     }
   });
 
+  test('builds package navigation as hash routes when requested', () => {
+    const items = createAppNavigationItems({
+      routeMode: 'hash',
+      activeRoute: { kind: 'music' }
+    });
+
+    expect(items.find((item) => item.id === 'music')?.href).toBe('#music');
+    expect(items.find((item) => item.id === 'movies')?.href).toBe('#movies/recent');
+    expect(
+      items
+        .find((item) => item.id === 'music')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'genres')?.href
+    ).toBe('#music/genres');
+    expect(
+      items
+        .find((item) => item.id === 'movies')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'recent')?.href
+    ).toBe('#movies/recent');
+    expect(items.find((item) => item.id === 'browser')?.href).toBe('#browser');
+  });
+
+  test('uses classic-compatible custom main nav rows when provided', () => {
+    const items = createAppNavigationItems({
+      routeMode: 'hash',
+      activeRoute: { kind: 'music' },
+      mainNavRows: [
+        {
+          id: '1',
+          title: 'Tunes',
+          path: 'music',
+          icon: 'mdi-av-my-library-music',
+          classes: 'nav-music',
+          parent: 0,
+          weight: 0
+        },
+        {
+          id: '1001',
+          title: 'Lab',
+          path: 'lab/icon-browser',
+          icon: 'mdi-action-extension',
+          classes: '',
+          parent: 0,
+          weight: 1
+        }
+      ]
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      id: '1',
+      label: 'Tunes',
+      href: '#music',
+      route: { kind: 'music' },
+      isActive: true
+    });
+    expect(items[1]).toMatchObject({
+      id: '1001',
+      label: 'Lab',
+      href: '#lab/icon-browser',
+      route: { kind: 'home' },
+      isActive: false
+    });
+    expect(items[0].submenuGroups).toBeUndefined();
+  });
+
   test('groups detail and alias routes under the expected active rail item', () => {
     const cases: readonly [PrimaryRoute, string][] = [
       [{ kind: 'home' }, 'music'],
       [{ kind: 'musicAlbumDetail', albumid: 'abc' }, 'music'],
       [{ kind: 'musicVideos' }, 'music'],
+      [{ kind: 'musicVideoDetail', musicvideoid: '77' }, 'music'],
       [{ kind: 'movieDetail', movieid: '4401' }, 'movies'],
       [
         { kind: 'tvshowEpisodeDetail', tvshowid: '5501', season: '1', episodeid: '6601' },
@@ -96,7 +165,10 @@ describe('createAppNavigationItems', () => {
       [{ kind: 'settingsKodiSection', section: 'library' }, 'settings'],
       [{ kind: 'helpPage', pageid: 'keyboard' }, 'help'],
       [{ kind: 'playlistDetail', playlistid: 'local' }, 'playlists'],
+      [{ kind: 'thumbsup' }, 'thumbsup'],
       [{ kind: 'browserItem', media: 'music', itemid: 'root' }, 'browser'],
+      [{ kind: 'pvrTvChannel', channelid: '42' }, 'pvr'],
+      [{ kind: 'pvrRadioChannel', channelid: '99' }, 'pvr'],
       [primaryRouteFromPath('/files'), 'browser']
     ];
 
@@ -119,10 +191,23 @@ describe('createAppNavigationItems', () => {
         group.label,
         ...group.items.map((item) => item.label)
       ])
-    ).toEqual(['Music', 'Music', 'Top music', 'Artists', 'Albums', 'Genres', 'Videos']);
+    ).toEqual(['Music', 'Music', 'Genres', 'Top music', 'Artists', 'Albums', 'Videos']);
 
     const addons = byId('addons');
     expect(addons.submenuGroups?.map((group) => group.label)).toEqual(['ADD-ONS']);
+
+    const movies = byId('movies');
+    expect(
+      movies.submenuGroups?.flatMap((group) => [
+        group.label,
+        ...group.items.map((item) => item.label)
+      ])
+    ).toEqual(['Movie library', 'Movies', 'All movies']);
+
+    const pvr = byId('pvr');
+    expect(
+      pvr.submenuGroups?.flatMap((group) => [group.label, ...group.items.map((item) => item.label)])
+    ).toEqual(['PVR', 'TV Channels', 'Radio Stations', 'Recordings']);
 
     const settings = byId('settings');
     expect(
@@ -131,15 +216,26 @@ describe('createAppNavigationItems', () => {
         items: group.items.map((item) => item.label)
       }))
     ).toEqual([
-      { label: 'GENERAL', items: ['Web interface', 'Main menu'] },
-      { label: 'KODI SETTINGS', items: ['Add-ons', 'Search'] }
+      { label: 'GENERAL', items: ['Web interface', 'Main menu', 'Add-ons', 'Search'] },
+      {
+        label: 'KODI SETTINGS',
+        items: ['Games', 'Interface', 'Media', 'Player', 'PVR & Live TV', 'Services', 'System']
+      }
     ]);
+
+    const help = byId('help');
+    expect(help.submenuGroups?.map((group) => group.label)).toEqual(['HELP TOPICS']);
   });
 
   test('marks representative submenu items active with canonical hrefs', () => {
     const cases: readonly [string, PrimaryRoute, readonly [string, string, string]][] = [
       ['music', { kind: 'musicArtists' }, ['library', 'artists', '/music/artists']],
       ['music', { kind: 'musicVideos' }, ['library', 'videos', '/music/videos']],
+      [
+        'music',
+        { kind: 'musicVideoDetail', musicvideoid: '77' },
+        ['library', 'videos', '/music/videos']
+      ],
       ['movies', { kind: 'moviesRecent' }, ['library', 'recent', '/movies/recent']],
       ['tvshows', { kind: 'tvshowsRecent' }, ['library', 'recent', '/tvshows/recent']],
       ['addons', { kind: 'addonsVideo' }, ['types', 'video', '/addons/video']],
@@ -150,14 +246,15 @@ describe('createAppNavigationItems', () => {
       ],
       ['settings', { kind: 'settingsNav' }, ['general', 'main-menu', '/settings/nav']],
       ['settings', { kind: 'settingsWeb' }, ['general', 'web-interface', '/settings/web']],
-      ['settings', { kind: 'settingsAddons' }, ['kodi-settings', 'addons', '/settings/addons']],
-      ['settings', { kind: 'settingsSearch' }, ['kodi-settings', 'search', '/settings/search']],
+      ['settings', { kind: 'settingsAddons' }, ['general', 'addons', '/settings/addons']],
+      ['settings', { kind: 'settingsSearch' }, ['general', 'search', '/settings/search']],
       [
         'settings',
-        { kind: 'settingsKodiSection', section: 'library' },
-        ['kodi-settings', 'addons', '/settings/addons']
+        { kind: 'settingsKodiSection', section: 'interface' },
+        ['kodi-settings', 'interface', '/settings/kodi/interface']
       ],
-      ['help', { kind: 'helpOverview' }, ['help', 'overview', '/help/overview']],
+      ['pvr', { kind: 'pvrTv' }, ['pvr', 'tv', '/pvr/tv']],
+      ['help', { kind: 'helpPage', pageid: 'readme' }, ['help', 'overview', '/help/readme']],
       ['help', { kind: 'helpPage', pageid: 'addons' }, ['help', 'addons', '/help/addons']],
       [
         'help',

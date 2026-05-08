@@ -5,6 +5,7 @@
     refresh: () => Promise<void> | void;
     openSource: (id: string) => Promise<void> | void;
     openEntry: (id: string) => Promise<void> | void;
+    openPath?: (path: string) => Promise<void> | void;
     openBreadcrumb: (id: string) => Promise<void> | void;
   }
 
@@ -17,6 +18,7 @@
   export interface MediaFilesActionDispatch {
     playFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
     queueFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
+    downloadFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
   }
 </script>
 
@@ -37,7 +39,7 @@
   }
 
   type BrowseOperationKind = 'refresh' | 'source' | 'entry' | 'breadcrumb';
-  type FileActionVerb = 'play' | 'queue';
+  type FileActionVerb = 'play' | 'queue' | 'download';
 
   type PendingBrowseOperation = {
     kind: BrowseOperationKind;
@@ -174,20 +176,22 @@
     const label = item.label;
     pendingAction = { id: actionId(verb, item), verb, label, item };
     localErrorText = null;
-    localStatusText = `${capitalize(verb === 'play' ? 'playing' : 'queueing')} file ${label}…`;
+    localStatusText = `${fileActionPendingCopy(verb)} file ${label}…`;
 
     try {
       if (verb === 'play') {
         await actionDispatch.playFileItem(item);
-      } else {
+      } else if (verb === 'queue') {
         await actionDispatch.queueFileItem(item);
+      } else {
+        await actionDispatch.downloadFileItem(item);
       }
-      localStatusText = `${verb === 'play' ? 'Played' : 'Queued'} file ${label}.`;
+      localStatusText = `${fileActionDoneCopy(verb)} file ${label}.`;
     } catch (error) {
       const message = sanitizeUiText(
         error instanceof Error ? error.message : 'File action failed.'
       );
-      localErrorText = `Could not ${verb} file ${label}. ${message}`;
+      localErrorText = `Could not ${fileActionErrorCopy(verb)} file ${label}. ${message}`;
       localStatusText = localErrorText;
     } finally {
       pendingAction = null;
@@ -252,8 +256,8 @@
     if (
       !id ||
       entry.kind !== 'file' ||
-      !entry.capabilities.canPlay ||
-      !entry.capabilities.canQueue
+      (!entry.capabilities.canDownload &&
+        (!entry.capabilities.canPlay || !entry.capabilities.canQueue))
     ) {
       return null;
     }
@@ -267,6 +271,34 @@
 
   function actionId(verb: FileActionVerb, item: MediaFilesActionItem): string {
     return `${verb}:file:${item.id}`;
+  }
+
+  function fileActionPendingCopy(verb: FileActionVerb): string {
+    if (verb === 'play') {
+      return 'Playing';
+    }
+
+    if (verb === 'queue') {
+      return 'Queueing';
+    }
+
+    return 'Preparing download for';
+  }
+
+  function fileActionDoneCopy(verb: FileActionVerb): string {
+    if (verb === 'play') {
+      return 'Played';
+    }
+
+    if (verb === 'queue') {
+      return 'Queued';
+    }
+
+    return 'Started download for';
+  }
+
+  function fileActionErrorCopy(verb: FileActionVerb): string {
+    return verb === 'download' ? 'download' : verb;
   }
 
   function safeSourceLabel(source: MediaFileSourceSnapshot, index: number): string {
@@ -288,7 +320,15 @@
   }
 
   function fileKindLabel(entry: MediaDirectoryEntrySnapshot): string {
-    return entry.mediaKind === 'audio' ? 'Audio file' : 'Unsupported file';
+    if (entry.mediaKind === 'audio') {
+      return 'Audio file';
+    }
+
+    if (entry.mediaKind === 'video') {
+      return 'Video file';
+    }
+
+    return 'Unsupported file';
   }
 
   function entryMeta(entry: MediaDirectoryEntrySnapshot): string {
@@ -386,10 +426,6 @@
       /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
       /\\/.test(value)
     );
-  }
-
-  function capitalize(value: string): string {
-    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 </script>
 
@@ -525,24 +561,39 @@
                 </button>
               {:else if actionItem}
                 <div class="action-row" aria-label={`Actions for file ${label}`}>
-                  <button
-                    type="button"
-                    class="action-button"
-                    aria-label={`Play file ${label}`}
-                    disabled={isActionDisabled(actionItem)}
-                    onclick={() => handleFileAction('play', entry, index)}
-                  >
-                    Play
-                  </button>
-                  <button
-                    type="button"
-                    class="action-button"
-                    aria-label={`Queue file ${label}`}
-                    disabled={isActionDisabled(actionItem)}
-                    onclick={() => handleFileAction('queue', entry, index)}
-                  >
-                    Queue
-                  </button>
+                  {#if entry.capabilities.canPlay}
+                    <button
+                      type="button"
+                      class="action-button"
+                      aria-label={`Play file ${label}`}
+                      disabled={isActionDisabled(actionItem)}
+                      onclick={() => handleFileAction('play', entry, index)}
+                    >
+                      Play
+                    </button>
+                  {/if}
+                  {#if entry.capabilities.canQueue}
+                    <button
+                      type="button"
+                      class="action-button"
+                      aria-label={`Queue file ${label}`}
+                      disabled={isActionDisabled(actionItem)}
+                      onclick={() => handleFileAction('queue', entry, index)}
+                    >
+                      Queue
+                    </button>
+                  {/if}
+                  {#if entry.capabilities.canDownload}
+                    <button
+                      type="button"
+                      class="action-button"
+                      aria-label={`Download file ${label}`}
+                      disabled={isActionDisabled(actionItem)}
+                      onclick={() => handleFileAction('download', entry, index)}
+                    >
+                      Download
+                    </button>
+                  {/if}
                 </div>
               {:else if entry.kind === 'file'}
                 <button

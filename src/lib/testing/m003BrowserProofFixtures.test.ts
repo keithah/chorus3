@@ -131,6 +131,13 @@ describe('M003 browser proof fixtures', () => {
         media: 'music'
       })
     ).resolves.toBeUndefined();
+    await expect(
+      props.mediaFilesActionDispatch?.downloadFileItem({
+        id: 'entry:sinnerman',
+        label: 'Sinnerman.flac',
+        media: 'music'
+      })
+    ).resolves.toBeUndefined();
     await expect(props.mediaPlaylistsDispatch?.refresh()).resolves.toBeUndefined();
     await expect(
       props.mediaPlaylistsDispatch?.openPlaylist('playlist:late-night-jazz')

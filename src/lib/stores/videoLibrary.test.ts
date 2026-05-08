@@ -133,6 +133,14 @@ function enqueueEmptyRecentVideo(client: FakeKodiClient): void {
     episodes: [],
     limits: { start: 0, end: 0, total: 0 }
   });
+  enqueueEmptyMusicVideos(client);
+}
+
+function enqueueEmptyMusicVideos(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetMusicVideos', {
+    musicvideos: [],
+    limits: { start: 0, end: 0, total: 0 }
+  });
 }
 
 function enqueueEmptyMovies(client: FakeKodiClient): void {
@@ -170,20 +178,22 @@ describe('video library store', () => {
       recentlyPlayedMovies: [],
       recentlyAddedEpisodes: [],
       recentlyPlayedEpisodes: [],
+      musicVideos: [],
       limits: {
         movies: { start: 0, end: 0, total: 0 },
         tvShows: { start: 0, end: 0, total: 0 },
         recentlyAddedMovies: { start: 0, end: 0, total: 0 },
         recentlyPlayedMovies: { start: 0, end: 0, total: 0 },
         recentlyAddedEpisodes: { start: 0, end: 0, total: 0 },
-        recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 }
+        recentlyPlayedEpisodes: { start: 0, end: 0, total: 0 },
+        musicVideos: { start: 0, end: 0, total: 0 }
       },
       isEmpty: true,
       lastError: null
     } satisfies VideoLibraryStoreSnapshot);
   });
 
-  it('requests six bounded read-only video queries including sorted recent movie and episode snapshots', async () => {
+  it('requests bounded read-only video queries including music videos and sorted recent snapshots', async () => {
     const { client, store } = createHarness();
     enqueueEmptyMovies(client);
 
@@ -303,6 +313,30 @@ describe('video library store', () => {
           limits: { start: 0, end: 25 },
           sort: { method: 'lastplayed', order: 'descending' }
         }
+      },
+      {
+        method: 'VideoLibrary.GetMusicVideos',
+        params: {
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'year',
+            'runtime',
+            'thumbnail',
+            'fanart',
+            'art',
+            'genre',
+            'director',
+            'studio',
+            'playcount',
+            'lastplayed',
+            'resume',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 25 },
+          sort: { method: 'title', order: 'ascending' }
+        }
       }
     ]);
     expect(JSON.stringify(client.calls)).not.toContain('file');
@@ -343,6 +377,7 @@ describe('video library store', () => {
       ],
       limits: { start: 0, end: 25, total: 1 }
     });
+    enqueueEmptyMusicVideos(client);
 
     await store.refresh('manual');
 
@@ -531,6 +566,7 @@ describe('video library store', () => {
       episodes: [],
       limits: { start: 0, end: 0, total: 0 }
     });
+    enqueueEmptyMusicVideos(client);
     await store.refresh('manual');
 
     setNow(3_500);
@@ -555,6 +591,7 @@ describe('video library store', () => {
       episodes: [],
       limits: { start: 0, end: 0, total: 0 }
     });
+    enqueueEmptyMusicVideos(client);
 
     await store.refresh('manual');
 

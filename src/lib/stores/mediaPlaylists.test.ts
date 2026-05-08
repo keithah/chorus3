@@ -207,7 +207,7 @@ describe('media playlists store', () => {
           media: 'music',
           kind: 'basic',
           extension: 'm3u',
-          capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
         },
         {
           id: 'playlist:3',
@@ -215,7 +215,7 @@ describe('media playlists store', () => {
           media: 'music',
           kind: 'basic',
           extension: 'pls',
-          capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
         },
         {
           id: 'playlist:4',
@@ -338,11 +338,13 @@ describe('media playlists store', () => {
       }
     });
     expect(store.getPlayablePlaylist(playlistId(store.snapshot, 'Party mix'))).toEqual({
-      ok: false,
-      error: {
-        source: 'client',
-        code: 'client/unsupported-playlist',
-        message: 'The selected playlist cannot be played or queued.'
+      ok: true,
+      playlist: {
+        id: 'playlist:2',
+        label: 'Party mix',
+        mediaKind: 'music',
+        playlistKind: 'basic',
+        file: 'special://musicplaylists/Party.m3u'
       }
     });
     expect(store.getPlayablePlaylist('playlist:999')).toMatchObject({
@@ -367,7 +369,12 @@ describe('media playlists store', () => {
       files: [{ file: 'special://musicplaylists/Party.m3u', filetype: 'file', label: 'Party mix' }]
     });
     await store.refreshPlaylists();
-    await store.openPlaylist(playlistId(store.snapshot, 'Party mix'));
+    const partyMixId = playlistId(store.snapshot, 'Party mix');
+    expect(store.getPlayablePlaylist(partyMixId)).toMatchObject({
+      ok: true,
+      playlist: { playlistKind: 'basic', file: 'special://musicplaylists/Party.m3u' }
+    });
+    await store.openPlaylist(partyMixId);
 
     expect(client.calls).toHaveLength(1);
     expect(store.snapshot).toMatchObject({
@@ -585,7 +592,7 @@ describe('media playlists store', () => {
     });
   });
 
-  it('refreshes video smart playlists with video Kodi params, opaque ids, browse-only capabilities, and safe labels', async () => {
+  it('refreshes video smart playlists with video Kodi params, opaque ids, playback capabilities, and safe labels', async () => {
     const { client, setNow, store } = createHarness({ media: 'video' });
     client.enqueue('Files.GetDirectory', {
       files: [
@@ -631,7 +638,7 @@ describe('media playlists store', () => {
           media: 'video',
           kind: 'smart',
           extension: 'xsp',
-          capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: true, canPlay: true, canQueue: true }
         },
         {
           id: 'playlist:2',
@@ -639,7 +646,7 @@ describe('media playlists store', () => {
           media: 'video',
           kind: 'basic',
           extension: 'm3u',
-          capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
         },
         {
           id: 'playlist:3',
@@ -647,7 +654,7 @@ describe('media playlists store', () => {
           media: 'video',
           kind: 'smart',
           extension: 'xsp',
-          capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: true, canPlay: true, canQueue: true }
         }
       ],
       entries: [],
@@ -656,17 +663,19 @@ describe('media playlists store', () => {
       lastError: null
     });
     expect(store.getPlayablePlaylist(playlistId(store.snapshot, 'Recently Added'))).toEqual({
-      ok: false,
-      error: {
-        source: 'client',
-        code: 'client/unsupported-playlist',
-        message: 'The selected playlist cannot be played or queued.'
+      ok: true,
+      playlist: {
+        id: playlistId(store.snapshot, 'Recently Added'),
+        label: 'Recently Added',
+        mediaKind: 'video',
+        playlistKind: 'smart',
+        file: 'special://videoplaylists/Recently Added.xsp'
       }
     });
     expectSecretSafe(store.snapshot);
   });
 
-  it('opens video smart playlists with browse-only video entries and non-actionable unsupported files', async () => {
+  it('opens video smart playlists with actionable video entries and non-actionable unsupported files', async () => {
     const { client, setNow, store } = createHarness({ media: 'video' });
     client.enqueue('Files.GetDirectory', {
       files: [{ file: 'special://videoplaylists/Movies.xsp', filetype: 'file', label: 'Movies' }]
@@ -709,37 +718,37 @@ describe('media playlists store', () => {
           label: 'Movie',
           mediaKind: 'video',
           extension: 'mkv',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Clip',
           mediaKind: 'video',
           extension: 'mp4',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Trailer',
           mediaKind: 'video',
           extension: 'm4v',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Archive',
           mediaKind: 'video',
           extension: 'avi',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Phone',
           mediaKind: 'video',
           extension: 'mov',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Web',
           mediaKind: 'video',
           extension: 'webm',
-          capabilities: { canPlay: false, canQueue: false }
+          capabilities: { canPlay: true, canQueue: true }
         },
         {
           label: 'Song',

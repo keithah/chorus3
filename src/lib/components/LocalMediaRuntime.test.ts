@@ -61,4 +61,22 @@ describe('LocalMediaRuntime', () => {
     expect(videos[0].classList.contains('fullscreen')).toBe(true);
     expect(attach).toHaveBeenCalledTimes(1);
   });
+
+  it('reports ended events for browser playlist auto-advance without replacing store listeners', async () => {
+    const store = createLocalPlayerStore();
+    const onEnded = vi.fn();
+
+    mounted = mount(LocalMediaRuntime, {
+      target: document.body,
+      props: { store, onEnded }
+    });
+    await tick();
+
+    const video = document.querySelector<HTMLVideoElement>('video.local-media-runtime');
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+    video!.dispatchEvent(new Event('ended'));
+    await tick();
+
+    expect(onEnded).toHaveBeenCalledTimes(1);
+  });
 });

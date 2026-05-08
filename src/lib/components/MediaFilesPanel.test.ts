@@ -46,7 +46,7 @@ function createSnapshot(overrides: Partial<MediaFilesStoreSnapshot> = {}): Media
         label: 'Sinnerman.flac',
         mediaKind: 'audio',
         extension: 'flac',
-        capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+        capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
       },
       {
         id: 'entry:4',
@@ -54,7 +54,7 @@ function createSnapshot(overrides: Partial<MediaFilesStoreSnapshot> = {}): Media
         label: 'cover.jpg',
         mediaKind: 'unsupported',
         extension: 'jpg',
-        capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+        capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: true }
       }
     ],
     isEmpty: false,
@@ -95,6 +95,7 @@ function createActionDispatch(
   return {
     playFileItem: vi.fn(),
     queueFileItem: vi.fn(),
+    downloadFileItem: vi.fn(),
     ...overrides
   };
 }
@@ -190,7 +191,31 @@ describe('MediaFilesPanel', () => {
     expect(text).toContain('Last updated 2026-04-30T12:00:00.000Z.');
   });
 
-  it('routes refresh, source, folder, breadcrumb, play, and queue clicks through injected dispatch only', async () => {
+  it('labels video browser file entries as playable video files', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        media: 'video',
+        entries: [
+          {
+            id: 'entry:1',
+            kind: 'file',
+            label: 'Big Buck Bunny.mkv',
+            mediaKind: 'video',
+            extension: 'mkv',
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
+          }
+        ]
+      })
+    });
+
+    const text = screenText();
+    expect(text).toContain('Big Buck Bunny.mkv');
+    expect(text).toContain('Video file');
+    expect(button('Play file Big Buck Bunny.mkv')).toBeInstanceOf(HTMLButtonElement);
+    expect(button('Queue file Big Buck Bunny.mkv')).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it('routes refresh, source, folder, breadcrumb, play, queue, and download clicks through injected dispatch only', async () => {
     const { dispatch, actionDispatch } = renderPanel();
 
     button('Refresh media file sources').click();
@@ -206,6 +231,12 @@ describe('MediaFilesPanel', () => {
     await tick();
     button('Queue file Sinnerman.flac').click();
     await tick();
+    await tick();
+    button('Download file Sinnerman.flac').click();
+    await tick();
+    await tick();
+    button('Download file cover.jpg').click();
+    await tick();
 
     expect(dispatch.refresh).toHaveBeenCalledTimes(1);
     expect(dispatch.openSource).toHaveBeenCalledWith('source:1');
@@ -216,6 +247,12 @@ describe('MediaFilesPanel', () => {
     );
     expect(actionDispatch.queueFileItem).toHaveBeenCalledWith(
       actionPayload('entry:3', 'Sinnerman.flac')
+    );
+    expect(actionDispatch.downloadFileItem).toHaveBeenCalledWith(
+      actionPayload('entry:3', 'Sinnerman.flac')
+    );
+    expect(actionDispatch.downloadFileItem).toHaveBeenCalledWith(
+      actionPayload('entry:4', 'cover.jpg')
     );
   });
 
@@ -285,14 +322,14 @@ describe('MediaFilesPanel', () => {
             label: '/mnt/media/song.flac',
             mediaKind: 'audio',
             extension: 'flac',
-            capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
           },
           {
             id: 'entry:4',
             kind: 'file',
             label: 'Authorization: Basic abc123',
             mediaKind: 'unsupported',
-            capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+            capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: true }
           }
         ]
       })
@@ -318,21 +355,21 @@ describe('MediaFilesPanel', () => {
             kind: 'file',
             label: 'Playable.flac',
             mediaKind: 'audio',
-            capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
           },
           {
             id: 'entry:4',
             kind: 'file',
             label: 'cover.jpg',
             mediaKind: 'unsupported',
-            capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+            capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: true }
           },
           {
             id: '',
             kind: 'file',
             label: 'missing-id.flac',
             mediaKind: 'audio',
-            capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
           }
         ]
       })
@@ -340,13 +377,15 @@ describe('MediaFilesPanel', () => {
 
     expect(button('Play file Playable.flac').disabled).toBe(false);
     expect(button('Queue file Playable.flac').disabled).toBe(false);
-    expect(button('Unsupported file cover.jpg').disabled).toBe(true);
+    expect(button('Download file Playable.flac').disabled).toBe(false);
+    expect(button('Download file cover.jpg').disabled).toBe(false);
 
     const labels = Array.from(document.querySelectorAll('button')).map(
       (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
     );
     expect(labels.some((label) => label === 'Play file cover.jpg')).toBe(false);
     expect(labels.some((label) => label === 'Queue file cover.jpg')).toBe(false);
+    expect(labels.some((label) => label === 'Unsupported file cover.jpg')).toBe(false);
     expect(labels.some((label) => label === 'Play file missing-id.flac')).toBe(false);
     expect(labels.some((label) => label === 'Queue file missing-id.flac')).toBe(false);
   });
@@ -363,6 +402,11 @@ describe('MediaFilesPanel', () => {
       queueFileItem: vi.fn(async () => {
         throw new Error(
           'Authorization: Basic abc123 failed for http://admin:p@ssword@example.test/jsonrpc with sessionStorage raw response body and smb://nas/private/song.flac'
+        );
+      }),
+      downloadFileItem: vi.fn(async () => {
+        throw new Error(
+          'Download failed for Authorization: Basic abc123 and smb://nas/private/cover.jpg'
         );
       })
     });
@@ -398,6 +442,14 @@ describe('MediaFilesPanel', () => {
     expect(text).toContain('response body [redacted]');
     expect(queueFile.disabled).toBe(false);
     expectSecretSafe(text);
+
+    button('Download file Sinnerman.flac').click();
+    await tick();
+    await tick();
+
+    expect(statusText()).toContain('Could not download file Sinnerman.flac.');
+    expect(statusText()).toContain('credentials [redacted]');
+    expectSecretSafe(screenText());
   });
 
   it('recovers browse controls after rejected refresh and open callbacks with sanitized errors', async () => {

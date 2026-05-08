@@ -260,7 +260,7 @@ function createMediaFilesSnapshot(): MediaFilesStoreSnapshot {
       label: 'Sinnerman.flac',
       mediaKind: 'audio',
       extension: 'flac',
-      capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+      capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
     },
     {
       id: 'entry:cover',
@@ -268,7 +268,7 @@ function createMediaFilesSnapshot(): MediaFilesStoreSnapshot {
       label: 'cover.jpg',
       mediaKind: 'unsupported',
       extension: 'jpg',
-      capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+      capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: true }
     }
   ];
   const breadcrumbs: MediaFilesBreadcrumbSnapshot[] = [
@@ -383,7 +383,8 @@ function createMediaFilesDispatch(): MediaFilesPanelDispatch {
 function createMediaFilesActionDispatch(): MediaFilesActionDispatch {
   return {
     playFileItem: noop,
-    queueFileItem: noop
+    queueFileItem: noop,
+    downloadFileItem: noop
   };
 }
 

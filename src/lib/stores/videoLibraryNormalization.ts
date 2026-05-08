@@ -117,6 +117,31 @@ export interface VideoEpisodeSnapshot {
   watched?: boolean;
 }
 
+export interface VideoMusicVideoSnapshot {
+  musicvideoid: number;
+  label: string;
+  title?: string;
+  artist?: string[];
+  album?: string;
+  year?: number;
+  runtime?: number;
+  thumbnail?: string;
+  fanart?: string;
+  art?: Record<string, string>;
+  genre?: string[];
+  director?: string[];
+  studio?: string[];
+  plot?: string;
+  rating?: number;
+  track?: number;
+  tag?: string[];
+  playcount?: number;
+  lastplayed?: string;
+  resume?: VideoLibraryResumeSnapshot;
+  dateadded?: string;
+  watched?: boolean;
+}
+
 export interface VideoEpisodeDetailSnapshot extends VideoEpisodeSnapshot {
   plot?: string;
   director?: string[];
@@ -199,6 +224,7 @@ export interface VideoLibraryStoreSnapshot {
   recentlyPlayedMovies: VideoLibraryMovieSnapshot[];
   recentlyAddedEpisodes: VideoEpisodeSnapshot[];
   recentlyPlayedEpisodes: VideoEpisodeSnapshot[];
+  musicVideos?: VideoMusicVideoSnapshot[];
   limits: {
     movies: VideoLibraryLimitsSnapshot;
     tvShows: VideoLibraryLimitsSnapshot;
@@ -206,6 +232,7 @@ export interface VideoLibraryStoreSnapshot {
     recentlyPlayedMovies: VideoLibraryLimitsSnapshot;
     recentlyAddedEpisodes: VideoLibraryLimitsSnapshot;
     recentlyPlayedEpisodes: VideoLibraryLimitsSnapshot;
+    musicVideos?: VideoLibraryLimitsSnapshot;
   };
   isEmpty: boolean;
   lastError: VideoLibrarySafeErrorSnapshot | null;
@@ -417,6 +444,42 @@ export function normalizeVideoEpisodes(
           (left.episode ?? 0) - (right.episode ?? 0) ||
           left.episodeid - right.episodeid
       );
+}
+
+export function normalizeVideoMusicVideos(items: unknown): VideoMusicVideoSnapshot[] {
+  return normalizeRecordList(items).flatMap((item): VideoMusicVideoSnapshot[] => {
+    const musicvideoid = finitePositiveSafeId(item.musicvideoid);
+    if (musicvideoid === null) {
+      return [];
+    }
+
+    const playcount = finiteNonNegativeNumber(item.playcount);
+    return [
+      {
+        musicvideoid,
+        label: safeStringValue(item.label) ?? safeStringValue(item.title) ?? 'Unknown music video',
+        ...stringField('title', item.title),
+        ...arrayStringField('artist', item.artist),
+        ...stringField('album', item.album),
+        ...numberField('year', item.year),
+        ...numberField('runtime', item.runtime),
+        ...stringField('thumbnail', item.thumbnail),
+        ...stringField('fanart', item.fanart),
+        ...artField(item.art),
+        ...arrayStringField('genre', item.genre),
+        ...arrayStringField('director', item.director),
+        ...arrayStringField('studio', item.studio),
+        ...stringField('plot', item.plot),
+        ...numberField('rating', item.rating),
+        ...numberField('track', item.track),
+        ...arrayStringField('tag', item.tag),
+        ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
+        ...stringField('lastplayed', item.lastplayed),
+        ...resumeField(item.resume),
+        ...stringField('dateadded', item.dateadded)
+      }
+    ];
+  });
 }
 
 export function normalizeVideoEpisodeDetail(item: unknown): VideoEpisodeDetailSnapshot | null {
@@ -683,6 +746,21 @@ export function cloneVideoEpisodeSnapshots(
   }));
 }
 
+export function cloneVideoMusicVideoSnapshots(
+  musicVideos: readonly VideoMusicVideoSnapshot[]
+): VideoMusicVideoSnapshot[] {
+  return musicVideos.map((musicVideo) => ({
+    ...musicVideo,
+    ...(musicVideo.artist ? { artist: [...musicVideo.artist] } : {}),
+    ...(musicVideo.genre ? { genre: [...musicVideo.genre] } : {}),
+    ...(musicVideo.director ? { director: [...musicVideo.director] } : {}),
+    ...(musicVideo.studio ? { studio: [...musicVideo.studio] } : {}),
+    ...(musicVideo.tag ? { tag: [...musicVideo.tag] } : {}),
+    ...(musicVideo.art ? { art: { ...musicVideo.art } } : {}),
+    ...(musicVideo.resume ? { resume: { ...musicVideo.resume } } : {})
+  }));
+}
+
 export function cloneVideoEpisodeDetailSnapshot(
   detail: VideoEpisodeDetailSnapshot | null
 ): VideoEpisodeDetailSnapshot | null {
@@ -742,6 +820,7 @@ export function cloneVideoLibrarySnapshot(
     recentlyPlayedMovies: cloneVideoLibraryMovieSnapshots(snapshot.recentlyPlayedMovies ?? []),
     recentlyAddedEpisodes: cloneVideoEpisodeSnapshots(snapshot.recentlyAddedEpisodes ?? []),
     recentlyPlayedEpisodes: cloneVideoEpisodeSnapshots(snapshot.recentlyPlayedEpisodes ?? []),
+    musicVideos: cloneVideoMusicVideoSnapshots(snapshot.musicVideos ?? []),
     limits: {
       movies: cloneVideoLibraryLimits(snapshot.limits.movies),
       tvShows: cloneVideoLibraryLimits(snapshot.limits.tvShows ?? { start: 0, end: 0, total: 0 }),
@@ -756,6 +835,9 @@ export function cloneVideoLibrarySnapshot(
       ),
       recentlyPlayedEpisodes: cloneVideoLibraryLimits(
         snapshot.limits.recentlyPlayedEpisodes ?? { start: 0, end: 0, total: 0 }
+      ),
+      musicVideos: cloneVideoLibraryLimits(
+        snapshot.limits.musicVideos ?? { start: 0, end: 0, total: 0 }
       )
     },
     isEmpty:
@@ -764,7 +846,8 @@ export function cloneVideoLibrarySnapshot(
       (snapshot.recentlyAddedMovies ?? []).length === 0 &&
       (snapshot.recentlyPlayedMovies ?? []).length === 0 &&
       (snapshot.recentlyAddedEpisodes ?? []).length === 0 &&
-      (snapshot.recentlyPlayedEpisodes ?? []).length === 0,
+      (snapshot.recentlyPlayedEpisodes ?? []).length === 0 &&
+      (snapshot.musicVideos ?? []).length === 0,
     lastError: cloneVideoLibrarySafeError(snapshot.lastError)
   };
 }

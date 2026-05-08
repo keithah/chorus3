@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { type Chorus2RoutePlaceholder } from '$lib/app/appRouter';
+  import { type ParityRoutePlaceholder } from '$lib/app/appRouter';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 
   interface Props {
-    placeholder: Chorus2RoutePlaceholder;
+    placeholder: ParityRoutePlaceholder;
     packageBasePath?: string;
     i18n?: TranslationContext;
   }
@@ -14,7 +14,7 @@
     i18n = createTranslationContext('en')
   }: Props = $props();
 
-  const statusToneByStatus: Record<Chorus2RoutePlaceholder['status'], string> = {
+  const statusToneByStatus: Record<ParityRoutePlaceholder['status'], string> = {
     missing: 'warning',
     deferred: 'neutral',
     intentionallyChanged: 'neutral'

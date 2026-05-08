@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
-import { createMediaFilesStore, type MediaFilesStoreSnapshot } from './index';
+import { createMediaFilesStore, type MediaFilesMedia, type MediaFilesStoreSnapshot } from './index';
 
 type CallRecord = {
   method: string;
@@ -70,12 +70,17 @@ function isDeferred(value: unknown): value is Deferred<unknown> {
 }
 
 function createHarness(
-  options: { client?: FakeKodiClient; createClient?: () => KodiJsonRpcHttpClient | null } = {}
+  options: {
+    client?: FakeKodiClient;
+    createClient?: () => KodiJsonRpcHttpClient | null;
+    media?: MediaFilesMedia;
+  } = {}
 ) {
   const client = options.client ?? new FakeKodiClient();
   let nowMs = 1_000;
   const store = createMediaFilesStore({
     ...(options.createClient ? { createClient: options.createClient } : { client }),
+    media: options.media,
     now: () => new Date(nowMs).toISOString()
   });
 
@@ -151,7 +156,18 @@ describe('media files store', () => {
 
     await store.refreshSources();
 
-    expect(client.calls).toEqual([{ method: 'Files.GetSources', params: { media: 'music' } }]);
+    expect(client.calls).toEqual([
+      { method: 'Files.GetSources', params: { media: 'music' } },
+      {
+        method: 'Addons.GetAddons',
+        params: {
+          type: 'xbmc.addon.audio',
+          content: 'unknown',
+          enabled: true,
+          properties: ['path', 'name']
+        }
+      }
+    ]);
     expect(store.snapshot).toMatchObject({
       refreshStatus: 'ready',
       lastRefreshReason: 'manual',
@@ -160,7 +176,8 @@ describe('media files store', () => {
       sources: [
         { id: expect.any(String), label: 'Music share' },
         { id: expect.any(String), label: 'Source 2' },
-        { id: expect.any(String), label: 'music' }
+        { id: expect.any(String), label: 'music' },
+        { id: 'playlist:music', label: 'Playlists' }
       ],
       entries: [],
       breadcrumbs: [],
@@ -170,9 +187,43 @@ describe('media files store', () => {
     expect(store.snapshot.sources.map((source) => source.id)).toEqual([
       'source:1',
       'source:2',
-      'source:3'
+      'source:3',
+      'playlist:music'
     ]);
     expectSecretSafe(store.snapshot);
+  });
+
+  it('adds enabled Chorus2 add-on source rows to the browser source list', async () => {
+    const { client, store } = createHarness({ media: 'video' });
+    client.enqueue('Files.GetSources', {
+      sources: [{ file: 'smb://secret/videos/', label: 'Videos' }]
+    });
+    client.enqueue('Addons.GetAddons', {
+      addons: [
+        { addonid: 'plugin.video.youtube', name: 'YouTube' },
+        { addonid: 'plugin.video.bad/password', name: 'Bad' }
+      ]
+    });
+
+    await store.refreshSources();
+
+    expect(client.calls).toEqual([
+      { method: 'Files.GetSources', params: { media: 'video' } },
+      {
+        method: 'Addons.GetAddons',
+        params: {
+          type: 'xbmc.addon.video',
+          content: 'unknown',
+          enabled: true,
+          properties: ['path', 'name']
+        }
+      }
+    ]);
+    expect(store.snapshot.sources).toEqual([
+      { id: 'source:1', label: 'Videos' },
+      { id: 'addon:plugin.video.youtube', label: 'YouTube' },
+      { id: 'playlist:video', label: 'Playlists' }
+    ]);
   });
 
   it('normalizes malformed source payloads to a safe ready empty source list', async () => {
@@ -183,10 +234,10 @@ describe('media files store', () => {
 
     expect(store.snapshot).toMatchObject({
       refreshStatus: 'ready',
-      sources: [],
+      sources: [{ id: 'playlist:music', label: 'Playlists' }],
       entries: [],
       breadcrumbs: [],
-      isEmpty: true,
+      isEmpty: false,
       lastError: null
     });
   });
@@ -224,12 +275,22 @@ describe('media files store', () => {
 
     await store.openSource(firstSourceId(store.snapshot));
 
-    expect(client.calls[1]).toEqual({
+    expect(client.calls.find((call) => call.method === 'Files.GetDirectory')).toEqual({
       method: 'Files.GetDirectory',
       params: {
         directory: 'smb://secret/music/',
         media: 'music',
-        properties: ['title', 'artist', 'album', 'duration', 'track', 'thumbnail', 'file'],
+        properties: [
+          'title',
+          'artist',
+          'album',
+          'duration',
+          'track',
+          'thumbnail',
+          'dateadded',
+          'year',
+          'file'
+        ],
         sort: { method: 'label', order: 'ascending' }
       }
     });
@@ -243,7 +304,7 @@ describe('media files store', () => {
           id: 'entry:1',
           kind: 'directory',
           label: 'Albums',
-          capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: true, canPlay: true, canQueue: true }
         },
         {
           id: 'entry:2',
@@ -251,7 +312,7 @@ describe('media files store', () => {
           label: 'Dael',
           mediaKind: 'audio',
           extension: 'flac',
-          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
         },
         {
           id: 'entry:3',
@@ -259,7 +320,7 @@ describe('media files store', () => {
           label: 'Cover',
           mediaKind: 'unsupported',
           extension: 'jpg',
-          capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+          capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: true }
         },
         {
           id: 'entry:4',
@@ -267,7 +328,7 @@ describe('media files store', () => {
           label: 'No Label.mp3',
           mediaKind: 'audio',
           extension: 'mp3',
-          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
         },
         {
           id: 'entry:5',
@@ -275,13 +336,61 @@ describe('media files store', () => {
           label: 'bad.wav',
           mediaKind: 'audio',
           extension: 'wav',
-          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
         }
       ],
       isEmpty: false,
       lastError: null
     });
     expectSecretSafe(store.snapshot);
+  });
+
+  it('opens Chorus2 plugin paths with breadcrumb rows and add-on excluded path suppression', async () => {
+    const { client, store } = createHarness({ media: 'video' });
+    client.enqueue('Files.GetDirectory', {
+      files: [{ file: 'plugin://plugin.video.youtube/video/1', filetype: 'file', label: 'Clip' }]
+    });
+
+    await store.openPath('plugin://plugin.video.youtube/kodion/search/results/');
+
+    expect(client.calls[0]).toMatchObject({
+      method: 'Files.GetDirectory',
+      params: {
+        directory: 'plugin://plugin.video.youtube/kodion/search/results/',
+        media: 'video'
+      }
+    });
+    expect(store.snapshot.breadcrumbs).toEqual([
+      { id: 'plugin://plugin.video.youtube/', label: 'plugin.video.youtube' },
+      { id: 'plugin://plugin.video.youtube/kodion/search/results/', label: 'results' }
+    ]);
+    expect(store.snapshot.entries).toMatchObject([
+      {
+        id: 'entry:1',
+        label: 'Clip',
+        capabilities: { canBrowse: false, canPlay: false, canQueue: false, canDownload: false }
+      }
+    ]);
+
+    client.enqueue('Files.GetDirectory', {
+      files: [
+        { file: 'plugin://plugin.video.youtube/video/2', filetype: 'file', label: 'Root Clip' }
+      ]
+    });
+    await store.openDirectory(store.snapshot.breadcrumbs[0].id);
+
+    expect(
+      client.calls.filter((call) => call.method === 'Files.GetDirectory').at(-1)
+    ).toMatchObject({
+      method: 'Files.GetDirectory',
+      params: {
+        directory: 'plugin://plugin.video.youtube/',
+        media: 'video'
+      }
+    });
+    expect(store.snapshot.breadcrumbs).toEqual([
+      { id: 'plugin://plugin.video.youtube/', label: 'plugin.video.youtube' }
+    ]);
   });
 
   it('opens a folder entry with breadcrumb extension and clears stale entry maps', async () => {
@@ -304,7 +413,9 @@ describe('media files store', () => {
     });
     await store.openDirectory(entryId(store.snapshot, 'Albums'));
 
-    expect(client.calls[2]).toMatchObject({
+    expect(
+      client.calls.filter((call) => call.method === 'Files.GetDirectory').at(-1)
+    ).toMatchObject({
       method: 'Files.GetDirectory',
       params: { directory: 'smb://secret/music/Albums/', media: 'music' }
     });
@@ -347,7 +458,14 @@ describe('media files store', () => {
 
     expect(store.getPlayableEntry(entryId(store.snapshot, 'Dael'))).toEqual({
       ok: true,
-      entry: { id: 'entry:1', label: 'Dael', media: 'music', file: 'smb://secret/music/Dael.mp3' }
+      entry: {
+        id: 'entry:1',
+        label: 'Dael',
+        media: 'music',
+        itemType: 'file',
+        mediaKind: 'audio',
+        file: 'smb://secret/music/Dael.mp3'
+      }
     });
     expect(store.getPlayableEntry(entryId(store.snapshot, 'Track AAC'))).toMatchObject({
       ok: true
@@ -366,13 +484,87 @@ describe('media files store', () => {
         message: 'The selected media file entry cannot be played or queued.'
       }
     });
-    expect(store.getPlayableEntry(entryId(store.snapshot, 'Albums'))).toMatchObject({
+    expect(store.getDownloadableEntry(entryId(store.snapshot, 'Video'))).toEqual({
+      ok: true,
+      entry: {
+        id: 'entry:5',
+        label: 'Video',
+        media: 'music',
+        file: 'smb://secret/music/video.mkv'
+      }
+    });
+    expect(store.getDownloadableEntry(entryId(store.snapshot, 'Albums'))).toEqual({
       ok: false,
-      error: { code: 'client/unsupported-entry' }
+      error: {
+        source: 'client',
+        code: 'client/unsupported-entry',
+        message: 'The selected media file entry cannot be downloaded.'
+      }
+    });
+    expect(store.getPlayableEntry(entryId(store.snapshot, 'Albums'))).toEqual({
+      ok: true,
+      entry: {
+        id: 'entry:6',
+        label: 'Albums',
+        media: 'music',
+        itemType: 'directory',
+        mediaKind: 'audio',
+        file: 'smb://secret/music/Albums/'
+      }
     });
     expect(store.getPlayableEntry('entry:999')).toMatchObject({
       ok: false,
       error: { code: 'client/unknown-entry' }
+    });
+    expectSecretSafe(store.snapshot);
+  });
+
+  it('resolves raw video file paths for video browser entries', async () => {
+    const { client, store } = createHarness({ media: 'video' });
+    client.enqueue('Files.GetSources', {
+      sources: [{ file: 'smb://secret/videos/', label: 'Video share' }]
+    });
+    await store.refreshSources();
+    client.enqueue('Files.GetDirectory', {
+      files: [
+        {
+          file: 'smb://secret/videos/Big Buck Bunny.mkv',
+          filetype: 'file',
+          label: 'Big Buck Bunny'
+        },
+        { file: 'smb://secret/videos/Trailer.mp4', filetype: 'file', label: 'Trailer' },
+        { file: 'smb://secret/videos/poster.jpg', filetype: 'file', label: 'Poster' }
+      ]
+    });
+    await store.openSource(firstSourceId(store.snapshot));
+
+    expect(store.getPlayableEntry(entryId(store.snapshot, 'Big Buck Bunny'))).toEqual({
+      ok: true,
+      entry: {
+        id: 'entry:1',
+        label: 'Big Buck Bunny',
+        media: 'video',
+        itemType: 'file',
+        mediaKind: 'video',
+        file: 'smb://secret/videos/Big Buck Bunny.mkv'
+      }
+    });
+    expect(store.getPlayableEntry(entryId(store.snapshot, 'Trailer'))).toMatchObject({
+      ok: true,
+      entry: { mediaKind: 'video' }
+    });
+    expect(store.getPlayableEntry(entryId(store.snapshot, 'Poster'))).toMatchObject({
+      ok: false,
+      error: { code: 'client/unsupported-entry' }
+    });
+    expect(store.getDownloadableEntry(entryId(store.snapshot, 'Poster'))).toEqual({
+      ok: true,
+      entry: {
+        id: 'entry:3',
+        label: 'Poster',
+        media: 'video',
+        file: 'smb://secret/videos/poster.jpg'
+      }
     });
     expectSecretSafe(store.snapshot);
   });
@@ -527,7 +719,10 @@ describe('media files store', () => {
     slowSources.resolve({ sources: [{ file: 'smb://secret/old/', label: 'Old' }] });
     await slowRefresh;
 
-    expect(store.snapshot.sources).toEqual([{ id: 'source:1', label: 'New' }]);
+    expect(store.snapshot.sources).toEqual([
+      { id: 'source:1', label: 'New' },
+      { id: 'playlist:music', label: 'Playlists' }
+    ]);
 
     const sourceId = firstSourceId(store.snapshot);
     const slowDirectory = deferred<unknown>();
@@ -552,7 +747,7 @@ describe('media files store', () => {
         label: 'New file',
         mediaKind: 'audio',
         extension: 'flac',
-        capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+        capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
       }
     ]);
     expectSecretSafe(store.snapshot);
@@ -576,12 +771,15 @@ describe('media files store', () => {
     snapshot.breadcrumbs[0].label = 'Mutated crumb';
 
     expect(store.snapshot).toMatchObject({
-      sources: [{ id: 'source:1', label: 'Music share' }],
+      sources: [
+        { id: 'source:1', label: 'Music share' },
+        { id: 'playlist:music', label: 'Playlists' }
+      ],
       entries: [
         {
           id: 'entry:1',
           label: 'Dael',
-          capabilities: { canBrowse: false, canPlay: true, canQueue: true }
+          capabilities: { canBrowse: false, canPlay: true, canQueue: true, canDownload: true }
         }
       ],
       breadcrumbs: [{ id: 'source:1', label: 'Music share' }]

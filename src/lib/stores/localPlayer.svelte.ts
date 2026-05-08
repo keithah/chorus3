@@ -22,6 +22,8 @@ export type LocalPlayerItemSnapshot = Pick<PlayerItem, 'id' | 'label' | 'title' 
     songid: number;
     movieid: number;
     episodeid: number;
+    musicvideoid: number;
+    thumbnail: string;
   }>;
 
 export interface LocalPlayerStoreSnapshot {
@@ -101,6 +103,7 @@ export class LocalPlayerStore {
   #adapter: MediaElementAdapter | null = null;
   #detachListeners: (() => void) | null = null;
   #playbackProgressEvaluator: LocalPlayerProgressEvaluator | null;
+  #activeSource = '';
 
   constructor(options: LocalPlayerStoreOptions = {}) {
     this.#now = options.now ?? (() => new Date().toISOString());
@@ -194,6 +197,10 @@ export class LocalPlayerStore {
     };
 
     const onError = () => {
+      if (this.#activeSource && adapter.src && adapter.src !== this.#activeSource) {
+        return;
+      }
+
       if (!adapter.paused && !adapter.ended) {
         this.#snapshot = {
           ...this.#snapshot,
@@ -245,6 +252,7 @@ export class LocalPlayerStore {
     this.#detachListeners?.();
     this.#detachListeners = null;
     this.#adapter = null;
+    this.#activeSource = '';
   }
 
   async loadAndPlay(input: LoadAndPlayInput): Promise<void> {
@@ -280,7 +288,9 @@ export class LocalPlayerStore {
       lastUpdatedAt: this.#now()
     };
 
-    adapter.src = sanitizeMediaSource(input.source);
+    const source = sanitizeMediaSource(input.source);
+    this.#activeSource = source;
+    adapter.src = source;
     adapter.load();
 
     try {
@@ -320,6 +330,7 @@ export class LocalPlayerStore {
     if (adapter) {
       adapter.pause();
       adapter.src = '';
+      this.#activeSource = '';
       adapter.load();
     }
 
@@ -486,6 +497,12 @@ function cloneItemSnapshot(item: LocalPlayerItemSnapshot): LocalPlayerItemSnapsh
     ...(Object.prototype.hasOwnProperty.call(item, 'movieid') ? { movieid: item.movieid } : {}),
     ...(Object.prototype.hasOwnProperty.call(item, 'episodeid')
       ? { episodeid: item.episodeid }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(item, 'musicvideoid')
+      ? { musicvideoid: item.musicvideoid }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(item, 'thumbnail')
+      ? { thumbnail: item.thumbnail }
       : {})
   };
 }

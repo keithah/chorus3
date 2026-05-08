@@ -22,6 +22,7 @@ type FakePlayerDispatch = PlayerControlsDispatch & {
   setVolume: ReturnType<typeof vi.fn>;
   toggleMute: ReturnType<typeof vi.fn>;
   setShuffle: ReturnType<typeof vi.fn>;
+  setPartyMode: ReturnType<typeof vi.fn>;
   setRepeat: ReturnType<typeof vi.fn>;
   setSubtitle: ReturnType<typeof vi.fn>;
   setAudioStream: ReturnType<typeof vi.fn>;
@@ -40,13 +41,15 @@ afterEach(() => {
 });
 
 describe('RemoteInputPanel', () => {
-  it('renders the compact Chorus2-style controller with accessible command buttons', () => {
+  it('renders the compact classic-style controller with accessible command buttons', () => {
     mounted = mountPanel();
 
     expect(heading('Remote')).toBeTruthy();
-    expect(screenText()).toContain('Last command: none');
-    expect(screenText()).toContain('Status: idle');
+    expect(screenText()).not.toContain('KODI INPUT');
+    expect(screenText()).not.toContain('Last command: none');
+    expect(screenText()).not.toContain('Status: idle');
     expect(document.body.querySelector('.kodi-remote')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.playing-area')?.textContent?.trim()).toBe('');
     expect(document.body.querySelector('.remote-hero')).toBeNull();
     expect(document.body.querySelector('.remote-section')).toBeNull();
 
@@ -118,7 +121,7 @@ describe('RemoteInputPanel', () => {
     expect(playerDispatch.next).not.toHaveBeenCalled();
   });
 
-  it('renders only secret-safe diagnostics from failed snapshots', () => {
+  it('keeps failed snapshot diagnostics out of the visible Chorus2 remote overlay', () => {
     mounted = mountPanel({
       remoteSnapshot: createRemoteSnapshot({
         commandStatus: 'failed',
@@ -133,12 +136,12 @@ describe('RemoteInputPanel', () => {
       })
     });
 
-    expect(screenText()).toContain('Last command: Home');
-    expect(screenText()).toContain('Status: failed');
-    expect(screenText()).toContain('transport/raw');
-    expect(screenText()).toContain('[redacted-url]');
-    expect(screenText()).toContain('credentials [redacted]');
-    expect(screenText()).toContain('redacted-file');
+    expect(screenText()).not.toContain('Last command: Home');
+    expect(screenText()).not.toContain('Status: failed');
+    expect(screenText()).not.toContain('transport/raw');
+    expect(screenText()).not.toContain('[redacted-url]');
+    expect(screenText()).not.toContain('credentials [redacted]');
+    expect(screenText()).not.toContain('redacted-file');
     expect(screenText()).not.toContain('admin:p@ssword');
     expect(screenText()).not.toContain('verysecret');
     expect(screenText()).not.toContain('/media/private/movie.mkv');
@@ -206,6 +209,7 @@ function createPlayerDispatch(overrides: Partial<PlayerDispatchSnapshot> = {}): 
     setVolume: vi.fn().mockResolvedValue(undefined),
     toggleMute: vi.fn().mockResolvedValue(undefined),
     setShuffle: vi.fn().mockResolvedValue(undefined),
+    setPartyMode: vi.fn().mockResolvedValue(undefined),
     setRepeat: vi.fn().mockResolvedValue(undefined),
     setSubtitle: vi.fn().mockResolvedValue(undefined),
     setAudioStream: vi.fn().mockResolvedValue(undefined),

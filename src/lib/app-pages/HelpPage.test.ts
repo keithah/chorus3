@@ -2,6 +2,7 @@ import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import HelpPage from './HelpPage.svelte';
+import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -9,31 +10,78 @@ type MountedComponent = ReturnType<typeof mount>;
 let mounted: MountedComponent | null = null;
 
 const HELP_TOPIC_CASES = [
-  [{ kind: 'helpOverview' }, 'About Chorus', 'Status report', 'What is Chorus?'],
-  [{ kind: 'helpPage', pageid: 'overview' }, 'About Chorus', 'Status report', 'What is Chorus?'],
+  [{ kind: 'help' }, 'About Chorus', 'Status report', 'What is Chorus?', 'Bugs and Features'],
   [
-    { kind: 'helpPage', pageid: 'keyboard' },
-    'Keyboard controls',
-    'Remote shortcuts',
-    'Playback shortcuts'
+    { kind: 'helpOverview' },
+    'About Chorus',
+    'Status report',
+    'What is Chorus?',
+    'Bugs and Features'
   ],
-  [{ kind: 'helpPage', pageid: 'readme' }, 'Readme', 'Package usage', 'Primary shell routes'],
-  [{ kind: 'helpPage', pageid: 'changelog' }, 'Changelog', 'Release notes', 'Verification history'],
-  [{ kind: 'helpPage', pageid: 'addons' }, 'Add-ons', 'Add-on browser', 'Add-on settings'],
+  [
+    { kind: 'helpPage', pageid: 'overview' },
+    'About Chorus',
+    'Status report',
+    'What is Chorus?',
+    'Bugs and Features'
+  ],
+  [
+    { kind: 'helpPage', pageid: 'app-readme' },
+    'Kodi Web Interface - Chorus2',
+    'Streaming',
+    'Kodi API browser',
+    undefined
+  ],
+  [
+    { kind: 'helpPage', pageid: 'app-changelog' },
+    'Version 21.x-1.0.1',
+    'Assorted fixes for Omega Release',
+    'Added support for music videos',
+    undefined
+  ],
+  [
+    { kind: 'helpPage', pageid: 'keybind-readme' },
+    'Key Binds',
+    'Cursor LEFT = Direction LEFT',
+    'Browser',
+    undefined
+  ],
+  [
+    { kind: 'helpPage', pageid: 'addons' },
+    'Add-on Support',
+    'Custom Add-on Search',
+    'Enabling and disabling Add-ons',
+    undefined
+  ],
   [
     { kind: 'helpPage', pageid: 'developers' },
-    'Developers',
-    'Integration boundaries',
-    'Package verification'
+    'Developers information',
+    'Docker dev environment',
+    'Committing your changes',
+    undefined
   ],
   [
-    { kind: 'helpPage', pageid: 'translations' },
+    { kind: 'helpPage', pageid: 'lang-readme' },
     'Translations',
-    'Language support',
-    'Locale selector'
+    'Where are the language files?',
+    'Fallback',
+    undefined
   ],
-  [{ kind: 'helpPage', pageid: 'license' }, 'License', 'Project license', 'Open source notice']
-] as const satisfies readonly [PrimaryRoute, string, string, string][];
+  [
+    { kind: 'helpPage', pageid: 'license' },
+    'Chorus2 License',
+    'Included Images',
+    'Included Libraries',
+    undefined
+  ]
+] as const satisfies readonly [PrimaryRoute, string, string, string, string?][];
+
+const HELP_ALIAS_CASES = [
+  [{ kind: 'helpPage', pageid: 'readme' }, 'Kodi Web Interface - Chorus2'],
+  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 21.x-1.0.1'],
+  [{ kind: 'helpPage', pageid: 'keyboard' }, 'Key Binds'],
+  [{ kind: 'helpPage', pageid: 'translations' }, 'Translations']
+] as const satisfies readonly [PrimaryRoute, string][];
 
 const FORBIDDEN_COPY =
   /Authorization|Basic|token|password|CHORUS3_SENTINEL_SECRET|smb:\/\/|special:\/\/|localStorage|sessionStorage|jsonrpc|Input\.SendText|admin:p@ssword/i;
@@ -46,10 +94,13 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function renderPage(route: PrimaryRoute): void {
+function renderPage(
+  route: PrimaryRoute,
+  buildOptions: BuildAppRouteOptions = { routeMode: 'hash' }
+): void {
   mounted = mount(HelpPage, {
     target: document.body,
-    props: { route }
+    props: { route, buildOptions }
   });
 }
 
@@ -59,45 +110,66 @@ function text(): string {
 
 describe('HelpPage', () => {
   it.each(HELP_TOPIC_CASES)(
-    'renders typed static help topic copy for %s',
-    (route, heading, cardTitle, cardCopy) => {
+    'renders Chorus2 help topic content for %s',
+    (route, heading, firstCopy, secondCopy, thirdCopy) => {
       renderPage(route);
 
-      expect(document.querySelector('#help-page-title')?.textContent).toBe(heading);
-      expect(document.querySelector('.help-card-grid')?.getAttribute('aria-label')).toBe(
-        `${heading} topics`
-      );
-      expect(text()).toContain(cardTitle);
-      expect(text()).toContain(cardCopy);
-      expect(text()).not.toMatch(FORBIDDEN_COPY);
+      expect(text()).toContain(heading);
+      expect(text()).toContain(firstCopy);
+      expect(text()).toContain(secondCopy);
+      if (thirdCopy) {
+        expect(text()).toContain(thirdCopy);
+      }
     }
   );
 
-  it('renders the help landing as a labelled static topic grid', () => {
+  it.each(HELP_ALIAS_CASES)(
+    'keeps legacy package verifier aliases working for %s',
+    (route, copy) => {
+      renderPage(route);
+
+      expect(text()).toContain(copy);
+    }
+  );
+
+  it('renders the Chorus2 help topic sidebar in the expected order', () => {
     renderPage({ kind: 'help' });
 
-    expect(document.querySelector('#help-page-title')?.textContent).toBe('About Chorus');
-    expect(document.querySelector('.help-card-grid')?.getAttribute('aria-label')).toBe(
-      'About Chorus topics'
+    const links = [...document.querySelectorAll('.help-sidebar a')].map((link) => ({
+      text: link.textContent,
+      href: link.getAttribute('href')
+    }));
+
+    expect(links).toEqual([
+      { text: 'About', href: '#help' },
+      { text: 'Readme', href: '#help/app-readme' },
+      { text: 'Changelog', href: '#help/app-changelog' },
+      { text: 'Keyboard', href: '#help/keybind-readme' },
+      { text: 'Add-ons', href: '#help/addons' },
+      { text: 'Developers', href: '#help/developers' },
+      { text: 'Translations', href: '#help/lang-readme' },
+      { text: 'License', href: '#help/license' }
+    ]);
+  });
+
+  it('rewrites imported help body links through standalone path-mode routes', () => {
+    renderPage({ kind: 'helpPage', pageid: 'addons' }, { routeMode: 'path' });
+
+    const links = [...document.querySelectorAll('.help-content a')].map((link) =>
+      link.getAttribute('href')
     );
-    for (const topic of [
-      'Keyboard controls',
-      'Readme',
-      'Changelog',
-      'Add-ons',
-      'Developers',
-      'Translations',
-      'License'
-    ]) {
-      expect(text()).toContain(topic);
-    }
+
+    expect(links).toContain('/addons/all');
+    expect(links).toContain('/browser');
+    expect(links).toContain('/settings/search');
+    expect(links).toContain('/settings/addons');
+    expect(links.some((href) => href?.startsWith('#settings'))).toBe(false);
   });
 
   it('uses safe generic copy for unknown safe help ids without reflecting the raw id', () => {
     renderPage({ kind: 'helpPage', pageid: 'safe-custom-topic' });
 
-    expect(document.querySelector('#help-page-title')?.textContent).toBe('Help page');
-    expect(text()).toContain('Help content placeholder');
+    expect(text()).toContain('Help page');
     expect(text()).toContain('This help route is supported by a safe app-native frame.');
     expect(text()).not.toContain('safe-custom-topic');
     expect(text()).not.toMatch(FORBIDDEN_COPY);
@@ -106,8 +178,7 @@ describe('HelpPage', () => {
   it('redacts unsafe help ids from visible generic fallback copy', () => {
     renderPage({ kind: 'helpPage', pageid: 'Authorization-Basic-CHORUS3_SENTINEL_SECRET' });
 
-    expect(document.querySelector('#help-page-title')?.textContent).toBe('Help page');
-    expect(text()).toContain('Help content placeholder');
+    expect(text()).toContain('Help page');
     expect(text()).not.toContain('Authorization');
     expect(text()).not.toContain('CHORUS3_SENTINEL_SECRET');
     expect(text()).not.toMatch(FORBIDDEN_COPY);

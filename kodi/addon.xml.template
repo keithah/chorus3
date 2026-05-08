@@ -8,6 +8,7 @@
     <summary lang="{{language}}">{{summary}}</summary>
     <description lang="{{language}}">{{description}}</description>
     <source>{{source}}</source>
+    <license>{{license}}</license>
     <language>{{language}}</language>
     <platform>{{platform}}</platform>
   </extension>

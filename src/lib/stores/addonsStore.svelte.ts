@@ -1,10 +1,13 @@
 import {
   KodiHttpClientError,
+  executeAddon,
   getAddonDetails,
   getAddons,
   isKodiHttpClientError,
   setAddonEnabled,
   type AddonPropertyName,
+  type AddonsExecuteAddonParams,
+  type AddonsExecuteAddonResult,
   type AddonsGetAddonDetailsParams,
   type AddonsGetAddonDetailsResult,
   type AddonsGetAddonsParams,
@@ -39,6 +42,11 @@ export interface AddonSnapshot {
   enabled: boolean | null;
   installed: boolean | null;
   type: string;
+  provides?: string[];
+  providesDefault?: string | null;
+  browseMedia?: 'music' | 'video' | null;
+  browsePath?: string | null;
+  canExecute?: boolean;
   broken: boolean | string | null;
   dependencyCount: number;
   extrainfoCount: number;
@@ -95,6 +103,15 @@ export interface AddonsStoreSnapshot {
   lastError: AddonsSafeErrorSnapshot | null;
 }
 
+export type AddonEntityFilter = 'all' | 'video' | 'audio' | 'executable' | string;
+
+export interface AddonSearchSetting {
+  id: string;
+  url: string;
+  title: string;
+  media: 'music' | 'video';
+}
+
 export interface AddonsStoreMethods {
   getAddons(
     client: KodiJsonRpcHttpClient,
@@ -108,6 +125,10 @@ export interface AddonsStoreMethods {
     client: KodiJsonRpcHttpClient,
     params: AddonsSetAddonEnabledParams
   ): Promise<AddonsSetAddonEnabledResult>;
+  executeAddon(
+    client: KodiJsonRpcHttpClient,
+    params: AddonsExecuteAddonParams
+  ): Promise<AddonsExecuteAddonResult>;
 }
 
 export interface AddonsStoreOptions {
@@ -122,19 +143,70 @@ const ADDON_PROPERTIES: readonly AddonPropertyName[] = [
   'version',
   'summary',
   'description',
+  'path',
   'author',
-  'enabled',
-  'installed',
-  'type',
+  'thumbnail',
+  'disclaimer',
+  'fanart',
   'broken',
   'dependencies',
-  'extrainfo'
+  'extrainfo',
+  'rating',
+  'enabled'
 ];
 
 const DEFAULT_METHODS: AddonsStoreMethods = {
   getAddons,
   getAddonDetails,
-  setAddonEnabled
+  setAddonEnabled,
+  executeAddon
+};
+const KNOWN_ADDON_SEARCH_SETTINGS: Readonly<
+  Record<string, readonly Omit<AddonSearchSetting, 'id'>[]>
+> = {
+  'plugin.audio.googlemusic.exp': [
+    {
+      url: 'plugin://plugin.audio.googlemusic.exp/?path=search_result&type=track&query=[QUERY]',
+      title: 'GoogleMusic',
+      media: 'music'
+    }
+  ],
+  'plugin.audio.mixcloud': [
+    {
+      url: 'plugin://plugin.audio.mixcloud/?mode=30&key=cloudcast&offset=0&query=[QUERY]',
+      title: 'MixCloud',
+      media: 'music'
+    }
+  ],
+  'plugin.audio.radio_de': [
+    {
+      url: 'plugin://plugin.audio.radio_de/stations/search/[QUERY]',
+      title: 'Radio',
+      media: 'music'
+    }
+  ],
+  'plugin.audio.soundcloud': [
+    {
+      url: 'plugin://plugin.audio.soundcloud/search/?query=[QUERY]',
+      title: 'SoundCloud',
+      media: 'music'
+    }
+  ],
+  'plugin.video.youtube': [
+    {
+      url: 'plugin://plugin.video.youtube/search/?q=[QUERY]',
+      title: 'YouTube',
+      media: 'video'
+    }
+  ]
+};
+const EXCLUDED_ADDON_PATHS: Readonly<Record<string, readonly string[]>> = {
+  'plugin.video.youtube': [
+    'plugin://plugin.video.youtube/special/',
+    'plugin://plugin.video.youtube/kodion/search/',
+    'plugin://plugin.video.youtube/kodion/',
+    'plugin://plugin.video.youtube/channel/'
+  ]
 };
 const DEFAULT_COUNTS: AddonsWriteCountsSnapshot = { attempted: 0, succeeded: 0, failed: 0 };
 const DEFAULT_SNAPSHOT: AddonsStoreSnapshot = {
@@ -192,6 +264,38 @@ export class AddonsStore {
 
   get snapshot(): AddonsStoreSnapshot {
     return cloneSnapshot(this.#snapshot);
+  }
+
+  getAddonEntities(type: AddonEntityFilter = 'all'): AddonSnapshot[] {
+    return this.#snapshot.addons
+      .filter((addon) => addonMatchesEntityType(addon, type))
+      .map(cloneAddon);
+  }
+
+  getEnabledAddons(): AddonSnapshot[] {
+    return this.#snapshot.addons.filter((addon) => addon.enabled === true).map(cloneAddon);
+  }
+
+  isAddonEnabled(
+    filter: Partial<Pick<AddonSnapshot, 'addonid' | 'name' | 'type'>> = {}
+  ): AddonSnapshot | null {
+    const match = this.getEnabledAddons().find((addon) =>
+      Object.entries(filter).every(([key, value]) => {
+        if (value === undefined || value === null || value === '') return true;
+        return addon[key as keyof Pick<AddonSnapshot, 'addonid' | 'name' | 'type'>] === value;
+      })
+    );
+    return match ? cloneAddon(match) : null;
+  }
+
+  getSearchSettings(
+    addons: readonly AddonSnapshot[] = this.getEnabledAddons()
+  ): AddonSearchSetting[] {
+    return addons.flatMap((addon) => getAddonSearchSettings(addon.addonid));
+  }
+
+  getExcludedPaths(addonid: string): string[] {
+    return getAddonExcludedPaths(addonid);
   }
 
   async loadAddons(): Promise<void> {
@@ -307,6 +411,63 @@ export class AddonsStore {
         refreshed: refreshError === null,
         warning: refreshError ? refreshError.message : null
       },
+      writeCounts: {
+        ...this.#snapshot.writeCounts,
+        succeeded: this.#snapshot.writeCounts.succeeded + 1
+      }
+    };
+  }
+
+  async executeAddon(addonid: string): Promise<void> {
+    if (!isSafeAddonId(addonid)) {
+      this.#snapshot = {
+        ...this.#snapshot,
+        writeStatus: 'error',
+        lastError: cloneError(INVALID_ADDON_ID_ERROR)
+      };
+      return;
+    }
+
+    const client = await this.#resolveClient();
+    if (!client) {
+      this.#snapshot = {
+        ...this.#snapshot,
+        writeStatus: 'error',
+        lastError: cloneError(NO_ACTIVE_HOST_ERROR),
+        writeCounts: { ...this.#snapshot.writeCounts }
+      };
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      writeStatus: 'pending',
+      lastError: null,
+      writeCounts: {
+        ...this.#snapshot.writeCounts,
+        attempted: this.#snapshot.writeCounts.attempted + 1
+      }
+    };
+
+    try {
+      await this.#methods.executeAddon(client, { addonid });
+    } catch (error) {
+      this.#snapshot = {
+        ...this.#snapshot,
+        writeStatus: 'error',
+        lastError: createSafeError(error, 'write'),
+        writeCounts: {
+          ...this.#snapshot.writeCounts,
+          failed: this.#snapshot.writeCounts.failed + 1
+        }
+      };
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      writeStatus: 'success',
+      lastError: null,
       writeCounts: {
         ...this.#snapshot.writeCounts,
         succeeded: this.#snapshot.writeCounts.succeeded + 1
@@ -451,7 +612,7 @@ export class AddonsStore {
 }
 
 function createGetAddonsParams(): AddonsGetAddonsParams {
-  return { installed: true, enabled: 'all', properties: ADDON_PROPERTIES };
+  return { type: 'unknown', content: 'unknown', enabled: 'all', properties: ADDON_PROPERTIES };
 }
 
 function normalizeAddons(raw: unknown): AddonSnapshot[] {
@@ -474,10 +635,56 @@ function normalizeAddonDetail(raw: unknown): AddonSnapshot {
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : null,
     installed: typeof raw.installed === 'boolean' ? raw.installed : null,
     type: sanitizeLabel(typeof raw.type === 'string' ? raw.type : 'unknown', 'unknown'),
+    ...normalizeAddonProvides(raw),
     broken: normalizeBroken(raw.broken),
     dependencyCount: countCollection(raw.dependencies),
     extrainfoCount: countCollection(raw.extrainfo)
   };
+}
+
+function normalizeAddonProvides(
+  raw: Record<string, unknown>
+): Pick<
+  AddonSnapshot,
+  'provides' | 'providesDefault' | 'browseMedia' | 'browsePath' | 'canExecute'
+> {
+  const provides = normalizeProvides(raw.extrainfo);
+  const providesDefault = provides[0] ?? null;
+  const browseMedia =
+    providesDefault === 'video' ? 'video' : providesDefault === 'audio' ? 'music' : null;
+  const browsePath = browseMedia ? `plugin://${raw.addonid}/` : null;
+  const type = typeof raw.type === 'string' ? raw.type.toLowerCase() : '';
+  const canExecute =
+    provides.includes('executable') ||
+    type === 'xbmc.addon.executable' ||
+    type.includes('.executable') ||
+    type === 'xbmc.python.script' ||
+    type.includes('.script');
+
+  return {
+    provides,
+    providesDefault,
+    browseMedia,
+    browsePath,
+    canExecute
+  };
+}
+
+function normalizeProvides(raw: unknown): string[] {
+  const supported = new Set(['video', 'audio', 'executable']);
+  const values = new Set<string>();
+  const items = Array.isArray(raw) ? raw : isRecord(raw) ? Object.values(raw) : [];
+
+  for (const item of items) {
+    if (!isRecord(item)) continue;
+    const key = typeof item.key === 'string' ? item.key.toLowerCase() : '';
+    const value = typeof item.value === 'string' ? item.value.toLowerCase() : '';
+    if (key === 'provides' && supported.has(value)) {
+      values.add(value);
+    }
+  }
+
+  return [...values];
 }
 
 function normalizeBroken(raw: unknown): boolean | string | null {
@@ -569,6 +776,50 @@ function enabledGroupLabel(key: string): string {
   if (key === 'enabled') return 'Enabled';
   if (key === 'disabled') return 'Disabled';
   return 'Unknown';
+}
+
+function addonMatchesEntityType(addon: AddonSnapshot, type: AddonEntityFilter): boolean {
+  const normalizedType = type.toLowerCase();
+  if (normalizedType === 'all') {
+    return (
+      addonMatchesEntityType(addon, 'video') ||
+      addonMatchesEntityType(addon, 'audio') ||
+      addonMatchesEntityType(addon, 'executable')
+    );
+  }
+  if (normalizedType === 'executable') return addonCanExecute(addon);
+  if (normalizedType === 'video' || normalizedType === 'audio') {
+    const provides = Array.isArray(addon.provides) ? addon.provides : [];
+    if (provides.length > 0) return provides.includes(normalizedType);
+  }
+
+  const addonType = addon.type.toLowerCase();
+  return addonType === `xbmc.addon.${normalizedType}` || addonType.includes(`.${normalizedType}`);
+}
+
+function addonCanExecute(addon: AddonSnapshot): boolean {
+  if (addon.canExecute === true) return true;
+  const type = addon.type.toLowerCase();
+  return (
+    type === 'xbmc.addon.executable' ||
+    type.includes('.executable') ||
+    type === 'xbmc.python.script' ||
+    type.includes('.script')
+  );
+}
+
+export function getAddonSearchSettings(addonid: string): AddonSearchSetting[] {
+  if (!isSafeAddonId(addonid)) return [];
+  const settings = KNOWN_ADDON_SEARCH_SETTINGS[addonid] ?? [];
+  return settings.map((setting, index) => ({
+    id: `${addonid}.${index}`,
+    ...setting
+  }));
+}
+
+export function getAddonExcludedPaths(addonid: string): string[] {
+  if (!isSafeAddonId(addonid)) return [];
+  return [...(EXCLUDED_ADDON_PATHS[addonid] ?? [])];
 }
 
 function replaceAddon(addons: readonly AddonSnapshot[], addon: AddonSnapshot): AddonSnapshot[] {

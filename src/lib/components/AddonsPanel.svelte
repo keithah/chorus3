@@ -14,11 +14,13 @@
     retry: () => void | Promise<void>;
     setSearchQuery: (query: string) => void | Promise<void>;
     setGroupBy: (groupBy: AddonsGroupBy) => void | Promise<void>;
+    setAddonEnabled: (addonid: string, enabled: boolean) => void | Promise<void>;
+    executeAddon?: (addonid: string) => void | Promise<void>;
   }
 </script>
 
 <script lang="ts">
-  import { buildPrimaryAppRoute } from '$lib/app/appRouter';
+  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
 
   interface Props {
     snapshot: AddonsStoreSnapshot;
@@ -26,9 +28,25 @@
     i18n: TranslationContext;
     typeFilter?: AddonsTypeFilter | null;
     packageBasePath?: string;
+    buildOptions?: BuildAppRouteOptions;
   }
 
-  let { snapshot, dispatch, i18n, typeFilter = null, packageBasePath = '' }: Props = $props();
+  let {
+    snapshot,
+    dispatch,
+    i18n,
+    typeFilter = null,
+    packageBasePath = '',
+    buildOptions
+  }: Props = $props();
+  const routeBuildOptions = $derived(resolveBuildOptions(buildOptions, packageBasePath));
+
+  function resolveBuildOptions(
+    options: BuildAppRouteOptions | undefined,
+    basePath: string
+  ): BuildAppRouteOptions {
+    return options ?? { packageBasePath: basePath, routeMode: basePath ? 'hash' : 'path' };
+  }
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');
   const filteredVisibleAddons = $derived(filterVisibleAddons(snapshot.visibleAddons, typeFilter));
@@ -77,14 +95,39 @@
     addons: readonly AddonSnapshot[],
     filter: AddonsTypeFilter | null
   ): AddonSnapshot[] {
-    if (!filter) return [...addons];
+    if (!filter) return addons.filter(addonIsContentProvider);
     return addons.filter((addon) => addonMatchesTypeFilter(addon, filter));
   }
 
+  function addonIsContentProvider(addon: AddonSnapshot): boolean {
+    return (
+      addonMatchesTypeFilter(addon, 'video') ||
+      addonMatchesTypeFilter(addon, 'audio') ||
+      addonMatchesTypeFilter(addon, 'executable')
+    );
+  }
+
   function addonMatchesTypeFilter(addon: AddonSnapshot, filter: AddonsTypeFilter): boolean {
+    const provides = Array.isArray(addon.provides) ? addon.provides : [];
+    if (filter === 'video' && provides.length > 0) return provides.includes('video');
+    if (filter === 'audio' && provides.length > 0) return provides.includes('audio');
+    if (filter === 'executable' && addon.canExecute === true) return true;
+
     const normalizedType = safeText(addon.type).trim().toLowerCase();
     if (!normalizedType) return false;
+    if (filter === 'executable') return canExecuteAddon(addon);
     return normalizedType === `xbmc.addon.${filter}` || normalizedType.includes(`.${filter}`);
+  }
+
+  function canExecuteAddon(addon: AddonSnapshot): boolean {
+    if (addon.canExecute === true) return true;
+    const normalizedType = safeText(addon.type).trim().toLowerCase();
+    return (
+      normalizedType === 'xbmc.addon.executable' ||
+      normalizedType.includes('.executable') ||
+      normalizedType === 'xbmc.python.script' ||
+      normalizedType.includes('.script')
+    );
   }
 
   function createRenderedGroups(): AddonsGroupSnapshot[] {
@@ -133,12 +176,11 @@
     return name.length > 0 ? name : i18n.t('addons.panel.untitled');
   }
 
-  function addonId(addon: AddonSnapshot): string {
-    const id = safeText(addon.addonid).trim();
-    return id.length > 0 ? id : i18n.t('addons.panel.unknownAddon');
-  }
-
   function typeLabel(addon: AddonSnapshot): string {
+    if (addon.providesDefault) {
+      return addon.providesDefault === 'audio' ? 'music' : addon.providesDefault;
+    }
+
     const type = safeText(addon.type).trim();
     return type.length > 0 ? type : i18n.t('addons.panel.unknown');
   }
@@ -183,10 +225,44 @@
   }
 
   function addonDetailHref(addon: AddonSnapshot): string {
-    return buildPrimaryAppRoute(
-      { kind: 'addonDetail', addonid: addon.addonid },
-      { packageBasePath }
-    );
+    return buildPrimaryAppRoute({ kind: 'addonDetail', addonid: addon.addonid }, routeBuildOptions);
+  }
+
+  function addonPrimaryHref(addon: AddonSnapshot): string {
+    if (addon.browseMedia && addon.browsePath) {
+      return buildPrimaryAppRoute(
+        { kind: 'browserItem', media: addon.browseMedia, itemid: addon.browsePath },
+        routeBuildOptions
+      );
+    }
+
+    if (canExecuteAddon(addon)) {
+      return buildPrimaryAppRoute(
+        { kind: 'addonExecute', addonid: addon.addonid },
+        routeBuildOptions
+      );
+    }
+
+    return addonDetailHref(addon);
+  }
+
+  function addonPrimaryAria(addon: AddonSnapshot): string {
+    if (canExecuteAddon(addon) && !addon.browsePath) {
+      return i18n.t('addons.panel.executeAria', { name: addonLabel(addon) });
+    }
+    return i18n.t('addons.panel.openDetails', { name: addonLabel(addon) });
+  }
+
+  function handleAddonPrimaryClick(event: MouseEvent, addon: AddonSnapshot): void {
+    if (canExecuteAddon(addon) && !addon.browsePath && dispatch.executeAddon) {
+      event.preventDefault();
+      executeAddon(addon);
+    }
+  }
+
+  function executeAddon(addon: AddonSnapshot): void {
+    if (!canExecuteAddon(addon) || !dispatch.executeAddon) return;
+    void dispatch.executeAddon(addon.addonid);
   }
 
   function safeKey(addon: AddonSnapshot, index: number): string {
@@ -217,9 +293,7 @@
 <section class="addons-panel" aria-labelledby="addons-panel-title">
   <header class="addons-hero">
     <div>
-      <p class="addons-eyebrow">{i18n.t('addons.panel.eyebrow')}</p>
       <h2 id="addons-panel-title">{i18n.t('addons.panel.title')}</h2>
-      <p>{i18n.t('addons.panel.description')}</p>
     </div>
     <button type="button" class="addons-primary-action" onclick={callLoad} disabled={isLoading}>
       {i18n.t('addons.panel.reload')}
@@ -301,12 +375,23 @@
               {#each group.addons as addon, index (safeKey(addon, index))}
                 <article class="addons-card" class:broken={brokenLabel(addon) !== null}>
                   <div class="addons-card-heading">
-                    <div>
-                      <h4>{addonLabel(addon)}</h4>
-                      <p>{addonId(addon)}</p>
-                    </div>
-                    <a href={addonDetailHref(addon)}
-                      >{i18n.t('addons.panel.openDetails', { name: addonLabel(addon) })}</a
+                    <a
+                      class="addons-card-primary"
+                      href={addonPrimaryHref(addon)}
+                      aria-label={addonPrimaryAria(addon)}
+                      onclick={(event) => handleAddonPrimaryClick(event, addon)}
+                    >
+                      <span class="addons-card-thumb" aria-hidden="true">K</span>
+                      <span>
+                        <strong>{addonLabel(addon)}</strong>
+                        <small>{typeLabel(addon)}</small>
+                      </span>
+                    </a>
+                    <a
+                      class="addons-card-detail"
+                      href={addonDetailHref(addon)}
+                      aria-label={i18n.t('addons.panel.openDetails', { name: addonLabel(addon) })}
+                      >Details</a
                     >
                   </div>
                   <p class="addons-summary">{summaryLabel(addon)}</p>
@@ -335,6 +420,20 @@
                     {#if addon.dependencyCount > 0}<span>{dependencyLabel(addon)}</span>{/if}
                     {#if addon.extrainfoCount > 0}<span>{extraInfoLabel(addon)}</span>{/if}
                   </div>
+                  {#if canExecuteAddon(addon) && dispatch.executeAddon}
+                    <div class="addons-actions">
+                      <button
+                        type="button"
+                        onclick={() => executeAddon(addon)}
+                        disabled={snapshot.writeStatus === 'pending' || addon.enabled === false}
+                        aria-label={i18n.t('addons.panel.executeAria', {
+                          name: addonLabel(addon)
+                        })}
+                      >
+                        {i18n.t('addons.panel.execute')}
+                      </button>
+                    </div>
+                  {/if}
                 </article>
               {/each}
             </div>
@@ -370,26 +469,13 @@
 
   .addons-hero {
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    padding: var(--space-xl);
-    overflow: hidden;
-    background:
-      radial-gradient(
-        circle at top left,
-        color-mix(in srgb, var(--color-accent) 22%, transparent),
-        transparent 38%
-      ),
-      linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--color-surface-raised) 86%, transparent),
-        var(--color-surface)
-      );
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-soft);
+    align-items: center;
+    min-height: 50px;
+    padding: 0.75rem 1rem;
+    background: #f7f7f7;
+    border-bottom: 1px solid #d0d0d0;
   }
 
-  .addons-eyebrow,
   .addons-status span,
   .addons-group-heading span,
   .addons-meta dt,
@@ -405,7 +491,6 @@
 
   h2,
   h3,
-  h4,
   p,
   dl,
   dd {
@@ -413,16 +498,14 @@
   }
 
   h2 {
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 0.95;
+    color: #555;
+    font-size: 1.25rem;
+    font-weight: 400;
+    line-height: 1.2;
   }
 
   h3 {
     font-size: clamp(1.1rem, 2vw, 1.35rem);
-  }
-
-  h4 {
-    font-size: 1.05rem;
   }
 
   p,
@@ -437,15 +520,8 @@
 
   button,
   input,
-  select,
-  a {
-    border-radius: var(--radius-md);
-  }
-
-  button,
-  input,
   select {
-    border: 1px solid var(--color-border);
+    border: 1px solid #c8c8c8;
   }
 
   button {
@@ -462,16 +538,16 @@
   .addons-primary-action,
   .addons-error-actions button {
     padding: var(--space-xs) var(--space-md);
-    color: var(--color-text);
+    color: #333;
     font-weight: 800;
-    background: color-mix(in srgb, var(--color-surface-raised) 84%, transparent);
+    background: #9e9e9e;
+    color: white;
   }
 
   .addons-primary-action:not(:disabled):hover,
   .addons-error-actions button:not(:disabled):hover,
   .addons-card a:hover {
-    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
+    background: #777;
   }
 
   .addons-status-grid {
@@ -486,9 +562,8 @@
   .addons-card,
   .addons-empty {
     padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    background: #f7f7f7;
+    border: 1px solid #d0d0d0;
   }
 
   .addons-status {
@@ -516,8 +591,8 @@
   .addons-toolbar select {
     width: 100%;
     padding: var(--space-xs) var(--space-sm);
-    color: var(--color-text);
-    background: var(--color-surface-raised);
+    color: #333;
+    background: white;
   }
 
   .addons-error-actions {
@@ -542,19 +617,16 @@
   }
 
   .addons-card-grid {
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 
   .addons-card {
     display: grid;
-    gap: var(--space-md);
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--color-surface-raised) 44%, transparent),
-        transparent
-      ),
-      var(--color-surface);
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
   }
 
   .addons-card.broken {
@@ -565,7 +637,6 @@
     );
   }
 
-  .addons-card-heading p,
   .addons-summary,
   .addons-empty,
   .addons-error-actions p {
@@ -573,11 +644,47 @@
   }
 
   .addons-card a {
-    padding: var(--space-2xs) var(--space-sm);
-    color: var(--color-text);
+    color: #333;
     text-decoration: none;
-    border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-background) 32%, transparent);
+  }
+
+  .addons-card-primary {
+    display: grid;
+    grid-template-rows: 132px auto;
+    min-width: 0;
+  }
+
+  .addons-card-primary span:last-child {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .addons-card-primary strong,
+  .addons-card-primary small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .addons-card-primary small {
+    color: #888;
+  }
+
+  .addons-card-thumb {
+    display: grid;
+    place-items: center;
+    background: #cfcfcf;
+    color: #aaa;
+    font-size: 3rem;
+    font-weight: 700;
+  }
+
+  .addons-card-detail {
+    padding: 0.45rem 0.65rem;
+    border-top: 1px solid #eee;
+    color: #42a5dc;
   }
 
   .addons-meta {
@@ -596,6 +703,22 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-xs);
+  }
+
+  .addons-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .addons-actions button {
+    padding: var(--space-2xs) var(--space-sm);
+    color: var(--color-text);
+    font-weight: 800;
+    background: color-mix(in srgb, var(--color-background) 32%, transparent);
+  }
+
+  .addons-actions button:not(:disabled):hover {
+    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
   }
 
   .addons-badges .danger {

@@ -91,6 +91,7 @@ export interface MediaSearchStoreOptions {
 
 const EMPTY_LIMITS: MusicLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
 const SEARCH_LIMIT = { start: 0, end: 25 } as const;
+const GENRE_SEARCH_LIMIT = { start: 0, end: 250 } as const;
 const LABEL_SORT = { method: 'label', order: 'ascending' } as const;
 const TITLE_SORT = { method: 'title', order: 'ascending' } as const;
 const MIN_QUERY_LENGTH = 2;
@@ -211,8 +212,7 @@ export class MediaSearchStore {
         }),
         getAudioLibraryGenres(client, {
           properties: DEFAULT_GENRE_PROPERTIES,
-          limits: SEARCH_LIMIT,
-          filter: containsFilter('title', normalizedQuery.text),
+          limits: GENRE_SEARCH_LIMIT,
           sort: TITLE_SORT
         })
       ]);
@@ -224,7 +224,12 @@ export class MediaSearchStore {
       const artists = withResultKind(normalizeMusicArtists(artistsResult.artists), 'artist');
       const albums = withResultKind(normalizeMusicAlbums(albumsResult.albums), 'album');
       const songs = withResultKind(normalizeMusicSongs(songsResult.songs), 'song');
-      const genres = withResultKind(normalizeMusicGenres(genresResult.genres), 'genre');
+      const genres = withResultKind(
+        normalizeMusicGenres(genresResult.genres).filter((genre) =>
+          genreMatchesSearch(genre, normalizedQuery.text)
+        ),
+        'genre'
+      );
       const resultCounts = countResults({ artists, albums, songs, genres });
 
       this.#snapshot = {
@@ -237,7 +242,10 @@ export class MediaSearchStore {
           artists: normalizeMusicLimits(artistsResult.limits, artists),
           albums: normalizeMusicLimits(albumsResult.limits, albums),
           songs: normalizeMusicLimits(songsResult.limits, songs),
-          genres: normalizeMusicLimits(genresResult.limits, genres)
+          genres: normalizeMusicLimits(
+            { start: 0, end: genres.length, total: genres.length },
+            genres
+          )
         },
         resultCounts,
         isEmpty: resultCounts.total === 0,
@@ -314,6 +322,21 @@ function containsFilter(
   value: string;
 } {
   return { field, operator: 'contains', value };
+}
+
+function genreMatchesSearch(
+  genre: Pick<MusicLibraryGenreSnapshot, 'label' | 'title'>,
+  query: string
+): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  return [genre.title, genre.label].some(
+    (value) => typeof value === 'string' && value.toLocaleLowerCase().includes(normalizedQuery)
+  );
 }
 
 function withResultKind<TItem extends object, TKind extends MediaSearchResult['kind']>(

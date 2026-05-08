@@ -157,6 +157,10 @@ function enqueueActivePlayer(client: FakeKodiClient): void {
     playlistid: 7,
     position: 3,
     speed: 1,
+    shuffled: true,
+    canshuffle: true,
+    partymode: false,
+    repeat: 'off',
     percentage: 25,
     time: { hours: 1, minutes: 2, seconds: 3, milliseconds: 400 },
     totaltime: { hours: 2, minutes: 0, seconds: 0 },
@@ -229,7 +233,7 @@ describe('player store', () => {
       primaryPlayer: { playerid: 1, type: 'video' },
       item: { label: 'Example Movie', title: 'Example Title', type: 'movie' },
       application: { volume: 80, muted: true },
-      properties: { speed: 1, percentage: 25 },
+      properties: { speed: 1, percentage: 25, shuffled: true, canshuffle: true },
       queue: { playlistid: 7, position: 3 },
       time: { currentSeconds: 3723.4, totalSeconds: 7200 },
       lastError: null
@@ -239,16 +243,39 @@ describe('player store', () => {
       { method: 'Application.GetProperties', params: { properties: ['volume', 'muted'] } },
       {
         method: 'Player.GetItem',
-        params: { playerid: 1, properties: expect.arrayContaining(['label', 'title', 'file']) }
+        params: {
+          playerid: 1,
+          properties: expect.arrayContaining(['title', 'file'])
+          // Kodi 21 rejects `label` and `type` in Player.GetItem properties for active players.
+        }
       },
       {
         method: 'Player.GetProperties',
         params: {
           playerid: 1,
-          properties: expect.arrayContaining(['time', 'totaltime', 'playlistid'])
+          properties: expect.arrayContaining(['time', 'totaltime', 'playlistid', 'shuffled'])
         }
       }
     ]);
+  });
+
+  it('keeps the previous playing item during transient next-track no-player notifications', async () => {
+    const { client, store } = createStoreHarness();
+    enqueueActivePlayer(client);
+    await store.refresh('manual');
+
+    enqueueNoPlayer(client);
+    await store.refresh('notification:Player.OnStop');
+
+    expect(store.snapshot).toMatchObject({
+      refreshStatus: 'ready',
+      playbackStatus: 'active',
+      activePlayers: [{ playerid: 1, type: 'video' }],
+      primaryPlayer: { playerid: 1, type: 'video' },
+      item: { label: 'Example Movie', title: 'Example Title', type: 'movie' },
+      properties: { speed: 1, shuffled: true },
+      queue: { playlistid: 7, position: 3 }
+    });
   });
 
   it('represents multiple players explicitly and chooses a deterministic primary for display reads', async () => {

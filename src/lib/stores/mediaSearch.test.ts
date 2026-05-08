@@ -128,7 +128,7 @@ function enqueueMusicResults(client: FakeKodiClient): void {
     limits: { start: 0, end: 25, total: 1 }
   });
   client.enqueue('AudioLibrary.GetGenres', {
-    genres: [{ genreid: 3, label: 'Electronic', title: 'Electronic', thumbnail: 'genre.jpg' }],
+    genres: [{ genreid: 3, label: 'Aerial', title: 'Aerial', thumbnail: 'genre.jpg' }],
     limits: { start: 0, end: 25, total: 1 }
   });
 }
@@ -246,8 +246,7 @@ describe('media search store', () => {
         method: 'AudioLibrary.GetGenres',
         params: {
           properties: ['title', 'thumbnail'],
-          limits: { start: 0, end: 25 },
-          filter: { field: 'title', operator: 'contains', value: 'ae' },
+          limits: { start: 0, end: 250 },
           sort: { method: 'title', order: 'ascending' }
         }
       }
@@ -307,8 +306,8 @@ describe('media search store', () => {
           {
             kind: 'genre',
             genreid: 3,
-            label: 'Electronic',
-            title: 'Electronic',
+            label: 'Aerial',
+            title: 'Aerial',
             thumbnail: 'genre.jpg'
           }
         ]
@@ -317,7 +316,7 @@ describe('media search store', () => {
         artists: { start: 0, end: 25, total: 1 },
         albums: { start: 0, end: 25, total: 1 },
         songs: { start: 0, end: 25, total: 1 },
-        genres: { start: 0, end: 25, total: 1 }
+        genres: { start: 0, end: 1, total: 1 }
       },
       resultCounts: { artists: 1, albums: 1, songs: 1, genres: 1, total: 4 },
       isEmpty: false,
@@ -460,12 +459,12 @@ describe('media search store', () => {
     expect(store.snapshot).toMatchObject({
       searchStatus: 'ready',
       query: 'new',
-      resultCounts: { artists: 1, albums: 1, songs: 1, genres: 1, total: 4 },
+      resultCounts: { artists: 1, albums: 1, songs: 1, genres: 0, total: 3 },
       results: {
         artists: [{ kind: 'artist', artistid: 7, label: 'Autechre' }],
         albums: [{ kind: 'album', albumid: 11, label: 'Tri Repetae' }],
         songs: [{ kind: 'song', songid: 101, label: 'Dael' }],
-        genres: [{ kind: 'genre', genreid: 3, label: 'Electronic' }]
+        genres: []
       }
     });
   });

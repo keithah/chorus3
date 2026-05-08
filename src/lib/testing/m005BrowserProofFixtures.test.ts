@@ -186,7 +186,7 @@ describe('createM005BrowserProofAppProps', () => {
     expect(isM005BrowserProofFixtureSecretSafe(detailProps)).toBe(true);
   });
 
-  test('creates deterministic safe Lab route fixtures only for direct Lab routes', () => {
+  test('keeps Lab paths non-routable in browser proof fixtures', () => {
     const shortcuts = createM005BrowserProofAppProps({
       pathname: '/lab/shortcuts',
       search: '?m005-browser-proof=1'
@@ -200,59 +200,13 @@ describe('createM005BrowserProofAppProps', () => {
       search: '?m005-browser-proof=1&token=Basic'
     });
 
-    expect(shortcuts.route).toEqual({ kind: 'labShortcuts' });
-    expect(shortcuts.labApiBrowserSnapshot).toBeUndefined();
-    expect(apiBrowser.route).toEqual({ kind: 'labApiBrowser' });
-    expect(apiBrowser.labApiBrowserSnapshot).toMatchObject({
-      introspectionStatus: 'success',
-      callStatus: 'needs-confirmation',
-      selectedMethodName: 'Player.Open',
-      validationError: 'Confirm this mutating JSON-RPC method before running it.'
-    });
-    expect(apiBrowser.labApiBrowserSnapshot?.methods.map((method) => method.name)).toEqual([
-      'Application.GetProperties',
-      'Player.Open',
-      'System.Shutdown'
-    ]);
-    expect(apiBrowser.labApiBrowserSnapshot?.methods[1].guard.level).toBe('confirmation-required');
-    expect(apiBrowser.labApiBrowserSnapshot?.methods[2].guard.level).toBe('blocked');
-    expect(apiBrowser.labApiBrowserSnapshot?.rawRequestJson).toContain('Player.Open');
-    expect(apiBrowser.labApiBrowserSnapshot?.rawResponseJson).toContain('redactedField1');
-    expect(apiBrowser.labApiBrowserSnapshot?.lastError?.message).toContain('Confirm this mutating');
-    expect(unsafe.route.kind).toBe('chorus2Placeholder');
-    expect(unsafe.route).toMatchObject({
-      placeholder: {
-        id: 'labApiBrowserMethod',
-        surface: 'lab/api-browser/:method'
-      }
-    });
-    expect(unsafe.labApiBrowserSnapshot).toBeUndefined();
+    expect(shortcuts.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/shortcuts' });
+    expect(apiBrowser.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/api-browser' });
+    expect(unsafe.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
     expect(JSON.stringify(unsafe.route)).not.toMatch(
       /admin:p@ssword|Authorization|Basic|SENTINEL_SECRET|token=/i
     );
     expect(isM005BrowserProofFixtureSecretSafe(apiBrowser)).toBe(true);
-  });
-
-  test('uses inert Lab API browser dispatches without network or browser storage side effects', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const localStorageSpy = vi.spyOn(window.localStorage.__proto__, 'getItem');
-    const sessionStorageSpy = vi.spyOn(window.sessionStorage.__proto__, 'getItem');
-    const props = createM005BrowserProofAppProps({ pathname: '/lab/api-browser' });
-
-    await expect(props.labApiBrowserDispatch?.loadIntrospection()).resolves.toBeUndefined();
-    await expect(props.labApiBrowserDispatch?.retryIntrospection()).resolves.toBeUndefined();
-    await expect(
-      props.labApiBrowserDispatch?.selectMethod('Application.GetProperties')
-    ).resolves.toBeUndefined();
-    await expect(props.labApiBrowserDispatch?.setParamsText('{}')).resolves.toBeUndefined();
-    await expect(props.labApiBrowserDispatch?.runSelectedMethod()).resolves.toBeUndefined();
-    await expect(props.labApiBrowserDispatch?.confirmSelectedMethod()).resolves.toBeUndefined();
-    await expect(props.labApiBrowserDispatch?.clearConfirmation()).resolves.toBeUndefined();
-
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(localStorageSpy).not.toHaveBeenCalled();
-    expect(sessionStorageSpy).not.toHaveBeenCalled();
-    expect(isM005BrowserProofFixtureSecretSafe(props.labApiBrowserDispatch)).toBe(true);
   });
 
   test('keeps add-ons fixtures direct-route-only and excludes unsafe subpaths', () => {
@@ -328,7 +282,7 @@ describe('createM005BrowserProofAppProps', () => {
     expect(JSON.stringify(unsafe.route)).not.toMatch(
       /admin:p@ssword|Authorization|Basic|SENTINEL_SECRET|token=/i
     );
-    expect(unrelated.route).toEqual({ kind: 'video', route: { kind: 'videoMovies' } });
+    expect(unrelated.route).toEqual({ kind: 'primary', route: { kind: 'movies' } });
     expect(unrelated.settingsSnapshot).toBeUndefined();
   });
 

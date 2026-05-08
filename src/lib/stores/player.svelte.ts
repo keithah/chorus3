@@ -103,15 +103,14 @@ const DEFAULT_PLAYER_ITEM_PROPERTIES = [
   'channel',
   'duration',
   'episode',
+  'fanart',
   'file',
-  'label',
   'season',
   'showtitle',
   'streamdetails',
   'thumbnail',
   'title',
-  'track',
-  'type'
+  'track'
 ] as const satisfies readonly PlayerItemPropertyName[];
 const DEFAULT_PLAYER_PROPERTIES = [
   'audiostreams',
@@ -119,9 +118,12 @@ const DEFAULT_PLAYER_PROPERTIES = [
   'currentsubtitle',
   'currentvideostream',
   'live',
+  'partymode',
   'percentage',
   'playlistid',
   'position',
+  'repeat',
+  'shuffled',
   'speed',
   'subtitleenabled',
   'subtitles',
@@ -327,28 +329,51 @@ function buildReadySnapshot(input: {
   application: ApplicationPropertiesResult;
   now: string;
 }): PlayerStoreSnapshot {
-  const queue = normalizeQueue(input.properties);
+  const retainedPlayback = shouldRetainPreviousPlayback(input);
+  const primaryPlayer = retainedPlayback ? input.previous.primaryPlayer : input.primaryPlayer;
+  const item = retainedPlayback ? input.previous.item : input.item;
+  const properties = retainedPlayback ? input.previous.properties : input.properties;
+  const activePlayers = retainedPlayback
+    ? input.previous.activePlayers.length > 0
+      ? input.previous.activePlayers
+      : input.previous.primaryPlayer
+        ? [input.previous.primaryPlayer]
+        : input.activePlayers
+    : input.activePlayers;
+  const queue = normalizeQueue(properties);
 
   return {
     refreshStatus: 'ready',
     playbackStatus:
-      input.activePlayers.length === 0
-        ? 'none'
-        : input.activePlayers.length === 1
-          ? 'active'
-          : 'multiple',
+      activePlayers.length === 0 ? 'none' : activePlayers.length === 1 ? 'active' : 'multiple',
     lastRefreshReason: input.reason,
     lastQueueRefreshReason: input.previous.lastQueueRefreshReason,
     lastUpdatedAt: input.now,
-    activePlayers: input.activePlayers,
-    primaryPlayer: input.primaryPlayer,
-    item: input.item,
-    properties: input.properties,
+    activePlayers,
+    primaryPlayer,
+    item,
+    properties,
     application: normalizeApplication(input.application),
     queue,
-    time: normalizeTime(input.properties),
+    time: normalizeTime(properties),
     lastError: null
   };
+}
+
+function shouldRetainPreviousPlayback(input: {
+  previous: PlayerStoreSnapshot;
+  reason: PlayerRefreshReason;
+  activePlayers: NormalizedActivePlayer[];
+}): boolean {
+  if (input.activePlayers.length > 0 || !input.previous.primaryPlayer || !input.previous.item) {
+    return false;
+  }
+
+  if (input.reason.startsWith('notification:')) {
+    return true;
+  }
+
+  return input.reason === 'command:next' || input.reason === 'command:previous';
 }
 
 function normalizeActivePlayers(players: unknown): NormalizedActivePlayer[] {

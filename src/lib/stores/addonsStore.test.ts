@@ -19,7 +19,10 @@ const ADDONS_RESPONSE = {
       type: 'xbmc.python.pluginsource',
       broken: false,
       dependencies: [{ addonid: 'xbmc.python' }],
-      extrainfo: [{ key: 'provider', value: 'Alpha' }],
+      extrainfo: [
+        { key: 'provider', value: 'Alpha' },
+        { key: 'provides', value: 'video' }
+      ],
       path: 'smb://nas/secret-addon',
       thumbnail: 'http://admin:p@ssword@example.test/thumb.png'
     },
@@ -52,7 +55,10 @@ const ALPHA_DETAIL = {
     type: 'xbmc.python.pluginsource',
     broken: false,
     dependencies: [{ addonid: 'xbmc.python' }, { addonid: 'script.module.requests' }],
-    extrainfo: [{ key: 'provider', value: 'Alpha' }],
+    extrainfo: [
+      { key: 'provider', value: 'Alpha' },
+      { key: 'provides', value: 'video' }
+    ],
     path: '/home/kodi/.kodi/addons/plugin.video.alpha',
     fanart: 'https://example.test/fanart.jpg'
   }
@@ -75,6 +81,10 @@ function createMethods(overrides: Partial<AddonsStoreMethods> = {}) {
     },
     async setAddonEnabled(_client, params) {
       calls.push({ method: 'setAddonEnabled', args: [params] });
+      return 'OK';
+    },
+    async executeAddon(_client, params) {
+      calls.push({ method: 'executeAddon', args: [params] });
       return 'OK';
     },
     ...overrides
@@ -127,8 +137,13 @@ describe('AddonsStore', () => {
       name: 'Alpha Video',
       enabled: true,
       installed: true,
+      provides: ['video'],
+      providesDefault: 'video',
+      browseMedia: 'video',
+      browsePath: 'plugin://plugin.video.alpha/',
+      canExecute: false,
       dependencyCount: 1,
-      extrainfoCount: 1
+      extrainfoCount: 2
     });
     expect(store.snapshot.addons[0]).not.toHaveProperty('path');
     expect(store.snapshot.addons[0]).not.toHaveProperty('thumbnail');
@@ -138,20 +153,24 @@ describe('AddonsStore', () => {
         method: 'getAddons',
         args: [
           {
-            installed: true,
+            type: 'unknown',
+            content: 'unknown',
             enabled: 'all',
             properties: [
               'name',
               'version',
               'summary',
               'description',
+              'path',
               'author',
-              'enabled',
-              'installed',
-              'type',
+              'thumbnail',
+              'disclaimer',
+              'fanart',
               'broken',
               'dependencies',
-              'extrainfo'
+              'extrainfo',
+              'rating',
+              'enabled'
             ]
           }
         ]
@@ -175,6 +194,66 @@ describe('AddonsStore', () => {
       store.snapshot.groups.map((group) => [group.key, group.label, group.addons.length])
     ).toEqual([['enabled', 'Enabled', 1]]);
     expect(calls).toHaveLength(1);
+  });
+
+  it('mirrors classic add-on request helpers for entities, enabled checks, search settings, and excluded paths', async () => {
+    const { store } = makeStore({
+      async getAddons() {
+        return {
+          addons: [
+            ...ADDONS_RESPONSE.addons,
+            {
+              addonid: 'plugin.video.youtube',
+              name: 'YouTube',
+              enabled: true,
+              installed: true,
+              type: 'xbmc.python.pluginsource',
+              extrainfo: [{ key: 'provides', value: 'video' }]
+            },
+            {
+              addonid: 'script.alpha',
+              name: 'Alpha Script',
+              enabled: true,
+              installed: true,
+              type: 'xbmc.python.script',
+              extrainfo: [{ key: 'provides', value: 'executable' }]
+            }
+          ]
+        };
+      }
+    });
+
+    await store.loadAddons();
+
+    expect(store.getAddonEntities('video').map((addon) => addon.addonid)).toEqual([
+      'plugin.video.alpha',
+      'plugin.video.youtube'
+    ]);
+    expect(store.getAddonEntities('executable').map((addon) => addon.addonid)).toEqual([
+      'script.alpha'
+    ]);
+    expect(store.getEnabledAddons().map((addon) => addon.addonid)).toEqual([
+      'plugin.video.alpha',
+      'plugin.video.youtube',
+      'script.alpha'
+    ]);
+    expect(store.isAddonEnabled({ addonid: 'plugin.video.youtube' })?.name).toBe('YouTube');
+    expect(store.isAddonEnabled({ addonid: 'service.beta' })).toBeNull();
+    expect(store.getSearchSettings()).toEqual([
+      {
+        id: 'plugin.video.youtube.0',
+        url: 'plugin://plugin.video.youtube/search/?q=[QUERY]',
+        title: 'YouTube',
+        media: 'video'
+      }
+    ]);
+    expect(store.getExcludedPaths('plugin.video.youtube')).toEqual([
+      'plugin://plugin.video.youtube/special/',
+      'plugin://plugin.video.youtube/kodion/search/',
+      'plugin://plugin.video.youtube/kodion/',
+      'plugin://plugin.video.youtube/channel/'
+    ]);
+    expect(store.getExcludedPaths('plugin.video.alpha')).toEqual([]);
   });
 
   it('loads add-on detail with safe IDs, preserves previous detail on failures, and suppresses stale responses', async () => {
@@ -393,6 +472,45 @@ describe('AddonsStore', () => {
     });
     expect(store.snapshot.detail?.enabled).toBe(false);
     expect(store.snapshot.writeCounts).toEqual({ attempted: 2, succeeded: 2, failed: 0 });
+    expectNoForbiddenText(store.snapshot);
+  });
+
+  it('executes safe add-ons through Kodi and records write diagnostics', async () => {
+    const { calls, store } = makeStore();
+
+    await store.executeAddon('');
+    expect(store.snapshot.writeStatus).toBe('error');
+    expect(store.snapshot.lastError?.code).toBe('validation/invalid-addon-id');
+    expect(calls.filter((call) => call.method === 'executeAddon')).toHaveLength(0);
+
+    await store.executeAddon('script.audio.alpha');
+    expect(calls.at(-1)).toEqual({
+      method: 'executeAddon',
+      args: [{ addonid: 'script.audio.alpha' }]
+    });
+    expect(store.snapshot.writeStatus).toBe('success');
+    expect(store.snapshot.writeCounts).toEqual({ attempted: 1, succeeded: 1, failed: 0 });
+    expectNoForbiddenText(store.snapshot);
+  });
+
+  it('records sanitized execute add-on failures without exposing transport details', async () => {
+    const { calls, store } = makeStore({
+      async executeAddon(_client, params) {
+        calls.push({ method: 'executeAddon', args: [params] });
+        throw new Error(
+          'Authorization: Basic CHORUS_SENTINEL_SECRET failed for http://admin:p@ssword@kodi.local/jsonrpc raw body'
+        );
+      }
+    });
+
+    await store.executeAddon('script.audio.alpha');
+
+    expect(store.snapshot.writeStatus).toBe('error');
+    expect(store.snapshot.writeCounts).toEqual({ attempted: 1, succeeded: 0, failed: 1 });
+    expect(calls.at(-1)).toEqual({
+      method: 'executeAddon',
+      args: [{ addonid: 'script.audio.alpha' }]
+    });
     expectNoForbiddenText(store.snapshot);
   });
 });

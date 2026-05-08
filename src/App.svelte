@@ -3,13 +3,9 @@
 
   import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
-  import AmbientAppShell from '$components/AppShell.svelte';
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
-  import LabApiBrowserPanel, {
-    type LabApiBrowserPanelDispatch
-  } from '$components/LabApiBrowserPanel.svelte';
   import MediaFilesPanel, {
     type MediaFilesActionDispatch,
     type MediaFilesActionItem,
@@ -39,10 +35,8 @@
   } from '$components/RemoteInputPanel.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
-  import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
-  import ShortcutsPanel from '$components/ShortcutsPanel.svelte';
+  import type { LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
   import StatusCard from '$components/StatusCard.svelte';
-  import ThemeToggle from '$components/ThemeToggle.svelte';
   import VideoRecentPanel from '$components/VideoRecentPanel.svelte';
   import VideoMovieDetailShell, {
     type VideoMovieActionDispatch
@@ -66,22 +60,26 @@
     addonsStore,
     configStore,
     connectionStore,
+    createActiveKodiJsonRpcHttpClient,
     hostConnectionStore,
     localPlayerStore,
     localPlaylistStore,
-    labApiBrowserStore,
     mediaFilesStore,
+    videoMediaFilesStore,
     mediaPlaylistsStore,
     videoMediaPlaylistsStore,
     mediaSearchStore,
     musicBrowseStore,
     musicLibraryStore,
     playerDispatch as defaultPlayerDispatch,
+    prepareLocalStreamUrl,
+    pvrStore,
     remoteInputDispatch as defaultRemoteInputDispatch,
     playerStore,
     queueDispatch as defaultQueueDispatch,
     queueStore,
     settingsStore,
+    thumbsUpStore,
     localeStore,
     type AddonsStoreSnapshot,
     type ActiveHostSummary,
@@ -89,25 +87,29 @@
     type LocalPlayerStoreSnapshot,
     type LocalPlaylistDispatch,
     type LocalPlaylistItemInput,
+    type LocalPlaylistPlayableItem,
     type LocalPlaylistStoreSnapshot,
-    type LabApiBrowserStoreSnapshot,
     type MediaFilesStoreSnapshot,
     type MediaPlaylistsStoreSnapshot,
     type MediaSearchStoreSnapshot,
     type MusicBrowseStoreSnapshot,
     type MusicLibraryStoreSnapshot,
     type PlayerStoreSnapshot,
+    type PvrStoreSnapshot,
     type QueueItemSnapshot,
+    type QueuePlayableItemSnapshot,
     type QueueStoreSnapshot,
     type RemoteInputDispatchSnapshot,
     type SavedKodiHost,
     type SettingsStoreSnapshot,
+    type ThumbsUpStoreSnapshot,
     type LocaleStoreSnapshot
   } from '$lib/stores';
   import {
     videoLibraryStore,
     type VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import { mainNavStore } from '$lib/stores/mainNav.svelte';
   import {
     videoMovieDetailStore,
     type VideoMovieDetailStoreSnapshot
@@ -119,14 +121,15 @@
   } from '$lib/stores/videoWriteStore.svelte';
   import {
     buildAppRoute,
-    getChorus2PlaceholderMetadata,
     KODI_WEBINTERFACE_BASE_PATH,
+    parseAppRoute,
     type AppRoute,
     type PrimaryAppRoute
   } from '$lib/app/appRouter';
   import PrimaryAppShell from '$lib/app-shell/AppShell.svelte';
   import { createAppNavigationItems } from '$lib/app-shell/appNavigation';
   import AppPageSurface from '$lib/app-pages/AppPageSurface.svelte';
+  import type { LocalPlaylistPageActions } from '$lib/app-pages/PlaylistsPage.svelte';
   import { getAppPageMetadata } from '$lib/app-pages/appPageMetadata';
   import type {
     AppShellCallbacks,
@@ -142,13 +145,42 @@
   import { isTextSecretSafe } from '$lib/safety/redaction';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { handleRemoteInputShortcut } from '$lib/app/remoteInputShortcuts';
-  import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+  import type { VideoRoute } from '$lib/video/videoRouter';
 
   interface VideoNavigationDispatch {
     openMovieGrid: () => Promise<void>;
     openMovieDetail: (movie: { movieid: number }) => Promise<void>;
     openRoute: (route: VideoRoute) => Promise<void>;
   }
+
+  type PlaylistPlaybackDispatch = PlayerControlsDispatch & {
+    setMode?: (mode: 'kodi' | 'local') => void;
+    playFileItem?: (item: {
+      file: string;
+      mediaKind: 'audio' | 'video';
+      itemType?: 'file' | 'directory';
+    }) => Promise<void> | void;
+    canNavigateLocalFilePlaylist?: () => boolean;
+    setLocalFilePlaylist?: (
+      items: readonly {
+        file: string;
+        mediaKind: 'audio';
+        label?: string;
+        title?: string;
+        type?: string;
+        thumbnail?: string;
+      }[],
+      startFile?: string
+    ) => void;
+  };
+
+  type PlaylistQueueDispatch = QueuePanelDispatch & {
+    queueFileItem?: (item: {
+      file: string;
+      mediaKind: 'audio' | 'video';
+      itemType?: 'file' | 'directory';
+    }) => Promise<void> | void;
+  };
 
   interface Props {
     playerSnapshot?: PlayerStoreSnapshot;
@@ -170,9 +202,14 @@
     mediaFilesSnapshot?: MediaFilesStoreSnapshot;
     mediaFilesDispatch?: MediaFilesPanelDispatch;
     mediaFilesActionDispatch?: MediaFilesActionDispatch;
+    videoMediaFilesSnapshot?: MediaFilesStoreSnapshot;
+    videoMediaFilesDispatch?: MediaFilesPanelDispatch;
+    videoMediaFilesActionDispatch?: MediaFilesActionDispatch;
     mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     mediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
     mediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
+    pvrSnapshot?: PvrStoreSnapshot;
+    thumbsUpSnapshot?: ThumbsUpStoreSnapshot;
     videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     videoMediaPlaylistsDispatch?: MediaPlaylistsPanelDispatch;
     videoMediaPlaylistsActionDispatch?: MediaPlaylistsActionDispatch;
@@ -187,12 +224,11 @@
     addonsSnapshot?: AddonsStoreSnapshot;
     addonsDispatch?: AddonsPanelDispatch;
     addonDetailDispatch?: AddonDetailDispatch;
-    labApiBrowserSnapshot?: LabApiBrowserStoreSnapshot;
-    labApiBrowserDispatch?: LabApiBrowserPanelDispatch;
     nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
     nowPlayingHostSummary?: ActiveHostSummary | null;
     nowPlayingRefreshDispatch?: () => Promise<void> | void;
     packageMountedHost?: SavedKodiHost | null;
+    packageBasePath?: string;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch?: VideoMovieStreamDispatch;
     videoTvSnapshot?: VideoTvStoreSnapshot;
@@ -227,13 +263,26 @@
     refresh: () => mediaFilesStore.refreshSources(),
     openSource: (id) => mediaFilesStore.openSource(id),
     openEntry: (id) => mediaFilesStore.openDirectory(id),
+    openPath: (path) => mediaFilesStore.openPath(path),
     openBreadcrumb: (id) => openMediaFilesBreadcrumb(id)
+  };
+
+  const defaultVideoMediaFilesDispatch: MediaFilesPanelDispatch = {
+    refresh: () => videoMediaFilesStore.refreshSources(),
+    openSource: (id) => videoMediaFilesStore.openSource(id),
+    openEntry: (id) => videoMediaFilesStore.openDirectory(id),
+    openPath: (path) => videoMediaFilesStore.openPath(path),
+    openBreadcrumb: (id) => openVideoMediaFilesBreadcrumb(id)
   };
 
   const defaultMediaFilesActionDispatch: MediaFilesActionDispatch = {
     playFileItem: (item) => defaultPlayerDispatch.playFileItem(toFilePlaybackItem(item)),
-    queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item))
+    queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item)),
+    downloadFileItem: (item) => downloadMediaFileItem(toFileDownloadItem(item))
   };
+
+  const defaultVideoMediaFilesActionDispatch: MediaFilesActionDispatch =
+    defaultMediaFilesActionDispatch;
 
   const defaultMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch = {
     refresh: () => mediaPlaylistsStore.refreshPlaylists(),
@@ -247,6 +296,19 @@
     queuePlaylistItem: (item) => defaultQueueDispatch.queuePlaylistItem(toPlaylistQueueItem(item))
   };
 
+  const defaultPvrDispatch = {
+    refreshChannels: (group: 'alltv' | 'allradio') => pvrStore.refreshChannels(group),
+    refreshRecordings: () => pvrStore.refreshRecordings(),
+    refreshBroadcasts: (channelid: number) => pvrStore.refreshBroadcasts(channelid),
+    loadChannelDetail: (channelid: number) => pvrStore.loadChannelDetail(channelid),
+    toggleChannelRecording: (channelid: number) => pvrStore.toggleChannelRecording(channelid),
+    toggleBroadcastTimer: (broadcastid: number, timerrule?: boolean) =>
+      pvrStore.toggleBroadcastTimer(broadcastid, timerrule),
+    addBroadcastTimer: (broadcastid: number, timerrule?: boolean) =>
+      pvrStore.addBroadcastTimer(broadcastid, timerrule),
+    deleteTimer: (timerid: number) => pvrStore.deleteTimer(timerid)
+  };
+
   const defaultVideoMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch = {
     refresh: () => videoMediaPlaylistsStore.refreshPlaylists(),
     openPlaylist: (id) => videoMediaPlaylistsStore.openPlaylist(id),
@@ -254,12 +316,10 @@
   };
 
   const defaultVideoMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch = {
-    playPlaylistItem: async () => {
-      throw new Error('Video playlist actions are disabled.');
-    },
-    queuePlaylistItem: async () => {
-      throw new Error('Video playlist actions are disabled.');
-    }
+    playPlaylistItem: (item) =>
+      defaultPlayerDispatch.playPlaylistItem(toVideoPlaylistPlaybackItem(item)),
+    queuePlaylistItem: (item) =>
+      defaultQueueDispatch.queuePlaylistItem(toVideoPlaylistQueueItem(item))
   };
 
   const defaultVideoMovieActionDispatch: VideoMovieActionDispatch = {
@@ -328,7 +388,9 @@
     load: () => addonsStore.loadAddons(),
     retry: () => addonsStore.loadAddons(),
     setSearchQuery: (query) => addonsStore.setSearchQuery(query),
-    setGroupBy: (groupBy) => addonsStore.setGroupBy(groupBy)
+    setGroupBy: (groupBy) => addonsStore.setGroupBy(groupBy),
+    setAddonEnabled: (addonid, enabled) => addonsStore.setAddonEnabled(addonid, enabled),
+    executeAddon: (addonid) => addonsStore.executeAddon(addonid)
   };
 
   const defaultAddonDetailDispatch: AddonDetailDispatch = {
@@ -336,16 +398,6 @@
     retry: () => loadCurrentAddonDetail(),
     setAddonEnabled: (addonid, enabled) => addonsStore.setAddonEnabled(addonid, enabled),
     back: () => openAddonsRoute()
-  };
-
-  const defaultLabApiBrowserDispatch: LabApiBrowserPanelDispatch = {
-    loadIntrospection: () => labApiBrowserStore.loadIntrospection(),
-    retryIntrospection: () => labApiBrowserStore.loadIntrospection(),
-    selectMethod: (methodName) => labApiBrowserStore.selectMethod(methodName),
-    setParamsText: (paramsText) => labApiBrowserStore.setParamsText(paramsText),
-    runSelectedMethod: () => labApiBrowserStore.runSelectedMethod(),
-    confirmSelectedMethod: () => labApiBrowserStore.confirmSelectedMethod(),
-    clearConfirmation: () => labApiBrowserStore.clearConfirmation()
   };
 
   const dashboardVideoRoute: VideoRoute = { kind: 'dashboard' };
@@ -370,13 +422,18 @@
     mediaFilesSnapshot,
     mediaFilesDispatch = defaultMediaFilesDispatch,
     mediaFilesActionDispatch = defaultMediaFilesActionDispatch,
+    videoMediaFilesSnapshot,
+    videoMediaFilesDispatch = defaultVideoMediaFilesDispatch,
+    videoMediaFilesActionDispatch = defaultVideoMediaFilesActionDispatch,
     mediaPlaylistsSnapshot,
     mediaPlaylistsDispatch = defaultMediaPlaylistsDispatch,
     mediaPlaylistsActionDispatch = defaultMediaPlaylistsActionDispatch,
+    pvrSnapshot,
+    thumbsUpSnapshot,
     videoMediaPlaylistsSnapshot,
     videoMediaPlaylistsDispatch = defaultVideoMediaPlaylistsDispatch,
     videoMediaPlaylistsActionDispatch = defaultVideoMediaPlaylistsActionDispatch,
-    route = { kind: 'dashboard' },
+    route,
     videoLibrarySnapshot,
     videoMovieDetailSnapshot,
     settingsSnapshot,
@@ -386,12 +443,11 @@
     addonsSnapshot,
     addonsDispatch = defaultAddonsDispatch,
     addonDetailDispatch = defaultAddonDetailDispatch,
-    labApiBrowserSnapshot,
-    labApiBrowserDispatch = defaultLabApiBrowserDispatch,
     nowPlayingEmbedQuery,
     nowPlayingHostSummary,
     nowPlayingRefreshDispatch,
     packageMountedHost = null,
+    packageBasePath = '',
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
     videoMovieStreamActionDispatch = defaultVideoMovieStreamActionDispatch,
     videoTvSnapshot,
@@ -399,7 +455,8 @@
     videoSeasonArtworkDispatch = defaultVideoSeasonArtworkDispatch,
     videoSeasonWriteDispatch = defaultVideoSeasonWriteDispatch
   }: Props = $props();
-  const currentRoute = $derived(toAppRoute(route));
+  let localRoute = $state<AppRoute | VideoRoute | null>(null);
+  const currentRoute = $derived(toAppRoute(localRoute ?? route ?? { kind: 'dashboard' }));
   const currentPrimaryRoute = $derived(currentRoute.kind === 'primary' ? currentRoute.route : null);
   const currentPrimaryShellRoute = $derived<PrimaryRoute | null>(
     currentPrimaryRoute ?? (currentRoute.kind === 'dashboard' ? { kind: 'home' } : null)
@@ -424,9 +481,14 @@
   const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
   const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
   const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
+  const currentVideoMediaFilesSnapshot = $derived(
+    videoMediaFilesSnapshot ?? videoMediaFilesStore.snapshot
+  );
   const currentMediaPlaylistsSnapshot = $derived(
     mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
   );
+  const currentPvrSnapshot = $derived(pvrSnapshot ?? pvrStore.snapshot);
+  const currentThumbsUpSnapshot = $derived(thumbsUpSnapshot ?? thumbsUpStore.snapshot);
   const currentVideoMediaPlaylistsSnapshot = $derived(
     videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
   );
@@ -435,9 +497,6 @@
   const currentLocaleSnapshot = $derived(localeSnapshot ?? localeStore.snapshot);
   const currentI18n = $derived(createTranslationContext(currentLocaleSnapshot.locale));
   const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
-  const currentLabApiBrowserSnapshot = $derived(
-    labApiBrowserSnapshot ?? labApiBrowserStore.snapshot
-  );
   const currentNowPlayingHostSummary = $derived(
     nowPlayingHostSummary === undefined
       ? packageMountedHost
@@ -447,23 +506,45 @@
   );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const isPackageMounted = $derived(packageMountedHost !== null);
+  const currentPackageBasePath = $derived(
+    isPackageMounted ? packageBasePath || KODI_WEBINTERFACE_BASE_PATH : ''
+  );
+  const currentRouteBuildOptions = $derived(
+    isPackageMounted
+      ? ({ packageBasePath: currentPackageBasePath, routeMode: 'hash' } as const)
+      : ({ packageBasePath: '' } as const)
+  );
   const isPrimaryShellRoute = $derived(currentPrimaryShellRoute !== null);
   const currentShellNavigationItems = $derived(
     createAppNavigationItems({
-      packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : '',
-      activeRoute: currentPrimaryShellRoute
+      ...currentRouteBuildOptions,
+      activeRoute: currentPrimaryShellRoute,
+      mainNavRows: mainNavStore.snapshot.customized ? mainNavStore.snapshot.rows : undefined
     })
   );
-  const currentShellPlayer = $derived(toAppShellPlayerSnapshot(currentPlayerSnapshot));
   let drawerMediaMode = $state<AppShellPlaylistMediaMode>('audio');
   let drawerDestinationModeOverride = $state<AppShellPlaylistDestinationMode | null>(null);
   let drawerCollapsed = $state(false);
   let drawerMenuOpen = $state(false);
+  let remoteOverlayOpen = $state(false);
+  let localShuffleEnabled = $state(false);
+  let lastKnownKodiStageArtUrl = $state<string | undefined>(undefined);
   const currentPlaylistDispatchDestinationMode = $derived<AppShellPlaylistDestinationMode>(
     playerDispatch.snapshot?.mode === 'local' ? 'local' : 'kodi'
   );
   const currentDrawerDestinationMode = $derived<AppShellPlaylistDestinationMode>(
     drawerDestinationModeOverride ?? currentPlaylistDispatchDestinationMode
+  );
+  const currentShellPlayer = $derived(
+    currentDrawerDestinationMode === 'local'
+      ? toAppShellLocalPlayerSnapshot(currentLocalSnapshot)
+      : toAppShellPlayerSnapshot(currentPlayerSnapshot)
+  );
+  const currentKodiStageArtUrl = $derived(kodiImageUrl(currentPlayerSnapshot.item?.fanart));
+  const currentShellStageArtUrl = $derived(
+    currentDrawerDestinationMode === 'kodi'
+      ? (currentKodiStageArtUrl ?? lastKnownKodiStageArtUrl)
+      : undefined
   );
   const isPlayerDestinationCommandRunning = $derived(
     playerDispatch.snapshot?.commandStatus === 'running'
@@ -472,14 +553,19 @@
   const isLocalPlaylistMutationRunning = $derived(
     currentLocalPlaylistSnapshot.mutationStatus === 'running'
   );
+  const currentQueuePlayableItems = $derived<QueuePlayableItemSnapshot[]>(
+    queueSnapshot === undefined
+      ? queueStore.getPlayableItems()
+      : queueSnapshotToPlayableItems(queueSnapshot)
+  );
   const safeQueueItemsForLocalPlaylist = $derived(
-    currentQueueSnapshot.items.flatMap(toLocalPlaylistItemInput)
+    currentQueuePlayableItems.flatMap(toLocalPlaylistItemInput)
   );
   const currentPlaylistDrawerMenuDisabledReasons = $derived({
     currentPlaylist: 'Current playlist is already selected.',
     clear: getPlaylistClearDisabledReason(),
-    refresh: 'Refresh playlist is deferred to playlist persistence work.',
-    partyMode: 'Party mode is deferred to Kodi playlist controls.',
+    refresh: getPlaylistRefreshDisabledReason(),
+    partyMode: getPlaylistPartyModeDisabledReason(),
     saveKodiPlaylist: getSaveKodiPlaylistDisabledReason()
   });
   const currentPlaylistDrawer = $derived<AppShellDrawerState>({
@@ -488,6 +574,12 @@
     collapsed: drawerCollapsed,
     menuOpen: drawerMenuOpen,
     menuDisabledReasons: currentPlaylistDrawerMenuDisabledReasons
+  });
+
+  $effect(() => {
+    if (currentKodiStageArtUrl) {
+      lastKnownKodiStageArtUrl = currentKodiStageArtUrl;
+    }
   });
   const currentPlaylistDestination = $derived({
     mode: currentDrawerDestinationMode,
@@ -512,6 +604,11 @@
       drawerCollapsed = collapsed;
     }
   });
+  const localPlaylistPageActions = $derived<LocalPlaylistPageActions>({
+    playInKodi: async (_playlistId, items) => playLocalPlaylistInKodi(items),
+    playInBrowser: async (_playlistId, items) => playLocalPlaylistInBrowser(items),
+    exportList: (_playlistId, playlistLabel, items) => exportLocalPlaylist(playlistLabel, items)
+  });
   const isDashboardRoute = $derived(
     currentRoute.kind === 'dashboard' || currentPrimaryRoute?.kind === 'home'
   );
@@ -523,13 +620,11 @@
   const isAddonsRoute = $derived(currentRoute.kind === 'addons');
   const isAddonDetailRoute = $derived(currentRoute.kind === 'addonDetail');
   const isAddonsUnknownRoute = $derived(currentRoute.kind === 'addonsUnknown');
-  const currentChorus2Placeholder = $derived(
-    currentRoute.kind === 'chorus2Placeholder'
+  const currentParityPlaceholder = $derived(
+    currentRoute.kind === 'parityPlaceholder'
       ? currentRoute.placeholder
       : primaryRouteToPlaceholder(currentPrimaryRoute)
   );
-  const isLabShortcutsRoute = $derived(currentRoute.kind === 'labShortcuts');
-  const isLabApiBrowserRoute = $derived(currentRoute.kind === 'labApiBrowser');
   const isLabUnknownRoute = $derived(currentRoute.kind === 'labUnknown');
   const isNowPlayingRoute = $derived(currentRoute.kind === 'nowPlaying');
   const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
@@ -550,12 +645,10 @@
       input.kind === 'addons' ||
       input.kind === 'addonDetail' ||
       input.kind === 'addonsUnknown' ||
-      input.kind === 'labShortcuts' ||
-      input.kind === 'labApiBrowser' ||
       input.kind === 'labUnknown' ||
       input.kind === 'nowPlaying' ||
       input.kind === 'primary' ||
-      input.kind === 'chorus2Placeholder'
+      input.kind === 'parityPlaceholder'
     ) {
       return input;
     }
@@ -617,18 +710,6 @@
       return null;
     }
 
-    if (primaryRoute.kind === 'pvrTv') {
-      return getChorus2PlaceholderMetadata('pvrTv') ?? null;
-    }
-
-    if (primaryRoute.kind === 'pvrRadio') {
-      return getChorus2PlaceholderMetadata('pvrRadio') ?? null;
-    }
-
-    if (primaryRoute.kind === 'pvrRecordings') {
-      return getChorus2PlaceholderMetadata('pvrRecordings') ?? null;
-    }
-
     return null;
   }
 
@@ -641,9 +722,82 @@
     return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
+  function updateLocalRouteFromHash(): void {
+    if (!isPackageMounted) {
+      return;
+    }
+
+    const hashRoute = parseCurrentHashRoute();
+    if (!hashRoute) {
+      return;
+    }
+
+    localRoute = hashRoute;
+  }
+
+  function updateLocalRouteFromLocation(): void {
+    if (isPackageMounted) {
+      updateLocalRouteFromHash();
+      return;
+    }
+
+    try {
+      localRoute = parseAppRoute(
+        globalThis.location?.pathname ?? '/',
+        globalThis.location?.search ?? ''
+      );
+    } catch {
+      localRoute = { kind: 'dashboard' };
+    }
+  }
+
+  function parseCurrentHashRoute(): AppRoute | null {
+    const hash = globalThis.location?.hash;
+    if (typeof hash !== 'string') {
+      return null;
+    }
+    if (hash.length === 0) {
+      return { kind: 'primary', route: { kind: 'home' } };
+    }
+
+    const raw = hash.slice(1).trim();
+    if (!raw) {
+      return { kind: 'primary', route: { kind: 'home' } };
+    }
+
+    const [path = '', query = ''] = raw.split('?', 2);
+
+    try {
+      return parseAppRoute(path.startsWith('/') ? path : `/${path}`, query ? `?${query}` : '', {
+        packageBasePath: currentPackageBasePath
+      });
+    } catch {
+      return { kind: 'dashboard' };
+    }
+  }
+
   onMount(() => {
+    if (route === undefined) {
+      updateLocalRouteFromLocation();
+    }
+
+    const handleHashChange = (): void => updateLocalRouteFromHash();
+    const handlePopState = (): void => updateLocalRouteFromLocation();
+    globalThis.addEventListener?.('hashchange', handleHashChange);
+    globalThis.addEventListener?.('popstate', handlePopState);
+
     if (packageMountedHost) {
-      void connectionStore.connect(packageMountedHost);
+      const activePackageHost = withPackageDefaultCredentials(packageMountedHost);
+      activatePackageMountedHost(activePackageHost);
+      void connectionStore.connect(activePackageHost);
+      playerStore.startNotificationRefresh();
+      queueStore.startNotificationRefresh();
+      try {
+        playerStore.startPolling(2500);
+      } catch {
+        // Polling is opportunistic; command-triggered refreshes still own diagnostics.
+      }
+      void refreshPackageMountedLibraries();
     }
 
     const handleGlobalKeydown = (event: KeyboardEvent): void => {
@@ -653,6 +807,18 @@
           sendInput: (command) => {
             try {
               void Promise.resolve(remoteInputDispatch.sendInput(command)).catch(() => {
+                // RemoteInputPanel owns secret-safe diagnostics through the dispatch snapshot.
+              });
+            } catch {
+              // Keep the global listener alive; the dispatch snapshot is the diagnostics surface.
+            }
+          },
+          executeAction: (action) => {
+            if (!remoteInputDispatch.executeAction) {
+              return;
+            }
+            try {
+              void Promise.resolve(remoteInputDispatch.executeAction(action)).catch(() => {
                 // RemoteInputPanel owns secret-safe diagnostics through the dispatch snapshot.
               });
             } catch {
@@ -673,6 +839,13 @@
     window.addEventListener('keydown', handleGlobalKeydown);
 
     return () => {
+      globalThis.removeEventListener?.('hashchange', handleHashChange);
+      globalThis.removeEventListener?.('popstate', handlePopState);
+      if (packageMountedHost) {
+        playerStore.stopNotificationRefresh();
+        playerStore.stopPolling();
+        queueStore.stopNotificationRefresh();
+      }
       window.removeEventListener('keydown', handleGlobalKeydown);
     };
   });
@@ -684,6 +857,49 @@
     }
 
     await playerStore.refresh('manual');
+  }
+
+  function withPackageDefaultCredentials(host: SavedKodiHost): SavedKodiHost {
+    if (host.username || host.password) {
+      return host;
+    }
+
+    return {
+      ...host,
+      username: 'kodi',
+      password: 'kodi'
+    };
+  }
+
+  function activatePackageMountedHost(host: SavedKodiHost): void {
+    const activeHost = configStore.activeHost;
+
+    if (activeHost?.id === host.id) {
+      return;
+    }
+
+    if (configStore.hosts.some((savedHost) => savedHost.id === host.id)) {
+      configStore.updateHost(host.id, host);
+    } else {
+      configStore.addHost(host);
+    }
+
+    configStore.setActiveHost(host.id);
+  }
+
+  async function refreshPackageMountedLibraries(): Promise<void> {
+    await bestEffortRefresh([
+      () => playerStore.refresh('manual'),
+      () => queueStore.refresh('manual'),
+      () => musicLibraryStore.refresh('manual'),
+      () => videoLibraryStore.refresh('manual'),
+      () => mediaFilesStore.refreshSources(),
+      () => videoMediaFilesStore.refreshSources(),
+      () => mediaPlaylistsStore.refreshPlaylists(),
+      () => videoMediaPlaylistsStore.refreshPlaylists(),
+      () => settingsStore.load(),
+      () => addonsStore.loadAddons()
+    ]);
   }
 
   async function handlePlaylistDestinationModeChange(
@@ -712,6 +928,31 @@
   }
 
   async function handlePlaylistMenuAction(action: AppShellPlaylistMenuAction): Promise<void> {
+    if (action === 'refresh') {
+      if (getPlaylistRefreshDisabledReason()) {
+        return;
+      }
+
+      if (currentDrawerDestinationMode === 'local') {
+        return;
+      }
+
+      await bestEffortRefresh([
+        () => playerStore.refresh('manual'),
+        () => queueStore.refresh('manual')
+      ]);
+      return;
+    }
+
+    if (action === 'partyMode') {
+      if (getPlaylistPartyModeDisabledReason()) {
+        return;
+      }
+
+      await playerDispatch.setPartyMode('toggle');
+      return;
+    }
+
     if (action === 'clear') {
       if (currentDrawerDestinationMode === 'local') {
         const playlistId = currentLocalPlaylistSnapshot.selectedPlaylistId;
@@ -742,6 +983,124 @@
     }
   }
 
+  async function playLocalPlaylistInKodi(
+    items: readonly LocalPlaylistPlayableItem[]
+  ): Promise<void> {
+    const playable = playableAudioItems(items);
+    const first = playable[0];
+    if (!first) {
+      return;
+    }
+
+    const controls = playerDispatch as PlaylistPlaybackDispatch;
+    const queueControls = queueDispatch as PlaylistQueueDispatch;
+    controls.setMode?.('kodi');
+    await controls.playFileItem?.({ file: first.file, mediaKind: 'audio' });
+
+    for (const item of playable.slice(1)) {
+      await queueControls.queueFileItem?.({ file: item.file, mediaKind: 'audio' });
+    }
+  }
+
+  async function playLocalPlaylistInBrowser(
+    items: readonly LocalPlaylistPlayableItem[]
+  ): Promise<void> {
+    const playable = playableAudioItems(items);
+    const first = playable[0];
+    if (!first) {
+      return;
+    }
+
+    const controls = playerDispatch as PlaylistPlaybackDispatch;
+    controls.setMode?.('local');
+    controls.setLocalFilePlaylist?.(
+      playable.map((item) => ({
+        file: item.file,
+        mediaKind: 'audio',
+        label: item.label,
+        title: item.label,
+        type: 'song',
+        ...(item.thumbnail ? { thumbnail: item.thumbnail } : {})
+      })),
+      first.file
+    );
+    await controls.playFileItem?.({ file: first.file, mediaKind: 'audio' });
+  }
+
+  function exportLocalPlaylist(
+    playlistLabel: string,
+    items: readonly LocalPlaylistPlayableItem[]
+  ): void {
+    const exportable = exportableLocalPlaylistItems(items);
+    if (exportable.length === 0) {
+      return;
+    }
+
+    const lines = exportable.flatMap((item) => [
+      `#EXTINF:${Math.trunc(item.durationSeconds ?? -1)},${item.label}`,
+      item.file
+    ]);
+    const blob = new Blob([`#EXTCPlayListM3U::M3U\n${lines.join('\n')}\n`], {
+      type: 'audio/x-mpegurl;charset=utf-8'
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${safePlaylistExportName(playlistLabel)}.m3u`;
+    anchor.rel = 'noopener';
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadMediaFileItem(item: { file: string; label: string }): Promise<void> {
+    const client = createActiveKodiJsonRpcHttpClient();
+    if (!client) {
+      throw new Error('Choose an active Kodi host before downloading media.');
+    }
+
+    const url = await prepareLocalStreamUrl({
+      client,
+      file: item.file,
+      activeHost: configStore.activeHost
+    });
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = safePlaylistExportName(item.label);
+    anchor.rel = 'noopener';
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+
+  function playableAudioItems(
+    items: readonly LocalPlaylistPlayableItem[]
+  ): LocalPlaylistPlayableItem[] {
+    return items
+      .filter((item) => item.kind === 'audio' && item.file.trim().length > 0)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  function exportableLocalPlaylistItems(
+    items: readonly LocalPlaylistPlayableItem[]
+  ): LocalPlaylistPlayableItem[] {
+    return items
+      .filter((item) => item.kind !== 'playlist' && item.file.trim().length > 0)
+      .sort((a, b) => a.position - b.position);
+  }
+
+  function safePlaylistExportName(label: string): string {
+    return (
+      label
+        .trim()
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80) || 'playlist'
+    );
+  }
+
   function getPlaylistClearDisabledReason(): string | undefined {
     if (currentDrawerDestinationMode === 'local') {
       if (isLocalPlaylistMutationRunning) {
@@ -758,6 +1117,34 @@
     return isQueueCommandRunning
       ? 'Queue command is running. Clear playlist is temporarily disabled.'
       : undefined;
+  }
+
+  function getPlaylistRefreshDisabledReason(): string | undefined {
+    if (currentDrawerDestinationMode === 'local') {
+      return isLocalPlaylistMutationRunning
+        ? 'A local playlist change is running. Refresh playlist is temporarily disabled.'
+        : undefined;
+    }
+
+    return isQueueCommandRunning || currentQueueSnapshot.refreshStatus === 'loading'
+      ? 'Queue refresh is already running.'
+      : undefined;
+  }
+
+  function getPlaylistPartyModeDisabledReason(): string | undefined {
+    if (currentDrawerDestinationMode === 'local') {
+      return 'Party mode is only available when controlling Kodi playback.';
+    }
+
+    if (isPlayerDestinationCommandRunning) {
+      return 'A player command is running. Party mode is temporarily disabled.';
+    }
+
+    if (!currentPlayerSnapshot.primaryPlayer) {
+      return 'Start Kodi playback before toggling party mode.';
+    }
+
+    return undefined;
   }
 
   function getSaveKodiPlaylistDisabledReason(): string | undefined {
@@ -784,8 +1171,8 @@
     return undefined;
   }
 
-  function toLocalPlaylistItemInput(item: QueueItemSnapshot): LocalPlaylistItemInput[] {
-    const label = firstSafeQueueText(item.label, item.title, item.showtitle, item.album);
+  function toLocalPlaylistItemInput(item: QueuePlayableItemSnapshot): LocalPlaylistItemInput[] {
+    const label = firstSafeQueueText(item.label);
 
     if (!label) {
       return [];
@@ -800,15 +1187,44 @@
       {
         kind,
         label,
-        file: `queue-item:${item.position}`,
+        file: item.file.trim(),
         sourceId: `queue:${item.position}`,
         ...(typeof item.duration === 'number' &&
         Number.isFinite(item.duration) &&
         item.duration >= 0
           ? { durationSeconds: item.duration }
+          : {}),
+        ...(typeof item.thumbnail === 'string' && item.thumbnail.trim()
+          ? { thumbnail: item.thumbnail.trim() }
           : {})
       }
     ];
+  }
+
+  function queueSnapshotToPlayableItems(snapshot: QueueStoreSnapshot): QueuePlayableItemSnapshot[] {
+    return snapshot.items.flatMap((item) => {
+      const label = firstSafeQueueText(item.label, item.title);
+      if (!label) {
+        return [];
+      }
+
+      return [
+        {
+          position: item.position,
+          label,
+          file: `queue-item:${item.position}`,
+          ...(item.type ? { type: item.type } : {}),
+          ...(typeof item.duration === 'number' &&
+          Number.isFinite(item.duration) &&
+          item.duration >= 0
+            ? { duration: item.duration }
+            : {}),
+          ...(typeof item.thumbnail === 'string' && item.thumbnail.trim()
+            ? { thumbnail: item.thumbnail.trim() }
+            : {})
+        }
+      ];
+    });
   }
 
   function firstSafeQueueText(...values: unknown[]): string | null {
@@ -867,24 +1283,58 @@
     return mediaFilesStore.openDirectory(id);
   }
 
-  function toFilePlaybackItem(item: MediaFilesActionItem): { file: string; mediaKind: 'audio' } {
-    const resolved = mediaFilesStore.getPlayableEntry(item.id);
+  function openVideoMediaFilesBreadcrumb(id: string): Promise<void> {
+    if (id.startsWith('source:')) {
+      return videoMediaFilesStore.openSource(id);
+    }
+
+    return videoMediaFilesStore.openDirectory(id);
+  }
+
+  function toFilePlaybackItem(item: MediaFilesActionItem): {
+    file: string;
+    mediaKind: 'audio' | 'video';
+    itemType?: 'file' | 'directory';
+  } {
+    const resolved = mediaFilesStoreForMedia(item.media).getPlayableEntry(item.id);
 
     if (!resolved.ok) {
       throw new Error(resolved.error.message);
     }
 
-    return { file: resolved.entry.file, mediaKind: 'audio' };
+    return {
+      file: resolved.entry.file,
+      mediaKind: resolved.entry.mediaKind,
+      itemType: resolved.entry.itemType
+    };
   }
 
-  function toFileQueueItem(item: MediaFilesActionItem): { file: string; mediaKind: 'audio' } {
+  function toFileQueueItem(item: MediaFilesActionItem): {
+    file: string;
+    mediaKind: 'audio' | 'video';
+    itemType?: 'file' | 'directory';
+  } {
     return toFilePlaybackItem(item);
+  }
+
+  function toFileDownloadItem(item: MediaFilesActionItem): { file: string; label: string } {
+    const resolved = mediaFilesStoreForMedia(item.media).getDownloadableEntry(item.id);
+
+    if (!resolved.ok) {
+      throw new Error(resolved.error.message);
+    }
+
+    return { file: resolved.entry.file, label: resolved.entry.label };
+  }
+
+  function mediaFilesStoreForMedia(media: string) {
+    return media === 'video' ? videoMediaFilesStore : mediaFilesStore;
   }
 
   function toPlaylistPlaybackItem(item: MediaPlaylistsActionItem): {
     file: string;
     mediaKind: 'music';
-    playlistKind: 'smart';
+    playlistKind: 'smart' | 'basic';
   } {
     const resolved = mediaPlaylistsStore.getPlayablePlaylist(item.id);
 
@@ -892,9 +1342,13 @@
       throw new Error(resolved.error.message);
     }
 
+    if (resolved.playlist.mediaKind !== 'music') {
+      throw new Error('Choose a supported music playlist.');
+    }
+
     return {
       file: resolved.playlist.file,
-      mediaKind: resolved.playlist.mediaKind,
+      mediaKind: 'music',
       playlistKind: resolved.playlist.playlistKind
     };
   }
@@ -902,9 +1356,39 @@
   function toPlaylistQueueItem(item: MediaPlaylistsActionItem): {
     file: string;
     mediaKind: 'music';
-    playlistKind: 'smart';
+    playlistKind: 'smart' | 'basic';
   } {
     return toPlaylistPlaybackItem(item);
+  }
+
+  function toVideoPlaylistPlaybackItem(item: MediaPlaylistsActionItem): {
+    file: string;
+    mediaKind: 'video';
+    playlistKind: 'smart' | 'basic';
+  } {
+    const resolved = videoMediaPlaylistsStore.getPlayablePlaylist(item.id);
+
+    if (!resolved.ok) {
+      throw new Error(resolved.error.message);
+    }
+
+    if (resolved.playlist.mediaKind !== 'video') {
+      throw new Error('Choose a supported video playlist.');
+    }
+
+    return {
+      file: resolved.playlist.file,
+      mediaKind: 'video',
+      playlistKind: resolved.playlist.playlistKind
+    };
+  }
+
+  function toVideoPlaylistQueueItem(item: MediaPlaylistsActionItem): {
+    file: string;
+    mediaKind: 'video';
+    playlistKind: 'smart' | 'basic';
+  } {
+    return toVideoPlaylistPlaybackItem(item);
   }
 
   function toMusicPlaybackItem(
@@ -953,10 +1437,44 @@
 
   function openAddonsRoute(): void {
     try {
-      globalThis.history?.pushState({ routeKind: 'addons' }, '', buildAppRoute({ kind: 'addons' }));
+      const href = buildAppRoute(
+        { kind: 'primary', route: { kind: 'addonsAll' } },
+        currentRouteBuildOptions
+      );
+      if (isPackageMounted && href.startsWith('#')) {
+        globalThis.location.hash = href;
+      } else {
+        globalThis.history?.pushState({ routeKind: 'addons' }, '', href);
+        localRoute = { kind: 'primary', route: { kind: 'addonsAll' } };
+      }
     } catch {
       // Navigation recovery is best-effort; the route UI remains safe without it.
     }
+  }
+
+  function openPrimaryRoute(route: PrimaryRoute): void {
+    try {
+      const href = buildAppRoute({ kind: 'primary', route }, currentRouteBuildOptions);
+      if (isPackageMounted && href.startsWith('#')) {
+        globalThis.location.hash = href;
+      } else {
+        globalThis.history?.pushState({ routeKind: 'primary' }, '', href);
+        localRoute = { kind: 'primary', route };
+      }
+    } catch {
+      // Route recovery is best-effort; the current page remains usable.
+    }
+  }
+
+  function openSearchRoute(query: string): void {
+    const trimmed = query.trim();
+
+    if (!trimmed) {
+      openPrimaryRoute({ kind: 'search' });
+      return;
+    }
+
+    openPrimaryRoute({ kind: 'searchMedia', media: 'all', query: trimmed });
   }
 
   async function refreshAfterMovieWrite(movieid: number): Promise<void> {
@@ -1151,8 +1669,65 @@
       subtitle: dashboardMediaCreator(value),
       currentTime: dashboardTime(value.time.currentSeconds),
       totalTime: dashboardTime(value.time.totalSeconds),
-      progressPercent: dashboardProgress(value)
+      progressPercent: dashboardProgress(value),
+      isPlaying: (value.properties?.speed ?? 0) > 0,
+      isShuffled: value.properties?.shuffled === true,
+      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
     };
+  }
+
+  function toAppShellLocalPlayerSnapshot(value: LocalPlayerStoreSnapshot): AppShellPlayerSnapshot {
+    const title = firstDashboardText(value.item?.title, value.item?.label, 'Nothing playing');
+    const subtitle =
+      value.status === 'idle'
+        ? 'Local player is ready'
+        : `${value.mediaKind === 'video' ? 'Local video' : 'Local audio'} - ${value.status}`;
+    const durationSeconds = value.durationSeconds;
+    const progressPercent =
+      typeof durationSeconds === 'number' && durationSeconds > 0
+        ? Math.min(100, Math.max(0, (value.currentSeconds / durationSeconds) * 100))
+        : 0;
+
+    return {
+      title,
+      subtitle,
+      currentTime: dashboardTime(value.currentSeconds),
+      totalTime: dashboardTime(durationSeconds),
+      progressPercent,
+      isPlaying: value.status === 'playing',
+      isShuffled: localShuffleEnabled,
+      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
+    };
+  }
+
+  async function toggleLocalShuffle(): Promise<void> {
+    localShuffleEnabled = !localShuffleEnabled;
+    await playerDispatch.setShuffle(localShuffleEnabled);
+  }
+
+  async function handleLocalMediaEnded(): Promise<void> {
+    const controls = playerDispatch as PlaylistPlaybackDispatch;
+    if (
+      currentDrawerDestinationMode !== 'local' ||
+      playerDispatch.snapshot?.commandStatus === 'running' ||
+      controls.canNavigateLocalFilePlaylist?.() !== true
+    ) {
+      return;
+    }
+
+    await playerDispatch.next();
+  }
+
+  function kodiImageUrl(value: unknown): string | undefined {
+    if (typeof value !== 'string' || !value.trim()) {
+      return undefined;
+    }
+
+    return `/image/${encodeURIComponent(value.trim())}`;
+  }
+
+  function toggleRemoteOverlayFromPlayer(): void {
+    remoteOverlayOpen = !remoteOverlayOpen;
   }
 
   function dashboardTime(seconds: number | null): string {
@@ -1201,28 +1776,41 @@
     routeIdentity={{ kind: 'primary', route: currentPrimaryShellRoute ?? { kind: 'home' } }}
     navigationItems={currentShellNavigationItems}
     stageLabel={currentAppPageMetadata.stageLabel}
-    logoHref={buildAppRoute(
-      { kind: 'primary', route: { kind: 'home' } },
-      { packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : '' }
-    )}
+    logoHref={buildAppRoute({ kind: 'primary', route: { kind: 'home' } }, currentRouteBuildOptions)}
     player={currentShellPlayer}
+    stageArtUrl={currentShellStageArtUrl}
     playerActions={{
       previous: () => playerDispatch.previous(),
       playPause: () => playerDispatch.playPause(),
       next: () => playerDispatch.next(),
       toggleMute: () => playerDispatch.toggleMute(),
-      fullscreen: toggleAppFullscreen
+      shuffle:
+        currentDrawerDestinationMode === 'kodi'
+          ? () => playerDispatch.setShuffle('toggle')
+          : toggleLocalShuffle,
+      fullscreen: toggleAppFullscreen,
+      stop: () => playerDispatch.stop(),
+      repeat:
+        currentDrawerDestinationMode === 'kodi'
+          ? () => playerDispatch.setRepeat('cycle')
+          : undefined,
+      openRemote:
+        currentDrawerDestinationMode === 'kodi' ? () => toggleRemoteOverlayFromPlayer() : undefined
     }}
     drawer={currentPlaylistDrawer}
     destination={currentPlaylistDestination}
-    callbacks={playlistDrawerCallbacks}
+    callbacks={{
+      ...playlistDrawerCallbacks,
+      onSearchFocus: () => openPrimaryRoute({ kind: 'search' }),
+      onSearchSubmit: openSearchRoute
+    }}
   >
     <AppPageSurface
       route={currentPrimaryShellRoute ?? { kind: 'home' }}
       metadata={currentAppPageMetadata}
       i18n={currentI18n}
-      packageBasePath={isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''}
-      chorus2Placeholder={currentChorus2Placeholder}
+      packageBasePath={currentPackageBasePath}
+      parityPlaceholder={currentParityPlaceholder}
       homeContext={{
         hostLabel:
           packageMountedHost?.label ??
@@ -1253,6 +1841,7 @@
       localPlayerSnapshot={currentLocalSnapshot}
       localPlaylistSnapshot={currentLocalPlaylistSnapshot}
       {localPlaylistDispatch}
+      localPlaylistActions={localPlaylistPageActions}
       queueSnapshot={currentQueueSnapshot}
       {queueDispatch}
       musicLibrarySnapshot={currentMusicLibrarySnapshot}
@@ -1265,9 +1854,16 @@
       mediaFilesSnapshot={currentMediaFilesSnapshot}
       {mediaFilesDispatch}
       {mediaFilesActionDispatch}
+      videoMediaFilesSnapshot={currentVideoMediaFilesSnapshot}
+      {videoMediaFilesDispatch}
+      {videoMediaFilesActionDispatch}
       mediaPlaylistsSnapshot={currentMediaPlaylistsSnapshot}
       {mediaPlaylistsDispatch}
       {mediaPlaylistsActionDispatch}
+      pvrSnapshot={currentPvrSnapshot}
+      pvrDispatch={defaultPvrDispatch}
+      thumbsUpSnapshot={currentThumbsUpSnapshot}
+      thumbsUpDispatch={thumbsUpStore}
       videoMediaPlaylistsSnapshot={currentVideoMediaPlaylistsSnapshot}
       {videoMediaPlaylistsDispatch}
       {videoMediaPlaylistsActionDispatch}
@@ -1286,34 +1882,74 @@
       renderableVideoRoute={currentRenderableVideoRoute}
     />
 
+    {#if remoteOverlayOpen}
+      <div class="remote-overlay" aria-label="Kodi remote overlay">
+        <button
+          type="button"
+          class="remote-overlay__scrim"
+          aria-hidden="true"
+          tabindex="-1"
+          onclick={() => (remoteOverlayOpen = false)}
+        ></button>
+        <div class="remote-overlay__panel">
+          <button
+            type="button"
+            class="remote-overlay__close"
+            aria-label="Close Kodi remote"
+            onclick={() => (remoteOverlayOpen = false)}
+          >
+            <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
+          </button>
+          <RemoteInputPanel
+            remoteSnapshot={currentRemoteSnapshot}
+            {remoteInputDispatch}
+            playerSnapshot={currentPlayerSnapshot}
+            {playerDispatch}
+            backgroundUrl={currentShellStageArtUrl}
+            i18n={currentI18n}
+          />
+        </div>
+      </div>
+    {/if}
+
     {#snippet localRuntime()}
-      <LocalMediaRuntime />
+      <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
     {/snippet}
   </PrimaryAppShell>
 {:else}
-  <AmbientAppShell chrome={isPackageMounted ? 'media' : 'default'}>
-    {#if !(isDashboardRoute && isPackageMounted)}
-      <header class="hero" aria-labelledby="app-title">
-        <div class="hero-copy">
-          <p class="eyebrow">
-            {currentI18n.t(isPackageMounted ? 'app.shell.packageEyebrow' : 'app.shell.eyebrow')}
-          </p>
-          <h1 id="app-title">{currentI18n.t('app.name')}</h1>
-          <p class="lede">
-            {currentI18n.t(isPackageMounted ? 'app.shell.packageLede' : 'app.shell.lede')}
-          </p>
-        </div>
-        <div class="hero-actions">
-          <LocaleToggle
-            locale={currentLocaleSnapshot.locale}
-            i18n={currentI18n}
-            dispatch={localeDispatch}
-          />
-          <ThemeToggle i18n={currentI18n} />
-        </div>
-      </header>
-    {/if}
-
+  <PrimaryAppShell
+    routeIdentity={{ kind: 'primary', route: currentPrimaryShellRoute ?? { kind: 'home' } }}
+    navigationItems={currentShellNavigationItems}
+    stageLabel={currentAppPageMetadata.stageLabel}
+    logoHref={buildAppRoute({ kind: 'primary', route: { kind: 'home' } }, currentRouteBuildOptions)}
+    player={currentShellPlayer}
+    stageArtUrl={currentShellStageArtUrl}
+    playerActions={{
+      previous: () => playerDispatch.previous(),
+      playPause: () => playerDispatch.playPause(),
+      next: () => playerDispatch.next(),
+      toggleMute: () => playerDispatch.toggleMute(),
+      shuffle:
+        currentDrawerDestinationMode === 'kodi'
+          ? () => playerDispatch.setShuffle('toggle')
+          : toggleLocalShuffle,
+      fullscreen: toggleAppFullscreen,
+      stop: () => playerDispatch.stop(),
+      repeat:
+        currentDrawerDestinationMode === 'kodi'
+          ? () => playerDispatch.setRepeat('cycle')
+          : undefined,
+      openRemote:
+        currentDrawerDestinationMode === 'kodi' ? () => toggleRemoteOverlayFromPlayer() : undefined
+    }}
+    drawer={currentPlaylistDrawer}
+    destination={currentPlaylistDestination}
+    callbacks={{
+      ...playlistDrawerCallbacks,
+      onSearchFocus: () => openPrimaryRoute({ kind: 'search' }),
+      onSearchSubmit: openSearchRoute
+    }}
+  >
     {#if isDashboardRoute}
       <PrimaryAppShell
         routeIdentity={{ kind: 'primary', route: { kind: 'home' } }}
@@ -1321,15 +1957,29 @@
         stageLabel={currentI18n.t('app.dashboard.aria')}
         logoHref={buildAppRoute(
           { kind: 'primary', route: { kind: 'home' } },
-          { packageBasePath: isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : '' }
+          currentRouteBuildOptions
         )}
         player={currentShellPlayer}
+        stageArtUrl={currentShellStageArtUrl}
         playerActions={{
           previous: () => playerDispatch.previous(),
           playPause: () => playerDispatch.playPause(),
           next: () => playerDispatch.next(),
           toggleMute: () => playerDispatch.toggleMute(),
-          fullscreen: toggleAppFullscreen
+          shuffle:
+            currentDrawerDestinationMode === 'kodi'
+              ? () => playerDispatch.setShuffle('toggle')
+              : toggleLocalShuffle,
+          fullscreen: toggleAppFullscreen,
+          stop: () => playerDispatch.stop(),
+          repeat:
+            currentDrawerDestinationMode === 'kodi'
+              ? () => playerDispatch.setRepeat('cycle')
+              : undefined,
+          openRemote:
+            currentDrawerDestinationMode === 'kodi'
+              ? () => toggleRemoteOverlayFromPlayer()
+              : undefined
         }}
         drawer={currentPlaylistDrawer}
         destination={currentPlaylistDestination}
@@ -1410,15 +2060,45 @@
           </div>
         {/if}
 
+        {#if remoteOverlayOpen}
+          <div class="remote-overlay" aria-label="Kodi remote overlay">
+            <button
+              type="button"
+              class="remote-overlay__scrim"
+              aria-hidden="true"
+              tabindex="-1"
+              onclick={() => (remoteOverlayOpen = false)}
+            ></button>
+            <div class="remote-overlay__panel">
+              <button
+                type="button"
+                class="remote-overlay__close"
+                aria-label="Close Kodi remote"
+                onclick={() => (remoteOverlayOpen = false)}
+              >
+                <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
+              </button>
+              <RemoteInputPanel
+                remoteSnapshot={currentRemoteSnapshot}
+                {remoteInputDispatch}
+                playerSnapshot={currentPlayerSnapshot}
+                {playerDispatch}
+                backgroundUrl={currentShellStageArtUrl}
+                i18n={currentI18n}
+              />
+            </div>
+          </div>
+        {/if}
+
         {#snippet localRuntime()}
-          <LocalMediaRuntime />
+          <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
         {/snippet}
       </PrimaryAppShell>
-    {:else if currentChorus2Placeholder}
-      <main class="parity-route" aria-label="Chorus2 parity placeholder">
+    {:else if currentParityPlaceholder}
+      <main class="parity-route" aria-label="Parity placeholder">
         <ParityPlaceholder
-          placeholder={currentChorus2Placeholder}
-          packageBasePath={isPackageMounted ? KODI_WEBINTERFACE_BASE_PATH : ''}
+          placeholder={currentParityPlaceholder}
+          packageBasePath={currentPackageBasePath}
           i18n={currentI18n}
         />
       </main>
@@ -1470,21 +2150,9 @@
             class="addons-route-recovery"
             aria-label={currentI18n.t('app.route.addons.recoveryAria')}
           >
-            <a href={buildAppRoute({ kind: 'addons' })}>Add-ons</a>
+            <a href={buildAppRoute({ kind: 'addons' }, currentRouteBuildOptions)}>Add-ons</a>
           </nav>
         </section>
-      </main>
-    {:else if isLabShortcutsRoute}
-      <main class="lab-route" aria-label={currentI18n.t('app.route.labShortcuts.aria')}>
-        <ShortcutsPanel i18n={currentI18n} />
-      </main>
-    {:else if isLabApiBrowserRoute}
-      <main class="lab-route" aria-label={currentI18n.t('app.route.labApiBrowser.aria')}>
-        <LabApiBrowserPanel
-          snapshot={currentLabApiBrowserSnapshot}
-          dispatch={labApiBrowserDispatch}
-          i18n={currentI18n}
-        />
       </main>
     {:else if isLabUnknownRoute}
       <main class="lab-route" aria-label={currentI18n.t('app.route.labUnknown.aria')}>
@@ -1497,8 +2165,18 @@
             })}
           </p>
           <nav class="lab-route-recovery" aria-label={currentI18n.t('app.route.lab.recoveryAria')}>
-            <a href={buildAppRoute({ kind: 'labShortcuts' })}>Shortcuts</a>
-            <a href={buildAppRoute({ kind: 'labApiBrowser' })}>API browser</a>
+            <a
+              href={buildAppRoute(
+                { kind: 'primary', route: { kind: 'home' } },
+                currentRouteBuildOptions
+              )}>Home</a
+            >
+            <a
+              href={buildAppRoute(
+                { kind: 'primary', route: { kind: 'help' } },
+                currentRouteBuildOptions
+              )}>Help</a
+            >
           </nav>
         </section>
       </main>
@@ -1532,7 +2210,12 @@
             class="settings-route-recovery"
             aria-label={currentI18n.t('app.route.settings.recoveryAria')}
           >
-            <a href="/settings">Settings</a>
+            <a
+              href={buildAppRoute(
+                { kind: 'primary', route: { kind: 'settingsWeb' } },
+                currentRouteBuildOptions
+              )}>Settings</a
+            >
           </nav>
         </section>
       </main>
@@ -1630,44 +2313,66 @@
             class="video-route-recovery"
             aria-label={currentI18n.t('app.route.video.recoveryAria')}
           >
-            <a href={buildVideoRoute({ kind: 'videoMovies' })}>Movies</a>
-            <a href={buildVideoRoute({ kind: 'videoTvShows' })}>TV shows</a>
+            <a
+              href={buildAppRoute(
+                { kind: 'primary', route: { kind: 'movies' } },
+                currentRouteBuildOptions
+              )}>Movies</a
+            >
+            <a
+              href={buildAppRoute(
+                { kind: 'primary', route: { kind: 'tvshows' } },
+                currentRouteBuildOptions
+              )}>TV shows</a
+            >
           </nav>
         </section>
       </main>
     {/if}
-  </AmbientAppShell>
+
+    {#if remoteOverlayOpen}
+      <div class="remote-overlay" aria-label="Kodi remote overlay">
+        <button
+          type="button"
+          class="remote-overlay__scrim"
+          aria-hidden="true"
+          tabindex="-1"
+          onclick={() => (remoteOverlayOpen = false)}
+        ></button>
+        <div class="remote-overlay__panel">
+          <button
+            type="button"
+            class="remote-overlay__close"
+            aria-label="Close Kodi remote"
+            onclick={() => (remoteOverlayOpen = false)}
+          >
+            <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
+          </button>
+          <RemoteInputPanel
+            remoteSnapshot={currentRemoteSnapshot}
+            {remoteInputDispatch}
+            playerSnapshot={currentPlayerSnapshot}
+            {playerDispatch}
+            backgroundUrl={currentShellStageArtUrl}
+            i18n={currentI18n}
+          />
+        </div>
+      </div>
+    {/if}
+
+    {#snippet localRuntime()}
+      <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
+    {/snippet}
+  </PrimaryAppShell>
 {/if}
 
 <style>
-  .hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-lg);
-    align-items: start;
-    padding-block-start: clamp(var(--space-md), 4vw, var(--space-xl));
-  }
-
-  .hero-copy {
-    max-width: 48rem;
-  }
-
-  .hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-    justify-content: flex-end;
-  }
-
-  .eyebrow,
   .section-kicker,
-  h1,
   h2,
   p {
     margin: 0;
   }
 
-  .eyebrow,
   .section-kicker {
     color: var(--color-accent);
     font-family: var(--font-mono);
@@ -1675,21 +2380,6 @@
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-  }
-
-  h1 {
-    margin-block-start: var(--space-sm);
-    font-size: clamp(4rem, 16vw, 10rem);
-    line-height: 0.82;
-    letter-spacing: -0.08em;
-  }
-
-  .lede {
-    max-width: 42rem;
-    margin-block-start: var(--space-lg);
-    color: var(--color-text-muted);
-    font-size: clamp(1.05rem, 2vw, 1.35rem);
-    line-height: 1.55;
   }
 
   .dashboard {
@@ -1744,5 +2434,78 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-md);
+  }
+
+  .remote-overlay {
+    position: fixed;
+    inset: 45px var(--classic-playlist-width, 300px) 60px 54px;
+    z-index: 28;
+    pointer-events: none;
+  }
+
+  .remote-overlay__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: 0;
+    background: transparent;
+    pointer-events: auto;
+  }
+
+  .remote-overlay__panel {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: #282c2e;
+    pointer-events: auto;
+  }
+
+  .remote-overlay__close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 3;
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    border: 0;
+    background: rgb(0 0 0 / 0.38);
+    color: #f4f4f4;
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+
+  .remote-overlay__close:hover,
+  .remote-overlay__close:focus-visible {
+    background: rgb(77 179 230 / 0.82);
+    outline: none;
+  }
+
+  .remote-overlay__panel :global(.remote-input-panel) {
+    min-height: 100%;
+    height: 100%;
+  }
+
+  .remote-overlay__panel :global(.remote-background) {
+    inset: 0;
+  }
+
+  .remote-overlay__panel :global(.kodi-remote) {
+    right: auto;
+    left: 0;
+    width: 320px;
+    margin-inline: 0;
+  }
+
+  @media (max-width: 760px) {
+    .remote-overlay {
+      inset: 45px 0 60px 0;
+    }
+
+    .remote-overlay__panel {
+      inset: 0;
+    }
   }
 </style>

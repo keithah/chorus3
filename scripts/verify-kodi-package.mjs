@@ -64,9 +64,9 @@ const ASSET_TAG_PATTERN =
   /\b(?:src|href)=(['"])(?:\.\/|\/addons\/webinterface\.chorus3\/|\/)assets\//gi;
 const KODI_BASE_RESOLVER_PATTERN = /\bdata-chorus3-kodi-base-resolver\b/i;
 const PACKAGE_BASE_PATH_PATTERN = /\/addons\/webinterface\.chorus3\//;
-const PACKAGE_ESCAPING_ASSET_ROOTS = ['chorus2-assets', 'images', 'themes', 'fonts'];
+const PACKAGE_ESCAPING_ASSET_ROOTS = ['classic-assets', 'images', 'themes', 'fonts'];
 const PACKAGE_ESCAPING_ASSET_PATTERN =
-  /(?:["'(=:\s]|url\(\s*)(\/(?:chorus2-assets|images|themes|fonts)(?=\/|["')?\s]))/gi;
+  /(?:["'(=:\s]|url\(\s*)(\/(?:classic-assets|images|themes|fonts)(?=\/|["')?\s]))/gi;
 const SCANNED_BUNDLE_EXTENSIONS = new Set(['.html', '.js', '.css']);
 const KODI_WEBINTERFACE_MARKER_PATTERN =
   /<meta\s+[^>]*name=(['"])chorus3:kodi-webinterface\1[^>]*content=(['"])webinterface\.chorus3\2/i;
@@ -84,6 +84,11 @@ const PRIMARY_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'home' }
   },
   { name: 'primary-music-root', path: '/music', expected: { kind: 'primary', routeKind: 'music' } },
+  {
+    name: 'primary-addons-alias-root',
+    path: '/addons',
+    expected: { kind: 'primary', routeKind: 'addonsAll' }
+  },
   {
     name: 'primary-movies-root',
     path: '/movies',
@@ -129,24 +134,79 @@ const PRIMARY_ROUTE_CHECKS = [
     path: '/settings/web',
     expected: { kind: 'primary', routeKind: 'settingsWeb' }
   },
+  {
+    name: 'primary-settings-alias-root',
+    path: '/settings',
+    expected: { kind: 'primary', routeKind: 'settingsWeb' }
+  },
   { name: 'primary-help-root', path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
+  {
+    name: 'primary-search-root',
+    path: '/search',
+    expected: { kind: 'primary', routeKind: 'search' }
+  },
+  {
+    name: 'primary-thumbs-root',
+    path: '/thumbsup',
+    expected: { kind: 'primary', routeKind: 'thumbsup' }
+  },
+  {
+    name: 'primary-pvr-root',
+    path: '/pvr',
+    expected: { kind: 'primary', routeKind: 'pvrTv' }
+  },
   {
     name: 'legacy-video-movies-root',
     path: '/video/movies',
-    expected: { kind: 'video', routeKind: 'videoMovies' }
+    expected: { kind: 'primary', routeKind: 'movies' }
   },
   {
     name: 'legacy-video-tv-root',
     path: '/video/tv',
-    expected: { kind: 'video', routeKind: 'videoTvShows' }
+    expected: { kind: 'primary', routeKind: 'tvshows' }
   },
   { name: 'now-playing-root', path: '/now-playing', expected: { kind: 'nowPlaying' } }
 ];
 const SUBMENU_ROUTE_CHECKS = [
   {
+    name: 'submenu-music-top-root',
+    path: '/music/top',
+    expected: { kind: 'primary', routeKind: 'musicTop' }
+  },
+  {
+    name: 'submenu-music-artists-root',
+    path: '/music/artists',
+    expected: { kind: 'primary', routeKind: 'musicArtists' }
+  },
+  {
+    name: 'submenu-artists-alias-root',
+    path: '/artists',
+    expected: { kind: 'primary', routeKind: 'musicArtists' }
+  },
+  {
+    name: 'submenu-music-albums-root',
+    path: '/music/albums',
+    expected: { kind: 'primary', routeKind: 'musicAlbums' }
+  },
+  {
+    name: 'submenu-albums-alias-root',
+    path: '/albums',
+    expected: { kind: 'primary', routeKind: 'musicAlbums' }
+  },
+  {
     name: 'submenu-music-genres-root',
     path: '/music/genres',
     expected: { kind: 'primary', routeKind: 'musicGenres' }
+  },
+  {
+    name: 'submenu-genres-alias-root',
+    path: '/genres',
+    expected: { kind: 'primary', routeKind: 'musicGenres' }
+  },
+  {
+    name: 'submenu-music-videos-root',
+    path: '/music/videos',
+    expected: { kind: 'primary', routeKind: 'musicVideos' }
   },
   {
     name: 'submenu-movies-recent-root',
@@ -179,6 +239,21 @@ const SUBMENU_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'settingsKodi' }
   },
   {
+    name: 'submenu-settings-addons-root',
+    path: '/settings/addons',
+    expected: { kind: 'primary', routeKind: 'settingsAddons' }
+  },
+  {
+    name: 'submenu-settings-nav-root',
+    path: '/settings/nav',
+    expected: { kind: 'primary', routeKind: 'settingsNav' }
+  },
+  {
+    name: 'submenu-settings-search-root',
+    path: '/settings/search',
+    expected: { kind: 'primary', routeKind: 'settingsSearch' }
+  },
+  {
     name: 'submenu-settings-kodi-section-root',
     path: '/settings/kodi/interface',
     expected: { kind: 'primary', routeKind: 'settingsKodiSection' }
@@ -187,6 +262,11 @@ const SUBMENU_ROUTE_CHECKS = [
     name: 'submenu-help-page-root',
     path: '/help/keyboard',
     expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-overview-root',
+    path: '/help/overview',
+    expected: { kind: 'primary', routeKind: 'helpOverview' }
   },
   {
     name: 'submenu-help-readme-root',
@@ -822,20 +902,36 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'home' } };
     case '/music':
       return { kind: 'primary', route: { kind: 'music' } };
+    case '/music/top':
+      return { kind: 'primary', route: { kind: 'musicTop' } };
+    case '/artists':
+    case '/music/artists':
+      return { kind: 'primary', route: { kind: 'musicArtists' } };
+    case '/albums':
+    case '/music/albums':
+      return { kind: 'primary', route: { kind: 'musicAlbums' } };
+    case '/genres':
     case '/music/genres':
       return { kind: 'primary', route: { kind: 'musicGenres' } };
+    case '/music/videos':
+      return { kind: 'primary', route: { kind: 'musicVideos' } };
     case '/movies':
       return { kind: 'primary', route: { kind: 'movies' } };
     case '/movies/recent':
       return { kind: 'primary', route: { kind: 'moviesRecent' } };
+    case '/video/movies':
+      return { kind: 'primary', route: { kind: 'movies' } };
     case '/tvshows':
       return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/tvshows/recent':
       return { kind: 'primary', route: { kind: 'tvshowsRecent' } };
+    case '/video/tv':
+      return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/browser':
     case '/files':
       return { kind: 'primary', route: { kind: 'browser' } };
     case '/addons/all':
+    case '/addons':
       return { kind: 'primary', route: { kind: 'addonsAll' } };
     case '/addons/video':
       return { kind: 'primary', route: { kind: 'addonsVideo' } };
@@ -848,15 +944,40 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/remote':
       return { kind: 'primary', route: { kind: 'remote' } };
     case '/playlists':
+    case '/localPlaylist':
       return { kind: 'primary', route: { kind: 'playlists' } };
+    case '/settings':
     case '/settings/web':
+    case '/settings/web-interface':
       return { kind: 'primary', route: { kind: 'settingsWeb' } };
     case '/settings/kodi':
       return { kind: 'primary', route: { kind: 'settingsKodi' } };
+    case '/settings/games':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'games' } };
+    case '/settings/interface':
     case '/settings/kodi/interface':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'interface' } };
+    case '/settings/media':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'media' } };
+    case '/settings/player':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'player' } };
+    case '/settings/pvr':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'pvr' } };
+    case '/settings/services':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'services' } };
+    case '/settings/system':
+      return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'system' } };
+    case '/settings/addons':
+      return { kind: 'primary', route: { kind: 'settingsAddons' } };
+    case '/settings/nav':
+    case '/settings/main-menu':
+      return { kind: 'primary', route: { kind: 'settingsNav' } };
+    case '/settings/search':
+      return { kind: 'primary', route: { kind: 'settingsSearch' } };
     case '/help':
       return { kind: 'primary', route: { kind: 'help' } };
+    case '/help/overview':
+      return { kind: 'primary', route: { kind: 'helpOverview' } };
     case '/help/keyboard':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'keyboard' } };
     case '/help/readme':
@@ -867,10 +988,17 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'translations' } };
     case '/help/license':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'license' } };
-    case '/video/movies':
-      return { kind: 'video', route: { kind: 'videoMovies' } };
-    case '/video/tv':
-      return { kind: 'video', route: { kind: 'videoTvShows' } };
+    case '/search':
+      return { kind: 'primary', route: { kind: 'search' } };
+    case '/thumbsup':
+      return { kind: 'primary', route: { kind: 'thumbsup' } };
+    case '/pvr':
+    case '/pvr/tv':
+      return { kind: 'primary', route: { kind: 'pvrTv' } };
+    case '/pvr/radio':
+      return { kind: 'primary', route: { kind: 'pvrRadio' } };
+    case '/pvr/recordings':
+      return { kind: 'primary', route: { kind: 'pvrRecordings' } };
     case '/now-playing':
       return { kind: 'nowPlaying' };
     default:
@@ -926,11 +1054,11 @@ function formatActualRouteIdentity(route) {
   }
 
   if (
-    route.kind === 'chorus2Placeholder' &&
+    route.kind === 'parityPlaceholder' &&
     route.placeholder &&
     typeof route.placeholder === 'object'
   ) {
-    return `chorus2Placeholder/${route.placeholder.id || 'unknown'}`;
+    return `parityPlaceholder/${route.placeholder.id || 'unknown'}`;
   }
 
   return typeof route.kind === 'string' ? route.kind : 'invalid';

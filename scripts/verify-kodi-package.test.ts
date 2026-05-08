@@ -187,9 +187,11 @@ describe('Kodi package structural verification', () => {
     expect(result.lines).toContain(
       '[html-assets] index.html uses package-safe asset URLs and Kodi webinterface marker.'
     );
-    expect(result.lines).toContain('[archive] zip root webinterface.chorus3 contains 19 entries.');
     expect(result.lines).toContain(
-      '[route-fallback] 15 staged route fallback files include safe package asset prerequisites.'
+      `[archive] zip root webinterface.chorus3 contains ${validZipEntries().length} entries.`
+    );
+    expect(result.lines).toContain(
+      `[route-fallback] ${getKodiPackageRouteFallbacks().length} staged route fallback files include safe package asset prerequisites.`
     );
     expect(result.lines).toContain(
       '[now-playing] packaged now-playing entry and route support are present.'
@@ -336,11 +338,11 @@ describe('Kodi package structural verification', () => {
     );
   });
 
-  it('rejects package-escaping Chorus2 asset references in staged HTML without echoing raw content', async () => {
+  it('rejects package-escaping classic asset references in staged HTML without echoing raw content', async () => {
     const root = createFixture(
       baseFiles({
         [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/index.html`]:
-          '<!doctype html><meta name="chorus3:kodi-webinterface" content="webinterface.chorus3"><script type="module" src="./assets/app.js"></script><img src="/chorus2-assets/themes/base/images/logo.png?token=secret-value">'
+          '<!doctype html><meta name="chorus3:kodi-webinterface" content="webinterface.chorus3"><script type="module" src="./assets/app.js"></script><img src="/classic-assets/themes/base/images/logo.png?token=secret-value">'
       })
     );
 
@@ -348,7 +350,7 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[html-assets] dist/kodi/webinterface.chorus3/index.html must not reference root-absolute /chorus2-assets package-escaping assets.'
+      '[html-assets] dist/kodi/webinterface.chorus3/index.html must not reference root-absolute /classic-assets package-escaping assets.'
     );
     expect(result.lines.join('\n')).not.toContain('secret-value');
     expect(result.lines.join('\n')).not.toContain('logo.png?token');
@@ -358,7 +360,7 @@ describe('Kodi package structural verification', () => {
     const root = createFixture(
       baseFiles({
         [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]:
-          'const logo = "/chorus2-assets/themes/base/images/logo.png"; const ok = "./assets/chunk.js";',
+          'const logo = "/classic-assets/themes/base/images/logo.png"; const ok = "./assets/chunk.js";',
         [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]:
           '@font-face { src: url("/fonts/opensans.woff2"); } .ok { background: url("../assets/bg.png"); }'
       })
@@ -368,7 +370,7 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.js must not reference root-absolute /chorus2-assets package-escaping assets.'
+      '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.js must not reference root-absolute /classic-assets package-escaping assets.'
     );
     expect(result.lines.join('\n')).toContain(
       '[bundle-assets] dist/kodi/webinterface.chorus3/assets/app.css must not reference root-absolute /fonts package-escaping assets.'
@@ -513,7 +515,8 @@ describe('Kodi package structural verification', () => {
         '[route] submenu-help-changelog-package /addons/webinterface.chorus3/help/changelog resolves to primary/helpPage.',
         '[route] submenu-help-translations-package /addons/webinterface.chorus3/help/translations resolves to primary/helpPage.',
         '[route] submenu-help-license-package /addons/webinterface.chorus3/help/license resolves to primary/helpPage.',
-        '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to video/videoMovies.',
+        '[route] legacy-video-movies-package /addons/webinterface.chorus3/video/movies resolves to primary/movies.',
+        '[route] legacy-video-tv-package /addons/webinterface.chorus3/video/tv resolves to primary/tvshows.',
         '[route] now-playing-package /addons/webinterface.chorus3/now-playing resolves to nowPlaying.'
       ])
     );
@@ -531,7 +534,7 @@ describe('Kodi package structural verification', () => {
         }
 
         if (path === `${packageBasePath}/browser`) {
-          return { kind: 'labApiBrowser' };
+          return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
         }
 
         return parseAppRoute(path, '', { packageBasePath });
@@ -543,7 +546,7 @@ describe('Kodi package structural verification', () => {
       '[route] primary-playlists-package /addons/webinterface.chorus3/playlists must resolve to primary/playlists; got primary/help.'
     );
     expect(result.lines.join('\n')).toContain(
-      '[route] primary-browser-package /addons/webinterface.chorus3/browser must resolve to primary/browser; got labApiBrowser.'
+      '[route] primary-browser-package /addons/webinterface.chorus3/browser must resolve to primary/browser; got settingsUnknown.'
     );
   });
 

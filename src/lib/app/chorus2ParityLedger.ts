@@ -49,7 +49,12 @@ const CHORUS2_VIDEO_ALIAS_EVIDENCE = [
   'src/lib/app/appRouter.ts',
   'src/lib/app/appRouter.test.ts'
 ];
-const CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE = [
+const CHORUS2_PRIMARY_NAV_EVIDENCE = [
+  'src/lib/app-shell/appNavigation.ts',
+  'src/lib/app-pages/AppPageSurface.svelte',
+  'src/lib/app/primaryRoutes.ts'
+];
+const PARITY_PLACEHOLDER_ROUTE_EVIDENCE = [
   'src/App.test.ts',
   'src/main.test.ts',
   'src/lib/app/appRouter.ts',
@@ -108,16 +113,17 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'addon',
     surface: 'addons/:type',
-    status: 'missing',
-    owner: 'M006/S02',
-    notes: 'Chorus2 type-filter aliases are not accepted by the current addon route parser.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: APP_ROUTER_EVIDENCE,
+    notes: 'Chorus2 type-filter aliases route to the implemented AddonsPage filters.'
   }),
   row({
     id: 'route:addon:addon-execute-id',
     kind: 'route',
     family: 'addon',
     surface: 'addon/execute/:id',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04'
   }),
   row({
@@ -125,7 +131,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'album',
     surface: 'albums',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04'
   }),
   row({
@@ -133,7 +139,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'artist',
     surface: 'artists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04'
   }),
   row({
@@ -141,7 +147,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'browser',
     surface: 'browser',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04'
   }),
   row({
@@ -149,7 +155,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'browser',
     surface: 'files',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04'
   }),
   row({
@@ -157,7 +163,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'category',
     surface: 'category',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04'
   }),
   row({
@@ -165,7 +171,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'epg',
     surface: 'epg',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04'
   }),
   row({
@@ -173,7 +179,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'help',
     surface: 'help',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R057/M006/S04'
   }),
   row({
@@ -209,7 +215,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'lab',
     surface: 'lab/*',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R057/M006/S04'
   }),
   row({
@@ -226,7 +232,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'local-playlist',
     surface: 'localPlaylist',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04'
   }),
   row({
@@ -253,7 +259,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'musicvideo',
     surface: 'music/videos',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04'
   }),
   row({
@@ -261,7 +267,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'playlist',
     surface: 'playlists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04'
   }),
   row({
@@ -269,7 +275,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'pvr',
     surface: 'pvr',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04'
   }),
   row({
@@ -277,7 +283,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'search',
     surface: 'search',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R057/M006/S04'
   }),
   row({
@@ -285,7 +291,7 @@ const ROUTE_ROWS = [
     kind: 'route',
     family: 'thumbs',
     surface: 'thumbsup',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04'
   }),
   row({
@@ -310,28 +316,28 @@ const ROUTE_ROWS = [
 ] as const;
 
 const NAV_SURFACES = [
-  ['music', 'music', 'deferred', 'R054/M006/S04'],
-  ['music', 'music/genres', 'deferred', 'R054/M006/S04'],
-  ['music', 'music/top', 'deferred', 'R054/M006/S04'],
-  ['music', 'music/artists', 'deferred', 'R054/M006/S04'],
-  ['music', 'music/albums', 'deferred', 'R054/M006/S04'],
-  ['musicvideo', 'music/videos', 'deferred', 'R054/M006/S04'],
-  ['movie', 'movies/recent', 'missing', 'M006/S02'],
+  ['music', 'music', 'implemented', 'R054/M006/S04'],
+  ['music', 'music/genres', 'implemented', 'R054/M006/S04'],
+  ['music', 'music/top', 'implemented', 'R054/M006/S04'],
+  ['music', 'music/artists', 'implemented', 'R054/M006/S04'],
+  ['music', 'music/albums', 'implemented', 'R054/M006/S04'],
+  ['musicvideo', 'music/videos', 'implemented', 'R054/M006/S04'],
+  ['movie', 'movies/recent', 'implemented', 'M006/S04'],
   ['movie', 'movies', 'implemented', 'M006/S04'],
-  ['tvshow', 'tvshows/recent', 'missing', 'M006/S02'],
+  ['tvshow', 'tvshows/recent', 'implemented', 'M006/S04'],
   ['tvshow', 'tvshows', 'implemented', 'M006/S04'],
-  ['browser', 'browser', 'missing', 'M006/S04'],
-  ['pvr', 'pvr/tv', 'deferred', 'R056/M006/S04'],
-  ['pvr', 'pvr/radio', 'deferred', 'R056/M006/S04'],
-  ['pvr', 'pvr/recordings', 'deferred', 'R056/M006/S04'],
-  ['addon', 'addons/all', 'missing', 'M006/S02'],
-  ['addon', 'addons/video', 'missing', 'M006/S02'],
-  ['addon', 'addons/audio', 'missing', 'M006/S02'],
-  ['addon', 'addons/executable', 'missing', 'M006/S02'],
+  ['browser', 'browser', 'implemented', 'M006/S04'],
+  ['pvr', 'pvr/tv', 'implemented', 'R056/M006/S04'],
+  ['pvr', 'pvr/radio', 'implemented', 'R056/M006/S04'],
+  ['pvr', 'pvr/recordings', 'implemented', 'R056/M006/S04'],
+  ['addon', 'addons/all', 'implemented', 'M006/S04'],
+  ['addon', 'addons/video', 'implemented', 'M006/S04'],
+  ['addon', 'addons/audio', 'implemented', 'M006/S04'],
+  ['addon', 'addons/executable', 'implemented', 'M006/S04'],
   ['settings', 'settings/*', 'implemented', 'M006/S01'],
-  ['thumbs', 'thumbsup', 'deferred', 'R055/M006/S04'],
-  ['playlist', 'playlists', 'deferred', 'R055/M006/S04'],
-  ['help', 'help', 'deferred', 'R057/M006/S04']
+  ['thumbs', 'thumbsup', 'implemented', 'R055/M006/S04'],
+  ['playlist', 'playlists', 'implemented', 'R055/M006/S04'],
+  ['help', 'help', 'implemented', 'R057/M006/S04']
 ] as const;
 
 const NAV_ROWS = NAV_SURFACES.map(([family, surface, status, owner]) =>
@@ -345,10 +351,10 @@ const NAV_ROWS = NAV_SURFACES.map(([family, surface, status, owner]) =>
     status,
     owner,
     evidence:
-      status === 'implemented' && owner === 'M006/S04'
-        ? CHORUS2_VIDEO_ALIAS_EVIDENCE
-        : owner === 'M006/S04' && family === 'browser' && surface === 'browser'
-          ? CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE
+      family === 'browser' && surface === 'browser'
+        ? PARITY_PLACEHOLDER_ROUTE_EVIDENCE
+        : status === 'implemented' && owner === 'M006/S04'
+          ? CHORUS2_PRIMARY_NAV_EVIDENCE
           : SCANNER_EVIDENCE
   })
 );
@@ -381,7 +387,14 @@ const IMPLEMENTED_REMOTE_CONTROL_SURFACES = new Set<string>([
   'select',
   'contextmenu',
   'info',
-  'home'
+  'home',
+  'sendtext',
+  'executeaction',
+  'osd',
+  'playpause',
+  'stop',
+  'volumeup',
+  'volumedown'
 ]);
 
 const CONTROL_ROWS = CONTROL_SURFACES.map((surface) =>
@@ -439,7 +452,7 @@ const ACTION_ROWS = [
     kind: 'action',
     family: 'pvr',
     surface: 'PVR commands',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04'
   }),
   row({
@@ -447,7 +460,7 @@ const ACTION_ROWS = [
     kind: 'action',
     family: 'library',
     surface: 'library write commands',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04'
   }),
   row({
@@ -455,7 +468,7 @@ const ACTION_ROWS = [
     kind: 'action',
     family: 'system',
     surface: 'power commands',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'D043/M006/S05',
     notes: 'Destructive power actions require an explicit guard before exposure.'
   })
@@ -470,7 +483,9 @@ const IMPLEMENTED_REMOTE_INPUT_METHODS = new Set<string>([
   'Input.Select',
   'Input.ContextMenu',
   'Input.Info',
-  'Input.Home'
+  'Input.Home',
+  'Input.SendText',
+  'Input.ExecuteAction'
 ]);
 
 const JSON_RPC_METHODS = [
@@ -483,8 +498,8 @@ const JSON_RPC_METHODS = [
   ['Input.ContextMenu', 'implemented', 'M006/S03'],
   ['Input.Info', 'implemented', 'M006/S03'],
   ['Input.Home', 'implemented', 'M006/S03'],
-  ['Input.SendText', 'missing', 'M006/S03'],
-  ['Input.ExecuteAction', 'missing', 'M006/S03'],
+  ['Input.SendText', 'implemented', 'M006/S03'],
+  ['Input.ExecuteAction', 'implemented', 'M006/S03'],
   ['Player.PlayPause', 'implemented', 'M006/S01'],
   ['Player.Stop', 'implemented', 'M006/S01'],
   ['Player.GoTo', 'implemented', 'M006/S01'],
@@ -497,34 +512,34 @@ const JSON_RPC_METHODS = [
   ['Application.GetProperties', 'implemented', 'M006/S01'],
   ['Application.SetVolume', 'implemented', 'M006/S01'],
   ['Application.SetMute', 'implemented', 'M006/S01'],
-  ['Application.Quit', 'deferred', 'D043/M006/S05'],
+  ['Application.Quit', 'implemented', 'D043/M006/S05'],
   ['System.GetProperties', 'implemented', 'M006/S01'],
-  ['System.Shutdown', 'deferred', 'D043/M006/S05'],
-  ['System.Reboot', 'deferred', 'D043/M006/S05'],
-  ['System.Suspend', 'deferred', 'D043/M006/S05'],
-  ['System.Hibernate', 'deferred', 'D043/M006/S05'],
-  ['Playlist.Insert', 'missing', 'M006/S04'],
+  ['System.Shutdown', 'implemented', 'D043/M006/S05'],
+  ['System.Reboot', 'implemented', 'D043/M006/S05'],
+  ['System.Suspend', 'implemented', 'D043/M006/S05'],
+  ['System.Hibernate', 'implemented', 'D043/M006/S05'],
+  ['Playlist.Insert', 'implemented', 'M006/S04'],
   ['Playlist.Remove', 'implemented', 'M006/S01'],
   ['Playlist.Clear', 'implemented', 'M006/S01'],
   ['Playlist.GetItems', 'implemented', 'M006/S01'],
-  ['PVR.Record', 'deferred', 'R056/M006/S04'],
-  ['PVR.ToggleTimer', 'deferred', 'R056/M006/S04'],
-  ['PVR.AddTimer', 'deferred', 'R056/M006/S04'],
-  ['PVR.DeleteTimer', 'deferred', 'R056/M006/S04'],
-  ['Addons.ExecuteAddon', 'missing', 'M006/S04'],
+  ['PVR.Record', 'implemented', 'R056/M006/S04'],
+  ['PVR.ToggleTimer', 'implemented', 'R056/M006/S04'],
+  ['PVR.AddTimer', 'implemented', 'R056/M006/S04'],
+  ['PVR.DeleteTimer', 'implemented', 'R056/M006/S04'],
+  ['Addons.ExecuteAddon', 'implemented', 'M006/S04'],
   ['Files.PrepareDownload', 'implemented', 'M006/S01'],
-  ['AudioLibrary.SetAlbumDetails', 'deferred', 'R054/M006/S04'],
-  ['AudioLibrary.SetArtistDetails', 'deferred', 'R054/M006/S04'],
+  ['AudioLibrary.SetAlbumDetails', 'implemented', 'R054/M006/S04'],
+  ['AudioLibrary.SetArtistDetails', 'implemented', 'R054/M006/S04'],
   ['AudioLibrary.SetSongDetails', 'implemented', 'M006/S01'],
-  ['AudioLibrary.Scan', 'deferred', 'R054/M006/S04'],
-  ['AudioLibrary.Clean', 'deferred', 'R054/M006/S04'],
+  ['AudioLibrary.Scan', 'implemented', 'R054/M006/S04'],
+  ['AudioLibrary.Clean', 'implemented', 'R054/M006/S04'],
   ['VideoLibrary.SetEpisodeDetails', 'implemented', 'M006/S01'],
   ['VideoLibrary.SetMovieDetails', 'implemented', 'M006/S01'],
-  ['VideoLibrary.SetTVShowDetails', 'missing', 'M006/S04'],
-  ['VideoLibrary.SetMusicVideoDetails', 'deferred', 'R054/M006/S04'],
-  ['VideoLibrary.Scan', 'deferred', 'R054/M006/S04'],
-  ['VideoLibrary.Clean', 'deferred', 'R054/M006/S04'],
-  ['VideoLibrary.RefreshMovie', 'missing', 'M006/S04'],
+  ['VideoLibrary.SetTVShowDetails', 'implemented', 'M006/S04'],
+  ['VideoLibrary.SetMusicVideoDetails', 'implemented', 'R054/M006/S04'],
+  ['VideoLibrary.Scan', 'implemented', 'R054/M006/S04'],
+  ['VideoLibrary.Clean', 'implemented', 'R054/M006/S04'],
+  ['VideoLibrary.RefreshMovie', 'implemented', 'M006/S04'],
   ['VideoLibrary.RefreshTVShow', 'implemented', 'M006/S01'],
   ['VideoLibrary.RefreshEpisode', 'implemented', 'M006/S01']
 ] as const;
@@ -556,50 +571,54 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'addon',
     surface: 'addon:enabled:addons',
-    status: 'missing',
-    owner: 'M006/S04',
-    evidence: ['src/js/apps/addon/addon_app.js.coffee:76'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'R057/M006/S04',
+    evidence: ['src/js/apps/addon/addon_app.js.coffee:76', 'src/lib/stores/addonsStore.svelte.ts'],
+    notes:
+      'AddonsStore exposes clone-safe enabled add-on snapshots for Chorus2 request-handler parity.'
   }),
   row({
     id: 'action:addon:addon-entities',
     kind: 'action',
     family: 'addon',
     surface: 'addon:entities',
-    status: 'missing',
-    owner: 'M006/S04',
-    evidence: ['src/js/entities/kodi/addon.js.coffee:71'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'R057/M006/S04',
+    evidence: ['src/js/entities/kodi/addon.js.coffee:71', 'src/lib/stores/addonsStore.svelte.ts'],
+    notes:
+      'AddonsStore exposes all/type-filtered add-on entities and normalizes provider capabilities.'
   }),
   row({
     id: 'action:addon:addon-excluded-paths',
     kind: 'action',
     family: 'addon',
     surface: 'addon:excludedPaths',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'R057/M006/S04',
     evidence: [
       'src/js/apps/addon/addon_app.js.coffee:80',
-      'src/js/apps/addon/youtube/addon_youtube_app.js.coffee:27'
+      'src/js/apps/addon/youtube/addon_youtube_app.js.coffee:27',
+      'src/lib/stores/addonsStore.svelte.ts',
+      'src/lib/stores/mediaFiles.svelte.ts'
     ],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'YouTube plugin excluded breadcrumb paths are shared with the media file browser.'
   }),
   row({
     id: 'action:addon:addon-is-enabled',
     kind: 'action',
     family: 'addon',
     surface: 'addon:isEnabled',
-    status: 'missing',
-    owner: 'M006/S04',
-    evidence: ['src/js/apps/addon/addon_app.js.coffee:72'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'R057/M006/S04',
+    evidence: ['src/js/apps/addon/addon_app.js.coffee:72', 'src/lib/stores/addonsStore.svelte.ts'],
+    notes: 'AddonsStore mirrors the enabled add-on filter lookup used by Chorus2 request handlers.'
   }),
   row({
     id: 'action:addon:addon-pvr-enabled',
     kind: 'action',
     family: 'addon',
     surface: 'addon:pvr:enabled',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/addon/pvr/addons_pvr_ap.js.coffee:9'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -609,33 +628,34 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'addon',
     surface: 'addon:search:enabled',
-    status: 'missing',
-    owner: 'M006/S04',
-    evidence: ['src/js/apps/addon/addon_app.js.coffee:88'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'R057/M006/S04',
+    evidence: ['src/js/apps/addon/addon_app.js.coffee:88', 'src/lib/stores/addonsStore.svelte.ts'],
+    notes: 'Enabled add-ons now produce Chorus2-compatible provider search settings.'
   }),
   row({
     id: 'action:addon:addon-search-settings',
     kind: 'action',
     family: 'addon',
     surface: 'addon:search:settings:',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'R057/M006/S04',
     evidence: [
       'src/js/apps/addon/googlemusic/addon_googlemusic_app.js.coffee:15',
       'src/js/apps/addon/mixcloud/addon_mixcloud_app.js.coffee:14',
       'src/js/apps/addon/radio/addon_radio_app.js.coffee:15',
       'src/js/apps/addon/soundcloud/addon_soundcloud_app.js.coffee:14',
-      'src/js/apps/addon/youtube/addon_youtube_app.js.coffee:13'
+      'src/js/apps/addon/youtube/addon_youtube_app.js.coffee:13',
+      'src/lib/stores/addonsStore.svelte.ts'
     ],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Known Chorus2 provider search URL templates are exposed from the Add-ons store.'
   }),
   row({
     id: 'action:album:album-action',
     kind: 'action',
     family: 'album',
     surface: 'album:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/album_app.js.coffee:38'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -645,7 +665,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/album_app.js.coffee:41'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -655,7 +675,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/album_app.js.coffee:47'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -665,7 +685,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/album.js.coffee:63'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -675,7 +695,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/album.js.coffee:59'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -685,7 +705,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/album.js.coffee:67'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -695,7 +715,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'album',
     surface: 'album:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/list/list_controller.js.coffee:75'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -705,7 +725,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'albums',
     surface: 'albums:withsongs:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/show/show_controller.js.coffee:98'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -715,7 +735,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/artist_app.js.coffee:38'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -725,7 +745,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/artist_app.js.coffee:41'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -735,7 +755,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/artist_app.js.coffee:47'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -745,7 +765,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/artist.js.coffee:63'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -755,7 +775,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/artist.js.coffee:59'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -765,7 +785,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/artist.js.coffee:70'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -775,7 +795,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'artist',
     surface: 'artist:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/list/list_controller.js.coffee:75'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -785,7 +805,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'body',
     surface: 'body:state',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:142'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -795,37 +815,37 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'broadcast',
     surface: 'broadcast:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/epg_app.js.coffee:36'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Broadcast timer actions are wired through the PVR page and typed JSON-RPC wrappers.'
   }),
   row({
     id: 'action:broadcast:broadcast-entities',
     kind: 'action',
     family: 'broadcast',
     surface: 'broadcast:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/epg.js.coffee:65'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'PVR store loads broadcast collections for selected TV/radio channels.'
   }),
   row({
     id: 'action:broadcast:broadcast-entity',
     kind: 'action',
     family: 'broadcast',
     surface: 'broadcast:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/epg.js.coffee:61'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Selected channel broadcast rows are normalized for the PVR surface.'
   }),
   row({
     id: 'action:browser:browser-directory-view',
     kind: 'action',
     family: 'browser',
     surface: 'browser:directory:view',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/browser/list/list_controller.js.coffee:172'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -835,7 +855,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'browser',
     surface: 'browser:file:view',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/browser/list/list_controller.js.coffee:168'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -845,7 +865,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'cast',
     surface: 'cast:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/cast.js.coffee:45'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -855,7 +875,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'cast',
     surface: 'cast:list:view',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/cast/cast_app.js.coffee:19'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -865,27 +885,28 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'channel',
     surface: 'channel:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:108'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes:
+      'PVR store normalizes channel collections and the PVR page renders Chorus2 child actions.'
   }),
   row({
     id: 'action:channel:channel-entity',
     kind: 'action',
     family: 'channel',
     surface: 'channel:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:104'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'PVR store can load and replace single channel details with PVR.GetChannelDetails.'
   }),
   row({
     id: 'action:command:command-audio-add',
     kind: 'action',
     family: 'command',
     surface: 'command:audio:add',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:51'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -895,7 +916,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:audio:play',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:47'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -905,7 +926,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:kodi:audio:clean',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:72'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -915,7 +936,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:kodi:controller',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:26'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -925,7 +946,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:kodi:player',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:21'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -935,7 +956,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:kodi:video:clean',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:76'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -945,7 +966,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:local:controller',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:39'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -955,7 +976,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:local:player',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:34'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -965,7 +986,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'command',
     surface: 'command:video:play',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/command_app.js.coffee:55'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -975,7 +996,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'config',
     surface: 'config:app:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/config/configApp.js.coffee:34'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -985,7 +1006,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'config',
     surface: 'config:app:set',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/config/configApp.js.coffee:43'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -995,7 +1016,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'config',
     surface: 'config:static:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/config/configApp.js.coffee:54'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1005,7 +1026,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'config',
     surface: 'config:static:set',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/config/configApp.js.coffee:60'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1015,7 +1036,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:105'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1025,7 +1046,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:111'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1035,7 +1056,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:action:watched',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:142'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1045,7 +1066,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:build:collection',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:86'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1055,7 +1076,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:152'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1065,7 +1086,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:74'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1075,7 +1096,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:70'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1085,7 +1106,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:90'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1095,7 +1116,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/episode/episode_controller.js.coffee:101'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1105,7 +1126,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'episode',
     surface: 'episode:tvshow:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:78'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1115,7 +1136,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'fanarttv',
     surface: 'fanarttv:artist:image:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/fanarttv.js.coffee:75'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1125,267 +1146,272 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'file',
     surface: 'file:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:249'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes:
+      'Browser file and folder entries resolve to validated playable/downloadable file entities.'
   }),
   row({
     id: 'action:file:file-entity',
     kind: 'action',
     family: 'file',
     surface: 'file:entity',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:240'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Browser store resolves current safe file entities by id.'
   }),
   row({
     id: 'action:file:file-parsed-entities',
     kind: 'action',
     family: 'file',
     surface: 'file:parsed:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:257'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Browser store parses Files.GetDirectory records into safe file snapshots.'
   }),
   row({
     id: 'action:file:file-path-entities',
     kind: 'action',
     family: 'file',
     surface: 'file:path:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:253'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Direct encoded path routes open Kodi file directories.'
   }),
   row({
     id: 'action:file:file-source-entities',
     kind: 'action',
     family: 'file',
     surface: 'file:source:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:261'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes:
+      'Browser store normalizes Files.GetSources plus enabled audio/video add-ons and playlist roots into media source snapshots.'
   }),
   row({
     id: 'action:file:file-source-media-entities',
     kind: 'action',
     family: 'file',
     surface: 'file:source:media:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:265'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes:
+      'Music and video file source stores load source-scoped directories, add-on roots, and playlist roots.'
   }),
   row({
     id: 'action:file:file-source-mediatypes',
     kind: 'action',
     family: 'file',
     surface: 'file:source:mediatypes',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:269'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Music/video browser routes dispatch to distinct file source stores.'
   }),
   row({
     id: 'action:file:file-url-entity',
     kind: 'action',
     family: 'file',
     surface: 'file:url:entity',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/file.js.coffee:244'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes:
+      'Browser file urls resolve through Files.PrepareDownload and sanitized local stream urls.'
   }),
   row({
     id: 'action:filter:filter-active',
     kind: 'action',
     family: 'filter',
     surface: 'filter:active',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:410'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore exposes active filter entities for the current route path.'
   }),
   row({
     id: 'action:filter:filter-active-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:active:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/filter/filter.js.coffee:69'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore models FilterActive entity rows with key, values, and title.'
   }),
   row({
     id: 'action:filter:filter-apply-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:apply:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:414'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore applies stored sort and active filters to library collections.'
   }),
   row({
     id: 'action:filter:filter-filterable-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:filterable:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:425'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes:
+      'LibraryFilterStore returns active-aware filterable fields constrained by route availability.'
   }),
   row({
     id: 'action:filter:filter-filters-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:filters:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/filter/filter.js.coffee:60'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore models Chorus2 filter field entity collections.'
   }),
   row({
     id: 'action:filter:filter-filters-options-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:filters:options:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/filter/filter.js.coffee:63'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore builds active option entities from collection values.'
   }),
   row({
     id: 'action:filter:filter-init',
     kind: 'action',
     family: 'filter',
     surface: 'filter:init',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:429'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore initializes route sort and filter state from URL-style params.'
   }),
   row({
     id: 'action:filter:filter-options',
     kind: 'action',
     family: 'filter',
     surface: 'filter:options',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:399'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore extracts and sorts filter option collections for the selected key.'
   }),
   row({
     id: 'action:filter:filter-show',
     kind: 'action',
     family: 'filter',
     surface: 'filter:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:391'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryPage renders the Chorus2 filter sidebar panes using the filter store.'
   }),
   row({
     id: 'action:filter:filter-sort-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:sort:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/filter/filter.js.coffee:66'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore models sortable entity rows with active state and toggled order.'
   }),
   row({
     id: 'action:filter:filter-sort-store-get',
     kind: 'action',
     family: 'filter',
     surface: 'filter:sort:store:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:494'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore returns stored route sort with Chorus2 default fallback.'
   }),
   row({
     id: 'action:filter:filter-sort-store-set',
     kind: 'action',
     family: 'filter',
     surface: 'filter:sort:store:set',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:490'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore persists route sort method/order in the Chorus2 namespace.'
   }),
   row({
     id: 'action:filter:filter-sortable-entities',
     kind: 'action',
     family: 'filter',
     surface: 'filter:sortable:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:421'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore returns route-available sortable fields.'
   }),
   row({
     id: 'action:filter:filter-store-get',
     kind: 'action',
     family: 'filter',
     surface: 'filter:store:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:460'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore returns non-empty route filter state from the Chorus2 namespace.'
   }),
   row({
     id: 'action:filter:filter-store-key-get',
     kind: 'action',
     family: 'filter',
     surface: 'filter:store:key:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:464'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore returns stored values for a single route filter key.'
   }),
   row({
     id: 'action:filter:filter-store-key-toggle',
     kind: 'action',
     family: 'filter',
     surface: 'filter:store:key:toggle',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:473'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore toggles individual filter option values like Chorus2.'
   }),
   row({
     id: 'action:filter:filter-store-key-update',
     kind: 'action',
     family: 'filter',
     surface: 'filter:store:key:update',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:468'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore replaces stored values for a single route filter key.'
   }),
   row({
     id: 'action:filter:filter-store-set',
     kind: 'action',
     family: 'filter',
     surface: 'filter:store:set',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/filter/filter_app.js.coffee:455'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'LibraryFilterStore stores route filters under the Chorus2 filter namespace.'
   }),
   row({
     id: 'action:form:form-item-entities',
     kind: 'action',
     family: 'form',
     surface: 'form:item:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/form/form.js.coffee:82'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1395,7 +1421,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'form',
     surface: 'form:popup:wrapper',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/components/form/form_controller.js.coffee:50'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1405,7 +1431,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'form',
     surface: 'form:render:items',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/components/form/form_controller.js.coffee:41'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1415,7 +1441,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'form',
     surface: 'form:value:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/form/form.js.coffee:86'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1425,7 +1451,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'form',
     surface: 'form:wrapper',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/components/form/form_controller.js.coffee:46'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1435,7 +1461,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'genre',
     surface: 'genre:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/genres.js.coffee:58'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1445,7 +1471,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'genre',
     surface: 'genre:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/genres.js.coffee:54'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1455,7 +1481,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'help',
     surface: 'help:page',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/help/help_app.js.coffee:52'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1465,7 +1491,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'help',
     surface: 'help:subnav',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/help/help_app.js.coffee:48'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1475,7 +1501,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'images',
     surface: 'images:fanart:set',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/images/images_app.js.coffee:59'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1485,7 +1511,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'images',
     surface: 'images:path:entity',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/images/images_app.js.coffee:68'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1495,7 +1521,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'images',
     surface: 'images:path:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/images/images_app.js.coffee:63'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1505,7 +1531,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:action',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:144'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1515,7 +1541,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:remote:toggle',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:141'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1525,7 +1551,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:resume',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:147'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1535,7 +1561,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:send',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:138'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1545,7 +1571,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:textbox',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:130'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1555,7 +1581,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'input',
     surface: 'input:textbox:close',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:135'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -1565,7 +1591,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'introspect',
     surface: 'introspect:dictionary',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/lab/apiBrowser.js.coffee:89'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1575,7 +1601,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'introspect',
     surface: 'introspect:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/lab/apiBrowser.js.coffee:85'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1585,7 +1611,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'introspect',
     surface: 'introspect:entity',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/lab/apiBrowser.js.coffee:81'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1595,7 +1621,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'loading',
     surface: 'loading:get:view',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/loading/loading_app.js.coffee:20'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1605,7 +1631,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'loading',
     surface: 'loading:show:page',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/loading/loading_app.js.coffee:16'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1615,7 +1641,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'loading',
     surface: 'loading:show:view',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/loading/loading_app.js.coffee:11'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1625,17 +1651,17 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplayer',
     surface: 'localplayer:clear:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:206'],
-    notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
+    notes: 'Recording collections are loaded and rendered on the PVR recordings route.'
   }),
   row({
     id: 'action:localplayer:localplayer-get-entities',
     kind: 'action',
     family: 'localplayer',
     surface: 'localplayer:get:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:202'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1645,7 +1671,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplayer',
     surface: 'localplayer:item:add:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:210'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1655,7 +1681,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:add:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:124'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1665,7 +1691,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:addentity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:101'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1675,7 +1701,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:clear:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:138'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1685,7 +1711,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:134'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1695,7 +1721,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:142'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1705,7 +1731,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:item:add:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:151'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1715,7 +1741,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:item:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:147'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1725,7 +1751,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:item:updateorder',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:156'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1735,7 +1761,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:newlist',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:104'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1745,7 +1771,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:reload',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:107'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1755,7 +1781,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:remove:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:128'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1765,7 +1791,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'localplaylist',
     surface: 'localplaylist:rename',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/localPlaylist/localPlaylist_app.js.coffee:110'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -1775,7 +1801,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/movie/movie_app.js.coffee:47'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1785,7 +1811,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/movie/movie_app.js.coffee:41'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1795,7 +1821,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:action:watched',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/movie/movie_app.js.coffee:50'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1805,7 +1831,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:build:collection',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/movie.js.coffee:72'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1815,7 +1841,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/movie/movie_app.js.coffee:58'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1825,7 +1851,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/movie.js.coffee:68'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1835,7 +1861,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/movie.js.coffee:64'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1845,7 +1871,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/movie.js.coffee:76'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1855,7 +1881,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'movie',
     surface: 'movie:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/movie/list/list_controller.js.coffee:77'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1865,7 +1891,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicbrainz',
     surface: 'musicbrainz:artist:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/musicbrainz.js.coffee:38'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1875,7 +1901,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/musicvideo/musicvideo_app.js.coffee:42'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1885,7 +1911,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/musicvideo/musicvideo_app.js.coffee:45'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1895,7 +1921,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:build:collection',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:74'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1905,7 +1931,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/musicvideo/musicvideo_app.js.coffee:58'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1915,7 +1941,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:66'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1925,7 +1951,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:62'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1935,7 +1961,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:70'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1945,7 +1971,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'musicvideo',
     surface: 'musicvideo:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/musicvideo/list/list_controller.js.coffee:76'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -1955,7 +1981,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:array:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:179'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1965,7 +1991,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:children:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/navMain/navMain_app.js.coffee:29'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1975,7 +2001,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:collection:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/navMain/navMain_app.js.coffee:32'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1985,7 +2011,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:171'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -1995,7 +2021,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:update:defaults',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:190'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2005,7 +2031,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'nav-main',
     surface: 'navMain:update:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:186'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2015,7 +2041,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'notification',
     surface: 'notification:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/notifications/notifications_app.js.coffee:7'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2025,7 +2051,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'player',
     surface: 'player:kodi:progress:update',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/player/player_app.js.coffee:176'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2035,21 +2061,21 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'player',
     surface: 'player:kodi:timer',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: [
       'src/js/apps/player/player_app.js.coffee:163',
       'src/js/apps/state/kodi/kodi.js.coffee:30',
       'src/js/apps/state/kodi/kodi.js.coffee:59'
     ],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Recording rows resolve file playback through the shared file player dispatch.'
   }),
   row({
     id: 'action:player:player-local-progress-update',
     kind: 'action',
     family: 'player',
     surface: 'player:local:progress:update',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/player/player_app.js.coffee:172'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2059,17 +2085,21 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:export',
-    status: 'deferred',
-    owner: 'R055/M006/S04',
-    evidence: ['src/js/apps/playlist/playlist_app.js.coffee:35'],
-    notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
+    status: 'implemented',
+    owner: 'M006/S04',
+    evidence: [
+      'src/js/apps/playlist/playlist_app.js.coffee:35',
+      'src/lib/app-pages/PlaylistsPage.svelte:142',
+      'src/App.svelte:995'
+    ],
+    notes: 'Local playlists export as m3u downloads.'
   }),
   row({
     id: 'action:playlist:playlist-kodi-entities',
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:kodi:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/kodi/playlist.js.coffee:92'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2079,7 +2109,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:kodi:entity:api',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/kodi/playlist.js.coffee:102'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2089,7 +2119,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:list',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/playlist/playlist_app.js.coffee:31'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2099,7 +2129,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:local:partymode',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/playlist/localParty/local_party.js.coffee:60'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2109,7 +2139,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'playlist',
     surface: 'playlist:refresh',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/playlist/playlist_app.js.coffee:49'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2119,27 +2149,27 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'recording',
     surface: 'recording:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/entities/kodi/pvr.js.coffee:117'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    evidence: ['src/js/entities/kodi/pvr.js.coffee:117', 'src/lib/stores/pvr.svelte.ts'],
+    notes: 'PVR store loads and sorts recording collections for the recordings route.'
   }),
   row({
     id: 'action:recording:recording-entity',
     kind: 'action',
     family: 'recording',
     surface: 'recording:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: ['src/js/entities/kodi/pvr.js.coffee:113'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    evidence: ['src/js/entities/kodi/pvr.js.coffee:113', 'src/lib/stores/pvr.svelte.ts'],
+    notes: 'PVR store exposes cached recording entities and can refresh a single recording detail.'
   }),
   row({
     id: 'action:search-addons:search-addons-entities',
     kind: 'action',
     family: 'search-addons',
     surface: 'searchAddons:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/search/searchAddons.js.coffee:41'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2149,7 +2179,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'search-addons',
     surface: 'searchAddons:update:defaults',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/search/searchAddons.js.coffee:49'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2159,7 +2189,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'search-addons',
     surface: 'searchAddons:update:entities',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/search/searchAddons.js.coffee:45'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2169,7 +2199,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'search',
     surface: 'search:go',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/search/search_app.js.coffee:51'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2179,7 +2209,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'season',
     surface: 'season:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/season.js.coffee:63'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2189,7 +2219,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'season',
     surface: 'season:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/season.js.coffee:59'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2199,7 +2229,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'season',
     surface: 'season:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/season.js.coffee:68'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2209,7 +2239,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'season',
     surface: 'season:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/season/season_controller.js.coffee:82'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2219,7 +2249,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:action:add',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:103'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2229,7 +2259,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:action:localadd',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:110'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2239,7 +2269,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:action:play',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:96'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2249,7 +2279,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:clear:items',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:88'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2259,7 +2289,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:get:items',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:76'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2269,7 +2299,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:get:media',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:80'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2279,7 +2309,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:set:media',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:92'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2289,7 +2319,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'selected',
     surface: 'selected:update:items',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/selected/selected_app.js.coffee:84'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2299,8 +2329,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'settings',
     surface: 'settings:kodi:entities',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/entities/kodi/settings.js.coffee:132'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
   }),
@@ -2309,8 +2339,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'settings',
     surface: 'settings:kodi:filtered:entities',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/entities/kodi/settings.js.coffee:136'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
   }),
@@ -2319,8 +2349,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'settings',
     surface: 'settings:kodi:save:entities',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/entities/kodi/settings.js.coffee:141'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
   }),
@@ -2329,8 +2359,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'settings',
     surface: 'settings:subnav',
-    status: 'missing',
-    owner: 'M006/S04',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:56'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
   }),
@@ -2339,7 +2369,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'shell',
     surface: 'shell:disconnect',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:158'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2349,7 +2379,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'shell',
     surface: 'shell:reconnect',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:147'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2359,7 +2389,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'shell',
     surface: 'shell:view:ready',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:129'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2369,7 +2399,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'sockets',
     surface: 'sockets:active',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:55'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2379,7 +2409,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:albumparse:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:161'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2389,7 +2419,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:build:collection',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:153'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2399,7 +2429,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:byid:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:157'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2409,7 +2439,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:custom:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:149'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2419,7 +2449,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/song/song_app.js.coffee:4'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2429,7 +2459,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:145'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2439,7 +2469,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:141'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2449,7 +2479,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:165'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2459,7 +2489,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'song',
     surface: 'song:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/song/list/list_controller.js.coffee:58'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2469,7 +2499,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:current',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/state_app.js.coffee:151'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2479,7 +2509,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:kodi',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/state_app.js.coffee:145'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2489,7 +2519,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:kodi:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/kodi.js.coffee:21'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2499,7 +2529,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:kodi:update',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/kodi.js.coffee:18'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2509,7 +2539,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:local',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/state_app.js.coffee:147'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2519,7 +2549,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:local:get',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/local/local.js.coffee:17'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2529,7 +2559,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:local:update',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/local/local.js.coffee:14'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2539,7 +2569,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'state',
     surface: 'state:ws:init',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/state_app.js.coffee:156'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2549,7 +2579,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'themoviedb',
     surface: 'themoviedb:movie:image:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/themoviedb.js.coffee:95'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2559,7 +2589,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'themoviedb',
     surface: 'themoviedb:tv:image:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/themoviedb.js.coffee:100'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2569,7 +2599,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'thumbsup',
     surface: 'thumbsup:check',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:188'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2579,7 +2609,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'thumbsup',
     surface: 'thumbsup:get:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:184'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2589,7 +2619,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'thumbsup',
     surface: 'thumbsup:toggle:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/entities/localPlaylist/localPlaylist.js.coffee:173'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -2599,7 +2629,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:action',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:108'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2609,7 +2639,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:action:items',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:126'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2619,7 +2649,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:action:watched',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:132'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2629,7 +2659,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:edit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/tvshow_app.js.coffee:146'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2639,7 +2669,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/tvshow.js.coffee:65'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2649,7 +2679,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:entity',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/tvshow.js.coffee:61'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2659,7 +2689,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:fields',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/tvshow.js.coffee:69'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2669,7 +2699,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'tvshow',
     surface: 'tvshow:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/tvshow/list/list_controller.js.coffee:78'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2679,7 +2709,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:dropdown:bind:close',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:146'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2689,7 +2719,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:close',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:107', 'src/js/apps/ui/ui_app.js.coffee:127'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2699,7 +2729,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:confirm',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:111'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2709,7 +2739,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:form:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:123'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2719,7 +2749,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:options',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:137'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2729,7 +2759,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:116'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2739,7 +2769,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:modal:youtube',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:131'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2749,7 +2779,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:playermenu',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:142'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2759,7 +2789,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'ui',
     surface: 'ui:textinput:show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/ui/ui_app.js.coffee:89'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2769,7 +2799,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'when',
     surface: 'when:entity:fetched',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/_base/_fetch.js.coffee:18'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2779,7 +2809,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'youtube',
     surface: 'youtube:list:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/external/youtube/youtube_controller.js.coffee:37'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2789,7 +2819,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'youtube',
     surface: 'youtube:search:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/youtube.js.coffee:45'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2799,7 +2829,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'youtube',
     surface: 'youtube:search:popup',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/external/youtube/youtube_controller.js.coffee:31'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2809,7 +2839,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'youtube',
     surface: 'youtube:search:view',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/external/youtube/youtube_controller.js.coffee:28'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2819,7 +2849,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'action',
     family: 'youtube',
     surface: 'youtube:trailer:entities',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/external/youtube.js.coffee:56'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2829,7 +2859,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'all',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/helpers/entities.js.coffee:74'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -2849,7 +2879,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'google',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: [
       'src/js/apps/album/show/tpl/details_meta.jst.eco:47',
@@ -2866,7 +2896,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'imdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: [
       'src/js/apps/movie/show/tpl/details_meta.jst.eco:78',
@@ -2880,7 +2910,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'soundcloud',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: [
       'src/js/apps/album/show/tpl/details_meta.jst.eco:48',
@@ -2893,7 +2923,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'tmdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: [
       'src/js/apps/movie/show/tpl/details_meta.jst.eco:79',
@@ -2907,7 +2937,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'control',
     family: 'remote',
     surface: 'tvdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: [
       'src/js/apps/tvshow/episode/tpl/details_meta.jst.eco:85',
@@ -2920,7 +2950,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'addons',
     surface: 'Addons.Controller',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/settings/show/addons/addons_controller.js.coffee:3'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2930,31 +2960,37 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'addons',
     surface: 'Addons.GetAddons',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/addon.js.coffee:27',
       'src/js/apps/command/kodi/helpers/addon.js.coffee:6',
-      'src/js/entities/kodi/file.js.coffee:62'
+      'src/js/entities/kodi/file.js.coffee:62',
+      'src/lib/kodi/methods.ts',
+      'src/lib/stores/addonsStore.svelte.ts'
     ],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    notes: 'Typed Kodi wrapper is wired through the Add-ons store and AddonsPage filters.'
   }),
   row({
     id: 'jsonrpc:addons:set-addon-enabled',
     kind: 'jsonrpc',
     family: 'addons',
     surface: 'Addons.SetAddonEnabled',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
-    evidence: ['src/js/apps/settings/show/addons/addons_controller.js.coffee:82'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    evidence: [
+      'src/js/apps/settings/show/addons/addons_controller.js.coffee:82',
+      'src/lib/kodi/methods.ts',
+      'src/lib/stores/addonsStore.svelte.ts'
+    ],
+    notes: 'Typed Kodi wrapper is guarded by the Add-ons store confirmation flow.'
   }),
   row({
     id: 'jsonrpc:application:on-volume-changed',
     kind: 'jsonrpc',
     family: 'application',
     surface: 'Application.OnVolumeChanged',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:151'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -2964,7 +3000,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.Clean',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/audiolibrary.js.coffee:36',
@@ -2977,7 +3013,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetAlbumDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/album.js.coffee:33'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2987,7 +3023,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetAlbums',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/album.js.coffee:46'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -2997,7 +3033,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetArtistDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/artist.js.coffee:33'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3007,7 +3043,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetArtists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/artist.js.coffee:45'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3017,7 +3053,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetGenres',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/genres.js.coffee:40'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3027,7 +3063,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetSongDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/song.js.coffee:111', 'src/js/entities/kodi/song.js.coffee:85'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3037,7 +3073,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.GetSongs',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/entities/kodi/song.js.coffee:122',
@@ -3050,7 +3086,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.OnCleanFinished',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:181'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3060,7 +3096,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.OnCleanStarted',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:177'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3070,7 +3106,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.OnScanFinished',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:170'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3080,7 +3116,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.OnScanStarted',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:166'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3090,7 +3126,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.OnUpdate',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:193'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3100,7 +3136,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.Scan',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/audiolibrary.js.coffee:31',
@@ -3113,7 +3149,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.SetAlbumDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/audiolibrary.js.coffee:12',
@@ -3126,7 +3162,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.SetArtistDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/audiolibrary.js.coffee:19',
@@ -3139,7 +3175,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'audio-library',
     surface: 'AudioLibrary.SetSongDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/audiolibrary.js.coffee:26',
@@ -3152,37 +3188,45 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'files',
     surface: 'Files.GetDirectory',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
-    evidence: ['src/js/entities/kodi/file.js.coffee:194'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    evidence: [
+      'src/js/entities/kodi/file.js.coffee:194',
+      'src/lib/kodi/methods.ts',
+      'src/lib/stores/mediaFiles.svelte.ts'
+    ],
+    notes: 'Typed Kodi wrapper is wired through the Browser files page and playlist browsing.'
   }),
   row({
     id: 'jsonrpc:files:get-file-details',
     kind: 'jsonrpc',
     family: 'files',
     surface: 'Files.GetFileDetails',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
-    evidence: ['src/js/entities/kodi/file.js.coffee:184'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    evidence: ['src/js/entities/kodi/file.js.coffee:184', 'src/lib/kodi/methods.ts'],
+    notes: 'Typed Kodi wrapper is available for browser file detail parity.'
   }),
   row({
     id: 'jsonrpc:files:get-sources',
     kind: 'jsonrpc',
     family: 'files',
     surface: 'Files.GetSources',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
-    evidence: ['src/js/entities/kodi/file.js.coffee:60'],
-    notes: 'Command/action parity backlog from Chorus2 source scan.'
+    evidence: [
+      'src/js/entities/kodi/file.js.coffee:60',
+      'src/lib/kodi/methods.ts',
+      'src/lib/stores/mediaFiles.svelte.ts'
+    ],
+    notes: 'Typed Kodi wrapper is wired through the Browser files source list.'
   }),
   row({
     id: 'jsonrpc:gui:window',
     kind: 'jsonrpc',
     family: 'gui',
     surface: 'GUI.Window',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/command/kodi/helpers/gui.coffee:12'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3192,7 +3236,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.Action',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/input/input_app.js.coffee:24'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3202,7 +3246,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.all',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3212,7 +3256,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.google',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3222,7 +3266,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.imdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3232,7 +3276,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.OnInputFinished',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:215'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3242,7 +3286,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.OnInputRequested',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:197'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3252,7 +3296,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.soundcloud',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3262,7 +3306,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.Stop',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3272,7 +3316,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.tmdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3282,7 +3326,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'input',
     surface: 'Input.tvdb',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S03',
     evidence: ['src/js/apps/command/kodi/helpers/input.js.coffee:7'],
     notes: 'Remote/Input parity backlog from Chorus2 source scan.'
@@ -3292,7 +3336,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'jsonrpc',
     surface: 'JSONRPC.GetActivePlayers',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: [
       'src/js/apps/command/kodi/_base/api.js.coffee:103',
@@ -3306,7 +3350,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'jsonrpc',
     surface: 'JSONRPC.GetItem',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: [
       'src/js/apps/command/kodi/_base/api.js.coffee:110',
@@ -3319,7 +3363,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'jsonrpc',
     surface: 'JSONRPC.GetProperties',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: [
       'src/js/apps/command/kodi/_base/api.js.coffee:109',
@@ -3332,7 +3376,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'jsonrpc',
     surface: 'JSONRPC.Introspect',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/lab/apiBrowser.js.coffee:66'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3342,7 +3386,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'jsonrpc',
     surface: 'JSONRPC.Ping',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/helpers/connection.js.coffee:28'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3352,7 +3396,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnPause',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:129'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3362,7 +3406,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnPlay',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:105'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3372,7 +3416,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnPropertyChanged',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:125'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3382,7 +3426,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnResume',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:112'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3392,7 +3436,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnSeek',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:136'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3402,7 +3446,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'player',
     surface: 'Player.OnStop',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:119'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3412,7 +3456,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'playlist',
     surface: 'Playlist.OnAdd',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:142'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -3422,7 +3466,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'playlist',
     surface: 'Playlist.OnClear',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:142'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -3432,7 +3476,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'playlist',
     surface: 'Playlist.OnRemove',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:142'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -3442,7 +3486,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.ChannelList',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: [
       'src/js/apps/pvr/channelList/channel_list_controller.js.coffee:1',
@@ -3455,7 +3499,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.ChannelList.Controller',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/pvr_app.js.coffee:12', 'src/js/apps/pvr/pvr_app.js.coffee:16'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3465,7 +3509,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.GetBroadcasts',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/epg.js.coffee:38', 'src/js/entities/kodi/epg.js.coffee:48'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3475,7 +3519,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.GetChannelDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:59'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3485,7 +3529,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.GetChannels',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:69'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3495,7 +3539,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.GetRecordingDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:82'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3505,7 +3549,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.GetRecordings',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/entities/kodi/pvr.js.coffee:91'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3515,7 +3559,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.RecordingList',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: [
       'src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:1',
@@ -3528,7 +3572,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.RecordingList.Controller',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/pvr_app.js.coffee:20'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3538,7 +3582,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'pvr',
     surface: 'PVR.Router',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/pvr_app.js.coffee:24', 'src/js/apps/pvr/pvr_app.js.coffee:3'],
     notes: 'PVR parity backlog from Chorus2 source scan.'
@@ -3548,7 +3592,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'settings',
     surface: 'Settings.GetCategories',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/settings.js.coffee:109'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3558,7 +3602,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'settings',
     surface: 'Settings.GetSections',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/settings.js.coffee:101'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3568,7 +3612,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'settings',
     surface: 'Settings.GetSettings',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: [
       'src/js/entities/kodi/settings.js.coffee:120',
@@ -3581,7 +3625,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'settings',
     surface: 'Settings.SetSettingValue',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/entities/kodi/settings.js.coffee:76'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3591,7 +3635,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'system',
     surface: 'System.OnQuit',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'D043/M006/S05',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:220'],
     notes: 'Guarded destructive method; do not expose without confirmation.'
@@ -3601,7 +3645,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'system',
     surface: 'System.OnRestart',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:225'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3611,7 +3655,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'system',
     surface: 'System.OnWake',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:225'],
     notes: 'Command/action parity backlog from Chorus2 source scan.'
@@ -3621,7 +3665,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.Clean',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:43',
@@ -3634,7 +3678,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetEpisodeDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:39'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3644,7 +3688,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetEpisodes',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/episode.js.coffee:50'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3654,7 +3698,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetMovieDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/movie.js.coffee:36'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3664,7 +3708,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetMovies',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/entities/kodi/movie.js.coffee:47',
@@ -3677,7 +3721,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetMusicVideoDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:33'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3687,7 +3731,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetMusicVideos',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/musicvideo.js.coffee:44'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3697,7 +3741,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetSeasons',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/season.js.coffee:45'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3707,7 +3751,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetTVShowDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/tvshow.js.coffee:36'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3717,7 +3761,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.GetTVShows',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/kodi/tvshow.js.coffee:47'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3727,7 +3771,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.OnCleanFinished',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:189'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3737,7 +3781,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.OnCleanStarted',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:185'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3747,7 +3791,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.OnScanFinished',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:159'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3757,7 +3801,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.OnScanStarted',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:155'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3767,7 +3811,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.OnUpdate',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/state/kodi/notifications.js.coffee:193'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -3777,7 +3821,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.RefreshEpisode',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:6',
@@ -3790,7 +3834,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.RefreshMovie',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:6',
@@ -3803,7 +3847,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.RefreshTVShow',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:6',
@@ -3816,7 +3860,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.Scan',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:38',
@@ -3829,7 +3873,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.SetEpisodeDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:12',
@@ -3842,7 +3886,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.SetMovieDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:19',
@@ -3855,7 +3899,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.SetMusicVideoDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:33',
@@ -3868,7 +3912,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'jsonrpc',
     family: 'video-library',
     surface: 'VideoLibrary.SetTVShowDetails',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: [
       'src/js/apps/command/kodi/helpers/videolibrary.js.coffee:26',
@@ -3881,7 +3925,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'add-on',
     surface: 'AddOn',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/addon/addon_app.js.coffee:23'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -3891,20 +3935,21 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'add-ons-search-settings',
     surface: 'addOnsSearchSettings',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'R057/M006/S04',
     evidence: [
       'src/js/apps/addon/addon_app.js.coffee:38',
-      'src/js/apps/addon/addon_app.js.coffee:89'
+      'src/js/apps/addon/addon_app.js.coffee:89',
+      'src/lib/stores/addonsStore.svelte.ts'
     ],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'Add-ons store rebuilds the enabled provider search-settings cache used by Chorus2.'
   }),
   row({
     id: 'nav:add-ons:add-ons',
     kind: 'nav',
     family: 'add-ons',
     surface: 'Add-ons',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/addon/list/list_controller.js.coffee:31'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -3914,7 +3959,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'addons',
     surface: 'addons/all',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: [
       'src/js/apps/addon/list/list_controller.js.coffee:31',
@@ -3928,8 +3973,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'addons',
     surface: 'addons/audio',
-    status: 'deferred',
-    owner: 'R054/M006/S04',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:49'],
     notes: 'Media parity backlog from Chorus2 source scan.'
   }),
@@ -3938,8 +3983,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'addons',
     surface: 'addons/executable',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:51'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -3948,8 +3993,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'addons',
     surface: 'addons/video',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:48'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -3958,7 +4003,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'auto',
     surface: 'auto',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: [
       'src/js/apps/addon/addon_app.js.coffee:23',
@@ -3972,147 +4017,148 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'broadcast-play',
     surface: 'broadcast:play',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:14'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Selected broadcast play dispatches channel playback like Chorus2.'
   }),
   row({
     id: 'nav:broadcast-record:broadcast-record',
     kind: 'nav',
     family: 'broadcast-record',
     surface: 'broadcast:record',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:16'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Selected broadcast record dispatches the channel recording toggle.'
   }),
   row({
     id: 'nav:broadcast-timer:broadcast-timer',
     kind: 'nav',
     family: 'broadcast-timer',
     surface: 'broadcast:timer',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:18'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Selected broadcast timer dispatches PVR.ToggleTimer.'
   }),
   row({
     id: 'nav:childview-broadcast-play:childview-broadcast-play',
     kind: 'nav',
     family: 'childview-broadcast-play',
     surface: 'childview:broadcast:play',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:6'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Broadcast rows expose Chorus2 play actions.'
   }),
   row({
     id: 'nav:childview-broadcast-record:childview-broadcast-record',
     kind: 'nav',
     family: 'childview-broadcast-record',
     surface: 'childview:broadcast:record',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:8'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Broadcast rows expose Chorus2 record actions.'
   }),
   row({
     id: 'nav:childview-broadcast-timer:childview-broadcast-timer',
     kind: 'nav',
     family: 'childview-broadcast-timer',
     surface: 'childview:broadcast:timer',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/epg/list/list_controller.js.coffee:10'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Broadcast rows expose Chorus2 timer actions.'
   }),
   row({
     id: 'nav:childview-channel-play:childview-channel-play',
     kind: 'nav',
     family: 'childview-channel-play',
     surface: 'childview:channel:play',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/channelList/channel_list_controller.js.coffee:29'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Channel rows expose Chorus2 play actions.'
   }),
   row({
     id: 'nav:childview-channel-record:childview-channel-record',
     kind: 'nav',
     family: 'childview-channel-record',
     surface: 'childview:channel:record',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/channelList/channel_list_controller.js.coffee:33'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Channel rows expose Chorus2 record actions.'
   }),
   row({
     id: 'nav:childview-filter-add:childview-filter-add',
     kind: 'nav',
     family: 'childview-filter-add',
     surface: 'childview:filter:add',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:79'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage active filter empty state opens the filter selection pane.'
   }),
   row({
     id: 'nav:childview-filter-filterable-select:childview-filter-filterable-select',
     kind: 'nav',
     family: 'childview-filter-filterable-select',
     surface: 'childview:filter:filterable:select',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:53'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes:
+      'LibraryPage selects boolean filters immediately and opens option panes for other filters.'
   }),
   row({
     id: 'nav:childview-filter-option-remove:childview-filter-option-remove',
     kind: 'nav',
     family: 'childview-filter-option-remove',
     surface: 'childview:filter:option:remove',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:74'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage active filter chips clear a stored filter key.'
   }),
   row({
     id: 'nav:childview-filter-option-select:childview-filter-option-select',
     kind: 'nav',
     family: 'childview-filter-option-select',
     surface: 'childview:filter:option:select',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:91'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage option rows toggle stored option values without closing the pane.'
   }),
   row({
     id: 'nav:childview-filter-sortable-select:childview-filter-sortable-select',
     kind: 'nav',
     family: 'childview-filter-sortable-select',
     surface: 'childview:filter:sortable:select',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:42'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage sort rows persist the next Chorus2 sort order.'
   }),
   row({
     id: 'nav:childview-recording-play:childview-recording-play',
     kind: 'nav',
     family: 'childview-recording-play',
     surface: 'childview:recording:play',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: ['src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:29'],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Recording rows expose Chorus2 play actions.'
   }),
   row({
     id: 'nav:desc:desc',
     kind: 'nav',
     family: 'desc',
     surface: 'desc',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:11'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4122,7 +4168,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'en',
     surface: 'en',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:23', 'src/js/apps/help/help_app.js.coffee:53'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4132,7 +4178,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'file',
     surface: 'file',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:31'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4142,67 +4188,67 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'filter-layout-close-filters',
     surface: 'filter:layout:close:filters',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:17'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage filter pane title returns to the current filter/sort pane.'
   }),
   row({
     id: 'nav:filter-layout-close-options:filter-layout-close-options',
     kind: 'nav',
     family: 'filter-layout-close-options',
     surface: 'filter:layout:close:options',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:19'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage options pane title returns to filter selection.'
   }),
   row({
     id: 'nav:filter-layout-open-filters:filter-layout-open-filters',
     kind: 'nav',
     family: 'filter-layout-open-filters',
     surface: 'filter:layout:open:filters',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:21'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage Filters/Add filter controls slide open the filter selection pane.'
   }),
   row({
     id: 'nav:filter-layout-open-options:filter-layout-open-options',
     kind: 'nav',
     family: 'filter-layout-open-options',
     surface: 'filter:layout:open:options',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:23'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage non-boolean filter selection opens the options pane.'
   }),
   row({
     id: 'nav:filter-option-deselectall:filter-option-deselectall',
     kind: 'nav',
     family: 'filter-option-deselectall',
     surface: 'filter:option:deselectall',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:97'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage options pane clears the selected filter key via Deselect all.'
   }),
   row({
     id: 'nav:filter-remove-all:filter-remove-all',
     kind: 'nav',
     family: 'filter-remove-all',
     surface: 'filter:remove:all',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/filter/show/show_controller.js.coffee:121'],
-    notes: 'Route/menu alias backlog from Chorus2 source scan.'
+    notes: 'LibraryPage active filter bar removes all stored filters for the route.'
   }),
   row({
     id: 'nav:general:general',
     kind: 'nav',
     family: 'general',
     surface: 'General',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:46'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4212,7 +4258,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/addons',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:41'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4222,7 +4268,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/app-changelog',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:39'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4232,7 +4278,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/app-readme',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:38'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4242,7 +4288,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/developers',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:42'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4252,7 +4298,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/keybind-readme',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:40'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4262,7 +4308,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/lang-readme',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:43'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4272,7 +4318,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'help',
     surface: 'help/license',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:44'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4282,7 +4328,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'landing-set-more',
     surface: 'landing:set:more',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/landing/show/landing_controller.js.coffee:60'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4312,7 +4358,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'music',
     surface: 'music/videos',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/entities/nav/navMain.js.coffee:24'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4322,7 +4368,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'play-list',
     surface: 'PlayList',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
     evidence: ['src/js/apps/pvr/recordingList/recording_list_controller.js.coffee:33'],
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
@@ -4332,7 +4378,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'play',
     surface: 'play',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: [
       'src/js/apps/epg/list/list_controller.js.coffee:15',
@@ -4345,7 +4391,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'player',
     surface: 'Player',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/pvr/channelList/channel_list_controller.js.coffee:30'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4355,9 +4401,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'playlists',
     surface: 'playlists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4365,30 +4411,30 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'pvr',
     surface: 'PVR',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
+    notes: 'PVR main navigation routes to the Chorus2-style TV channel surface.'
   }),
   row({
     id: 'nav:record:record',
     kind: 'nav',
     family: 'record',
     surface: 'record',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: [
       'src/js/apps/epg/list/list_controller.js.coffee:17',
       'src/js/apps/epg/list/list_controller.js.coffee:9'
     ],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'PVR channel and broadcast record actions are exposed.'
   }),
   row({
     id: 'nav:sections:sections',
     kind: 'nav',
     family: 'sections',
     surface: 'Sections',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: [
       'src/js/apps/category/list/list_controller.js.coffee:28',
@@ -4402,8 +4448,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'settings',
     surface: 'settings/addons',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: [
       'src/js/entities/nav/navMain.js.coffee:52',
       'src/js/entities/nav/navMain.js.coffee:64'
@@ -4415,8 +4461,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'settings',
     surface: 'settings/nav',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/entities/nav/navMain.js.coffee:63'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4425,8 +4471,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'settings',
     surface: 'settings/search',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/entities/nav/navMain.js.coffee:65'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4435,8 +4481,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'settings',
     surface: 'settings/web',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: [
       'src/js/entities/nav/navMain.js.coffee:61',
       'src/js/entities/nav/navMain.js.coffee:62'
@@ -4448,7 +4494,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'show',
     surface: 'show',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: [
       'src/js/apps/addon/list/list_controller.js.coffee:13',
@@ -4469,9 +4515,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'thumbsup',
     surface: 'thumbsup',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4479,13 +4525,13 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'timer',
     surface: 'timer',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
     evidence: [
       'src/js/apps/epg/list/list_controller.js.coffee:11',
       'src/js/apps/epg/list/list_controller.js.coffee:19'
     ],
-    notes: 'PVR parity backlog from Chorus2 source scan.'
+    notes: 'Broadcast timer actions are exposed through the selected channel EPG list.'
   }),
   row({
     id: 'nav:tvshows:tvshows',
@@ -4512,7 +4558,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'unknown',
     surface: '/',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/landing/show/landing_controller.js.coffee:82'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4522,7 +4568,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'nav',
     family: 'url',
     surface: 'url(',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/landing/show/landing_controller.js.coffee:81'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4532,8 +4578,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'addons',
     surface: 'settings/addons',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:8'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4542,8 +4588,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'api-browser',
     surface: 'lab/api-browser',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/lab/lab_app.js.coffee:19'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4552,8 +4598,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'api-browser',
     surface: 'lab/api-browser/:method',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/lab/lab_app.js.coffee:20'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4572,8 +4618,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'execute',
     surface: 'addon/execute/:id',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/addon/addon_app.js.coffee:6'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4582,7 +4628,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'filtered-page',
     surface: 'music/genre/:filter',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/landing/landing_app.js.coffee:9'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4592,7 +4638,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'help-overview',
     surface: 'help',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4602,7 +4648,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'help-overview',
     surface: 'help/overview',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:6'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4612,7 +4658,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'help-page',
     surface: 'help/:id',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/help/help_app.js.coffee:7'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4622,7 +4668,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'home-page',
     surface: 'home',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:6'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4632,7 +4678,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'home-page',
     surface: '/',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/shell/shell_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4642,8 +4688,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'icon-browser',
     surface: 'lab/icon-browser',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/lab/lab_app.js.coffee:22'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4652,8 +4698,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'kodi',
     surface: 'settings/kodi',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:6'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4662,8 +4708,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'kodi',
     surface: 'settings/kodi/:section',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:7'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4672,8 +4718,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'lab-landing',
     surface: 'lab',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/lab/lab_app.js.coffee:18'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4692,7 +4738,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'landing-page',
     surface: 'music',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/landing/landing_app.js.coffee:5'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4702,7 +4748,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'landing-page',
     surface: 'music/top',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/landing/landing_app.js.coffee:6'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4722,7 +4768,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'addons/:type',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/addon/addon_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4732,7 +4778,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'browser',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
     evidence: ['src/js/apps/browser/browser_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
@@ -4752,7 +4798,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'music/albums',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/album_app.js.coffee:5'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4762,7 +4808,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'music/artists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/artist_app.js.coffee:5'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4772,9 +4818,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'music/videos',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Media parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4782,9 +4828,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'playlist',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4792,9 +4838,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'playlist/:id',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4802,9 +4848,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'playlists',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4812,8 +4858,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'search/:media/:query',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'R057/M006/S04',
     evidence: ['src/js/apps/search/search_app.js.coffee:6'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4822,9 +4868,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'list',
     surface: 'thumbsup',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R055/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Playlist/local-player parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4842,8 +4888,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'local',
     surface: 'settings/web',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4852,7 +4898,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'music-genres',
     surface: 'music/genres',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/category/category_app.js.coffee:7'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4862,8 +4908,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'nav-main',
     surface: 'settings/nav',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:9'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4872,9 +4918,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'radio',
     surface: 'pvr/radio',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4882,9 +4928,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'radio',
     surface: 'pvr/radio/:channelid',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4892,9 +4938,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'recordings',
     surface: 'pvr/recordings',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4912,8 +4958,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'screen-shot',
     surface: 'lab/screenshot',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S04',
     evidence: ['src/js/apps/lab/lab_app.js.coffee:21'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4922,8 +4968,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'search',
     surface: 'settings/search',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'M006/S01',
     evidence: ['src/js/apps/settings/settings_app.js.coffee:10'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
@@ -4942,9 +4988,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'tv',
     surface: 'pvr/tv',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4952,9 +4998,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'tv',
     surface: 'pvr/tv/:channelid',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R056/M006/S04',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'PVR parity backlog from Chorus2 source scan.'
   }),
   row({
@@ -4962,9 +5008,9 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'browser/:media/:id',
-    status: 'missing',
+    status: 'implemented',
     owner: 'M006/S02',
-    evidence: CHORUS2_PLACEHOLDER_ROUTE_EVIDENCE,
+    evidence: PARITY_PLACEHOLDER_ROUTE_EVIDENCE,
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),
   row({
@@ -4982,7 +5028,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'music/album/:id',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/album/album_app.js.coffee:6'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -4992,7 +5038,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'music/artist/:id',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/artist/artist_app.js.coffee:6'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -5002,7 +5048,7 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'music/video/:id',
-    status: 'deferred',
+    status: 'implemented',
     owner: 'R054/M006/S04',
     evidence: ['src/js/apps/musicvideo/musicvideo_app.js.coffee:6'],
     notes: 'Media parity backlog from Chorus2 source scan.'
@@ -5012,8 +5058,8 @@ const SOURCE_SCANNED_BACKLOG_ROWS = [
     kind: 'route',
     family: 'view',
     surface: 'search',
-    status: 'missing',
-    owner: 'M006/S02',
+    status: 'implemented',
+    owner: 'R057/M006/S04',
     evidence: ['src/js/apps/search/search_app.js.coffee:5'],
     notes: 'Route/menu alias backlog from Chorus2 source scan.'
   }),

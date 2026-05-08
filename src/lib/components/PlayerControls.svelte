@@ -1,6 +1,7 @@
 <script module lang="ts">
   import type {
     PlayerAudioStreamValue,
+    PlayerPartyModeValue,
     PlayerRepeatValue,
     PlayerShuffleValue,
     PlayerSubtitleValue
@@ -19,6 +20,7 @@
     setVolume(volume: number): Promise<void> | void;
     toggleMute(): Promise<void> | void;
     setShuffle(shuffle: PlayerShuffleValue): Promise<void> | void;
+    setPartyMode(partymode: PlayerPartyModeValue): Promise<void> | void;
     setRepeat(repeat: PlayerRepeatValue): Promise<void> | void;
     setSubtitle(subtitle: PlayerSubtitleValue): Promise<void> | void;
     setAudioStream(stream: PlayerAudioStreamValue): Promise<void> | void;

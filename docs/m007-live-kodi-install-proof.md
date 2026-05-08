@@ -160,6 +160,7 @@ Do not infer the third classification from deterministic screenshots, package zi
 | R073                           | Boundary documented            | T04            | R073 forbids changing Kodi server settings beyond normal webinterface installation, selection, and operation.                                                     |
 
 <!-- S09_LIVE_KODI_RUNNER_EVIDENCE_START -->
+
 ## S09 Live Kodi Runner Evidence
 
 Recorded status classification: unavailable.
@@ -192,4 +193,5 @@ Routes:
 ```
 
 R069 remains blocked until live Kodi install/browser proof passes.
+
 <!-- S09_LIVE_KODI_RUNNER_EVIDENCE_END -->

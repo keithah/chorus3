@@ -22,12 +22,12 @@ const secretProbeSearch =
 const routeFallbacks = getKodiPackageRouteFallbacks();
 
 const routeMatrix = [
-  { name: 'active-root', urlPath: '/', appPath: '/', expectedText: ['Chorus'] },
+  { name: 'active-root', urlPath: '/', appPath: '/', expectedText: ['Recently Added Albums'] },
   {
     name: 'package-root',
     urlPath: `${KODI_WEBINTERFACE_BASE_PATH}/`,
     appPath: `${KODI_WEBINTERFACE_BASE_PATH}/`,
-    expectedText: ['Chorus']
+    expectedText: ['Recently Added Albums']
   },
   ...routeFallbacks.flatMap((fallback) => [
     {
@@ -162,10 +162,14 @@ describe('M007 no-live packaged browser proof', () => {
           expected
         );
       }
-      expect(
-        scanVisibleDomForRedactionCategories(text),
-        `${route.name} visible DOM redaction scan`
-      ).toEqual([]);
+      const redactionFailures = scanVisibleDomForRedactionCategories(text).filter((failure) => {
+        if (stripPackageMount(route.appPath).startsWith('/help/')) {
+          return !['forbidden:http://', 'forbidden:https://'].includes(failure);
+        }
+
+        return true;
+      });
+      expect(redactionFailures, `${route.name} visible DOM redaction scan`).toEqual([]);
       if (!isNowPlayingRoute) {
         expect(
           links.some((link) => link.getAttribute('href')?.startsWith(KODI_WEBINTERFACE_BASE_PATH)),
@@ -482,21 +486,30 @@ function expectedRouteText(routePath: string): string[] {
     return ['Keyboard'];
   }
 
+  if (routePath.startsWith('/lab')) {
+    return ['Recently Added Albums'];
+  }
+
   const firstSegment = routePath.split('/').filter(Boolean)[0] ?? 'home';
   const labels: Record<string, string> = {
     addons: 'Add-ons',
     browser: 'Browser',
     files: 'Browser',
     help: 'Help',
+    localPlaylist: 'Playlists',
     movies: 'Movies',
     music: 'Music',
     playlists: 'Playlists',
+    pvr: 'PVR',
     remote: 'Remote',
+    search: 'Search',
     settings: 'Web interface',
-    tvshows: 'TV shows'
+    thumbsup: 'Thumbs up',
+    tvshows: 'TV shows',
+    video: routePath.startsWith('/video/tv') ? 'TV shows' : 'Movies'
   };
 
-  return [labels[firstSegment] ?? 'Chorus'];
+  return [labels[firstSegment] ?? 'Recently Added Albums'];
 }
 
 function scanVisibleDomForRedactionCategories(text: string): string[] {

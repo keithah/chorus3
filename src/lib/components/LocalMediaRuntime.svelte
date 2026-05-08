@@ -7,16 +7,24 @@
     store?: LocalPlayerStore;
     variant?: LocalMediaRuntimeVariant;
     className?: string;
+    onEnded?: () => Promise<void> | void;
   }
 
-  let { store = localPlayerStore, variant = 'inline', className = '' }: Props = $props();
+  let { store = localPlayerStore, variant = 'inline', className = '', onEnded }: Props = $props();
 
   function attachLocalMedia(node: HTMLVideoElement): { destroy: () => void } {
     node.dataset.localMediaAdapter = 'attached';
     store.attach(node);
+    const handleEnded = (): void => {
+      void Promise.resolve(onEnded?.()).catch(() => {
+        // Auto-advance is best effort; local player diagnostics own media failures.
+      });
+    };
+    node.addEventListener('ended', handleEnded);
 
     return {
       destroy: () => {
+        node.removeEventListener('ended', handleEnded);
         store.detach();
         delete node.dataset.localMediaAdapter;
       }

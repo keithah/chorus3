@@ -55,13 +55,13 @@ describe('PlaylistDrawer', () => {
     const target = renderDrawer();
 
     expect(
-      target.querySelector('.c2-destination-tabs[aria-label="Playback destination"]')
+      target.querySelector('.classic-destination-tabs[aria-label="Playback destination"]')
     ).toBeInstanceOf(HTMLElement);
-    expect(target.querySelector('.c2-playlist[aria-label="Current playlist"]')).toBeInstanceOf(
+    expect(target.querySelector('.classic-playlist[aria-label="Current playlist"]')).toBeInstanceOf(
       HTMLElement
     );
-    expect(target.querySelector('.c2-media-tabs[role="tablist"]')).toBeInstanceOf(HTMLElement);
-    expect(target.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('false');
+    expect(target.querySelector('.classic-media-tabs[role="tablist"]')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('false');
     expect(
       getButtonByAria(target, 'Kodi playback destination selected').classList.contains('active')
     ).toBe(true);
@@ -69,20 +69,20 @@ describe('PlaylistDrawer', () => {
     expect(getButtonByText(target, 'Video').disabled).toBe(false);
     expect(getButtonByAria(target, 'Playlist menu').getAttribute('aria-expanded')).toBe('false');
     expect(getButtonByAria(target, 'Playlist menu').getAttribute('aria-controls')).toBe(
-      'c2-playlist-menu'
+      'classic-playlist-menu'
     );
-    expect(target.querySelector('.c2-playlist-menu')).toBeNull();
+    expect(target.querySelector('.classic-playlist-menu')).toBeNull();
   });
 
   it('falls back to Current playlist for an empty drawer label and tolerates absent snippets', () => {
     const target = renderDrawer({ drawer: { label: '', mediaMode: 'video', collapsed: true } });
 
-    const drawer = target.querySelector<HTMLElement>('.c2-playlist');
+    const drawer = target.querySelector<HTMLElement>('.classic-playlist');
     expect(drawer).toBeInstanceOf(HTMLElement);
     expect(drawer?.getAttribute('aria-label')).toBe('Current playlist');
     expect(drawer?.getAttribute('data-collapsed')).toBe('true');
     expect(getButtonByText(target, 'Video').getAttribute('aria-selected')).toBe('true');
-    expect(target.querySelector('.c2-playlist-menu')).toBeNull();
+    expect(target.querySelector('.classic-playlist-menu')).toBeNull();
   });
 
   it('defaults malformed drawer and destination state to expanded Audio controls', () => {
@@ -91,7 +91,7 @@ describe('PlaylistDrawer', () => {
       destination: {}
     });
 
-    expect(target.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('false');
+    expect(target.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('false');
     expect(getButtonByText(target, 'Audio').getAttribute('aria-selected')).toBe('true');
     expect(getButtonByText(target, 'Video').getAttribute('aria-selected')).toBe('false');
     expect(getButtonByAria(target, 'Kodi playback destination selected')).toBeInstanceOf(
@@ -117,22 +117,22 @@ describe('PlaylistDrawer', () => {
 
     click(getButtonByAria(target, 'Playlist menu'));
     expect(getButtonByAria(target, 'Playlist menu').getAttribute('aria-expanded')).toBe('true');
-    expect(target.querySelector('.c2-playlist-menu[role="menu"]')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.classic-playlist-menu[role="menu"]')).toBeInstanceOf(HTMLElement);
     expect(onPlaylistMenuToggle).toHaveBeenCalledWith(true);
 
     click(getButtonByText(target, 'Clear playlist'));
     expect(onPlaylistMenuAction).toHaveBeenCalledWith('clear');
-    for (const label of [
-      'Current playlist',
-      'Refresh playlist',
-      'Party mode',
-      'Save Kodi playlist'
-    ]) {
-      const menuItem = getButtonByText(target, label);
-      expect(menuItem.disabled, `${label} guarded`).toBe(true);
-      click(menuItem);
-    }
-    expect(onPlaylistMenuAction).toHaveBeenCalledTimes(1);
+    click(getButtonByText(target, 'Refresh playlist'));
+    click(getButtonByText(target, 'Party mode'));
+    click(getButtonByText(target, 'Save Kodi playlist'));
+    expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(2, 'refresh');
+    expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(3, 'partyMode');
+    expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(4, 'saveKodiPlaylist');
+
+    const currentPlaylist = getButtonByText(target, 'Current playlist');
+    expect(currentPlaylist.disabled).toBe(true);
+    click(currentPlaylist);
+    expect(onPlaylistMenuAction).toHaveBeenCalledTimes(4);
 
     click(getButtonByText(target, 'Video'));
     expect(getButtonByText(target, 'Video').getAttribute('aria-selected')).toBe('true');
@@ -143,17 +143,17 @@ describe('PlaylistDrawer', () => {
     expect(onDestinationModeChange).toHaveBeenCalledWith('local');
 
     click(getButtonByAria(target, 'Collapse playlist'));
-    expect(target.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('true');
+    expect(target.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('true');
     expect(onPlaylistCollapseToggle).toHaveBeenCalledWith(true);
     expect(getButtonByAria(target, 'Expand playlist')).toBeInstanceOf(HTMLButtonElement);
 
     click(getButtonByAria(target, 'Expand playlist'));
-    expect(target.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('false');
+    expect(target.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('false');
     expect(onPlaylistCollapseToggle).toHaveBeenLastCalledWith(false);
 
     click(getButtonByAria(target, 'Playlist menu'));
     expect(getButtonByAria(target, 'Playlist menu').getAttribute('aria-expanded')).toBe('false');
-    expect(target.querySelector('.c2-playlist-menu')).toBeNull();
+    expect(target.querySelector('.classic-playlist-menu')).toBeNull();
   });
 
   it('keeps rendering when injected callbacks throw or reject', async () => {
@@ -182,9 +182,9 @@ describe('PlaylistDrawer', () => {
     click(getButtonByAria(target, 'Collapse playlist'));
     await Promise.resolve();
 
-    expect(target.querySelector('.c2-playlist')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.classic-playlist')).toBeInstanceOf(HTMLElement);
     expect(getButtonByAria(target, 'Playlist menu').getAttribute('aria-expanded')).toBe('true');
-    expect(target.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('true');
+    expect(target.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('true');
     expect(getButtonByText(target, 'Local').classList.contains('active')).toBe(true);
     expect(getButtonByText(target, 'Video').getAttribute('aria-selected')).toBe('true');
   });
@@ -208,23 +208,25 @@ describe('PlaylistDrawer', () => {
     expect(shell).toBeInstanceOf(HTMLElement);
     expect(shell?.classList.contains('playlist-collapsed')).toBe(false);
     expect(shell?.getAttribute('data-playlist-layout')).toBe('expanded');
-    expect(shell?.getAttribute('style')).toContain('--c2-playlist-width: 300px');
-    expect(target?.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('false');
+    expect(shell?.getAttribute('style')).toContain('--classic-playlist-width: 300px');
+    expect(target?.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe(
+      'false'
+    );
 
     click(getButtonByAria(target as HTMLElement, 'Collapse playlist'));
 
     expect(shell?.classList.contains('playlist-collapsed')).toBe(true);
     expect(shell?.getAttribute('data-playlist-layout')).toBe('collapsed');
-    expect(shell?.getAttribute('style')).toContain('--c2-playlist-width: 43px');
-    expect(shell?.getAttribute('style')).toContain('--c2-search-right: 43px');
-    expect(target?.querySelector('.c2-playlist')?.getAttribute('data-collapsed')).toBe('true');
+    expect(shell?.getAttribute('style')).toContain('--classic-playlist-width: 43px');
+    expect(shell?.getAttribute('style')).toContain('--classic-search-right: 43px');
+    expect(target?.querySelector('.classic-playlist')?.getAttribute('data-collapsed')).toBe('true');
     expect(getButtonByAria(target as HTMLElement, 'Expand playlist')).toBeInstanceOf(
       HTMLButtonElement
     );
 
     const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
-    expect(source).toMatch(/\.c2-stage[\s\S]*right:\s*var\(--c2-playlist-width/u);
-    expect(source).toMatch(/\.c2-search[\s\S]*right:\s*var\(--c2-search-right/u);
+    expect(source).toMatch(/\.classic-stage[\s\S]*right:\s*var\(--classic-playlist-width/u);
+    expect(source).toMatch(/\.classic-search[\s\S]*right:\s*var\(--classic-search-right/u);
   });
 
   it('keeps app-shell files store-agnostic and panel-free', () => {
@@ -243,6 +245,6 @@ describe('PlaylistDrawer', () => {
     }
 
     const playlistDrawerSource = readFileSync('src/lib/app-shell/PlaylistDrawer.svelte', 'utf8');
-    expect(playlistDrawerSource).not.toMatch(/Chorus2|classic|reference-shell/u);
+    expect(playlistDrawerSource).not.toMatch(/Chorus2|reference-shell/u);
   });
 });

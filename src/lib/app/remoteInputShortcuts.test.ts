@@ -9,11 +9,13 @@ import type { RemoteInputCommand } from '$lib/kodi';
 
 interface FakeRemoteInputDispatch {
   sendInput: ReturnType<typeof vi.fn>;
+  executeAction: ReturnType<typeof vi.fn>;
 }
 
 function createDispatch(): FakeRemoteInputDispatch {
   return {
-    sendInput: vi.fn().mockResolvedValue(undefined)
+    sendInput: vi.fn().mockResolvedValue(undefined),
+    executeAction: vi.fn().mockResolvedValue(undefined)
   };
 }
 
@@ -44,7 +46,11 @@ describe('REMOTE_INPUT_SHORTCUTS', () => {
       expect.objectContaining({ key: 'Escape', command: 'back', label: 'Back' }),
       expect.objectContaining({ key: 'I', command: 'info', label: 'Info' }),
       expect.objectContaining({ key: 'C', command: 'contextMenu', label: 'Context menu' }),
-      expect.objectContaining({ key: 'H', command: 'home', label: 'Home' })
+      expect.objectContaining({ key: 'H', command: 'home', label: 'Home' }),
+      expect.objectContaining({ key: 'T', action: 'showsubtitles', label: 'Toggle subtitles' }),
+      expect.objectContaining({ key: 'Tab', action: 'close', label: 'Close OSD' }),
+      expect.objectContaining({ key: 'O', action: 'osd', label: 'Show OSD' }),
+      expect.objectContaining({ key: '\\', action: 'fullscreen', label: 'Kodi fullscreen' })
     ]);
   });
 });
@@ -73,6 +79,34 @@ describe('handleRemoteInputShortcut', () => {
     expect(handled).toBe(true);
     expect(dispatch.sendInput).toHaveBeenCalledWith(command satisfies RemoteInputCommand);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['t', 'showsubtitles'],
+    ['T', 'showsubtitles'],
+    ['Tab', 'close'],
+    ['o', 'osd'],
+    ['O', 'osd'],
+    ['\\', 'fullscreen']
+  ] as const)('dispatches %s as execute action %s and prevents default', (key, action) => {
+    const dispatch = createDispatch();
+    const event = keyboardEvent(key);
+
+    const handled = handleRemoteInputShortcut(event, dispatch);
+
+    expect(handled).toBe(true);
+    expect(dispatch.executeAction).toHaveBeenCalledWith(action);
+    expect(dispatch.sendInput).not.toHaveBeenCalled();
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores action shortcuts when executeAction is not provided', () => {
+    const dispatch = { sendInput: vi.fn() };
+    const event = keyboardEvent('t');
+
+    expect(handleRemoteInputShortcut(event, dispatch)).toBe(false);
+    expect(dispatch.sendInput).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
   });
 
   it('suppresses editable targets using the shared playback shortcut guard', () => {

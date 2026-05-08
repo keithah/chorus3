@@ -2,7 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AddonsPage from './AddonsPage.svelte';
-import { KODI_WEBINTERFACE_BASE_PATH } from '$lib/app/appRouter';
+import { KODI_WEBINTERFACE_BASE_PATH, type BuildAppRouteOptions } from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 import type { AddonDetailDispatch } from '$lib/components/AddonDetailShell.svelte';
 import type { AddonsPanelDispatch } from '$lib/components/AddonsPanel.svelte';
@@ -103,6 +103,7 @@ function createAddonsDispatch(overrides: Partial<AddonsPanelDispatch> = {}): Add
     retry: vi.fn(),
     setSearchQuery: vi.fn(),
     setGroupBy: vi.fn(),
+    setAddonEnabled: vi.fn(),
     ...overrides
   };
 }
@@ -126,6 +127,7 @@ function renderPage(
     dispatch?: AddonsPanelDispatch;
     addonDetailDispatch?: AddonDetailDispatch;
     packageBasePath?: string;
+    buildOptions?: BuildAppRouteOptions;
   } = {}
 ): { dispatch: AddonsPanelDispatch; addonDetailDispatch: AddonDetailDispatch } {
   const dispatch = props.dispatch ?? createAddonsDispatch();
@@ -138,7 +140,8 @@ function renderPage(
       dispatch,
       addonDetailDispatch,
       i18n: createTranslationContext('en'),
-      packageBasePath: props.packageBasePath ?? ''
+      packageBasePath: props.packageBasePath ?? '',
+      buildOptions: props.buildOptions ?? {}
     }
   });
   return { dispatch, addonDetailDispatch };
@@ -185,9 +188,55 @@ describe('AddonsPage', () => {
       }
     );
 
-    expect(document.querySelector('a')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
+    expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
+      '/addons/webinterface.chorus3#addons/plugin.video.safe-demo'
     );
+  });
+
+  it('builds standalone add-on card links in path mode', () => {
+    renderPage({ kind: 'addonsVideo' });
+
+    expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
+      '/addons/plugin.video.safe-demo'
+    );
+  });
+
+  it('uses path links in standalone mode and dispatches route-state updates when switching tabs', async () => {
+    const pushState = vi.spyOn(window.history, 'pushState').mockImplementation(() => undefined);
+    const popstate = vi.fn();
+    window.addEventListener('popstate', popstate);
+
+    renderPage({ kind: 'addonsAll' });
+
+    const videoLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a')).find(
+      (link) => link.textContent?.trim() === 'Video add-ons'
+    );
+
+    expect(videoLink?.getAttribute('href')).toBe('/addons/video');
+    videoLink?.click();
+    await tick();
+
+    expect(pushState).toHaveBeenCalledWith({}, '', '/addons/video');
+    expect(popstate).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener('popstate', popstate);
+    pushState.mockRestore();
+  });
+
+  it('uses hash links for package-mounted add-on tabs', () => {
+    renderPage(
+      { kind: 'addonsAll' },
+      {
+        packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+        buildOptions: { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
+      }
+    );
+
+    const audioLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a')).find(
+      (link) => link.textContent?.trim() === 'Audio add-ons'
+    );
+
+    expect(audioLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3#addons/audio');
   });
 
   it('renders primary add-on detail through AddonDetailShell with existing write diagnostics', async () => {

@@ -67,6 +67,8 @@ export interface AppShellPlayerSnapshot {
   readonly currentTime: string;
   readonly totalTime: string;
   readonly progressPercent: number;
+  readonly isPlaying?: boolean;
+  readonly isShuffled?: boolean;
   readonly thumbnailUrl?: string;
   readonly disabledReason?: string;
 }
@@ -76,7 +78,11 @@ export interface AppShellPlayerActions {
   readonly playPause?: () => void | Promise<void>;
   readonly next?: () => void | Promise<void>;
   readonly toggleMute?: () => void | Promise<void>;
+  readonly shuffle?: () => void | Promise<void>;
   readonly fullscreen?: () => void | Promise<void>;
+  readonly stop?: () => void | Promise<void>;
+  readonly repeat?: () => void | Promise<void>;
+  readonly openRemote?: () => void | Promise<void>;
 }
 
 export interface AppShellDestinationState {
@@ -86,6 +92,8 @@ export interface AppShellDestinationState {
 }
 
 export interface AppShellCallbacks {
+  readonly onSearchSubmit?: (query: string) => void | Promise<void>;
+  readonly onSearchFocus?: () => void | Promise<void>;
   readonly onDestinationModeChange?: (
     mode: AppShellPlaylistDestinationMode
   ) => void | Promise<void>;

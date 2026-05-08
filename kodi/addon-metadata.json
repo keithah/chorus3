@@ -1,10 +1,10 @@
 {
   "id": "webinterface.chorus3",
   "name": "Chorus3",
-  "summary": "A modern Kodi web interface for local browser control.",
-  "description": "Chorus3 packages the Vite-built web application as a Kodi webinterface add-on. The add-on version is sourced from package.json during packaging.",
+  "summary": "A faithful modern rewrite of the Chorus2 Kodi web interface.",
+  "description": "Chorus3 is a faithful rewrite of Chorus2 for current Kodi installations. It keeps the classic Chorus browsing, playback, remote, settings, add-on, playlist, PVR, and lab workflows while rebuilding the web interface with Svelte 5, TypeScript, Vite, and direct Kodi JSON-RPC integrations.",
   "language": "en_GB",
   "platform": "all",
-  "source": "https://github.com/joelhooks/chorus3",
-  "license": "MIT"
+  "source": "https://github.com/keithah/chorus3",
+  "license": "GPL-2.0-or-later"
 }

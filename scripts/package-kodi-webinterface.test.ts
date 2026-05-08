@@ -42,6 +42,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
       summary: 'A modern Kodi web interface.',
       description: 'A packaged static Kodi webinterface add-on.',
       source: 'https://example.test/chorus3',
+      license: 'GPL-2.0-or-later',
       language: 'en_GB',
       platform: 'all'
     }),
@@ -53,6 +54,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
       '    <summary lang="{{language}}">{{summary}}</summary>',
       '    <description lang="{{language}}">{{description}}</description>',
       '    <source>{{source}}</source>',
+      '    <license>{{license}}</license>',
       '    <platform>{{platform}}</platform>',
       '  </extension>',
       '</addon>'
@@ -104,6 +106,7 @@ describe('Kodi add-on manifest rendering', () => {
           summary: 'A modern Kodi web interface.',
           description: 'A packaged static Kodi webinterface add-on.',
           source: 'https://example.test/chorus3',
+          license: 'GPL-2.0-or-later',
           language: 'en_GB',
           platform: 'all'
         })
@@ -153,28 +156,18 @@ describe('Kodi package staging', () => {
 
     const result = stageKodiWebinterfacePackage({ root });
 
-    expect(result.entries).toEqual([
-      'webinterface.chorus3/addon.xml',
-      'webinterface.chorus3/addons/all/index.html',
-      'webinterface.chorus3/addons/plugin.video.safe-demo/index.html',
-      'webinterface.chorus3/assets/app.css',
-      'webinterface.chorus3/assets/app.js',
-      'webinterface.chorus3/browser/index.html',
-      'webinterface.chorus3/favicon.svg',
-      'webinterface.chorus3/files/index.html',
-      'webinterface.chorus3/help/index.html',
-      'webinterface.chorus3/help/keyboard/index.html',
-      'webinterface.chorus3/index.html',
-      'webinterface.chorus3/movies/index.html',
-      'webinterface.chorus3/music/genres/index.html',
-      'webinterface.chorus3/music/index.html',
-      'webinterface.chorus3/now-playing/index.html',
-      'webinterface.chorus3/playlists/index.html',
-      'webinterface.chorus3/remote/index.html',
-      'webinterface.chorus3/settings/kodi/interface/index.html',
-      'webinterface.chorus3/settings/web/index.html',
-      'webinterface.chorus3/tvshows/index.html'
-    ]);
+    expect(result.entries).toEqual(
+      [
+        'webinterface.chorus3/addon.xml',
+        'webinterface.chorus3/assets/app.css',
+        'webinterface.chorus3/assets/app.js',
+        'webinterface.chorus3/favicon.svg',
+        'webinterface.chorus3/index.html',
+        ...getKodiPackageRouteFallbacks().map(
+          (fallback) => `webinterface.chorus3/${fallback.stagedIndexPath}`
+        )
+      ].sort()
+    );
     expect(readFileSync(join(result.stageDir, 'addon.xml'), 'utf8')).toContain('version="1.2.3"');
     expect(readFileSync(join(result.stageDir, 'index.html'), 'utf8')).toContain(
       KODI_WEBINTERFACE_MARKER.replace('{{id}}', DEFAULT_ADDON_ID)
@@ -233,31 +226,21 @@ describe('Kodi package staging', () => {
 
     const result = stageKodiWebinterfacePackage({ root });
 
-    expect(result.entries).toEqual([
+    const expectedEntries = [
       'webinterface.chorus3/addon.xml',
-      'webinterface.chorus3/addons/all/index.html',
-      'webinterface.chorus3/addons/plugin.video.safe-demo/index.html',
       'webinterface.chorus3/assets/app.css',
       'webinterface.chorus3/assets/app.js',
       'webinterface.chorus3/assets/nested/chunk.js',
-      'webinterface.chorus3/browser/index.html',
       'webinterface.chorus3/empty-assets/.keep',
       'webinterface.chorus3/favicon.svg',
-      'webinterface.chorus3/files/index.html',
-      'webinterface.chorus3/help/index.html',
-      'webinterface.chorus3/help/keyboard/index.html',
       'webinterface.chorus3/index.html',
-      'webinterface.chorus3/movies/index.html',
-      'webinterface.chorus3/music/genres/index.html',
-      'webinterface.chorus3/music/index.html',
-      'webinterface.chorus3/now-playing/index.html',
-      'webinterface.chorus3/playlists/index.html',
-      'webinterface.chorus3/remote/index.html',
       'webinterface.chorus3/robots.txt',
-      'webinterface.chorus3/settings/kodi/interface/index.html',
-      'webinterface.chorus3/settings/web/index.html',
-      'webinterface.chorus3/tvshows/index.html'
-    ]);
+      ...getKodiPackageRouteFallbacks().map(
+        (fallback) => `webinterface.chorus3/${fallback.stagedIndexPath}`
+      )
+    ].sort();
+
+    expect(result.entries).toEqual(expectedEntries);
   });
 
   it('stages every fallback from the shared route contract with deterministic package entries', () => {
@@ -382,7 +365,7 @@ describe('Kodi package zip creation', () => {
     expect(result.zipPath).toBe(join(root, 'dist/kodi/webinterface.chorus3-1.2.3.zip'));
     expect(result.lines).toEqual([
       '[metadata] rendered addon.xml for webinterface.chorus3 1.2.3.',
-      '[staging] staged 20 entries under dist/kodi/webinterface.chorus3.',
+      `[staging] staged ${getKodiPackageRouteFallbacks().length + 5} entries under dist/kodi/webinterface.chorus3.`,
       '[zip] created dist/kodi/webinterface.chorus3-1.2.3.zip.'
     ]);
   });

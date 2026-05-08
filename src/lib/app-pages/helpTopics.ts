@@ -1,249 +1,138 @@
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 
+import addonsHtml from './help-en/addons.html?raw';
+import appChangelogHtml from './help-en/app-changelog.html?raw';
+import appReadmeHtml from './help-en/app-readme.html?raw';
+import developersHtml from './help-en/developers.html?raw';
+import helpOverviewHtml from './help-en/help-overview.html?raw';
+import keybindReadmeHtml from './help-en/keybind-readme.html?raw';
+import langReadmeHtml from './help-en/lang-readme.html?raw';
+import licenseHtml from './help-en/license.html?raw';
+
 export type HelpTopicId =
   | 'overview'
-  | 'keyboard'
-  | 'readme'
-  | 'changelog'
+  | 'app-readme'
+  | 'app-changelog'
+  | 'keybind-readme'
   | 'addons'
   | 'developers'
-  | 'translations'
+  | 'lang-readme'
   | 'license';
 
-export interface HelpTopicCard {
-  readonly title: string;
-  readonly copy: string;
-}
+export type HelpTopicAlias = 'readme' | 'changelog' | 'keyboard' | 'translations';
 
 export interface HelpTopic {
   readonly id: HelpTopicId;
   readonly title: string;
-  readonly summary: string;
-  readonly cards: readonly HelpTopicCard[];
+  readonly html: string;
 }
 
 export interface ResolvedHelpTopic {
+  readonly id: HelpTopicId | 'generic';
   readonly title: string;
-  readonly summary: string;
-  readonly cards: readonly HelpTopicCard[];
+  readonly html: string;
   readonly known: boolean;
 }
+
+export const HELP_TOPIC_NAV = [
+  { id: 'overview', label: 'About' },
+  { id: 'app-readme', label: 'Readme' },
+  { id: 'app-changelog', label: 'Changelog' },
+  { id: 'keybind-readme', label: 'Keyboard' },
+  { id: 'addons', label: 'Add-ons' },
+  { id: 'developers', label: 'Developers' },
+  { id: 'lang-readme', label: 'Translations' },
+  { id: 'license', label: 'License' }
+] as const satisfies readonly { id: HelpTopicId; label: string }[];
 
 export const HELP_TOPICS = {
   overview: {
     id: 'overview',
     title: 'About Chorus',
-    summary: 'Safe static help for the app-native Chorus shell.',
-    cards: [
-      {
-        title: 'About Chorus',
-        copy: 'A Kodi web interface shaped around safe app-native media control.'
-      },
-      {
-        title: 'Status report',
-        copy: 'Use visible route headings and status labels to identify the active surface.'
-      },
-      {
-        title: 'What is Chorus?',
-        copy: 'Chorus is a browser-based controller for Kodi libraries, playback, settings, and add-ons.'
-      }
-    ]
+    html: helpOverviewHtml
   },
-  keyboard: {
-    id: 'keyboard',
-    title: 'Keyboard controls',
-    summary: 'Keyboard shortcuts for safe shell navigation and media control.',
-    cards: [
-      {
-        title: 'Keyboard controls',
-        copy: 'Remote shortcuts, playback shortcuts, and focus-safe shell controls.'
-      },
-      {
-        title: 'Remote shortcuts',
-        copy: 'Arrow keys, Enter, Back, and Home map to Kodi remote input when focus is not editing text.'
-      },
-      {
-        title: 'Playback shortcuts',
-        copy: 'Media keys and guarded shell controls operate the active Kodi player.'
-      }
-    ]
-  },
-  readme: {
-    id: 'readme',
+  'app-readme': {
+    id: 'app-readme',
     title: 'Readme',
-    summary: 'Static package guidance for running Chorus inside Kodi or a browser.',
-    cards: [
-      { title: 'Readme', copy: 'Project usage guidance is represented as safe static app help.' },
-      {
-        title: 'Package usage',
-        copy: 'Kodi package routes mount under the add-on base path without credential-bearing examples.'
-      },
-      {
-        title: 'Primary shell routes',
-        copy: 'Primary routes render in the app shell with stable headings and status labels.'
-      }
-    ]
+    html: appReadmeHtml
   },
-  changelog: {
-    id: 'changelog',
+  'app-changelog': {
+    id: 'app-changelog',
     title: 'Changelog',
-    summary: 'Static release-history guidance without loading external files at runtime.',
-    cards: [
-      {
-        title: 'Changelog',
-        copy: 'Release notes summarize app changes without exposing local environment details.'
-      },
-      {
-        title: 'Release notes',
-        copy: 'Use route-specific verification output to identify which packaged surface changed.'
-      },
-      {
-        title: 'Verification history',
-        copy: 'Build, package, and browser checks provide repeatable release confidence.'
-      }
-    ]
+    html: appChangelogHtml
+  },
+  'keybind-readme': {
+    id: 'keybind-readme',
+    title: 'Keyboard',
+    html: keybindReadmeHtml
   },
   addons: {
     id: 'addons',
     title: 'Add-ons',
-    summary:
-      'Static guidance for add-on browsing, settings, and package-safe execution boundaries.',
-    cards: [
-      {
-        title: 'Add-ons',
-        copy: 'Browse installed add-ons through static shell routes before opening add-on-specific details.'
-      },
-      {
-        title: 'Add-on browser',
-        copy: 'Catalog routes group all, video, audio, and executable add-ons without reflecting add-on identifiers.'
-      },
-      {
-        title: 'Add-on settings',
-        copy: 'Settings surfaces describe add-on configuration boundaries without exposing host paths or credentials.'
-      }
-    ]
+    html: addonsHtml
   },
   developers: {
     id: 'developers',
     title: 'Developers',
-    summary: 'Static implementation notes for route, package, and verification boundaries.',
-    cards: [
-      {
-        title: 'Developers',
-        copy: 'Use typed primary routes and stable data attributes when extending the app shell.'
-      },
-      {
-        title: 'Integration boundaries',
-        copy: 'Keep package-aware href building centralized so browser and Kodi package routes stay aligned.'
-      },
-      {
-        title: 'Package verification',
-        copy: 'Run targeted route and package checks before relying on screenshot proof evidence.'
-      }
-    ]
+    html: developersHtml
   },
-  translations: {
-    id: 'translations',
+  'lang-readme': {
+    id: 'lang-readme',
     title: 'Translations',
-    summary: 'Locale help for the app shell and package-safe language controls.',
-    cards: [
-      {
-        title: 'Translations',
-        copy: 'Language support is available through the shell locale selector.'
-      },
-      {
-        title: 'Language support',
-        copy: 'Translated labels stay inside app UI and avoid reflecting route payloads.'
-      },
-      {
-        title: 'Locale selector',
-        copy: 'Choose a supported locale from the app shell when translation data is available.'
-      }
-    ]
+    html: langReadmeHtml
   },
   license: {
     id: 'license',
     title: 'License',
-    summary: 'Static open-source notice for Chorus package users.',
-    cards: [
-      { title: 'License', copy: 'License details are represented as static project information.' },
-      {
-        title: 'Project license',
-        copy: 'Review the tracked project license before redistributing modified builds.'
-      },
-      {
-        title: 'Open source notice',
-        copy: 'Third-party and project notices should remain free of local host or credential details.'
-      }
-    ]
+    html: licenseHtml
   }
 } as const satisfies Record<HelpTopicId, HelpTopic>;
 
-const HELP_LANDING_TOPIC: ResolvedHelpTopic = {
-  title: 'About Chorus',
-  summary:
-    'Find safe static help for the primary shell without reflecting raw route or storage details.',
-  known: true,
-  cards: [
-    ...HELP_TOPICS.overview.cards,
-    {
-      title: 'Keyboard controls',
-      copy: 'Use keyboard and media keys for remote input and playback where supported.'
-    },
-    {
-      title: 'Readme',
-      copy: 'Package usage and primary shell guidance live as safe static app help.'
-    },
-    {
-      title: 'Changelog',
-      copy: 'Release notes summarize changes without embedding local environment details.'
-    },
-    { title: 'Add-ons', copy: 'Add-on browsing and settings help stays static and package-safe.' },
-    {
-      title: 'Developers',
-      copy: 'Developer notes document typed route and package verification boundaries.'
-    },
-    { title: 'Translations', copy: 'Locale support is available from the shell controls.' },
-    { title: 'License', copy: 'License details remain available as static project information.' }
-  ]
-};
+const HELP_TOPIC_ALIASES = {
+  readme: 'app-readme',
+  changelog: 'app-changelog',
+  keyboard: 'keybind-readme',
+  translations: 'lang-readme'
+} as const satisfies Record<HelpTopicAlias, HelpTopicId>;
 
 const GENERIC_HELP_TOPIC: ResolvedHelpTopic = {
+  id: 'generic',
   title: 'Help page',
-  summary:
-    'This safe help route is available as an app-native frame while detailed content remains deferred.',
-  known: false,
-  cards: [
-    {
-      title: 'Help content placeholder',
-      copy: 'This help route is supported by a safe app-native frame.'
-    },
-    {
-      title: 'Deferred help topic',
-      copy: 'Detailed content can land later without changing route or package boundaries.'
-    },
-    {
-      title: 'Safe fallback',
-      copy: 'Unknown help identifiers are not reflected into visible copy.'
-    }
-  ]
+  html: '<h1>Help page</h1><p>This help route is supported by a safe app-native frame.</p><p>Unknown help identifiers are not reflected into visible copy.</p>',
+  known: false
 };
+
+export function normalizeHelpTopicId(value: string): HelpTopicId | null {
+  if (isKnownHelpTopicId(value)) {
+    return value;
+  }
+
+  if (isHelpTopicAlias(value)) {
+    return HELP_TOPIC_ALIASES[value];
+  }
+
+  return null;
+}
 
 export function isKnownHelpTopicId(value: string): value is HelpTopicId {
   return Object.hasOwn(HELP_TOPICS, value);
 }
 
-export function resolveHelpTopic(route: PrimaryRoute): ResolvedHelpTopic {
-  if (route.kind === 'help') {
-    return HELP_LANDING_TOPIC;
-  }
+function isHelpTopicAlias(value: string): value is HelpTopicAlias {
+  return Object.hasOwn(HELP_TOPIC_ALIASES, value);
+}
 
-  if (route.kind === 'helpOverview') {
+export function resolveHelpTopic(route: PrimaryRoute): ResolvedHelpTopic {
+  if (route.kind === 'help' || route.kind === 'helpOverview') {
     return { ...HELP_TOPICS.overview, known: true };
   }
 
-  if (route.kind === 'helpPage' && isKnownHelpTopicId(route.pageid)) {
-    return { ...HELP_TOPICS[route.pageid], known: true };
+  if (route.kind === 'helpPage') {
+    const id = normalizeHelpTopicId(route.pageid);
+
+    if (id) {
+      return { ...HELP_TOPICS[id], known: true };
+    }
   }
 
   return GENERIC_HELP_TOPIC;

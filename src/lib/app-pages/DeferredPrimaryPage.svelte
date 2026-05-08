@@ -37,7 +37,7 @@
       return 'Add-on execution stays disabled until a confirmed action surface owns the request boundary.';
     }
 
-    return 'Detailed behavior for this supported route is deferred, but the primary shell owns a safe app-native frame.';
+    return 'Detailed behavior for this supported route is deferred, but Chorus owns a safe frame.';
   }
 </script>
 

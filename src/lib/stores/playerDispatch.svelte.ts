@@ -12,6 +12,7 @@ import {
   setApplicationMute,
   setApplicationVolume,
   setPlayerAudioStream,
+  setPlayerPartyMode,
   setPlayerRepeat,
   setPlayerShuffle,
   setPlayerSubtitle,
@@ -19,8 +20,11 @@ import {
   type KodiEndpointDescription,
   type KodiEpisodeLibraryItem,
   type KodiJsonRpcHttpClient,
+  type KodiMusicVideoLibraryItem,
   type KodiMusicLibraryItem,
+  type KodiPvrChannelItem,
   type PlayerAudioStreamValue,
+  type PlayerPartyModeValue,
   type PlayerRepeatValue,
   type PlayerSeekStep,
   type PlayerShuffleValue,
@@ -49,6 +53,7 @@ export type PlayerCommandName =
   | 'setVolume'
   | 'toggleMute'
   | 'setShuffle'
+  | 'setPartyMode'
   | 'setRepeat'
   | 'setAudioStream'
   | 'setSubtitle'
@@ -56,8 +61,11 @@ export type PlayerCommandName =
   | 'playMovieItem'
   | 'streamMovieItem'
   | 'playEpisodeItem'
+  | 'playMusicVideoItem'
+  | 'streamMusicVideoItem'
   | 'streamEpisodeItem'
   | 'playFileItem'
+  | 'playChannelItem'
   | 'playPlaylistItem'
   | 'startLocalPlayback'
   | 'resumeOnKodi';
@@ -67,14 +75,32 @@ export type MusicPlaybackItem =
   | { kind: 'artist'; artistid: number };
 export type MoviePlaybackItem = { movieid: number; resume?: boolean };
 export type EpisodePlaybackItem = { episodeid: number; resume?: boolean };
+export type MusicVideoPlaybackItem = { musicvideoid: number };
+export type PvrChannelPlaybackItem = { channelid: number };
 export type EpisodeStreamItem = {
   episodeid: number;
   resume?: boolean;
   label?: string;
   title?: string;
 };
-export type FilePlaybackItem = { file: string; mediaKind: 'audio' };
-export type PlaylistPlaybackItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
+export type FilePlaybackItem = {
+  file: string;
+  mediaKind: 'audio' | 'video';
+  itemType?: 'file' | 'directory';
+};
+export type LocalFilePlaylistItem = { file: string; mediaKind: 'audio' } & {
+  label?: string;
+  title?: string;
+  thumbnail?: string;
+  id?: number;
+  songid?: number;
+  type?: string;
+};
+export type PlaylistPlaybackItem = {
+  file: string;
+  mediaKind: 'music' | 'video';
+  playlistKind: 'smart' | 'basic';
+};
 
 export type PlayerDispatchErrorSource = 'config' | 'player' | 'mode' | 'input' | 'http' | 'command';
 
@@ -133,6 +159,11 @@ const VALID_REPEAT_VALUES = new Set<PlayerRepeatValue>(['off', 'one', 'all', 'cy
 const VALID_AUDIO_STREAM_LITERALS = new Set<PlayerAudioStreamValue>(['previous', 'next']);
 const VALID_SUBTITLE_LITERALS = new Set<PlayerSubtitleValue>(['previous', 'next', 'off', 'on']);
 
+type RefreshPlayableFileOptions = {
+  requireDifferentFile?: boolean;
+  allowSameFileAfterAttempts?: number;
+};
+
 export class PlayerDispatch {
   #snapshot = $state<PlayerDispatchSnapshot>({ ...DEFAULT_SNAPSHOT });
 
@@ -142,6 +173,9 @@ export class PlayerDispatch {
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: () => KodiJsonRpcHttpClient | null;
   readonly #now: () => string;
+  #localFilePlaylist: LocalFilePlaylistItem[] = [];
+  #localFilePlaylistIndex = -1;
+  #localShuffle = false;
 
   constructor(options: PlayerDispatchOptions = {}) {
     this.#snapshot = { ...DEFAULT_SNAPSHOT, mode: options.mode ?? 'kodi' };
@@ -162,6 +196,18 @@ export class PlayerDispatch {
       ...this.#snapshot,
       mode
     };
+  }
+
+  setLocalFilePlaylist(items: readonly LocalFilePlaylistItem[], startFile?: string): void {
+    this.#localFilePlaylist = items.flatMap(toLocalFilePlaylistItem);
+    this.#localFilePlaylistIndex = resolveLocalFilePlaylistIndex(
+      this.#localFilePlaylist,
+      startFile
+    );
+  }
+
+  canNavigateLocalFilePlaylist(): boolean {
+    return this.#snapshot.mode === 'local' && this.#localFilePlaylist.length > 1;
   }
 
   playPause(): Promise<void> {
@@ -198,7 +244,11 @@ export class PlayerDispatch {
 
   previous(): Promise<void> {
     if (this.#snapshot.mode === 'local') {
-      return this.#rejectUnsupportedLocal('previous');
+      if (this.#localFilePlaylist.length > 1) {
+        return this.#runLocalFilePlaylistNavigation('previous');
+      }
+
+      return this.#runLocalPlaylistNavigation('previous');
     }
 
     return this.#runPlayerCommand({
@@ -209,7 +259,11 @@ export class PlayerDispatch {
 
   next(): Promise<void> {
     if (this.#snapshot.mode === 'local') {
-      return this.#rejectUnsupportedLocal('next');
+      if (this.#localFilePlaylist.length > 1) {
+        return this.#runLocalFilePlaylistNavigation('next');
+      }
+
+      return this.#runLocalPlaylistNavigation('next');
     }
 
     return this.#runPlayerCommand({
@@ -339,7 +393,7 @@ export class PlayerDispatch {
 
   setShuffle(shuffle: PlayerShuffleValue): Promise<void> {
     if (this.#snapshot.mode === 'local') {
-      return this.#rejectUnsupportedLocal('setShuffle');
+      return this.#runLocalShuffleCommand(shuffle);
     }
 
     return this.#runPlayerCommand({
@@ -349,6 +403,21 @@ export class PlayerDispatch {
           ? null
           : createInputError('input/invalid-shuffle', 'Choose a supported shuffle value.'),
       execute: (client, playerid) => setPlayerShuffle(client, playerid, shuffle)
+    });
+  }
+
+  setPartyMode(partymode: PlayerPartyModeValue): Promise<void> {
+    if (this.#snapshot.mode === 'local') {
+      return this.#rejectUnsupportedLocal('setPartyMode');
+    }
+
+    return this.#runPlayerCommand({
+      command: 'setPartyMode',
+      validate: () =>
+        typeof partymode === 'boolean' || partymode === 'toggle'
+          ? null
+          : createInputError('input/invalid-party-mode', 'Choose a supported party mode value.'),
+      execute: (client, playerid) => setPlayerPartyMode(client, playerid, partymode)
     });
   }
 
@@ -394,6 +463,10 @@ export class PlayerDispatch {
   playMusicItem(item: MusicPlaybackItem): Promise<void> {
     const musicItem = toKodiMusicLibraryItem(item) as KodiMusicLibraryItem;
 
+    if (this.#snapshot.mode === 'local') {
+      return this.#runLocalMusicItemPlayback(item);
+    }
+
     return this.#runCommand({
       command: 'playMusicItem',
       validate: () => validateMusicPlaybackItem(item),
@@ -409,6 +482,93 @@ export class PlayerDispatch {
         }
       }
     });
+  }
+
+  async #runLocalMusicItemPlayback(item: MusicPlaybackItem): Promise<void> {
+    this.#startCommand('playMusicItem');
+
+    const validationError = validateMusicPlaybackItem(item);
+    if (validationError) {
+      this.#failCommand(validationError);
+      return;
+    }
+
+    const musicItem = toKodiMusicLibraryItem(item) as KodiMusicLibraryItem;
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    try {
+      await openPlayerItem(client, musicItem);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    const previousFile = currentPlayerFile(this.#playerStore.snapshot);
+    const refreshed = await this.#refreshUntilPlayableFile('playMusicItem', previousFile, {
+      allowSameFileAfterAttempts: 2
+    });
+    if (!refreshed) {
+      return;
+    }
+
+    const snapshot = this.#playerStore.snapshot;
+    const playerid = this.#resolveSinglePlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    const speed = typeof snapshot.properties?.speed === 'number' ? snapshot.properties.speed : null;
+    const kodiIsPlaying = speed === null ? true : speed !== 0;
+    if (kodiIsPlaying) {
+      try {
+        await playPausePlayer(client, playerid);
+      } catch (error) {
+        this.#failCommand(createSafeError(error));
+        return;
+      }
+    }
+
+    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#loadLocalMediaOrThrow({
+        source: streamUrl,
+        item: extractLocalItemIdentity(snapshot.item),
+        mediaKind: inferMediaKind(snapshot.primaryPlayer?.type),
+        kodiWasPaused: true
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
   }
 
   playMovieItem(item: MoviePlaybackItem): Promise<void> {
@@ -457,14 +617,62 @@ export class PlayerDispatch {
     });
   }
 
+  playMusicVideoItem(item: MusicVideoPlaybackItem): Promise<void> {
+    const musicVideoItem = toKodiMusicVideoPlaybackItem(item) ?? { musicvideoid: 0 };
+
+    return this.#runCommand({
+      command: 'playMusicVideoItem',
+      validate: () => validateMusicVideoPlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerItem(client, musicVideoItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
+    });
+  }
+
+  streamMusicVideoItem(item: MusicVideoPlaybackItem): Promise<void> {
+    return this.#runStreamMusicVideoItem(item);
+  }
+
   streamEpisodeItem(item: EpisodeStreamItem): Promise<void> {
     return this.#runStreamEpisodeItem(item);
+  }
+
+  playChannelItem(item: PvrChannelPlaybackItem): Promise<void> {
+    const channelItem = toKodiPvrChannelItem(item) ?? { channelid: 0 };
+
+    return this.#runCommand({
+      command: 'playChannelItem',
+      validate: () => validatePvrChannelPlaybackItem(item),
+      resolvePlayerid: false,
+      execute: (client) => openPlayerItem(client, channelItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
+    });
   }
 
   playFileItem(item: FilePlaybackItem): Promise<void> {
     const fileItem = toKodiFilePlaybackItem(item) ?? { file: '' };
 
-    if (this.#snapshot.mode === 'local') {
+    if (
+      this.#snapshot.mode === 'local' &&
+      item.mediaKind === 'audio' &&
+      item.itemType !== 'directory'
+    ) {
       return this.#runLocalFilePlaybackCommand(item);
     }
 
@@ -472,7 +680,16 @@ export class PlayerDispatch {
       command: 'playFileItem',
       validate: () => validateFilePlaybackItem(item),
       resolvePlayerid: false,
-      execute: (client) => openPlayerFile(client, fileItem)
+      execute: (client) => openPlayerFile(client, fileItem),
+      afterCommandSuccess: () => {
+        if (this.#snapshot.mode === 'local') {
+          this.#localPlayerStore.stop();
+          this.#snapshot = {
+            ...this.#snapshot,
+            mode: 'kodi'
+          };
+        }
+      }
     });
   }
 
@@ -570,12 +787,28 @@ export class PlayerDispatch {
       return;
     }
 
+    this.#schedulePostCommandRefresh(`command:${input.command}`);
+
     this.#snapshot = {
       ...this.#snapshot,
       commandStatus: 'success',
       lastError: null,
       lastCompletedAt: this.#now()
     };
+  }
+
+  #schedulePostCommandRefresh(reason: `command:${PlayerCommandName}`): void {
+    if (this.#client !== null || typeof globalThis.setTimeout !== 'function') {
+      return;
+    }
+
+    const timeout = globalThis.setTimeout(() => {
+      void this.#playerStore.refresh(reason);
+    }, 750);
+
+    if (typeof timeout === 'object' && timeout && 'unref' in timeout) {
+      (timeout as { unref: () => void }).unref();
+    }
   }
 
   #startCommand(command: PlayerCommandName): void {
@@ -699,6 +932,13 @@ export class PlayerDispatch {
       return;
     }
 
+    try {
+      await playPausePlayer(client, playerid);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
     let streamUrl: string;
     try {
       streamUrl = await prepareLocalStreamUrl({
@@ -712,16 +952,106 @@ export class PlayerDispatch {
     }
 
     try {
+      await this.#loadLocalMediaOrThrow({
+        source: streamUrl,
+        item: extractMovieLocalItemIdentity(snapshot.item, movieItem.movieid),
+        mediaKind: 'video',
+        kodiWasPaused: true
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runStreamMusicVideoItem(item: MusicVideoPlaybackItem): Promise<void> {
+    this.#startCommand('streamMusicVideoItem');
+
+    const validationError = validateMusicVideoPlaybackItem(item);
+    if (validationError) {
+      this.#failCommand(validationError);
+      return;
+    }
+
+    const musicVideoItem = toKodiMusicVideoPlaybackItem(item) ?? { musicvideoid: 0 };
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await openPlayerItem(client, musicVideoItem);
+    } catch (error) {
+      commandError = createSafeError(error);
+    }
+
+    try {
+      await this.#playerStore.refresh('command:streamMusicVideoItem');
+    } catch {
+      // PlayerStore owns refresh failure diagnostics. Preserve command status.
+    }
+
+    if (commandError) {
+      this.#failCommand(commandError);
+      return;
+    }
+
+    const playerid = this.#resolveSingleVideoPlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    const snapshot = this.#playerStore.snapshot;
+    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+
+    if (!file) {
+      this.#failCommand({
+        source: 'input',
+        code: 'input/missing-file',
+        message: 'Kodi did not expose a playable music video file for browser streaming.'
+      });
+      return;
+    }
+
+    try {
       await playPausePlayer(client, playerid);
     } catch (error) {
       this.#failCommand(createSafeError(error));
       return;
     }
 
+    let streamUrl: string;
     try {
-      await this.#localPlayerStore.loadAndPlay({
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#loadLocalMediaOrThrow({
         source: streamUrl,
-        item: extractMovieLocalItemIdentity(snapshot.item, movieItem.movieid),
+        item: extractMusicVideoLocalItemIdentity(snapshot.item, musicVideoItem.musicvideoid),
         mediaKind: 'video',
         kodiWasPaused: true
       });
@@ -797,6 +1127,13 @@ export class PlayerDispatch {
       return;
     }
 
+    try {
+      await playPausePlayer(client, playerid);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
     let streamUrl: string;
     try {
       streamUrl = await prepareLocalStreamUrl({
@@ -810,14 +1147,7 @@ export class PlayerDispatch {
     }
 
     try {
-      await playPausePlayer(client, playerid);
-    } catch (error) {
-      this.#failCommand(createSafeError(error));
-      return;
-    }
-
-    try {
-      await this.#localPlayerStore.loadAndPlay({
+      await this.#loadLocalMediaOrThrow({
         source: streamUrl,
         item: extractEpisodeLocalItemIdentity(snapshot.item, episodeItem.episodeid, item),
         mediaKind: 'video',
@@ -846,7 +1176,7 @@ export class PlayerDispatch {
       return;
     }
 
-    const fileItem = toKodiFilePlaybackItem(item) ?? { file: '' };
+    this.#ensureLocalFilePlaylistForFile(item.file);
     const client = this.#resolveClient();
     if (!client) {
       this.#failCommand(
@@ -862,7 +1192,7 @@ export class PlayerDispatch {
     try {
       streamUrl = await prepareLocalStreamUrl({
         client,
-        file: fileItem.file,
+        file: item.file,
         activeHost: this.#configStore.activeHost
       });
     } catch (error) {
@@ -871,9 +1201,9 @@ export class PlayerDispatch {
     }
 
     try {
-      await this.#localPlayerStore.loadAndPlay({
+      await this.#loadLocalMediaOrThrow({
         source: streamUrl,
-        item: { label: 'File item', type: 'file' },
+        item: localFilePlaylistItemIdentity(this.#currentLocalFilePlaylistItem(), 'File item'),
         mediaKind: item.mediaKind,
         kodiWasPaused: false
       });
@@ -891,8 +1221,122 @@ export class PlayerDispatch {
     };
   }
 
+  async #runLocalFilePlaylistNavigation(command: 'previous' | 'next'): Promise<void> {
+    this.#startCommand(command);
+
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before using local playback navigation.'
+        )
+      );
+      return;
+    }
+
+    const currentIndex = this.#localFilePlaylistIndex >= 0 ? this.#localFilePlaylistIndex : 0;
+    const nextIndex =
+      this.#localShuffle && command === 'next'
+        ? nextLocalShuffleIndex(this.#localFilePlaylist.length, currentIndex)
+        : nextLocalSequentialIndex(this.#localFilePlaylist.length, currentIndex, command);
+    const item = this.#localFilePlaylist[nextIndex];
+    if (!item) {
+      this.#failCommand(
+        createInputError('input/missing-file', 'Choose a supported local playlist item.')
+      );
+      return;
+    }
+
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file: item.file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#localFilePlaylistIndex = nextIndex;
+
+    try {
+      await this.#loadLocalMediaOrThrow({
+        source: streamUrl,
+        item: localFilePlaylistItemIdentity(item, 'File item'),
+        mediaKind: item.mediaKind,
+        kodiWasPaused: false
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #runLocalShuffleCommand(shuffle: PlayerShuffleValue): Promise<void> {
+    this.#startCommand('setShuffle');
+
+    if (!(typeof shuffle === 'boolean' || shuffle === 'toggle')) {
+      this.#failCommand(
+        createInputError('input/invalid-shuffle', 'Choose a supported shuffle value.')
+      );
+      return;
+    }
+
+    this.#localShuffle = shuffle === 'toggle' ? !this.#localShuffle : shuffle;
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  #ensureLocalFilePlaylistForFile(file: string): void {
+    const index = this.#localFilePlaylist.findIndex((item) => item.file === file);
+    if (index >= 0) {
+      this.#localFilePlaylistIndex = index;
+      return;
+    }
+
+    this.#localFilePlaylist = [{ file, mediaKind: 'audio', label: 'File item', type: 'file' }];
+    this.#localFilePlaylistIndex = 0;
+  }
+
+  #currentLocalFilePlaylistItem(): LocalFilePlaylistItem | null {
+    return this.#localFilePlaylist[this.#localFilePlaylistIndex] ?? null;
+  }
+
   async #runStartLocalPlayback(): Promise<void> {
     this.#startCommand('startLocalPlayback');
+
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before starting local playback.'
+        )
+      );
+      return;
+    }
+
+    try {
+      await this.#playerStore.refresh('command:startLocalPlayback');
+    } catch {
+      // PlayerStore owns refresh failure diagnostics; continue with the best available snapshot.
+    }
 
     const playerid = this.#resolveSinglePlayerId();
     if (playerid === null) {
@@ -911,17 +1355,6 @@ export class PlayerDispatch {
       return;
     }
 
-    const client = this.#resolveClient();
-    if (!client) {
-      this.#failCommand(
-        createConfigError(
-          'config/no-active-host',
-          'Choose an active Kodi host before starting local playback.'
-        )
-      );
-      return;
-    }
-
     const speed = typeof snapshot.properties?.speed === 'number' ? snapshot.properties.speed : null;
     const shouldPauseKodi = speed === null ? true : speed !== 0;
 
@@ -932,12 +1365,6 @@ export class PlayerDispatch {
         this.#failCommand(createSafeError(error));
         return;
       }
-    }
-
-    try {
-      await this.#playerStore.refresh('command:startLocalPlayback');
-    } catch {
-      // PlayerStore owns refresh failure diagnostics.
     }
 
     let streamUrl: string;
@@ -955,7 +1382,7 @@ export class PlayerDispatch {
     const mediaKind = inferMediaKind(snapshot.primaryPlayer?.type);
 
     try {
-      await this.#localPlayerStore.loadAndPlay({
+      await this.#loadLocalMediaOrThrow({
         source: streamUrl,
         item: extractLocalItemIdentity(snapshot.item),
         mediaKind,
@@ -973,6 +1400,163 @@ export class PlayerDispatch {
       lastError: null,
       lastCompletedAt: this.#now()
     };
+  }
+
+  async #runLocalPlaylistNavigation(command: 'previous' | 'next'): Promise<void> {
+    this.#startCommand(command);
+
+    const client = this.#resolveClient();
+    if (!client) {
+      this.#failCommand(
+        createConfigError(
+          'config/no-active-host',
+          'Choose an active Kodi host before using local playback navigation.'
+        )
+      );
+      return;
+    }
+
+    const playerid = this.#resolveSinglePlayerId();
+    if (playerid === null) {
+      return;
+    }
+
+    try {
+      await goToPlayerItem(client, playerid, command);
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    const previousFile = currentPlayerFile(this.#playerStore.snapshot);
+    const refreshed = await this.#refreshUntilPlayableFile(command, previousFile, {
+      requireDifferentFile: true
+    });
+    if (!refreshed) {
+      return;
+    }
+
+    const snapshot = this.#playerStore.snapshot;
+    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+    if (!file) {
+      this.#failCommand({
+        source: 'input',
+        code: 'input/missing-file',
+        message: 'Kodi did not expose a playable file after changing tracks.'
+      });
+      return;
+    }
+
+    const speed = typeof snapshot.properties?.speed === 'number' ? snapshot.properties.speed : null;
+    const kodiIsPlaying = speed === null ? true : speed !== 0;
+
+    if (kodiIsPlaying) {
+      try {
+        await playPausePlayer(client, playerid);
+      } catch (error) {
+        this.#failCommand(createSafeError(error));
+        return;
+      }
+    }
+
+    let streamUrl: string;
+    try {
+      streamUrl = await prepareLocalStreamUrl({
+        client,
+        file,
+        activeHost: this.#configStore.activeHost
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    try {
+      await this.#loadLocalMediaOrThrow({
+        source: streamUrl,
+        item: extractLocalItemIdentity(snapshot.item),
+        mediaKind: inferMediaKind(snapshot.primaryPlayer?.type),
+        kodiWasPaused: true
+      });
+    } catch (error) {
+      this.#failCommand(createSafeError(error));
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      mode: 'local',
+      commandStatus: 'success',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
+  async #loadLocalMediaOrThrow(
+    input: Parameters<LocalPlayerStore['loadAndPlay']>[0]
+  ): Promise<void> {
+    await this.#localPlayerStore.loadAndPlay(input);
+
+    const localSnapshot = this.#localPlayerStore.snapshot;
+    if (localSnapshot.status !== 'error') {
+      return;
+    }
+
+    const error = new Error(
+      localSnapshot.lastError?.message || 'Local media playback could not start.'
+    ) as Error & { code: string };
+    error.code = localSnapshot.lastError?.code || 'media/error';
+    throw error;
+  }
+
+  async #refreshUntilPlayableFile(
+    command: PlayerCommandName,
+    previousFile: string,
+    options: RefreshPlayableFileOptions = {}
+  ): Promise<boolean> {
+    const requireDifferentFile = options.requireDifferentFile === true && Boolean(previousFile);
+    const allowSameFileAfterAttempts =
+      options.allowSameFileAfterAttempts ?? Number.POSITIVE_INFINITY;
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      try {
+        await this.#playerStore.refresh(`command:${command}`);
+      } catch {
+        // PlayerStore owns refresh failure diagnostics; retry with best available state.
+      }
+
+      const file = currentPlayerFile(this.#playerStore.snapshot);
+      if (file && (!previousFile || file !== previousFile)) {
+        return true;
+      }
+
+      if (file && !requireDifferentFile && attempt >= allowSameFileAfterAttempts) {
+        return true;
+      }
+
+      await sleep(200);
+    }
+
+    const file = currentPlayerFile(this.#playerStore.snapshot);
+    if (file && !requireDifferentFile) {
+      return true;
+    }
+
+    if (file && requireDifferentFile) {
+      this.#failCommand({
+        source: 'input',
+        code: 'input/unchanged-file',
+        message: 'Kodi did not change tracks for local playback navigation.'
+      });
+      return false;
+    }
+
+    this.#failCommand({
+      source: 'input',
+      code: 'input/missing-file',
+      message: 'Kodi did not expose a playable file for local playback.'
+    });
+    return false;
   }
 
   async #runResumeOnKodi(): Promise<void> {
@@ -1162,6 +1746,25 @@ function validateEpisodePlaybackItem(
     : createInputError('input/invalid-episode-item', 'Choose an episode with a valid library id.');
 }
 
+function validateMusicVideoPlaybackItem(
+  item: MusicVideoPlaybackItem
+): PlayerDispatchSafeErrorSnapshot | null {
+  return toKodiMusicVideoPlaybackItem(item)
+    ? null
+    : createInputError(
+        'input/invalid-music-video-item',
+        'Choose a music video with a valid library id.'
+      );
+}
+
+function validatePvrChannelPlaybackItem(
+  item: PvrChannelPlaybackItem
+): PlayerDispatchSafeErrorSnapshot | null {
+  return toKodiPvrChannelItem(item)
+    ? null
+    : createInputError('input/invalid-pvr-channel-item', 'Choose a PVR channel with a valid id.');
+}
+
 function validateEpisodeStreamItem(
   item: EpisodeStreamItem
 ): PlayerDispatchSafeErrorSnapshot | null {
@@ -1173,7 +1776,7 @@ function validateEpisodeStreamItem(
 function validateFilePlaybackItem(item: FilePlaybackItem): PlayerDispatchSafeErrorSnapshot | null {
   return toKodiFilePlaybackItem(item)
     ? null
-    : createInputError('input/invalid-file-item', 'Choose a supported audio file to play.');
+    : createInputError('input/invalid-file-item', 'Choose a supported media file to play.');
 }
 
 function validatePlaylistPlaybackItem(
@@ -1181,10 +1784,12 @@ function validatePlaylistPlaybackItem(
 ): PlayerDispatchSafeErrorSnapshot | null {
   return toKodiPlaylistPlaybackItem(item)
     ? null
-    : createInputError('input/invalid-playlist-item', 'Choose a supported music smart playlist.');
+    : createInputError('input/invalid-playlist-item', 'Choose a supported smart playlist.');
 }
 
-function toKodiFilePlaybackItem(item: FilePlaybackItem): { file: string } | null {
+function toKodiFilePlaybackItem(
+  item: FilePlaybackItem
+): { file: string } | { directory: string } | null {
   if (!item || typeof item !== 'object') {
     return null;
   }
@@ -1193,17 +1798,126 @@ function toKodiFilePlaybackItem(item: FilePlaybackItem): { file: string } | null
   const keys = Object.keys(candidate).sort();
 
   if (
-    keys.length === 2 &&
+    (keys.length === 2 || keys.length === 3) &&
     keys[0] === 'file' &&
-    keys[1] === 'mediaKind' &&
+    (keys.length === 2 || keys[1] === 'itemType') &&
+    keys[keys.length - 1] === 'mediaKind' &&
     typeof candidate.file === 'string' &&
     candidate.file.trim().length > 0 &&
-    candidate.mediaKind === 'audio'
+    (candidate.mediaKind === 'audio' || candidate.mediaKind === 'video') &&
+    (keys.length === 2 || candidate.itemType === 'file' || candidate.itemType === 'directory')
   ) {
+    if (candidate.itemType === 'directory') {
+      return { directory: candidate.file };
+    }
+
     return { file: candidate.file };
   }
 
   return null;
+}
+
+function toLocalFilePlaylistItem(item: LocalFilePlaylistItem): LocalFilePlaylistItem[] {
+  if (!item || typeof item !== 'object') {
+    return [];
+  }
+
+  const candidate = item as Record<string, unknown>;
+  if (
+    typeof candidate.file !== 'string' ||
+    candidate.file.trim().length === 0 ||
+    candidate.mediaKind !== 'audio'
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      file: candidate.file,
+      mediaKind: 'audio',
+      ...(typeof candidate.label === 'string' && candidate.label.length > 0
+        ? { label: candidate.label }
+        : {}),
+      ...(typeof candidate.title === 'string' && candidate.title.length > 0
+        ? { title: candidate.title }
+        : {}),
+      ...(typeof candidate.thumbnail === 'string' && candidate.thumbnail.length > 0
+        ? { thumbnail: candidate.thumbnail }
+        : {}),
+      ...(typeof candidate.id === 'number' && Number.isFinite(candidate.id)
+        ? { id: candidate.id }
+        : {}),
+      ...(typeof candidate.songid === 'number' && Number.isFinite(candidate.songid)
+        ? { songid: candidate.songid }
+        : {}),
+      ...(typeof candidate.type === 'string' && candidate.type.length > 0
+        ? { type: candidate.type }
+        : {})
+    }
+  ];
+}
+
+function resolveLocalFilePlaylistIndex(
+  items: readonly LocalFilePlaylistItem[],
+  startFile: string | undefined
+): number {
+  if (items.length === 0) {
+    return -1;
+  }
+
+  if (typeof startFile === 'string' && startFile.trim()) {
+    const index = items.findIndex((item) => item.file === startFile);
+    if (index >= 0) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function nextLocalSequentialIndex(
+  length: number,
+  currentIndex: number,
+  command: 'previous' | 'next'
+): number {
+  const offset = command === 'next' ? 1 : -1;
+  return (currentIndex + offset + length) % length;
+}
+
+function nextLocalShuffleIndex(length: number, currentIndex: number): number {
+  if (length <= 1) {
+    return 0;
+  }
+
+  const randomIndex = Math.floor(Math.random() * (length - 1));
+  return randomIndex >= currentIndex ? randomIndex + 1 : randomIndex;
+}
+
+function localFilePlaylistItemIdentity(
+  item: LocalFilePlaylistItem | null,
+  fallbackLabel: string
+): {
+  id?: number;
+  label?: string;
+  title?: string;
+  type?: string;
+  songid?: number;
+  thumbnail?: string;
+} {
+  if (!item) {
+    return { label: fallbackLabel, type: 'file' };
+  }
+
+  return {
+    ...(typeof item.id === 'number' && Number.isFinite(item.id) ? { id: item.id } : {}),
+    label: item.label || item.title || fallbackLabel,
+    ...(item.title ? { title: item.title } : {}),
+    type: item.type || 'file',
+    ...(typeof item.songid === 'number' && Number.isFinite(item.songid)
+      ? { songid: item.songid }
+      : {}),
+    ...(item.thumbnail ? { thumbnail: item.thumbnail } : {})
+  };
 }
 
 function toKodiPlaylistPlaybackItem(item: PlaylistPlaybackItem): { file: string } | null {
@@ -1221,8 +1935,8 @@ function toKodiPlaylistPlaybackItem(item: PlaylistPlaybackItem): { file: string 
     keys[2] === 'playlistKind' &&
     typeof candidate.file === 'string' &&
     candidate.file.trim().length > 0 &&
-    candidate.mediaKind === 'music' &&
-    candidate.playlistKind === 'smart'
+    (candidate.mediaKind === 'music' || candidate.mediaKind === 'video') &&
+    (candidate.playlistKind === 'smart' || candidate.playlistKind === 'basic')
   ) {
     return { file: candidate.file };
   }
@@ -1307,6 +2021,42 @@ function toKodiMoviePlaybackItem(item: MoviePlaybackItem): { movieid: number } |
   }
 
   return { movieid: candidate.movieid };
+}
+
+function toKodiMusicVideoPlaybackItem(
+  item: MusicVideoPlaybackItem
+): KodiMusicVideoLibraryItem | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+
+  if (
+    keys.length === 1 &&
+    keys[0] === 'musicvideoid' &&
+    isPositiveSafeInteger(candidate.musicvideoid)
+  ) {
+    return { musicvideoid: candidate.musicvideoid };
+  }
+
+  return null;
+}
+
+function toKodiPvrChannelItem(item: PvrChannelPlaybackItem): KodiPvrChannelItem | null {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const candidate = item as Record<string, unknown>;
+  const keys = Object.keys(candidate).sort();
+
+  if (keys.length === 1 && keys[0] === 'channelid' && isPositiveSafeInteger(candidate.channelid)) {
+    return { channelid: candidate.channelid };
+  }
+
+  return null;
 }
 
 function toKodiMusicLibraryItem(item: MusicPlaybackItem): KodiMusicLibraryItem | null {
@@ -1454,8 +2204,24 @@ function extractLocalItemIdentity(item: PlayerStoreSnapshot['item']): {
       : {}),
     ...(typeof candidate.episodeid === 'number' && Number.isFinite(candidate.episodeid)
       ? { episodeid: candidate.episodeid }
+      : {}),
+    ...(typeof candidate.thumbnail === 'string' && candidate.thumbnail.length > 0
+      ? { thumbnail: candidate.thumbnail }
       : {})
   };
+}
+
+function currentPlayerFile(snapshot: PlayerStoreSnapshot): string {
+  return typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const timeout = globalThis.setTimeout?.(resolve, ms);
+    if (typeof timeout === 'object' && timeout && 'unref' in timeout) {
+      (timeout as { unref: () => void }).unref();
+    }
+  });
 }
 
 function extractEpisodeLocalItemIdentity(
@@ -1506,6 +2272,35 @@ function extractMovieLocalItemIdentity(
     title,
     type: 'movie',
     movieid
+  };
+}
+
+function extractMusicVideoLocalItemIdentity(
+  item: PlayerStoreSnapshot['item'],
+  musicvideoid: number
+): {
+  label: string;
+  title: string;
+  type: 'musicvideo';
+  musicvideoid: number;
+  thumbnail?: string;
+} {
+  const candidate = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+  const label =
+    typeof candidate.label === 'string' && candidate.label.length > 0
+      ? candidate.label
+      : 'Music video';
+  const title =
+    typeof candidate.title === 'string' && candidate.title.length > 0 ? candidate.title : label;
+
+  return {
+    label,
+    title,
+    type: 'musicvideo',
+    musicvideoid,
+    ...(typeof candidate.thumbnail === 'string' && candidate.thumbnail.length > 0
+      ? { thumbnail: candidate.thumbnail }
+      : {})
   };
 }
 

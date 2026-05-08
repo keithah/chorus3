@@ -224,10 +224,22 @@ describe('integrated player loop store contracts', () => {
   it('opens and queues music through shared dispatch seams without leaking the local file', async () => {
     const client = new FakeKodiClient();
     client.enqueue('Player.Open', 'OK');
+    client.enqueue('Files.PrepareDownload', {
+      details: { path: '/vfs/special.flac' },
+      mode: 'redirect'
+    });
+    client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Playlist.Add', 'OK');
 
     const playerStore = new FakePlayerStore();
     playerStore.snapshot = createPlayerSnapshot({ activePlayers: [], primaryPlayer: null });
+    const refreshPlayerStore = playerStore.refresh.bind(playerStore);
+    playerStore.refresh = async (reason) => {
+      await refreshPlayerStore(reason);
+      if (reason === 'command:playMusicItem') {
+        playerStore.snapshot = createPlayerSnapshot();
+      }
+    };
     const queueStore = new FakeQueueStore();
     queueStore.snapshot = { playlistid: null, items: [] };
     const localPlayerStore = new FakeLocalPlayerStore();
@@ -262,15 +274,23 @@ describe('integrated player loop store contracts', () => {
     await playerDispatch.playMusicItem({ kind: 'song', songid: 42 });
     await queueDispatch.queueMusicItem({ kind: 'song', songid: 42 });
 
-    expect(localPlayerStore.stop).toHaveBeenCalledTimes(1);
+    expect(localPlayerStore.stop).not.toHaveBeenCalled();
+    expect(localPlayerStore.loadAndPlay).toHaveBeenCalledTimes(1);
     expect(client.calls).toEqual([
       { method: 'Player.Open', params: { item: { songid: 42 } } },
+      { method: 'Player.PlayPause', params: { playerid: 0 } },
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/special.flac' } },
       { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } }
     ]);
-    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem', 'command:queueMusicItem']);
+    expect(playerStore.refreshReasons).toEqual([
+      'command:playMusicItem',
+      'command:playMusicItem',
+      'command:playMusicItem',
+      'command:queueMusicItem'
+    ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueMusicItem']);
     expect(playerDispatch.snapshot).toMatchObject({
-      mode: 'kodi',
+      mode: 'local',
       commandStatus: 'success',
       lastCommand: 'playMusicItem',
       lastError: null
@@ -341,7 +361,7 @@ describe('integrated player loop store contracts', () => {
     expect(localPlayerStore.stop).toHaveBeenCalledTimes(1);
     expect(client.calls).toEqual([
       { method: 'Player.Open', params: { item: { movieid: 4401 }, options: { resume: true } } },
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } }
     ]);
     expect(playerStore.refreshReasons).toEqual(['command:playMovieItem', 'command:queueMovieItem']);
     expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);

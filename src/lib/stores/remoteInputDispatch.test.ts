@@ -159,6 +159,64 @@ describe('remote input dispatch', () => {
     }
   });
 
+  it('sends text to Kodi without storing the submitted text in diagnostics', async () => {
+    const { client, dispatch } = createHarness();
+    client?.enqueue('Input.SendText', 'OK');
+
+    await dispatch.sendText('admin:p@ssword');
+
+    expect(client?.calls).toEqual([
+      { method: 'Input.SendText', params: { text: 'admin:p@ssword' } }
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'sendText',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('sends supported execute actions through Input.ExecuteAction', async () => {
+    const { client, dispatch } = createHarness();
+    client?.enqueue('Input.ExecuteAction', 'OK');
+
+    await dispatch.executeAction('showsubtitles');
+
+    expect(client?.calls).toEqual([
+      { method: 'Input.ExecuteAction', params: { action: 'showsubtitles' } }
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'executeAction',
+      lastError: null
+    });
+  });
+
+  it('rejects malformed text and execute actions before calling Kodi', async () => {
+    for (const text of ['', 'x'.repeat(1001)]) {
+      const { client, dispatch, createClientCalls } = createHarness();
+      await dispatch.sendText(text);
+      expect(createClientCalls).toBe(0);
+      expect(client?.calls).toEqual([]);
+      expect(dispatch.snapshot).toMatchObject({
+        commandStatus: 'failed',
+        lastCommand: 'sendText',
+        lastError: { source: 'input', code: 'input/invalid-text' }
+      });
+    }
+
+    const { client, dispatch, createClientCalls } = createHarness();
+    await dispatch.executeAction('powerdown' as never);
+    expect(createClientCalls).toBe(0);
+    expect(client?.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'failed',
+      lastCommand: 'executeAction',
+      lastError: { source: 'input', code: 'input/unknown-remote-action' }
+    });
+  });
+
   it('reports missing active-host client state without Kodi calls', async () => {
     const harness = createHarness({ client: null });
 

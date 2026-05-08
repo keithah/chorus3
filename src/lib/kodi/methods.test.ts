@@ -5,30 +5,52 @@ import type {
   AddonInstalledFilter,
   AddonPropertyName,
   AddonSetEnabledValue,
+  AddonsExecuteAddonParams,
   AddonsGetAddonDetailsParams,
   AddonsGetAddonsParams,
   AddonsSetAddonEnabledParams,
+  AudioLibraryCleanParams,
+  AudioLibraryScanParams,
+  AudioLibrarySetAlbumDetailsParams,
+  AudioLibrarySetArtistDetailsParams,
   FileDirectoryParams,
   FileDirectoryResult,
+  FileDetailsParams,
+  FileDetailsResult,
   KodiFileItem,
   KodiMovieLibraryItem,
   KodiMusicLibraryItem,
   KodiPlaylistFileItem,
   PlayerGoToTarget,
   PlayerOpenItem,
+  RemoteInputAction,
   RemoteInputCommand,
   PlayerOpenMovieParams,
   PlayerOpenParams,
+  PlayerPartyModeValue,
   PlayerRepeatValue,
   PlayerSeekValue,
   PlayerShuffleValue,
   PlaylistAddMovieParams,
   PlaylistAddParams,
+  PlaylistInsertParams,
   PlaylistItemPropertyName,
+  PvrGetBroadcastsParams,
+  PvrGetChannelDetailsParams,
+  PvrGetChannelsParams,
+  PvrDeleteTimerParams,
+  PvrGetRecordingDetailsParams,
+  PvrRecordParams,
+  PvrTimerBroadcastParams,
   SettingsGetCategoriesParams,
   SettingsGetSettingsParams,
   SettingsSetSettingValueParams,
   SettingsSettingValue,
+  VideoLibraryRefreshMovieParams,
+  VideoLibraryCleanParams,
+  VideoLibraryScanParams,
+  VideoLibrarySetMusicVideoDetailsParams,
+  VideoLibrarySetTvShowDetailsParams,
   JsonRpcIntrospectionParams
 } from './methods';
 
@@ -39,7 +61,10 @@ import {
   addMusicPlaylistItem,
   addPlaylistFileItem,
   addPlaylistItem,
+  cleanAudioLibrary,
+  cleanVideoLibrary,
   clearPlaylist,
+  executeAddon,
   getAddonDetails,
   getAddons,
   getActivePlayers,
@@ -49,17 +74,30 @@ import {
   getAudioLibraryGenres,
   getAudioLibrarySongs,
   getFileDirectory,
+  getFileDetails,
   getFileSources,
   getJsonRpcIntrospection,
   getJsonRpcVersion,
   getPlayerItem,
   getPlayerProperties,
+  insertPlaylistItem,
   getPlaylistItems,
+  getPvrBroadcasts,
+  getPvrChannelDetails,
+  getPvrChannels,
+  getPvrRecordingDetails,
+  getPvrRecordings,
+  recordPvrChannel,
+  togglePvrTimer,
+  addPvrTimer,
+  deletePvrTimer,
   getSettings,
   getSettingsCategories,
   getSettingsSections,
   getSystemProperties,
   getVideoLibraryEpisodes,
+  getVideoLibraryMusicVideoDetails,
+  getVideoLibraryMusicVideos,
   getVideoLibraryMovieDetails,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
@@ -69,6 +107,7 @@ import {
   getVideoLibraryEpisodeDetails,
   getVideoLibraryAvailableArt,
   getVideoLibraryAvailableArtTypes,
+  refreshVideoLibraryMovie,
   refreshVideoLibraryTvShow,
   refreshVideoLibraryEpisode,
   setSeasonDetails,
@@ -83,13 +122,22 @@ import {
   prepareFileDownload,
   removePlaylistItem,
   seekPlayer,
+  scanAudioLibrary,
+  scanVideoLibrary,
+  executeInputAction,
   sendInputCommand,
+  sendInputText,
   setAddonEnabled,
   setApplicationMute,
   setApplicationVolume,
+  setAlbumDetails,
+  setArtistDetails,
   setEpisodeDetails,
   setMovieDetails,
+  setMusicVideoDetails,
+  setTvShowDetails,
   setPlayerAudioStream,
+  setPlayerPartyMode,
   setPlayerRepeat,
   setPlayerShuffle,
   setPlayerSubtitle,
@@ -106,11 +154,13 @@ type IsNotAssignable<TValue, TTarget> = [TValue] extends [TTarget] ? false : tru
 export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<number, PlayerSeekValue>>,
   ExpectTrue<IsNotAssignable<string, RemoteInputCommand>>,
+  ExpectTrue<IsNotAssignable<string, RemoteInputAction>>,
   ExpectTrue<IsNotAssignable<'sendText', RemoteInputCommand>>,
   ExpectTrue<IsNotAssignable<'power', RemoteInputCommand>>,
   ExpectTrue<IsNotAssignable<string, PlayerSeekValue>>,
   ExpectTrue<IsNotAssignable<'invalid-repeat', PlayerRepeatValue>>,
   ExpectTrue<IsNotAssignable<'invalid-shuffle', PlayerShuffleValue>>,
+  ExpectTrue<IsNotAssignable<'invalid-party', PlayerPartyModeValue>>,
   ExpectTrue<IsNotAssignable<'last', PlayerGoToTarget>>,
   ExpectTrue<IsNotAssignable<'unknownPlaylistProperty', PlaylistItemPropertyName>>,
   ExpectTrue<IsNotAssignable<number, KodiMusicLibraryItem>>,
@@ -133,6 +183,7 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { file: string } }, PlaylistAddParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { movieid: number } }, PlaylistAddParams>>,
   ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistAddMovieParams>>,
+  ExpectTrue<IsNotAssignable<{ playlistid: 0; item: { songid: number } }, PlaylistInsertParams>>,
   ExpectTrue<IsNotAssignable<'sometimes', AddonEnabledFilter>>,
   ExpectTrue<IsNotAssignable<'partial', AddonInstalledFilter>>,
   ExpectTrue<IsNotAssignable<'unknownAddonProperty', AddonPropertyName>>,
@@ -141,9 +192,26 @@ export type KodiCommandWrapperTypeAssertions = [
   ExpectTrue<IsNotAssignable<string, AddonsGetAddonDetailsParams>>,
   ExpectTrue<IsNotAssignable<{ addonid: string }, AddonsSetAddonEnabledParams>>,
   ExpectTrue<IsNotAssignable<{ enabled: true }, AddonsSetAddonEnabledParams>>,
+  ExpectTrue<IsNotAssignable<{ params: string[] }, AddonsExecuteAddonParams>>,
+  ExpectTrue<IsNotAssignable<{ albumid: string }, AudioLibrarySetAlbumDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ artistid: string }, AudioLibrarySetArtistDetailsParams>>,
+  ExpectTrue<IsNotAssignable<string, AudioLibraryScanParams>>,
+  ExpectTrue<IsNotAssignable<string, AudioLibraryCleanParams>>,
+  ExpectTrue<IsNotAssignable<{ channelgroupid: 'all' }, PvrGetChannelsParams>>,
+  ExpectTrue<IsNotAssignable<{ channelid: string }, PvrGetChannelDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ channelid: string }, PvrGetBroadcastsParams>>,
+  ExpectTrue<IsNotAssignable<{ recordingid: string }, PvrGetRecordingDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ channel: 'alltv' }, PvrRecordParams>>,
+  ExpectTrue<IsNotAssignable<{ broadcastid: string }, PvrTimerBroadcastParams>>,
+  ExpectTrue<IsNotAssignable<{ timerid: string }, PvrDeleteTimerParams>>,
   ExpectTrue<IsNotAssignable<string, SettingsGetCategoriesParams>>,
   ExpectTrue<IsNotAssignable<string, SettingsGetSettingsParams>>,
   ExpectTrue<IsNotAssignable<{ setting: string; value: undefined }, SettingsSetSettingValueParams>>,
+  ExpectTrue<IsNotAssignable<{ tvshowid: string }, VideoLibrarySetTvShowDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ musicvideoid: string }, VideoLibrarySetMusicVideoDetailsParams>>,
+  ExpectTrue<IsNotAssignable<{ movieid: string }, VideoLibraryRefreshMovieParams>>,
+  ExpectTrue<IsNotAssignable<string, VideoLibraryScanParams>>,
+  ExpectTrue<IsNotAssignable<string, VideoLibraryCleanParams>>,
   ExpectTrue<IsNotAssignable<symbol, SettingsSettingValue>>
 ];
 
@@ -255,6 +323,19 @@ describe('Kodi curated method wrappers', () => {
     ]);
   });
 
+  it('executes add-ons preserving optional params and wait flag', async () => {
+    const client = createFakeClient(['OK']);
+    const params = {
+      addonid: 'script.audio.alpha',
+      params: { mode: 'play' },
+      wait: false
+    } as const satisfies AddonsExecuteAddonParams;
+
+    await expect(executeAddon(client, params)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([{ method: 'Addons.ExecuteAddon', params }]);
+  });
+
   it('propagates add-on wrapper transport errors unchanged', async () => {
     const error = new Error('transport unavailable');
     const client: KodiJsonRpcHttpClient = {
@@ -266,6 +347,7 @@ describe('Kodi curated method wrappers', () => {
     await expect(
       setAddonEnabled(client, { addonid: 'plugin.video.youtube', enabled: true })
     ).rejects.toBe(error);
+    await expect(executeAddon(client, { addonid: 'script.audio.alpha' })).rejects.toBe(error);
   });
 
   it('sends bounded remote input commands as exact zero-param Input method calls', async () => {
@@ -287,6 +369,18 @@ describe('Kodi curated method wrappers', () => {
     }
 
     expect(client.calls).toEqual(commandToMethod.map(([, method]) => ({ method })));
+  });
+
+  it('sends text and supported input actions with bounded params', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(sendInputText(client, 'Search terms')).resolves.toBe('OK');
+    await expect(executeInputAction(client, 'osd')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Input.SendText', params: { text: 'Search terms' } },
+      { method: 'Input.ExecuteAction', params: { action: 'osd' } }
+    ]);
   });
 
   it('pings Kodi without params', async () => {
@@ -509,7 +603,26 @@ describe('Kodi curated method wrappers', () => {
     await expect(addMoviePlaylistItem(client, { movieid: 4401 })).resolves.toBe('OK');
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } }
+    ]);
+  });
+
+  it('inserts playlist items preserving playlist id, position, and item identity', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(
+      insertPlaylistItem(client, { playlistid: 0, position: 1, item: { songid: 42 } })
+    ).resolves.toBe('OK');
+    await expect(
+      insertPlaylistItem(client, { playlistid: 1, position: 0, item: { file: 'movie.mkv' } })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Insert', params: { playlistid: 0, position: 1, item: { songid: 42 } } },
+      {
+        method: 'Playlist.Insert',
+        params: { playlistid: 1, position: 0, item: { file: 'movie.mkv' } }
+      }
     ]);
   });
 
@@ -681,6 +794,16 @@ describe('Kodi curated method wrappers', () => {
     ]);
   });
 
+  it('sets player party mode preserving the requested value', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(setPlayerPartyMode(client, 1, 'toggle')).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'Player.SetPartymode', params: { playerid: 1, partymode: 'toggle' } }
+    ]);
+  });
+
   it('sets player repeat preserving the requested value', async () => {
     const client = createFakeClient(['OK']);
 
@@ -757,6 +880,35 @@ describe('Kodi curated method wrappers', () => {
     } satisfies FileDirectoryResult);
 
     expect(client.calls).toEqual([{ method: 'Files.GetDirectory', params }]);
+  });
+
+  it('gets file details preserving requested file params', async () => {
+    const client = createFakeClient([
+      {
+        filedetails: {
+          file: 'smb://nas/music/song.flac',
+          filetype: 'file',
+          label: 'Song',
+          title: 'Song'
+        }
+      }
+    ]);
+    const params = {
+      file: 'smb://nas/music/song.flac',
+      media: 'music',
+      properties: ['file', 'title', 'artist']
+    } as const satisfies FileDetailsParams;
+
+    await expect(getFileDetails(client, params)).resolves.toEqual({
+      filedetails: {
+        file: 'smb://nas/music/song.flac',
+        filetype: 'file',
+        label: 'Song',
+        title: 'Song'
+      }
+    } satisfies FileDetailsResult);
+
+    expect(client.calls).toEqual([{ method: 'Files.GetFileDetails', params }]);
   });
 
   it('opens a player file item preserving the exact file payload', async () => {
@@ -848,6 +1000,60 @@ describe('Kodi curated method wrappers', () => {
     ]);
   });
 
+  it('sets audio library album and artist details with curated writable fields', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(
+      setAlbumDetails(client, {
+        albumid: 7,
+        title: 'Bayani',
+        artist: ['Blue Scholars'],
+        art: { thumb: 'image://album.jpg/' }
+      })
+    ).resolves.toBe('OK');
+    await expect(
+      setArtistDetails(client, {
+        artistid: 9,
+        artist: 'Blue Scholars',
+        genre: ['Hip-Hop'],
+        art: { fanart: 'image://artist.jpg/' }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'AudioLibrary.SetAlbumDetails',
+        params: {
+          albumid: 7,
+          title: 'Bayani',
+          artist: ['Blue Scholars'],
+          art: { thumb: 'image://album.jpg/' }
+        }
+      },
+      {
+        method: 'AudioLibrary.SetArtistDetails',
+        params: {
+          artistid: 9,
+          artist: 'Blue Scholars',
+          genre: ['Hip-Hop'],
+          art: { fanart: 'image://artist.jpg/' }
+        }
+      }
+    ]);
+  });
+
+  it('scans and cleans the audio library with Chorus2-compatible clean defaults', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(scanAudioLibrary(client)).resolves.toBe('OK');
+    await expect(cleanAudioLibrary(client)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'AudioLibrary.Scan', params: {} },
+      { method: 'AudioLibrary.Clean', params: { showdialogs: false } }
+    ]);
+  });
+
   it('sets video library movie details with resume progress', async () => {
     const client = createFakeClient(['OK']);
 
@@ -891,6 +1097,58 @@ describe('Kodi curated method wrappers', () => {
     ]);
   });
 
+  it('sets video library TV show details with curated writable fields', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setTvShowDetails(client, {
+        tvshowid: 5501,
+        playcount: 1,
+        lastplayed: '2026-04-29 20:30:00',
+        art: { poster: 'image://poster.jpg/' }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.SetTVShowDetails',
+        params: {
+          tvshowid: 5501,
+          playcount: 1,
+          lastplayed: '2026-04-29 20:30:00',
+          art: { poster: 'image://poster.jpg/' }
+        }
+      }
+    ]);
+  });
+
+  it('sets video library music video details with curated writable fields', async () => {
+    const client = createFakeClient(['OK']);
+
+    await expect(
+      setMusicVideoDetails(client, {
+        musicvideoid: 77,
+        playcount: 1,
+        title: 'Live cut',
+        artist: ['The Band'],
+        resume: { position: 55, total: 300 }
+      })
+    ).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.SetMusicVideoDetails',
+        params: {
+          musicvideoid: 77,
+          playcount: 1,
+          title: 'Live cut',
+          artist: ['The Band'],
+          resume: { position: 55, total: 300 }
+        }
+      }
+    ]);
+  });
+
   it('preserves rejected library write transport errors unchanged', async () => {
     const error = new Error('transport unavailable');
     const client: KodiJsonRpcHttpClient = {
@@ -898,6 +1156,11 @@ describe('Kodi curated method wrappers', () => {
     };
 
     await expect(setSongDetails(client, { songid: 42, playcount: 1 })).rejects.toBe(error);
+    await expect(setAlbumDetails(client, { albumid: 7, title: 'Bayani' })).rejects.toBe(error);
+    await expect(setTvShowDetails(client, { tvshowid: 5501, playcount: 1 })).rejects.toBe(error);
+    await expect(setMusicVideoDetails(client, { musicvideoid: 77, playcount: 1 })).rejects.toBe(
+      error
+    );
   });
 
   it('gets audio library artists preserving requested params', async () => {
@@ -991,6 +1254,52 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMovieDetails', params }]);
+  });
+
+  it('gets video library music videos preserving requested params', async () => {
+    const client = createFakeClient([
+      {
+        musicvideos: [{ musicvideoid: 77, label: 'Live cut' }],
+        limits: { start: 0, end: 1, total: 1 }
+      }
+    ]);
+    const params = {
+      properties: ['title', 'artist', 'album', 'thumbnail'],
+      limits: { start: 0, end: 25 },
+      sort: { method: 'title', order: 'ascending' }
+    } as const;
+
+    await expect(getVideoLibraryMusicVideos(client, params)).resolves.toEqual({
+      musicvideos: [{ musicvideoid: 77, label: 'Live cut' }],
+      limits: { start: 0, end: 1, total: 1 }
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMusicVideos', params }]);
+  });
+
+  it('gets video library music video details preserving exact id and requested properties', async () => {
+    const client = createFakeClient([
+      {
+        musicvideodetails: {
+          musicvideoid: 77,
+          label: 'Live cut',
+          title: 'Live cut',
+          artist: ['The Band']
+        }
+      }
+    ]);
+    const params = { musicvideoid: 77, properties: ['title', 'artist', 'plot'] } as const;
+
+    await expect(getVideoLibraryMusicVideoDetails(client, params)).resolves.toEqual({
+      musicvideodetails: {
+        musicvideoid: 77,
+        label: 'Live cut',
+        title: 'Live cut',
+        artist: ['The Band']
+      }
+    });
+
+    expect(client.calls).toEqual([{ method: 'VideoLibrary.GetMusicVideoDetails', params }]);
   });
 
   it('gets video library TV shows with curated default properties that exclude file', async () => {
@@ -1153,15 +1462,29 @@ describe('Kodi curated method wrappers', () => {
     ]);
   });
 
-  it('refreshes TV shows and episodes with exact Kodi method names', async () => {
-    const client = createFakeClient(['OK', 'OK']);
+  it('refreshes movies, TV shows, and episodes with exact Kodi method names', async () => {
+    const client = createFakeClient(['OK', 'OK', 'OK']);
 
+    await expect(refreshVideoLibraryMovie(client, { movieid: 4401 })).resolves.toBe('OK');
     await expect(refreshVideoLibraryTvShow(client, { tvshowid: 5501 })).resolves.toBe('OK');
     await expect(refreshVideoLibraryEpisode(client, { episodeid: 6601 })).resolves.toBe('OK');
 
     expect(client.calls).toEqual([
+      { method: 'VideoLibrary.RefreshMovie', params: { movieid: 4401 } },
       { method: 'VideoLibrary.RefreshTVShow', params: { tvshowid: 5501 } },
       { method: 'VideoLibrary.RefreshEpisode', params: { episodeid: 6601 } }
+    ]);
+  });
+
+  it('scans and cleans the video library with Chorus2-compatible clean defaults', async () => {
+    const client = createFakeClient(['OK', 'OK']);
+
+    await expect(scanVideoLibrary(client, { directory: '/media/movies' })).resolves.toBe('OK');
+    await expect(cleanVideoLibrary(client)).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'VideoLibrary.Scan', params: { directory: '/media/movies' } },
+      { method: 'VideoLibrary.Clean', params: { showdialogs: false } }
     ]);
   });
 
@@ -1257,6 +1580,112 @@ describe('Kodi curated method wrappers', () => {
     });
 
     expect(client.calls).toEqual([{ method: 'Settings.GetSettings', params }]);
+  });
+
+  it('gets PVR channels, channel details, and broadcasts with Chorus2-compatible params', async () => {
+    const client = createFakeClient([
+      { channels: [{ channelid: 12, label: 'KEXP' }], limits: { start: 0, end: 1, total: 1 } },
+      { channeldetails: { channelid: 12, label: 'KEXP', channeltype: 'radio' } },
+      { broadcasts: [{ broadcastid: 45, label: 'Morning Show' }] }
+    ]);
+
+    await expect(
+      getPvrChannels(client, {
+        channelgroupid: 'allradio',
+        properties: ['thumbnail', 'channeltype', 'broadcastnow'],
+        limits: { start: 0, end: 25 }
+      })
+    ).resolves.toEqual({
+      channels: [{ channelid: 12, label: 'KEXP' }],
+      limits: { start: 0, end: 1, total: 1 }
+    });
+    await expect(
+      getPvrChannelDetails(client, { channelid: 12, properties: ['thumbnail', 'channeltype'] })
+    ).resolves.toEqual({
+      channeldetails: { channelid: 12, label: 'KEXP', channeltype: 'radio' }
+    });
+    await expect(
+      getPvrBroadcasts(client, {
+        channelid: 12,
+        properties: ['title', 'runtime', 'starttime'],
+        limits: { start: 0, end: 10 }
+      })
+    ).resolves.toEqual({ broadcasts: [{ broadcastid: 45, label: 'Morning Show' }] });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'PVR.GetChannels',
+        params: {
+          channelgroupid: 'allradio',
+          properties: ['thumbnail', 'channeltype', 'broadcastnow'],
+          limits: { start: 0, end: 25 }
+        }
+      },
+      {
+        method: 'PVR.GetChannelDetails',
+        params: { channelid: 12, properties: ['thumbnail', 'channeltype'] }
+      },
+      {
+        method: 'PVR.GetBroadcasts',
+        params: {
+          channelid: 12,
+          properties: ['title', 'runtime', 'starttime'],
+          limits: { start: 0, end: 10 }
+        }
+      }
+    ]);
+  });
+
+  it('gets PVR recordings and recording details preserving requested params', async () => {
+    const client = createFakeClient([
+      { recordings: [{ recordingid: 91, label: 'Match replay' }] },
+      { recordingdetails: { recordingid: 91, title: 'Match replay', channel: 'Sports' } }
+    ]);
+
+    await expect(
+      getPvrRecordings(client, {
+        properties: ['channel', 'file', 'title', 'resume'],
+        limits: { start: 0, end: 25 }
+      })
+    ).resolves.toEqual({ recordings: [{ recordingid: 91, label: 'Match replay' }] });
+    await expect(
+      getPvrRecordingDetails(client, {
+        recordingid: 91,
+        properties: ['channel', 'file', 'title']
+      })
+    ).resolves.toEqual({
+      recordingdetails: { recordingid: 91, title: 'Match replay', channel: 'Sports' }
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'PVR.GetRecordings',
+        params: {
+          properties: ['channel', 'file', 'title', 'resume'],
+          limits: { start: 0, end: 25 }
+        }
+      },
+      {
+        method: 'PVR.GetRecordingDetails',
+        params: { recordingid: 91, properties: ['channel', 'file', 'title'] }
+      }
+    ]);
+  });
+
+  it('runs PVR record and timer commands with Chorus2-compatible params', async () => {
+    const client = createFakeClient(['OK', 'OK', 'OK', 'OK']);
+
+    await expect(recordPvrChannel(client, { channel: 12, record: 'toggle' })).resolves.toBe('OK');
+    await expect(togglePvrTimer(client, { broadcastid: 45, timerrule: false })).resolves.toBe('OK');
+    await expect(addPvrTimer(client, { broadcastid: 45, timerrule: true })).resolves.toBe('OK');
+    await expect(deletePvrTimer(client, { timerid: 77 })).resolves.toBe('OK');
+
+    expect(client.calls).toEqual([
+      { method: 'PVR.Record', params: { channel: 12, record: 'toggle' } },
+      { method: 'PVR.ToggleTimer', params: { broadcastid: 45, timerrule: false } },
+      { method: 'PVR.AddTimer', params: { broadcastid: 45, timerrule: true } },
+      { method: 'PVR.DeleteTimer', params: { timerid: 77 } }
+    ]);
   });
 
   it('sets a settings value preserving setting id and scalar value', async () => {

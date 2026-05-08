@@ -77,10 +77,7 @@ describe('main entrypoint', () => {
       ],
       [
         '/addons/webinterface.chorus3/lab/screenshot',
-        {
-          kind: 'chorus2Placeholder',
-          placeholder: expect.objectContaining({ id: 'labScreenshot' })
-        }
+        { kind: 'labUnknown', pathLabel: '/lab/screenshot' }
       ],
       ['/addons/webinterface.chorus3/pvr/tv', { kind: 'primary', route: { kind: 'pvrTv' } }]
     ] as const) {
@@ -112,7 +109,7 @@ describe('main entrypoint', () => {
     });
   });
 
-  it('mounts package-mounted Chorus2 placeholders without reflecting unsafe path or query input', async () => {
+  it('mounts package-mounted Chorus2 PVR routes without reflecting unsafe path or query input', async () => {
     setPathAndSearch(
       '/addons/webinterface.chorus3/pvr/tv',
       '?password=CHORUS3_SENTINEL_SECRET&token=Basic&next=smb://admin:p@ssword@nas/private'
@@ -120,10 +117,11 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('PVR TV');
-    expect(document.body.textContent).toContain('Chorus2 surface');
-    expect(document.body.textContent).toContain('Future owner');
-    expect(document.body.textContent).toContain('R056/M006/S04');
+    expect(document.body.textContent).toContain('PVR');
+    expect(document.body.textContent).toContain('TV Channels');
+    expect(document.body.textContent).toContain('No TV channels found.');
+    expect(document.body.textContent).not.toContain('Classic surface');
+    expect(document.body.textContent).not.toContain('Future owner');
     expect(document.body.textContent).not.toContain('Settings route not found');
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|smb:\/\/|admin:p@ssword|localStorage|sessionStorage/i
@@ -131,7 +129,7 @@ describe('main entrypoint', () => {
   });
 
   it('derives a local-only Kodi host from package-mounted entrypoint origins', async () => {
-    const { resolveEntrypointAppProps } = await importMain();
+    const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
 
     expect(
       resolveEntrypointAppProps({
@@ -143,6 +141,7 @@ describe('main entrypoint', () => {
       })
     ).toEqual({
       route: { kind: 'primary', route: { kind: 'home' } },
+      packageBasePath: '/addons/webinterface.chorus3',
       packageMountedHost: {
         id: 'kodi-package-origin',
         label: 'This Kodi',
@@ -162,6 +161,67 @@ describe('main entrypoint', () => {
         port: '8080'
       })
     ).toEqual({ route: { kind: 'primary', route: { kind: 'home' } } });
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/Users/keith/Library/Application%20Support/Kodi/addons/webinterface.chorus3/',
+        hash: '#music/genres',
+        search: '',
+        protocol: 'http:',
+        hostname: 'localhost',
+        port: '8080'
+      })
+    ).toEqual({
+      route: { kind: 'primary', route: { kind: 'musicGenres' } },
+      packageBasePath:
+        '/Users/keith/Library/Application%20Support/Kodi/addons/webinterface.chorus3',
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'localhost',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
+
+    expect(
+      resolveEntrypointAppProps({
+        pathname: '/addons/webinterface.chorus3/index.html',
+        hash: '#music/genres',
+        search: '',
+        protocol: 'http:',
+        hostname: 'kodi.local',
+        port: '8080'
+      })
+    ).toEqual({
+      route: { kind: 'primary', route: { kind: 'musicGenres' } },
+      packageBasePath: '/addons/webinterface.chorus3',
+      packageMountedHost: {
+        id: 'kodi-package-origin',
+        label: 'This Kodi',
+        host: 'kodi.local',
+        port: 8080,
+        useTls: false,
+        useWebSocket: false
+      }
+    });
+
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/',
+        hash: '#music',
+        search: ''
+      })
+    ).toEqual({ kind: 'primary', route: { kind: 'music' } });
+
+    expect(
+      resolveEntrypointRoute({
+        pathname: '/thumbsup',
+        hash: '#thumbs-song',
+        search: ''
+      })
+    ).toEqual({ kind: 'primary', route: { kind: 'thumbsup' } });
 
     document.head.insertAdjacentHTML(
       'beforeend',
@@ -251,7 +311,9 @@ describe('main entrypoint', () => {
   it('mounts the Svelte app into the root element', async () => {
     await importMain();
 
-    expect(document.body.textContent).toContain('chorus3');
+    expect(document.body.textContent).toContain('Search Kodi');
+    expect(document.body.textContent).toContain('Recently Added Albums');
+    expect(document.body.textContent).toContain('Recently Played Albums');
   });
 
   it('applies the stored root theme before rendering', async () => {
@@ -319,7 +381,7 @@ describe('main entrypoint', () => {
   it('keeps default and disabled fixture query modes on the live/default app props', async () => {
     await importMain();
 
-    expect(document.body.textContent).toContain('Music Library');
+    expect(document.body.textContent).toContain('Recently Added Albums');
     expect(document.body.textContent).not.toContain('Nina Simone');
     expect(document.body.textContent).not.toContain('Pastel Blues');
     expect(document.body.textContent).not.toContain('Feeling Good');
@@ -337,7 +399,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Music Library');
+    expect(document.body.textContent).toContain('Recently Added Albums');
     expect(document.body.textContent).not.toContain('Nina Simone');
     expect(document.body.textContent).not.toContain('Sinnerman.flac');
     expect(document.body.textContent).not.toContain('Feeling Good');
@@ -357,22 +419,15 @@ describe('main entrypoint', () => {
 
     expect(document.body.textContent).toContain('Nina Simone');
     expect(document.body.textContent).toContain('Pastel Blues');
-    expect(document.body.textContent).toContain('Sinnerman');
-    expect(document.body.textContent).toContain('Recent & Top Music');
     expect(document.body.textContent).toContain('Recently Added');
     expect(document.body.textContent).toContain('Recently Played');
-    expect(document.body.textContent).toContain('Most Played');
-    expect(document.body.textContent).toContain('Feeling Good');
     expect(document.body.textContent).toContain('I Put a Spell on You');
-    expect(document.body.textContent).toContain('My Baby Just Cares for Me');
-    expect(document.body.textContent).toContain('Added 2026-04-29 11:22:33');
-    expect(document.body.textContent).toContain('Played 2026-04-30 20:15:00');
-    expect(document.body.textContent).toContain('Played 12 times');
+    expect(document.body.textContent).toContain('Play');
+    expect(document.body.textContent).toContain('Queue');
     expect(document.body.textContent).toContain('Albums');
-    expect(document.body.textContent).toContain('Sinnerman.flac');
-    expect(document.body.textContent).toContain('cover.jpg');
-    expect(document.body.textContent).toContain('Late Night Jazz.xsp');
-    expect(document.body.textContent).toContain('Road Trip.m3u');
+    expect(document.body.textContent).toContain('Download');
+    expect(document.body.textContent).not.toContain('Sinnerman.flac');
+    expect(document.body.textContent).not.toContain('Late Night Jazz.xsp');
   });
 
   it('mounts populated M005 browser-proof fixtures for the direct settings route', async () => {
@@ -380,21 +435,12 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Kodi Settings');
-    expect(document.body.textContent).toContain('Autoplay next item');
-    expect(document.body.textContent).toContain('Seek step size');
-    expect(document.body.textContent).toContain('HDR tone mapping');
-    expect(document.body.textContent).toContain('Pending write proof');
-    expect(document.body.textContent).toContain('Saved write proof');
-    expect(document.body.textContent).toContain('Rejected write proof');
-    expect(document.body.textContent).toContain('Setting change failed.');
-    expect(document.body.textContent).toContain('Rollback value: previous safe value');
-    expect(document.body.textContent).toContain('Refresh after write: pending for');
-    expect(document.body.textContent).toContain('fixture.pendingwrite');
-    expect(document.body.textContent).toContain('4 attempted, 2 succeeded, 1 failed');
-    expect(document.body.textContent).toContain(
-      'Read-only: Kodi path settings are not safe to edit here.'
-    );
+    expect(document.body.textContent).toContain('General options');
+    expect(document.body.textContent).toContain('Web interface');
+    expect(document.body.textContent).toContain('Default player');
+    expect(document.body.textContent).toContain('Keyboard controls');
+    expect(document.body.textContent).toContain('List options');
+    expect(document.body.textContent).toContain('Appearance');
     expect(document.body.textContent).not.toContain('Settings support is loading for this route.');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('Basic');
@@ -404,42 +450,20 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toContain('sessionStorage');
   });
 
-  it('switches M005 Settings browser-proof fixtures from English to German through the real entrypoint without route reload or forbidden tokens', async () => {
+  it('mounts M005 Settings browser-proof fixtures through the real entrypoint without route reload or forbidden tokens', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1');
 
     await importMain();
 
     const beforePath = window.location.pathname;
     const beforeSearch = window.location.search;
-    expect(document.body.textContent).toContain('Kodi Settings');
-    expect(document.body.textContent).toContain('Settings loaded.');
-    expect(document.body.textContent).toContain(
-      'Read-only: Kodi path settings are not safe to edit here.'
-    );
-    expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
-
-    const select = document.body.querySelector<HTMLSelectElement>('.locale-toggle select');
-    expect(select).toBeInstanceOf(HTMLSelectElement);
-    select!.value = 'de';
-    select!.dispatchEvent(new Event('change', { bubbles: true }));
-
-    await vi.waitFor(() => {
-      expect(document.body.textContent).toContain('Kodi-Einstellungen');
-    });
+    expect(document.body.textContent).toContain('General options');
+    expect(document.body.textContent).toContain('Web interface');
 
     expect(window.location.pathname).toBe(beforePath);
     expect(window.location.search).toBe(beforeSearch);
-    expect(document.body.textContent).toContain('Einstellungen geladen.');
-    expect(document.body.textContent).toContain('Vorheriger Wert: previous safe value');
-    expect(document.body.textContent).toContain('4 versucht, 2 erfolgreich, 1 fehlgeschlagen');
-    expect(document.body.textContent).toContain(
-      'Schreibgeschützt: Kodi-path-Einstellungen können hier nicht sicher bearbeitet werden.'
-    );
-    expect(document.body.textContent).not.toContain('Kodi Settings');
-    expect(document.body.textContent).not.toContain('Settings loaded.');
-    expect(document.body.textContent).not.toContain(
-      'Read-only: Kodi path settings are not safe to edit here.'
-    );
+    expect(document.body.textContent).toContain('General options');
+    expect(document.body.textContent).toContain('Web interface');
     for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
       expect(document.body.textContent).not.toContain(forbidden);
     }
@@ -450,11 +474,8 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Kodi-Einstellungen');
-    expect(document.body.textContent).toContain('Einstellungen geladen.');
-    expect(document.body.textContent).toContain('Vorheriger Wert: previous safe value');
-    expect(document.body.textContent).toContain('4 versucht, 2 erfolgreich, 1 fehlgeschlagen');
-    expect(document.body.textContent).not.toContain('Kodi Settings');
+    expect(document.body.textContent).toContain('General options');
+    expect(document.body.textContent).toContain('Web interface');
     for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
       expect(document.body.textContent).not.toContain(forbidden);
     }
@@ -465,7 +486,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
     expect(window.localStorage.getItem('chorus3.locale')).toBeNull();
   });
@@ -499,13 +520,13 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('fixture.addon-write-rejected');
   });
 
-  it('mounts populated M005 browser-proof fixtures for direct Lab routes only', async () => {
+  it('keeps M005 browser-proof Lab routes non-routable', async () => {
     setPathAndSearch('/lab/shortcuts', '?m005-browser-proof=1');
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Playback shortcuts');
-    expect(document.body.textContent).toContain('Play / pause');
+    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('/lab/shortcuts');
     expect(document.body.textContent).not.toContain('Lab API browser');
 
     vi.resetModules();
@@ -514,12 +535,9 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab API browser');
-    expect(document.body.textContent).toContain('Introspection loaded.');
-    expect(document.body.textContent).toContain('Player.Open');
-    expect(document.body.textContent).toContain('Confirmation required.');
-    expect(document.body.textContent).toContain('System.Shutdown — blocked');
-    expect(document.body.textContent).toContain('redactedField1');
+    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('/lab/api-browser');
+    expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|admin:p@ssword|SENTINEL_SECRET|localStorage|sessionStorage|smb:\/\//i
     );
@@ -530,7 +548,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab API browser');
+    expect(document.body.textContent).toContain('Lab route not found');
     expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toContain('fixture-ok');
 
@@ -540,7 +558,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab API browser');
+    expect(document.body.textContent).toContain('Lab route not found');
     expect(document.body.textContent).not.toContain('Player.Open');
 
     const { resolveEntrypointAppProps } = await importMain();
@@ -549,7 +567,7 @@ describe('main entrypoint', () => {
         { pathname: '/lab/api-browser', search: '?m005-browser-proof=1' },
         { DEV: false, MODE: 'production' }
       )
-    ).toEqual({ route: { kind: 'labApiBrowser' } });
+    ).toEqual({ route: { kind: 'labUnknown', pathLabel: '/lab/api-browser' } });
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
@@ -560,8 +578,8 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab API Browser Method');
-    expect(document.body.textContent).toContain('lab/api-browser/:method');
+    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('/lab/[redacted]');
     expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('Basic');
@@ -609,7 +627,8 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Video Movies');
+    expect(document.body.textContent).toContain('Movies');
+    expect(document.body.textContent).toContain('All movies');
     expect(document.body.textContent).not.toContain('Autoplay next item');
     expect(document.body.textContent).not.toContain('Rejected write proof');
 
@@ -619,7 +638,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Kodi Settings');
+    expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).not.toContain('Autoplay next item');
     expect(document.body.textContent).not.toContain('Rejected write proof');
   });
@@ -656,7 +675,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('Cold Open');
     expect(document.body.textContent).toContain('Video playlists');
     expect(document.body.textContent).toContain('Rain City Thrillers.xsp');
-    expect(document.body.textContent).toContain('Video item is browse-only in this view');
+    expect(document.body.textContent).toContain('Video item without available actions');
     expect(document.body.textContent).not.toContain('smb://');
     expect(document.body.textContent).not.toContain('Authorization');
     expect(document.body.textContent).not.toContain('localStorage');

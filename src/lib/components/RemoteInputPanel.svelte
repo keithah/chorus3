@@ -1,10 +1,12 @@
 <script module lang="ts">
-  import type { RemoteInputCommand } from '$lib/kodi';
+  import type { RemoteInputAction, RemoteInputCommand } from '$lib/kodi';
   import type { RemoteInputDispatchSnapshot } from '$lib/stores/remoteInputDispatch.svelte';
 
   export interface RemoteInputPanelRemoteDispatch {
     readonly snapshot: RemoteInputDispatchSnapshot;
     sendInput(command: RemoteInputCommand): Promise<void> | void;
+    sendText?(text: string): Promise<void> | void;
+    executeAction?(action: RemoteInputAction): Promise<void> | void;
   }
 
   type RemoteButtonDefinition = {
@@ -80,24 +82,20 @@
     remoteInputDispatch: RemoteInputPanelRemoteDispatch;
     playerSnapshot: PlayerStoreSnapshot;
     playerDispatch: PlayerControlsDispatch;
+    backgroundUrl?: string;
     i18n?: TranslationContext;
   }
 
   let {
     remoteSnapshot,
     remoteInputDispatch,
-    playerSnapshot,
     playerDispatch,
+    backgroundUrl,
     i18n = createTranslationContext('en')
   }: Props = $props();
 
   const isRemoteRunning = $derived(remoteSnapshot.commandStatus === 'running');
   const isPlayerRunning = $derived(playerDispatch.snapshot.commandStatus === 'running');
-  const safeLastCommand = $derived(commandLabel(remoteSnapshot.lastCommand));
-  const safeError = $derived(
-    remoteSnapshot.lastError ? sanitizeDiagnostic(remoteSnapshot.lastError.message) : null
-  );
-
   async function handleRemoteCommand(command: RemoteInputCommand): Promise<void> {
     try {
       await remoteInputDispatch.sendInput(command);
@@ -115,48 +113,19 @@
       // Keep the remote controller mounted if an injected action throws synchronously.
     }
   }
-
-  function commandLabel(command: RemoteInputCommand | null): string {
-    return command ? i18n.t(`remote.command.${command}`) : i18n.t('remote.command.none');
-  }
-
-  function sanitizeDiagnostic(message: string): string {
-    return message
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-      .replace(/special:\/\/[^\s]+/gi, 'redacted-file')
-      .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-file')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/raw[_\s-]*response[_\s-]*body/gi, 'redacted response');
-  }
 </script>
 
-<article class="remote-input-panel" aria-labelledby="remote-input-title">
+<article
+  class="remote-input-panel"
+  aria-labelledby="remote-input-title"
+  style={backgroundUrl ? `--remote-fanart-url: url('${backgroundUrl}')` : undefined}
+>
   <div class="remote-background" aria-hidden="true"></div>
 
   <section class="kodi-remote" aria-label={i18n.t('remote.input.aria')}>
     <h2 id="remote-input-title" class="remote-visually-hidden">{i18n.t('remote.panel.title')}</h2>
 
-    <div class="playing-area" aria-live="polite" aria-atomic="true">
-      <p class="remote-kicker">{i18n.t('remote.panel.eyebrow')}</p>
-      <p>{i18n.t('remote.diagnostics.status', { status: remoteSnapshot.commandStatus })}</p>
-      <p>{i18n.t('remote.diagnostics.lastCommand', { command: safeLastCommand })}</p>
-      {#if remoteSnapshot.lastError && safeError}
-        <p class="remote-error">
-          {i18n.t('remote.diagnostics.error', {
-            source: remoteSnapshot.lastError.source,
-            code: remoteSnapshot.lastError.code,
-            message: safeError
-          })}
-        </p>
-      {/if}
-    </div>
+    <div class="playing-area" aria-hidden="true"></div>
 
     <div class="main-controls">
       <div class="direction">
@@ -234,7 +203,7 @@
 <style>
   @font-face {
     font-family: 'Material-Design-Icons';
-    src: url('../assets/chorus2/fonts/material/Material-Design-Icons.woff') format('woff');
+    src: url('../assets/classic/fonts/material/Material-Design-Icons.woff') format('woff');
     font-weight: 400;
     font-style: normal;
     font-display: block;
@@ -254,7 +223,8 @@
     position: absolute;
     inset: 0 0 170px;
     background:
-      linear-gradient(rgb(35 38 40 / 0.42), rgb(35 38 40 / 0.76)), var(--color-surface-raised);
+      linear-gradient(rgb(35 38 40 / 0.42), rgb(35 38 40 / 0.76)),
+      var(--remote-fanart-url, var(--color-surface-raised));
     background-position: 50% 50%;
     background-size: cover;
   }
@@ -279,25 +249,6 @@
     color: #b1b6b8;
     font-size: 13px;
     text-align: right;
-  }
-
-  .playing-area p {
-    margin: 0;
-  }
-
-  .remote-kicker {
-    color: #d3d7d8;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .remote-error {
-    margin-top: 6px;
-    color: #ffba66;
-    font-size: 0.75rem;
-    overflow-wrap: anywhere;
   }
 
   .main-controls {

@@ -3,6 +3,7 @@ import {
   addEpisodePlaylistItem,
   addFilePlaylistItem,
   addMoviePlaylistItem,
+  addMusicVideoPlaylistItem,
   addMusicPlaylistItem,
   addPlaylistFileItem,
   clearPlaylist,
@@ -14,6 +15,7 @@ import {
   type KodiEpisodeLibraryItem,
   type KodiJsonRpcHttpClient,
   type KodiMovieLibraryItem,
+  type KodiMusicVideoLibraryItem,
   type KodiMusicLibraryItem,
   type KodiNotification,
   type PlaylistItemPropertyName
@@ -31,6 +33,7 @@ export type QueueCommandName =
   | 'queueMusicItem'
   | 'queueMovieItem'
   | 'queueEpisodeItem'
+  | 'queueMusicVideoItem'
   | 'queueFileItem'
   | 'queuePlaylistItem';
 export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
@@ -42,8 +45,17 @@ export type MusicQueueItem =
 
 export type MovieQueueItem = { movieid: number };
 export type EpisodeQueueItem = { episodeid: number };
-export type FileQueueItem = { file: string; mediaKind: 'audio' };
-export type PlaylistQueueItem = { file: string; mediaKind: 'music'; playlistKind: 'smart' };
+export type MusicVideoQueueItem = { musicvideoid: number };
+export type FileQueueItem = {
+  file: string;
+  mediaKind: 'audio' | 'video';
+  itemType?: 'file' | 'directory';
+};
+export type PlaylistQueueItem = {
+  file: string;
+  mediaKind: 'music' | 'video';
+  playlistKind: 'smart' | 'basic';
+};
 
 export interface QueueDispatchSafeErrorSnapshot {
   source: QueueDispatchErrorSource;
@@ -107,6 +119,15 @@ export interface QueueItemSnapshot {
   type?: string;
 }
 
+export interface QueuePlayableItemSnapshot {
+  position: number;
+  label: string;
+  file: string;
+  type?: string;
+  duration?: number;
+  thumbnail?: string;
+}
+
 export interface QueueLimitsSnapshot {
   start: number;
   end: number;
@@ -165,6 +186,7 @@ const DEFAULT_PLAYLIST_PROPERTIES = [
   'artist',
   'duration',
   'episode',
+  'file',
   'label',
   'season',
   'showtitle',
@@ -176,6 +198,7 @@ const DEFAULT_PLAYLIST_PROPERTIES = [
 
 export class QueueStore {
   #snapshot = $state<QueueStoreSnapshot>(cloneSnapshot(DEFAULT_SNAPSHOT));
+  #playableItems = $state<QueuePlayableItemSnapshot[]>([]);
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -198,6 +221,10 @@ export class QueueStore {
 
   get snapshot(): QueueStoreSnapshot {
     return cloneSnapshot(this.#snapshot);
+  }
+
+  getPlayableItems(): QueuePlayableItemSnapshot[] {
+    return this.#playableItems.map((item) => ({ ...item }));
   }
 
   async refresh(reason: QueueRefreshReason = 'manual'): Promise<void> {
@@ -228,6 +255,7 @@ export class QueueStore {
         lastUpdatedAt: this.#now(),
         lastError: null
       };
+      this.#playableItems = [];
       return;
     }
 
@@ -252,6 +280,7 @@ export class QueueStore {
         lastUpdatedAt: this.#now(),
         lastError: null
       };
+      this.#playableItems = normalizePlayableItems(result.items);
     } catch (error) {
       if (!this.#isCurrent(requestId)) {
         return;
@@ -365,6 +394,38 @@ function normalizeItem(item: Record<string, unknown>, index: number): QueueItemS
     ...numberField('track', item.track),
     ...stringField('type', item.type)
   };
+}
+
+function normalizePlayableItems(items: unknown): QueuePlayableItemSnapshot[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.filter(isRecord).flatMap((item, index) => normalizePlayableItem(item, index));
+}
+
+function normalizePlayableItem(
+  item: Record<string, unknown>,
+  index: number
+): QueuePlayableItemSnapshot[] {
+  const file = stringValue(item.file);
+  if (!file) {
+    return [];
+  }
+
+  const title = stringValue(item.title);
+  const label = stringValue(item.label) ?? title ?? `Queue item ${index + 1}`;
+
+  return [
+    {
+      position: index,
+      label,
+      file,
+      ...stringField('type', item.type),
+      ...numberField('duration', item.duration),
+      ...stringField('thumbnail', item.thumbnail)
+    }
+  ];
 }
 
 function normalizeLimits(limits: unknown, items: unknown): QueueLimitsSnapshot {
@@ -492,6 +553,10 @@ export class QueueDispatch {
 
   queueEpisodeItem(item: EpisodeQueueItem): Promise<void> {
     return this.#runEpisodeQueueCommand(item);
+  }
+
+  queueMusicVideoItem(item: MusicVideoQueueItem): Promise<void> {
+    return this.#runMusicVideoQueueCommand(item);
   }
 
   queueFileItem(item: FileQueueItem): Promise<void> {
@@ -652,6 +717,56 @@ export class QueueDispatch {
     };
   }
 
+  async #runMusicVideoQueueCommand(item: MusicVideoQueueItem): Promise<void> {
+    if (this.#snapshot.commandStatus === 'running') {
+      this.#failCommand(
+        'queueMusicVideoItem',
+        createQueueCommandError(
+          'command/already-running',
+          'Wait for the current queue command to finish before trying another action.'
+        )
+      );
+      return;
+    }
+
+    this.#startCommand('queueMusicVideoItem');
+
+    const musicVideoItemResult = normalizeMusicVideoQueueItem(item);
+    if (!musicVideoItemResult.ok) {
+      this.#failCommand('queueMusicVideoItem', musicVideoItemResult.error);
+      return;
+    }
+
+    const clientResult = this.#resolveClient();
+    if (!clientResult.ok) {
+      this.#failCommand('queueMusicVideoItem', clientResult.error);
+      return;
+    }
+
+    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
+
+    try {
+      await addMusicVideoPlaylistItem(clientResult.client, musicVideoItemResult.item);
+    } catch (error) {
+      commandError = createDispatchSafeError(error);
+    }
+
+    await this.#refreshAfterCommand('queueMusicVideoItem');
+
+    if (commandError) {
+      this.#failCommand('queueMusicVideoItem', commandError);
+      return;
+    }
+
+    this.#snapshot = {
+      ...this.#snapshot,
+      commandStatus: 'success',
+      lastCommand: 'queueMusicVideoItem',
+      lastError: null,
+      lastCompletedAt: this.#now()
+    };
+  }
+
   async #runFileQueueCommand(item: FileQueueItem): Promise<void> {
     if (this.#snapshot.commandStatus === 'running') {
       this.#failCommand(
@@ -681,7 +796,11 @@ export class QueueDispatch {
     let commandError: QueueDispatchSafeErrorSnapshot | null = null;
 
     try {
-      await addFilePlaylistItem(clientResult.client, 0, fileItemResult.item);
+      await addFilePlaylistItem(
+        clientResult.client,
+        fileItemResult.playlistid,
+        fileItemResult.item
+      );
     } catch (error) {
       commandError = createDispatchSafeError(error);
     }
@@ -731,7 +850,11 @@ export class QueueDispatch {
     let commandError: QueueDispatchSafeErrorSnapshot | null = null;
 
     try {
-      await addPlaylistFileItem(clientResult.client, 0, playlistItemResult.item);
+      await addPlaylistFileItem(
+        clientResult.client,
+        playlistItemResult.playlistid,
+        playlistItemResult.item
+      );
     } catch (error) {
       commandError = createDispatchSafeError(error);
     }
@@ -977,9 +1100,29 @@ function normalizeEpisodeQueueItem(
   return { ok: false, error: createInvalidEpisodeItemError() };
 }
 
+function normalizeMusicVideoQueueItem(
+  item: unknown
+):
+  | { ok: true; item: KodiMusicVideoLibraryItem }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (!isRecord(item)) {
+    return { ok: false, error: createInvalidMusicVideoItemError() };
+  }
+
+  const keys = Object.keys(item).sort();
+
+  if (keys.length === 1 && keys[0] === 'musicvideoid' && isPositiveSafeInteger(item.musicvideoid)) {
+    return { ok: true, item: { musicvideoid: item.musicvideoid } };
+  }
+
+  return { ok: false, error: createInvalidMusicVideoItemError() };
+}
+
 function normalizeFileQueueItem(
   item: unknown
-): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+):
+  | { ok: true; playlistid: number; item: { file: string } | { directory: string } }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
   if (!isRecord(item)) {
     return { ok: false, error: createInvalidFileItemError() };
   }
@@ -987,14 +1130,20 @@ function normalizeFileQueueItem(
   const keys = Object.keys(item).sort();
 
   if (
-    keys.length === 2 &&
+    (keys.length === 2 || keys.length === 3) &&
     keys[0] === 'file' &&
-    keys[1] === 'mediaKind' &&
+    (keys.length === 2 || keys[1] === 'itemType') &&
+    keys[keys.length - 1] === 'mediaKind' &&
     typeof item.file === 'string' &&
     item.file.trim().length > 0 &&
-    item.mediaKind === 'audio'
+    (item.mediaKind === 'audio' || item.mediaKind === 'video') &&
+    (keys.length === 2 || item.itemType === 'file' || item.itemType === 'directory')
   ) {
-    return { ok: true, item: { file: item.file } };
+    return {
+      ok: true,
+      playlistid: item.mediaKind === 'video' ? 1 : 0,
+      item: item.itemType === 'directory' ? { directory: item.file } : { file: item.file }
+    };
   }
 
   return { ok: false, error: createInvalidFileItemError() };
@@ -1002,7 +1151,9 @@ function normalizeFileQueueItem(
 
 function normalizePlaylistQueueItem(
   item: unknown
-): { ok: true; item: { file: string } } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+):
+  | { ok: true; playlistid: number; item: { file: string } }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
   if (!isRecord(item)) {
     return { ok: false, error: createInvalidPlaylistItemError() };
   }
@@ -1016,10 +1167,10 @@ function normalizePlaylistQueueItem(
     keys[2] === 'playlistKind' &&
     typeof item.file === 'string' &&
     item.file.trim().length > 0 &&
-    item.mediaKind === 'music' &&
-    item.playlistKind === 'smart'
+    (item.mediaKind === 'music' || item.mediaKind === 'video') &&
+    (item.playlistKind === 'smart' || item.playlistKind === 'basic')
   ) {
-    return { ok: true, item: { file: item.file } };
+    return { ok: true, playlistid: item.mediaKind === 'video' ? 1 : 0, item: { file: item.file } };
   }
 
   return { ok: false, error: createInvalidPlaylistItemError() };
@@ -1051,6 +1202,13 @@ function createInvalidEpisodeItemError(): QueueDispatchSafeErrorSnapshot {
   return createQueueInputError(
     'input/invalid-episode-item',
     'Choose a valid episode to add to the queue.'
+  );
+}
+
+function createInvalidMusicVideoItemError(): QueueDispatchSafeErrorSnapshot {
+  return createQueueInputError(
+    'input/invalid-music-video-item',
+    'Choose a valid music video to add to the queue.'
   );
 }
 

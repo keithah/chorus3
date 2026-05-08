@@ -1,9 +1,11 @@
 import {
   getVideoLibraryEpisodes,
+  getVideoLibraryMusicVideos,
   getVideoLibraryMovies,
   getVideoLibraryTvShows,
   type KodiJsonRpcHttpClient,
   type VideoLibraryEpisodePropertyName,
+  type VideoLibraryMusicVideoPropertyName,
   type VideoLibraryMoviePropertyName,
   type VideoLibraryTvShowPropertyName
 } from '$lib/kodi';
@@ -15,6 +17,7 @@ import {
   normalizeVideoLibraryLimits,
   normalizeVideoMovies,
   normalizeVideoEpisodes,
+  normalizeVideoMusicVideos,
   normalizeVideoTvShows,
   type VideoLibraryLimitsSnapshot,
   type VideoLibraryRefreshReason,
@@ -26,6 +29,7 @@ export type {
   VideoLibraryLimitsSnapshot,
   VideoLibraryMovieSnapshot,
   VideoEpisodeSnapshot,
+  VideoMusicVideoSnapshot,
   VideoLibraryRefreshReason,
   VideoLibraryRefreshStatus,
   VideoLibraryResumeSnapshot,
@@ -79,6 +83,23 @@ const DEFAULT_RECENT_EPISODE_PROPERTIES = [
   'resume',
   'dateadded'
 ] as const satisfies readonly VideoLibraryEpisodePropertyName[];
+const DEFAULT_MUSIC_VIDEO_PROPERTIES = [
+  'title',
+  'artist',
+  'album',
+  'year',
+  'runtime',
+  'thumbnail',
+  'fanart',
+  'art',
+  'genre',
+  'director',
+  'studio',
+  'playcount',
+  'lastplayed',
+  'resume',
+  'dateadded'
+] as const satisfies readonly VideoLibraryMusicVideoPropertyName[];
 
 const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
   refreshStatus: 'idle',
@@ -90,13 +111,15 @@ const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
   recentlyPlayedMovies: [],
   recentlyAddedEpisodes: [],
   recentlyPlayedEpisodes: [],
+  musicVideos: [],
   limits: {
     movies: DEFAULT_LIMITS,
     tvShows: DEFAULT_LIMITS,
     recentlyAddedMovies: DEFAULT_LIMITS,
     recentlyPlayedMovies: DEFAULT_LIMITS,
     recentlyAddedEpisodes: DEFAULT_LIMITS,
-    recentlyPlayedEpisodes: DEFAULT_LIMITS
+    recentlyPlayedEpisodes: DEFAULT_LIMITS,
+    musicVideos: DEFAULT_LIMITS
   },
   isEmpty: true,
   lastError: null
@@ -139,7 +162,8 @@ export class VideoLibraryStore {
         recentlyAddedMoviesResult,
         recentlyPlayedMoviesResult,
         recentlyAddedEpisodesResult,
-        recentlyPlayedEpisodesResult
+        recentlyPlayedEpisodesResult,
+        musicVideosResult
       ] = await Promise.all([
         getVideoLibraryMovies(client, {
           properties: DEFAULT_MOVIE_PROPERTIES,
@@ -168,6 +192,11 @@ export class VideoLibraryStore {
           properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT,
           sort: { method: 'lastplayed', order: 'descending' }
+        }),
+        getVideoLibraryMusicVideos(client, {
+          properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT,
+          sort: { method: 'title', order: 'ascending' }
         })
       ]);
 
@@ -185,6 +214,7 @@ export class VideoLibraryStore {
       const recentlyPlayedEpisodes = normalizeVideoEpisodes(recentlyPlayedEpisodesResult.episodes, {
         preserveOrder: true
       });
+      const musicVideos = normalizeVideoMusicVideos(musicVideosResult.musicvideos);
 
       this.#snapshot = {
         refreshStatus: 'ready',
@@ -196,6 +226,7 @@ export class VideoLibraryStore {
         recentlyPlayedMovies,
         recentlyAddedEpisodes,
         recentlyPlayedEpisodes,
+        musicVideos,
         limits: {
           movies: normalizeVideoLibraryLimits(moviesResult.limits, movies),
           tvShows: normalizeVideoLibraryLimits(tvShowsResult.limits, tvShows),
@@ -214,7 +245,8 @@ export class VideoLibraryStore {
           recentlyPlayedEpisodes: normalizeVideoLibraryLimits(
             recentlyPlayedEpisodesResult.limits,
             recentlyPlayedEpisodes
-          )
+          ),
+          musicVideos: normalizeVideoLibraryLimits(musicVideosResult.limits, musicVideos)
         },
         isEmpty:
           movies.length === 0 &&
@@ -222,7 +254,8 @@ export class VideoLibraryStore {
           recentlyAddedMovies.length === 0 &&
           recentlyPlayedMovies.length === 0 &&
           recentlyAddedEpisodes.length === 0 &&
-          recentlyPlayedEpisodes.length === 0,
+          recentlyPlayedEpisodes.length === 0 &&
+          musicVideos.length === 0,
         lastError: null
       };
     } catch (error) {

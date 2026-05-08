@@ -1,6 +1,6 @@
 {
   "name": "chorus3",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "package:kodi": "npm run build && node scripts/package-kodi-webinterface.mjs",
+    "package:kodi:repo": "npm run build && node scripts/package-kodi-repository.mjs",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.app.json",
     "lint": "eslint . && prettier --check .",
@@ -26,7 +27,7 @@
     "verify:i18n": "node scripts/verify-i18n.mjs",
     "verify:kodi-package": "node scripts/verify-kodi-package.mjs",
     "verify:chorus2-parity": "node scripts/verify-chorus2-parity.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:no-tailwind && npm run verify:i18n && npm run package:kodi && npm run verify:kodi-package"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:no-tailwind && npm run verify:i18n && npm run package:kodi && npm run verify:kodi-package && npm run package:kodi:repo"
   },
   "dependencies": {
     "svelte": "^5.0.0"

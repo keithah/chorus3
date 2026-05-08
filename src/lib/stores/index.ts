@@ -82,6 +82,7 @@ export {
   type PlaylistQueueItem,
   type QueueItemSnapshot,
   type QueueLimitsSnapshot,
+  type QueuePlayableItemSnapshot,
   type QueueRefreshReason,
   type QueueRefreshStatus,
   type QueueSafeErrorSnapshot,
@@ -138,6 +139,32 @@ export {
 } from './videoTvStore.svelte';
 
 export {
+  PvrStore,
+  createPvrStore,
+  pvrStore,
+  type PvrBroadcastSnapshot,
+  type PvrChannelGroup,
+  type PvrChannelSnapshot,
+  type PvrRecordingSnapshot,
+  type PvrRefreshStatus,
+  type PvrStoreOptions,
+  type PvrStoreSnapshot
+} from './pvr.svelte';
+
+export {
+  THUMBS_UP_STORAGE_KEY,
+  ThumbsUpStore,
+  createThumbsUpStore,
+  thumbsUpStore,
+  type ThumbsUpDispatch,
+  type ThumbsUpItemInput,
+  type ThumbsUpItemSnapshot,
+  type ThumbsUpMedia,
+  type ThumbsUpStoreOptions,
+  type ThumbsUpStoreSnapshot
+} from './thumbsUp.svelte';
+
+export {
   VideoMovieDetailStore,
   createVideoMovieDetailStore,
   videoMovieDetailStore,
@@ -185,11 +212,13 @@ export {
   MediaFilesStore,
   createMediaFilesStore,
   mediaFilesStore,
+  videoMediaFilesStore,
   type MediaDirectoryEntryCapabilitiesSnapshot,
   type MediaDirectoryEntryKind,
   type MediaDirectoryEntryMediaKind,
   type MediaDirectoryEntrySnapshot,
   type MediaFileSourceSnapshot,
+  type MediaFilesDownloadableEntryResult,
   type MediaFilesBreadcrumbSnapshot,
   type MediaFilesMedia,
   type MediaFilesPlayableEntryResult,
@@ -351,6 +380,7 @@ export {
   type LocalPlaylistMutationName,
   type LocalPlaylistMutationResult,
   type LocalPlaylistMutationStatus,
+  type LocalPlaylistPlayableItem,
   type LocalPlaylistSafeErrorSnapshot,
   type LocalPlaylistSnapshot,
   type LocalPlaylistStorage,

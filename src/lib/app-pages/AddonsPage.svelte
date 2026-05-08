@@ -4,6 +4,7 @@
     type AddonsPanelDispatch,
     type AddonsTypeFilter
   } from '$components/AddonsPanel.svelte';
+  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import type { AddonsStoreSnapshot } from '$lib/stores';
@@ -15,6 +16,7 @@
     addonDetailDispatch: AddonDetailDispatch;
     i18n: TranslationContext;
     packageBasePath?: string;
+    buildOptions?: BuildAppRouteOptions;
   }
 
   let {
@@ -23,12 +25,16 @@
     dispatch,
     addonDetailDispatch,
     i18n,
-    packageBasePath = ''
+    packageBasePath = '',
+    buildOptions = {}
   }: Props = $props();
 
-  const title = $derived(addonsTitle(route));
-  const description = $derived(addonsDescription(route));
   const typeFilter = $derived(addonsTypeFilter(route));
+  const routeBuildOptions = $derived(resolveBuildOptions(buildOptions, packageBasePath));
+  const allAddonsHref = $derived(hrefFor({ kind: 'addonsAll' }));
+  const videoAddonsHref = $derived(hrefFor({ kind: 'addonsVideo' }));
+  const audioAddonsHref = $derived(hrefFor({ kind: 'addonsAudio' }));
+  const executableAddonsHref = $derived(hrefFor({ kind: 'addonsExecutable' }));
 
   function addonsTitle(value: PrimaryRoute): string {
     if (value.kind === 'addonDetail') return 'Add-on details';
@@ -38,72 +44,145 @@
     return 'Add-on catalog';
   }
 
-  function addonsDescription(value: PrimaryRoute): string {
-    if (value.kind === 'addonDetail')
-      return 'Review add-on detail and enablement status through the safe add-on detail surface.';
-    if (value.kind === 'addonsVideo')
-      return 'Video add-ons are presented through the same safe installed add-ons panel.';
-    if (value.kind === 'addonsAudio')
-      return 'Audio add-ons are presented through the same safe installed add-ons panel.';
-    if (value.kind === 'addonsExecutable')
-      return 'Executable add-ons are inspect-only from this installed add-ons surface; execution is deferred.';
-    return 'Inspect installed add-ons through the safe catalog panel without exposing raw add-on payloads or credentials.';
-  }
-
   function addonsTypeFilter(value: PrimaryRoute): AddonsTypeFilter | null {
     if (value.kind === 'addonsVideo') return 'video';
     if (value.kind === 'addonsAudio') return 'audio';
     if (value.kind === 'addonsExecutable') return 'executable';
     return null;
   }
+
+  function hrefFor(target: PrimaryRoute): string {
+    return buildPrimaryAppRoute(target, routeBuildOptions);
+  }
+
+  function resolveBuildOptions(
+    options: BuildAppRouteOptions,
+    basePath: string
+  ): BuildAppRouteOptions {
+    return options.packageBasePath || options.routeMode
+      ? options
+      : { packageBasePath: basePath, routeMode: basePath ? 'hash' : 'path' };
+  }
+
+  function navigateToHref(href: string): void {
+    if (href.startsWith('#') && typeof globalThis.location?.hash === 'string') {
+      globalThis.location.hash = href;
+      return;
+    }
+
+    globalThis.history?.pushState?.({}, '', href);
+    globalThis.dispatchEvent?.(new PopStateEvent('popstate'));
+  }
+
+  function handleRouteLink(event: MouseEvent, href: string): void {
+    event.preventDefault();
+    navigateToHref(href);
+  }
 </script>
 
-<section class="app-page-section addons-page" aria-labelledby="addons-page-title">
-  <div class="app-page-section__header">
-    <p class="section-kicker">Installed add-ons</p>
-    <h2 id="addons-page-title">{title}</h2>
-    <p>{description}</p>
-  </div>
+<section class="classic-page addons-page" aria-labelledby="addons-page-title">
+  <aside class="classic-subnav" aria-label="Add-on sections">
+    <p class="subnav-kicker">Add-ons</p>
+    <a
+      class:active={route.kind === 'addonsAll'}
+      href={allAddonsHref}
+      onclick={(event) => handleRouteLink(event, allAddonsHref)}>All add-ons</a
+    >
+    <a
+      class:active={route.kind === 'addonsVideo'}
+      href={videoAddonsHref}
+      onclick={(event) => handleRouteLink(event, videoAddonsHref)}>Video add-ons</a
+    >
+    <a
+      class:active={route.kind === 'addonsAudio'}
+      href={audioAddonsHref}
+      onclick={(event) => handleRouteLink(event, audioAddonsHref)}>Audio add-ons</a
+    >
+    <a
+      class:active={route.kind === 'addonsExecutable'}
+      href={executableAddonsHref}
+      onclick={(event) => handleRouteLink(event, executableAddonsHref)}>Executable add-ons</a
+    >
+  </aside>
 
-  {#if route.kind === 'addonDetail'}
-    <AddonDetailShell {snapshot} dispatch={addonDetailDispatch} {i18n} />
-  {:else}
-    <AddonsPanel {snapshot} {dispatch} {i18n} {typeFilter} {packageBasePath} />
-  {/if}
+  <section class="addons-content" aria-labelledby="addons-page-title">
+    <h2 id="addons-page-title">{addonsTitle(route)}</h2>
+    {#if route.kind === 'addonDetail'}
+      <AddonDetailShell {snapshot} dispatch={addonDetailDispatch} {i18n} />
+    {:else}
+      <AddonsPanel
+        {snapshot}
+        {dispatch}
+        {i18n}
+        {typeFilter}
+        {packageBasePath}
+        buildOptions={routeBuildOptions}
+      />
+    {/if}
+  </section>
 </section>
 
 <style>
-  .addons-page {
+  .classic-page {
     display: grid;
-    gap: var(--space-md);
+    grid-template-columns: 256px minmax(0, 1fr);
+    min-height: 100%;
+    background: #ddd;
+    color: #333;
   }
 
-  .app-page-section__header {
-    display: grid;
-    gap: var(--space-xs);
-    padding: var(--space-lg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface);
+  .classic-subnav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 2rem 1.4rem;
+    background: #f5f5f5;
   }
 
-  .app-page-section__header h2,
-  .app-page-section__header p {
-    margin: 0;
-  }
-
-  .app-page-section__header p:not(.section-kicker) {
-    max-width: 48rem;
-    color: var(--color-text-muted);
-    line-height: 1.6;
-  }
-
-  .section-kicker {
-    color: var(--color-accent);
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+  .subnav-kicker {
+    margin: 0 0 0.5rem;
+    color: #888;
+    font-size: 0.9rem;
     text-transform: uppercase;
+  }
+
+  .classic-subnav a {
+    color: #333;
+    text-decoration: none;
+  }
+
+  .classic-subnav a.active {
+    color: #4bb3e8;
+    font-weight: 700;
+  }
+
+  .addons-content {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .addons-content > h2 {
+    margin: 0;
+    color: #555;
+    font-size: 1.35rem;
+    font-weight: 400;
+  }
+
+  @media (max-width: 760px) {
+    .classic-page {
+      grid-template-columns: 1fr;
+    }
+
+    .classic-subnav {
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding: 1rem;
+    }
+
+    .subnav-kicker {
+      width: 100%;
+    }
   }
 </style>

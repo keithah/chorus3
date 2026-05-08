@@ -11,6 +11,7 @@ const S03_ROUTE_KIND_CASES = [
   ['musicAlbums', { kind: 'musicAlbums' }],
   ['musicGenres', { kind: 'musicGenres' }],
   ['musicVideos', { kind: 'musicVideos' }],
+  ['musicVideoDetail', { kind: 'musicVideoDetail', musicvideoid: 'video-1' }],
   ['musicAlbumDetail', { kind: 'musicAlbumDetail', albumid: 'album-1' }],
   ['musicArtistDetail', { kind: 'musicArtistDetail', artistid: 'artist-1' }],
   ['musicGenreDetail', { kind: 'musicGenreDetail', genreid: 'genre-1' }],
@@ -43,7 +44,7 @@ const S03_ROUTE_KIND_CASES = [
   ['settingsSearch', { kind: 'settingsSearch' }],
   ['help', { kind: 'help' }],
   ['helpOverview', { kind: 'helpOverview' }],
-  ['helpPage', { kind: 'helpPage', pageid: 'keyboard' }],
+  ['helpPage', { kind: 'helpPage', pageid: 'keybind-readme' }],
   ['remote', { kind: 'remote' }],
   ['search', { kind: 'search' }],
   ['searchMedia', { kind: 'searchMedia', media: 'music', query: 'bowie' }],
@@ -154,11 +155,15 @@ describe('app page metadata', () => {
 
   test.each([
     ['overview', 'Help overview'],
-    ['keyboard', 'Keyboard controls'],
+    ['keybind-readme', 'Keyboard'],
+    ['keyboard', 'Keyboard'],
+    ['app-readme', 'Readme'],
     ['readme', 'Readme'],
+    ['app-changelog', 'Changelog'],
     ['changelog', 'Changelog'],
     ['addons', 'Add-ons'],
     ['developers', 'Developers'],
+    ['lang-readme', 'Translations'],
     ['translations', 'Translations'],
     ['license', 'License']
   ] as const)('classifies known help topic %s as a static help surface', (pageid, heading) => {
@@ -181,19 +186,19 @@ describe('app page metadata', () => {
     expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
   });
 
-  test('keeps unknown safe help pages deferred without reflecting the raw id', () => {
+  test('keeps unknown safe help pages on the safe help surface without reflecting the raw id', () => {
     const metadata = getAppPageMetadata({ kind: 'helpPage', pageid: 'safe-custom-topic' });
 
     expect(metadata).toMatchObject({
       routeKind: 'helpPage',
       surfaceKind: 'help',
-      status: 'deferred',
+      status: 'implemented',
       heading: 'Help page',
       stageLabel: 'Help',
-      statusLabel: 'Deferred detail surface'
+      statusLabel: 'Chorus2 help topic'
     });
     expect(metadata.description).toContain('safe static help fallback');
-    expect(metadata.deferredMessage).toContain('safe app-native deferred frame');
+    expect(metadata.deferredMessage).toBe('');
     expect(JSON.stringify(metadata)).not.toContain('safe-custom-topic');
     expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
   });

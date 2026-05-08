@@ -6,6 +6,7 @@ export type PrimaryRoute =
   | { kind: 'musicAlbums' }
   | { kind: 'musicGenres' }
   | { kind: 'musicVideos' }
+  | { kind: 'musicVideoDetail'; musicvideoid: string }
   | { kind: 'musicAlbumDetail'; albumid: string }
   | { kind: 'musicArtistDetail'; artistid: string }
   | { kind: 'musicGenreDetail'; genreid: string }
@@ -41,7 +42,9 @@ export type PrimaryRoute =
   | { kind: 'searchMedia'; media: string; query: string }
   | { kind: 'thumbsup' }
   | { kind: 'pvrTv' }
+  | { kind: 'pvrTvChannel'; channelid: string }
   | { kind: 'pvrRadio' }
+  | { kind: 'pvrRadioChannel'; channelid: string }
   | { kind: 'pvrRecordings' };
 
 const MAX_DYNAMIC_SEGMENT_LENGTH = 128;
@@ -53,14 +56,19 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/home', { kind: 'home' }],
   ['/music', { kind: 'music' }],
   ['/music/top', { kind: 'musicTop' }],
+  ['/artists', { kind: 'musicArtists' }],
   ['/music/artists', { kind: 'musicArtists' }],
+  ['/albums', { kind: 'musicAlbums' }],
   ['/music/albums', { kind: 'musicAlbums' }],
+  ['/genres', { kind: 'musicGenres' }],
   ['/music/genres', { kind: 'musicGenres' }],
   ['/music/videos', { kind: 'musicVideos' }],
   ['/movies', { kind: 'movies' }],
   ['/movies/recent', { kind: 'moviesRecent' }],
+  ['/video/movies', { kind: 'movies' }],
   ['/tvshows', { kind: 'tvshows' }],
   ['/tvshows/recent', { kind: 'tvshowsRecent' }],
+  ['/video/tv', { kind: 'tvshows' }],
   ['/browser', { kind: 'browser' }],
   ['/files', { kind: 'browser' }],
   ['/addons', { kind: 'addonsAll' }],
@@ -69,10 +77,18 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/addons/audio', { kind: 'addonsAudio' }],
   ['/addons/executable', { kind: 'addonsExecutable' }],
   ['/playlists', { kind: 'playlists' }],
+  ['/localPlaylist', { kind: 'playlists' }],
   ['/settings', { kind: 'settingsWeb' }],
   ['/settings/web', { kind: 'settingsWeb' }],
   ['/settings/web-interface', { kind: 'settingsWeb' }],
   ['/settings/kodi', { kind: 'settingsKodi' }],
+  ['/settings/games', { kind: 'settingsKodiSection', section: 'games' }],
+  ['/settings/interface', { kind: 'settingsKodiSection', section: 'interface' }],
+  ['/settings/media', { kind: 'settingsKodiSection', section: 'media' }],
+  ['/settings/player', { kind: 'settingsKodiSection', section: 'player' }],
+  ['/settings/pvr', { kind: 'settingsKodiSection', section: 'pvr' }],
+  ['/settings/services', { kind: 'settingsKodiSection', section: 'services' }],
+  ['/settings/system', { kind: 'settingsKodiSection', section: 'system' }],
   ['/settings/addons', { kind: 'settingsAddons' }],
   ['/settings/nav', { kind: 'settingsNav' }],
   ['/settings/main-menu', { kind: 'settingsNav' }],
@@ -82,6 +98,7 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/remote', { kind: 'remote' }],
   ['/search', { kind: 'search' }],
   ['/thumbsup', { kind: 'thumbsup' }],
+  ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
   ['/pvr/radio', { kind: 'pvrRadio' }],
   ['/pvr/recordings', { kind: 'pvrRecordings' }]
@@ -117,6 +134,13 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
     }));
   }
 
+  if (segments.length === 3 && segments[0] === 'music' && segments[1] === 'video') {
+    return withSafeDynamicSegment(segments[2], (musicvideoid) => ({
+      kind: 'musicVideoDetail',
+      musicvideoid
+    }));
+  }
+
   if (segments.length === 2 && segments[0] === 'movie') {
     return withSafeDynamicSegment(segments[1], (movieid) => ({ kind: 'movieDetail', movieid }));
   }
@@ -139,9 +163,15 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
     }
   }
 
-  if (segments.length === 3 && segments[0] === 'browser') {
-    const media = normalizeDynamicSegment(segments[1]);
-    const itemid = normalizeDynamicSegment(segments[2]);
+  if (segments.length === 2 && segments[0] === 'browser') {
+    const media = normalizeBrowserMediaSegment(segments[1]);
+
+    return media ? { kind: 'browserItem', media, itemid: 'root' } : null;
+  }
+
+  if (segments.length >= 2 && segments[0] === 'browser') {
+    const media = normalizeBrowserMediaSegment(segments[1]);
+    const itemid = normalizeBrowserItemSegment(segments.slice(2).join('/'), media);
 
     return media && itemid ? { kind: 'browserItem', media, itemid } : null;
   }
@@ -176,10 +206,24 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
   }
 
   if (segments.length === 3 && segments[0] === 'search') {
-    const media = normalizeDynamicSegment(segments[1]);
-    const query = normalizeDynamicSegment(segments[2]);
+    const media = normalizeSearchMediaSegment(segments[1]);
+    const query = normalizeSearchQuerySegment(segments[2]);
 
     return media && query ? { kind: 'searchMedia', media, query } : null;
+  }
+
+  if (segments.length === 3 && segments[0] === 'pvr' && segments[1] === 'tv') {
+    return withSafeDynamicSegment(segments[2], (channelid) => ({
+      kind: 'pvrTvChannel',
+      channelid
+    }));
+  }
+
+  if (segments.length === 3 && segments[0] === 'pvr' && segments[1] === 'radio') {
+    return withSafeDynamicSegment(segments[2], (channelid) => ({
+      kind: 'pvrRadioChannel',
+      channelid
+    }));
   }
 
   return null;
@@ -205,6 +249,8 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return '/music/genres';
     case 'musicVideos':
       return '/music/videos';
+    case 'musicVideoDetail':
+      return buildDynamicPath('/music/video', route.musicvideoid);
     case 'musicAlbumDetail':
       return buildDynamicPath('/music/album', route.albumid);
     case 'musicArtistDetail':
@@ -230,6 +276,21 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
     case 'browser':
       return '/browser';
     case 'browserItem':
+      if (route.itemid === 'root' && (route.media === 'music' || route.media === 'video')) {
+        return `/browser/${route.media}`;
+      }
+
+      if (
+        (route.media === 'music' || route.media === 'video') &&
+        /^(source|entry):\d+$/u.test(route.itemid)
+      ) {
+        return `/browser/${route.media}/${encodeURIComponent(route.itemid)}`;
+      }
+
+      if (route.media === 'music' || route.media === 'video') {
+        return `/browser/${route.media}/${encodeURIComponent(route.itemid)}`;
+      }
+
       return buildMultiDynamicPath('/browser', [route.media, route.itemid]);
     case 'addonsAll':
       return '/addons/all';
@@ -270,13 +331,17 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
     case 'search':
       return '/search';
     case 'searchMedia':
-      return buildMultiDynamicPath('/search', [route.media, route.query]);
+      return buildSearchPath(route.media, route.query);
     case 'thumbsup':
       return '/thumbsup';
     case 'pvrTv':
       return '/pvr/tv';
+    case 'pvrTvChannel':
+      return buildDynamicPath('/pvr/tv', route.channelid);
     case 'pvrRadio':
       return '/pvr/radio';
+    case 'pvrRadioChannel':
+      return buildDynamicPath('/pvr/radio', route.channelid);
     case 'pvrRecordings':
       return '/pvr/recordings';
     default:
@@ -294,6 +359,15 @@ function buildMultiDynamicPath(prefix: string, segments: unknown[]): string {
 
   return normalized.every(Boolean)
     ? `${prefix}/${normalized.map((segment) => encodeURIComponent(segment as string)).join('/')}`
+    : '/[redacted]';
+}
+
+function buildSearchPath(media: unknown, query: unknown): string {
+  const normalizedMedia = normalizeSearchMediaSegment(media);
+  const normalizedQuery = normalizeSearchQuerySegment(query);
+
+  return normalizedMedia && normalizedQuery
+    ? `/search/${encodeURIComponent(normalizedMedia)}/${encodeURIComponent(normalizedQuery)}`
     : '/[redacted]';
 }
 
@@ -326,6 +400,74 @@ function normalizeDynamicSegment(segment: unknown): string | null {
   }
 
   return /^[a-z0-9._-]+$/i.test(decoded) ? decoded : null;
+}
+
+function normalizeSearchMediaSegment(segment: unknown): string | null {
+  const normalized = normalizeDynamicSegment(segment);
+  return normalized && /^[a-z0-9._-]+$/i.test(normalized) ? normalized : null;
+}
+
+function normalizeBrowserMediaSegment(segment: unknown): string | null {
+  const normalized = normalizeDynamicSegment(segment);
+  return normalized === 'music' || normalized === 'video' ? normalized : null;
+}
+
+function normalizeSearchQuerySegment(segment: unknown): string | null {
+  if (typeof segment !== 'string') {
+    return null;
+  }
+
+  const decoded = safeDecode(segment).trim();
+
+  if (
+    !decoded ||
+    decoded.length > MAX_DYNAMIC_SEGMENT_LENGTH ||
+    decoded === '.' ||
+    decoded === '..' ||
+    decoded.includes('..') ||
+    decoded.includes('/') ||
+    FORBIDDEN_SEGMENT_PATTERN.test(decoded) ||
+    !/^[a-z0-9 _.,'()[\]&!?:+-]+$/i.test(decoded)
+  ) {
+    return null;
+  }
+
+  return decoded;
+}
+
+function normalizeBrowserItemSegment(segment: unknown, media: string | null): string | null {
+  if (typeof segment !== 'string') {
+    return null;
+  }
+
+  const decoded = safeDecode(segment).trim();
+  if (/^(source|entry):\d+$/u.test(decoded)) {
+    return decoded;
+  }
+
+  if (
+    (media === 'music' || media === 'video') &&
+    /^plugin:\/\/[A-Za-z0-9._-]+\/?$/u.test(decoded)
+  ) {
+    return decoded.endsWith('/') ? decoded : `${decoded}/`;
+  }
+
+  const safeDynamic = normalizeDynamicSegment(segment);
+  if (safeDynamic) {
+    return safeDynamic;
+  }
+
+  if (
+    (media !== 'music' && media !== 'video') ||
+    !decoded ||
+    decoded.length > 2048 ||
+    FORBIDDEN_SEGMENT_PATTERN.test(decoded) ||
+    /authorization|basic\s+|password|p@ssword|localStorage/i.test(decoded)
+  ) {
+    return null;
+  }
+
+  return decoded;
 }
 
 function safeDecode(value: string): string {

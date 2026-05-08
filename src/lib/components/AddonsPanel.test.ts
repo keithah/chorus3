@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AddonsPanel, { type AddonsPanelDispatch } from './AddonsPanel.svelte';
+import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import { createTranslationContext, type Locale } from '$lib/i18n';
 import type {
   AddonSnapshot,
@@ -32,6 +33,11 @@ const ALPHA_ADDON: AddonSnapshot = {
   enabled: true,
   installed: true,
   type: 'xbmc.python.pluginsource',
+  provides: ['video'],
+  providesDefault: 'video',
+  browseMedia: 'video',
+  browsePath: 'plugin://plugin.video.alpha/',
+  canExecute: false,
   broken: false,
   dependencyCount: 1,
   extrainfoCount: 1
@@ -47,7 +53,32 @@ const BETA_ADDON: AddonSnapshot = {
   enabled: false,
   installed: true,
   type: 'xbmc.service',
+  provides: ['audio'],
+  providesDefault: 'audio',
+  browseMedia: 'music',
+  browsePath: 'plugin://service.beta/',
+  canExecute: false,
   broken: 'Missing dependency',
+  dependencyCount: 0,
+  extrainfoCount: 0
+};
+
+const SCRIPT_ADDON: AddonSnapshot = {
+  addonid: 'script.audio.alpha',
+  name: 'Alpha Script',
+  version: '3.0.0',
+  summary: 'Launch Alpha workflow',
+  description: null,
+  author: 'Team Alpha',
+  enabled: true,
+  installed: true,
+  type: 'xbmc.python.script',
+  provides: ['executable'],
+  providesDefault: 'executable',
+  browseMedia: null,
+  browsePath: null,
+  canExecute: true,
+  broken: false,
   dependencyCount: 0,
   extrainfoCount: 0
 };
@@ -62,6 +93,11 @@ const UNSAFE_ADDON: AddonSnapshot = {
   enabled: null,
   installed: true,
   type: 'smb://nas/private',
+  provides: ['video'],
+  providesDefault: 'video',
+  browseMedia: 'video',
+  browsePath: null,
+  canExecute: false,
   broken: 'password failed at C:\\secret\\addon.zip',
   dependencyCount: 0,
   extrainfoCount: 0
@@ -128,6 +164,8 @@ function createDispatch(overrides: Partial<AddonsPanelDispatch> = {}): AddonsPan
     retry: vi.fn(),
     setSearchQuery: vi.fn(),
     setGroupBy: vi.fn(),
+    setAddonEnabled: vi.fn(),
+    executeAddon: vi.fn(),
     ...overrides
   };
 }
@@ -139,6 +177,7 @@ function renderPanel(
     locale?: Locale;
     typeFilter?: 'video' | 'audio' | 'executable' | null;
     packageBasePath?: string;
+    buildOptions?: BuildAppRouteOptions;
   } = {}
 ): AddonsPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
@@ -149,7 +188,8 @@ function renderPanel(
       dispatch,
       i18n: createTranslationContext(props.locale ?? 'en'),
       typeFilter: props.typeFilter,
-      packageBasePath: props.packageBasePath
+      packageBasePath: props.packageBasePath,
+      buildOptions: props.buildOptions
     }
   });
   return dispatch;
@@ -211,17 +251,16 @@ describe('AddonsPanel', () => {
     expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
     expect(searchInput().getAttribute('aria-label')).toBe('Search installed add-ons');
     expect(groupSelect().getAttribute('aria-label')).toBe('Group add-ons');
-    expect(screenText()).toContain('xbmc.python.pluginsource');
-    expect(screenText()).toContain('xbmc.service');
+    expect(screenText()).toContain('video');
+    expect(screenText()).toContain('music');
     expect(screenText()).toContain('Alpha Video');
-    expect(screenText()).toContain('plugin.video.alpha');
     expect(screenText()).toContain('Version 1.0.0');
     expect(screenText()).toContain('Enabled');
     expect(screenText()).toContain('Broken');
     expect(screenText()).toContain('Missing dependency');
 
-    const alphaLink = document.querySelector('a[href="/addons/plugin.video.alpha"]');
-    expect(alphaLink?.textContent).toContain('Open Alpha Video details');
+    const alphaLink = document.querySelector('a[aria-label="Open Alpha Video details"]');
+    expect(alphaLink?.getAttribute('aria-label')).toBe('Open Alpha Video details');
     expectNoForbiddenText(screenText());
   });
 
@@ -234,7 +273,11 @@ describe('AddonsPanel', () => {
     expect(groupSelect().getAttribute('aria-label')).toBe('Add-ons gruppieren');
     expect(screenText()).toContain('2 von 2 Add-ons');
     expect(screenText()).toContain('Gruppiert nach Aktivierungsstatus');
-    expect(screenText()).toContain('Öffne Details für Alpha Video');
+    expect(
+      document
+        .querySelector('a[aria-label="Öffne Details für Alpha Video"]')
+        ?.getAttribute('aria-label')
+    ).toBe('Öffne Details für Alpha Video');
     expect(screenText()).toContain('Aktiviert');
     expect(screenText()).toContain('Defekt: Missing dependency');
   });
@@ -310,6 +353,25 @@ describe('AddonsPanel', () => {
     expect(dispatch.setGroupBy).toHaveBeenCalledWith('enabled');
   });
 
+  it('filters executable add-ons and dispatches execute for script add-ons', async () => {
+    const dispatch = renderPanel({
+      snapshot: createSnapshot({
+        addons: [ALPHA_ADDON, SCRIPT_ADDON],
+        visibleAddons: [ALPHA_ADDON, SCRIPT_ADDON],
+        groups: []
+      }),
+      typeFilter: 'executable'
+    });
+
+    expect(screenText()).toContain('Alpha Script');
+    expect(screenText()).not.toContain('Alpha Video');
+
+    button('Execute Alpha Script').click();
+    await tick();
+
+    expect(dispatch.executeAddon).toHaveBeenCalledWith('script.audio.alpha');
+  });
+
   it('distinguishes no installed add-ons from search results with no matches', () => {
     renderPanel({
       snapshot: createSnapshot({ addons: [], visibleAddons: [], groups: [], searchQuery: '' })
@@ -339,6 +401,11 @@ describe('AddonsPanel', () => {
             version: null,
             summary: null,
             type: '',
+            provides: ['video'],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false,
             enabled: null,
             broken: null
           }
@@ -351,6 +418,11 @@ describe('AddonsPanel', () => {
             version: null,
             summary: null,
             type: '',
+            provides: ['video'],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false,
             enabled: null,
             broken: null
           }
@@ -363,9 +435,9 @@ describe('AddonsPanel', () => {
     expect(screenText()).toContain('Version unavailable');
     expect(screenText()).toContain('Summary unavailable');
     expect(screenText()).toContain('Enablement unknown');
-    expect(document.querySelector('a[href="/addons/script.empty"]')?.textContent).toContain(
-      'Open Untitled add-on details'
-    );
+    expect(
+      document.querySelector('a[href="/addons/script.empty"]')?.getAttribute('aria-label')
+    ).toBe('Open Untitled add-on details');
   });
 
   it('redacts unsafe metadata and unsafe detail links from visible content', () => {
@@ -393,15 +465,35 @@ describe('AddonsPanel', () => {
             ...ALPHA_ADDON,
             addonid: 'script.runner',
             name: 'Runner',
-            type: 'xbmc.addon.executable'
+            type: 'xbmc.addon.executable',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.unknown',
             name: 'Unknown Script',
-            type: 'xbmc.python.script'
+            type: 'xbmc.python.script',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
-          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.missing',
+            name: 'Missing Type',
+            type: '',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false
+          }
         ],
         visibleAddons: [
           { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
@@ -410,15 +502,35 @@ describe('AddonsPanel', () => {
             ...ALPHA_ADDON,
             addonid: 'script.runner',
             name: 'Runner',
-            type: 'xbmc.addon.executable'
+            type: 'xbmc.addon.executable',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.unknown',
             name: 'Unknown Script',
-            type: 'xbmc.python.script'
+            type: 'xbmc.python.script',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
-          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.missing',
+            name: 'Missing Type',
+            type: '',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false
+          }
         ],
         groupBy: 'type'
       })
@@ -444,54 +556,110 @@ describe('AddonsPanel', () => {
             ...ALPHA_ADDON,
             addonid: 'plugin.audio.upper',
             name: 'Upper Audio',
-            type: 'XBMC.ADDON.AUDIO'
+            type: 'XBMC.ADDON.AUDIO',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null
           },
           {
             ...BETA_ADDON,
             addonid: 'plugin.video.mixed',
             name: 'Mixed Video',
-            type: 'Addon.Video.Source'
+            type: 'Addon.Video.Source',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.runner',
             name: 'Runner',
-            type: 'xbmc.addon.executable'
+            type: 'xbmc.addon.executable',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.unknown',
             name: 'Unknown Script',
-            type: 'xbmc.python.script'
+            type: 'xbmc.python.script',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
-          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.missing',
+            name: 'Missing Type',
+            type: '',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false
+          }
         ],
         visibleAddons: [
           {
             ...ALPHA_ADDON,
             addonid: 'plugin.audio.upper',
             name: 'Upper Audio',
-            type: 'XBMC.ADDON.AUDIO'
+            type: 'XBMC.ADDON.AUDIO',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null
           },
           {
             ...BETA_ADDON,
             addonid: 'plugin.video.mixed',
             name: 'Mixed Video',
-            type: 'Addon.Video.Source'
+            type: 'Addon.Video.Source',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.runner',
             name: 'Runner',
-            type: 'xbmc.addon.executable'
+            type: 'xbmc.addon.executable',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
           {
             ...ALPHA_ADDON,
             addonid: 'script.unknown',
             name: 'Unknown Script',
-            type: 'xbmc.python.script'
+            type: 'xbmc.python.script',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: true
           },
-          { ...ALPHA_ADDON, addonid: 'script.missing', name: 'Missing Type', type: '' }
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.missing',
+            name: 'Missing Type',
+            type: '',
+            provides: [],
+            providesDefault: null,
+            browseMedia: null,
+            browsePath: null,
+            canExecute: false
+          }
         ],
         groupBy: 'none'
       })
@@ -507,6 +675,7 @@ describe('AddonsPanel', () => {
   it('keeps detail links underneath the package base path', () => {
     renderPanel({
       packageBasePath: '/addons/webinterface.chorus3',
+      buildOptions: { packageBasePath: '/addons/webinterface.chorus3', routeMode: 'hash' },
       snapshot: createSnapshot({
         addons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
         visibleAddons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
@@ -514,8 +683,48 @@ describe('AddonsPanel', () => {
       })
     });
 
-    expect(document.querySelector('a')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3/addons/plugin.video.alpha'
+    expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
+      '/addons/webinterface.chorus3#addons/plugin.video.alpha'
     );
+  });
+
+  it('uses path-mode add-on links outside the package', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        addons: [
+          { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.audio.alpha',
+            name: 'Alpha Script',
+            type: 'xbmc.addon.executable',
+            browseMedia: 'music',
+            browsePath: 'plugin://script.audio.alpha/'
+          }
+        ],
+        visibleAddons: [
+          { ...ALPHA_ADDON, type: 'xbmc.addon.video' },
+          {
+            ...ALPHA_ADDON,
+            addonid: 'script.audio.alpha',
+            name: 'Alpha Script',
+            type: 'xbmc.addon.executable',
+            browseMedia: 'music',
+            browsePath: 'plugin://script.audio.alpha/'
+          }
+        ],
+        groups: []
+      }),
+      buildOptions: { routeMode: 'path' }
+    });
+
+    expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
+      '/addons/plugin.video.alpha'
+    );
+    const primaryHrefs = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>('.addons-card-primary')
+    ).map((link) => link.getAttribute('href'));
+    expect(primaryHrefs).toContain('/browser/music/plugin%3A%2F%2Fscript.audio.alpha%2F');
+    expect(primaryHrefs.some((href) => href?.startsWith('#addons/'))).toBe(false);
   });
 });

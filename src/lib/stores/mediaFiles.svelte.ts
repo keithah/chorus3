@@ -1,11 +1,15 @@
 import {
+  getAddons,
   getFileDirectory,
   getFileSources,
+  type AddonPropertyName,
+  type AddonSummary,
   type FileDirectoryPropertyName,
   type FileMediaType,
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
+import { getAddonExcludedPaths } from './addonsStore.svelte';
 import {
   MusicLibraryClientError,
   cloneMusicLibrarySafeError,
@@ -29,18 +33,23 @@ export interface MediaFileSourceSnapshot {
 }
 
 export type MediaDirectoryEntryKind = 'directory' | 'file';
-export type MediaDirectoryEntryMediaKind = 'audio' | 'unsupported';
+export type MediaDirectoryEntryMediaKind = 'audio' | 'video' | 'unsupported';
 
 export interface MediaDirectoryEntryCapabilitiesSnapshot {
   canBrowse: boolean;
   canPlay: boolean;
   canQueue: boolean;
+  canDownload?: boolean;
 }
 
 export interface MediaDirectoryEntrySnapshot {
   id: string;
+  routeId?: string;
   kind: MediaDirectoryEntryKind;
   label: string;
+  thumbnail?: string;
+  dateadded?: string;
+  year?: number;
   mediaKind?: MediaDirectoryEntryMediaKind;
   extension?: string;
   capabilities: MediaDirectoryEntryCapabilitiesSnapshot;
@@ -71,6 +80,20 @@ export interface MediaFilesStoreOptions {
 }
 
 export type MediaFilesPlayableEntryResult =
+  | {
+      ok: true;
+      entry: {
+        id: string;
+        label: string;
+        media: MediaFilesMedia;
+        itemType: MediaDirectoryEntryKind;
+        mediaKind: Exclude<MediaDirectoryEntryMediaKind, 'unsupported'>;
+        file: string;
+      };
+    }
+  | { ok: false; error: MusicLibrarySafeErrorSnapshot };
+
+export type MediaFilesDownloadableEntryResult =
   | { ok: true; entry: { id: string; label: string; media: MediaFilesMedia; file: string } }
   | { ok: false; error: MusicLibrarySafeErrorSnapshot };
 
@@ -78,6 +101,7 @@ type SourceRecord = {
   id: string;
   label: string;
   path: string;
+  sourceType: 'source' | 'addon' | 'playlist';
 };
 
 type EntryRecord = {
@@ -85,7 +109,12 @@ type EntryRecord = {
   label: string;
   path: string;
   kind: MediaDirectoryEntryKind;
+  mediaKind: MediaDirectoryEntryMediaKind;
+  thumbnail?: string;
+  dateadded?: string;
+  year?: number;
   playable: boolean;
+  downloadable: boolean;
 };
 
 const DEFAULT_MEDIA: MediaFilesMedia = 'music';
@@ -97,9 +126,14 @@ const DIRECTORY_PROPERTIES = [
   'duration',
   'track',
   'thumbnail',
+  'dateadded',
+  'year',
   'file'
 ] as const satisfies readonly FileDirectoryPropertyName[];
+const ADDON_SOURCE_PROPERTIES = ['path', 'name'] as const satisfies readonly AddonPropertyName[];
 const AUDIO_EXTENSIONS = new Set(['mp3', 'flac', 'm4a', 'aac', 'ogg', 'wav']);
+const VIDEO_EXTENSIONS = new Set(['mkv', 'mp4', 'm4v', 'avi', 'mov', 'webm']);
+const DIRECTORY_MIMETYPES = new Set(['x-directory/normal']);
 
 function defaultSnapshot(media: MediaFilesMedia): MediaFilesStoreSnapshot {
   return {
@@ -151,13 +185,20 @@ export class MediaFilesStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getFileSources(client, this.#media);
+      const [sourceResult, addonResult] = await Promise.all([
+        getFileSources(client, this.#media),
+        getBrowserAddons(client, this.#media).catch(() => ({ addons: [] }))
+      ]);
 
       if (!this.#isCurrent(requestId)) {
         return;
       }
 
-      const sources = normalizeSources(result.sources);
+      const sources = [
+        ...normalizeSources(sourceResult.sources),
+        ...normalizeAddonSources(addonResult.addons),
+        createPlaylistSource(this.#media)
+      ];
       this.#sources = new Map(sources.map((source) => [source.id, source]));
       this.#entries = new Map();
       this.#entryCounter = 0;
@@ -207,6 +248,11 @@ export class MediaFilesStore {
   async openDirectory(id: string): Promise<void> {
     const entry = this.#entries.get(id);
 
+    if (!entry && looksPathLike(id)) {
+      await this.openPath(id);
+      return;
+    }
+
     if (!entry || entry.kind !== 'directory') {
       this.#recordInputError(unknownEntryError());
       return;
@@ -219,6 +265,21 @@ export class MediaFilesStore {
     });
   }
 
+  async openPath(path: string): Promise<void> {
+    const normalizedPath = normalizePath(path);
+
+    if (!normalizedPath) {
+      this.#recordInputError(unknownEntryError());
+      return;
+    }
+
+    await this.#openDirectoryPath({
+      path: normalizedPath,
+      reason: `directory:${normalizedPath}`,
+      breadcrumbs: breadcrumbsForPath(normalizedPath)
+    });
+  }
+
   getPlayableEntry(id: string): MediaFilesPlayableEntryResult {
     const entry = this.#entries.get(id);
 
@@ -226,8 +287,32 @@ export class MediaFilesStore {
       return { ok: false, error: unknownEntryError() };
     }
 
-    if (!entry.playable) {
+    if (!entry.playable || entry.mediaKind === 'unsupported') {
       return { ok: false, error: unsupportedEntryError() };
+    }
+
+    return {
+      ok: true,
+      entry: {
+        id: entry.id,
+        label: entry.label,
+        media: this.#media,
+        itemType: entry.kind,
+        mediaKind: entry.mediaKind,
+        file: entry.path
+      }
+    };
+  }
+
+  getDownloadableEntry(id: string): MediaFilesDownloadableEntryResult {
+    const entry = this.#entries.get(id);
+
+    if (!entry) {
+      return { ok: false, error: unknownEntryError() };
+    }
+
+    if (entry.kind !== 'file') {
+      return { ok: false, error: unsupportedDownloadEntryError() };
     }
 
     return {
@@ -321,30 +406,53 @@ export class MediaFilesStore {
         return [];
       }
 
-      const kind: MediaDirectoryEntryKind = item.filetype === 'directory' ? 'directory' : 'file';
+      const kind: MediaDirectoryEntryKind = isDirectoryEntry(item) ? 'directory' : 'file';
       const id = `entry:${++this.#entryCounter}`;
       const label = normalizePublicLabel(item.label, path, `Entry ${this.#entryCounter}`);
       const extension = kind === 'file' ? extensionFromPath(path) : undefined;
-      const playable =
-        kind === 'file' && extension !== undefined && AUDIO_EXTENSIONS.has(extension);
-      const record: EntryRecord = { id, label, path, kind, playable };
+      const thumbnail = stringValue(item.thumbnail);
+      const dateadded = stringValue(item.dateadded);
+      const year = numberValue(item.year);
+      const mediaKind = entryMediaKindForExtension(this.#media, kind, extension);
+      const playable = kind === 'directory' || mediaKind === 'audio' || mediaKind === 'video';
+      const downloadable = kind === 'file' && !path.startsWith('plugin://');
+      const record: EntryRecord = {
+        id,
+        label,
+        path,
+        kind,
+        mediaKind,
+        ...(thumbnail ? { thumbnail } : {}),
+        ...(dateadded ? { dateadded } : {}),
+        ...(year !== null ? { year } : {}),
+        playable,
+        downloadable
+      };
       const snapshot: MediaDirectoryEntrySnapshot = {
         id,
         kind,
         label,
+        ...(thumbnail ? { thumbnail } : {}),
+        ...(dateadded ? { dateadded } : {}),
+        ...(year !== null ? { year } : {}),
         ...(kind === 'file'
           ? {
-              mediaKind: playable ? 'audio' : 'unsupported',
+              mediaKind,
               ...(extension ? { extension } : {})
             }
           : {}),
         capabilities:
           kind === 'directory'
-            ? { canBrowse: true, canPlay: false, canQueue: false }
-            : { canBrowse: false, canPlay: playable, canQueue: playable }
+            ? { canBrowse: true, canPlay: true, canQueue: true }
+            : {
+                canBrowse: false,
+                canPlay: playable,
+                canQueue: playable,
+                canDownload: downloadable
+              }
       };
 
-      return [{ record, snapshot }];
+      return [{ record, snapshot: withNonEnumerableRouteId(snapshot, path) }];
     });
   }
 
@@ -376,12 +484,37 @@ export class MediaFilesStore {
   }
 }
 
+function entryMediaKindForExtension(
+  media: MediaFilesMedia,
+  kind: MediaDirectoryEntryKind,
+  extension: string | undefined
+): MediaDirectoryEntryMediaKind {
+  if (kind === 'directory') {
+    return media === 'video' ? 'video' : 'audio';
+  }
+
+  if (!extension) {
+    return 'unsupported';
+  }
+
+  if (media === 'video') {
+    return VIDEO_EXTENSIONS.has(extension) ? 'video' : 'unsupported';
+  }
+
+  return AUDIO_EXTENSIONS.has(extension) ? 'audio' : 'unsupported';
+}
+
 export function createMediaFilesStore(options: MediaFilesStoreOptions = {}): MediaFilesStore {
   return new MediaFilesStore(options);
 }
 
 export const mediaFilesStore = createMediaFilesStore({
   createClient: createActiveKodiJsonRpcHttpClient
+});
+
+export const videoMediaFilesStore = createMediaFilesStore({
+  createClient: createActiveKodiJsonRpcHttpClient,
+  media: 'video'
 });
 
 function normalizeSources(items: unknown): SourceRecord[] {
@@ -398,7 +531,8 @@ function normalizeSources(items: unknown): SourceRecord[] {
       {
         id,
         label: normalizeSourceLabel(item, path, counter),
-        path
+        path,
+        sourceType: 'source'
       }
     ];
   });
@@ -406,6 +540,57 @@ function normalizeSources(items: unknown): SourceRecord[] {
 
 function sourceSnapshot(source: SourceRecord): MediaFileSourceSnapshot {
   return { id: source.id, label: source.label };
+}
+
+async function getBrowserAddons(
+  client: KodiJsonRpcHttpClient,
+  media: MediaFilesMedia
+): Promise<{ addons?: AddonSummary[] }> {
+  const type = media === 'video' ? 'xbmc.addon.video' : 'xbmc.addon.audio';
+  return getAddons(client, {
+    type,
+    content: 'unknown',
+    enabled: true,
+    properties: ADDON_SOURCE_PROPERTIES
+  });
+}
+
+function normalizeAddonSources(items: unknown): SourceRecord[] {
+  return normalizeRecordList(items).flatMap((item): SourceRecord[] => {
+    const addonid = stringValue(item.addonid);
+    if (!addonid || !isSafeAddonId(addonid)) {
+      return [];
+    }
+
+    return [
+      {
+        id: `addon:${addonid}`,
+        label: normalizePublicLabel(item.name, addonid, addonid),
+        path: `plugin://${addonid}/`,
+        sourceType: 'addon'
+      }
+    ];
+  });
+}
+
+function createPlaylistSource(media: MediaFilesMedia): SourceRecord {
+  return {
+    id: `playlist:${media}`,
+    label: 'Playlists',
+    path: `special://profile/playlists/${media}`,
+    sourceType: 'playlist'
+  };
+}
+
+function withNonEnumerableRouteId(
+  snapshot: MediaDirectoryEntrySnapshot,
+  routeId: string
+): MediaDirectoryEntrySnapshot {
+  return Object.defineProperty(snapshot, 'routeId', {
+    value: routeId,
+    enumerable: false,
+    configurable: true
+  });
 }
 
 function normalizeSourceLabel(
@@ -438,6 +623,37 @@ function normalizePath(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function isDirectoryEntry(item: Record<string, unknown>): boolean {
+  if (item.filetype === 'directory') {
+    return true;
+  }
+
+  return typeof item.mimetype === 'string' && DIRECTORY_MIMETYPES.has(item.mimetype);
+}
+
+function breadcrumbsForPath(path: string): MediaFilesBreadcrumbSnapshot[] {
+  const pluginMatch = path.match(/^plugin:\/\/([A-Za-z0-9._-]+)\/?(.*)$/);
+  if (!pluginMatch) {
+    return [{ id: path, label: basenameFromPath(path) ?? path }];
+  }
+
+  const [, addonid, rest = ''] = pluginMatch;
+  const excludedPaths = new Set(getAddonExcludedPaths(addonid));
+  const breadcrumbs: MediaFilesBreadcrumbSnapshot[] = [
+    { id: `plugin://${addonid}/`, label: addonid }
+  ];
+  let current = `plugin://${addonid}/`;
+  for (const rawPart of rest.split('/')) {
+    const part = rawPart.trim();
+    if (!part) continue;
+    current += `${part}/`;
+    if (!excludedPaths.has(current)) {
+      breadcrumbs.push({ id: current, label: decodeURIComponent(part) });
+    }
+  }
+  return breadcrumbs;
+}
+
 function basenameFromPath(path: string): string | null {
   const withoutTrailingSeparators = path.replace(/[\\/]+$/, '');
   if (withoutTrailingSeparators.length === 0) {
@@ -468,6 +684,10 @@ function containsCredentials(value: string): boolean {
   return /^[a-z][a-z0-9+.-]*:\/\/[^\s/@]+:[^\s/@]+@/i.test(value);
 }
 
+function isSafeAddonId(value: string): boolean {
+  return /^[A-Za-z0-9._-]+$/.test(value);
+}
+
 function looksPathLike(value: string): boolean {
   return (
     /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ||
@@ -494,10 +714,14 @@ function cloneSources(sources: readonly MediaFileSourceSnapshot[]): MediaFileSou
 function cloneEntries(
   entries: readonly MediaDirectoryEntrySnapshot[]
 ): MediaDirectoryEntrySnapshot[] {
-  return entries.map((entry) => ({
-    ...entry,
-    capabilities: { ...entry.capabilities }
-  }));
+  return entries.map((entry) => {
+    const snapshot = {
+      ...entry,
+      capabilities: { ...entry.capabilities }
+    };
+
+    return entry.routeId ? withNonEnumerableRouteId(snapshot, entry.routeId) : snapshot;
+  });
 }
 
 function cloneBreadcrumbs(
@@ -524,12 +748,25 @@ function unsupportedEntryError(): MusicLibrarySafeErrorSnapshot {
   );
 }
 
+function unsupportedDownloadEntryError(): MusicLibrarySafeErrorSnapshot {
+  return createMusicLibrarySafeError(
+    new MusicLibraryClientError(
+      'client/unsupported-entry',
+      'The selected media file entry cannot be downloaded.'
+    )
+  );
+}
+
 function normalizeRecordList(items: unknown): Record<string, unknown>[] {
   return Array.isArray(items) ? items.filter(isRecord) : [];
 }
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

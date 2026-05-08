@@ -34,6 +34,7 @@ function createDispatch(): MockedPlayerControlsDispatch {
     setVolume: vi.fn(),
     toggleMute: vi.fn(),
     setShuffle: vi.fn(),
+    setPartyMode: vi.fn(),
     setRepeat: vi.fn(),
     setSubtitle: vi.fn(),
     setAudioStream: vi.fn(),

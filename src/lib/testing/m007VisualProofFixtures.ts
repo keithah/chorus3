@@ -313,6 +313,7 @@ function createPlayerDispatch(): PlayerControlsDispatch {
     setVolume: noop,
     toggleMute: noop,
     setShuffle: noop,
+    setPartyMode: noop,
     setRepeat: noop,
     setSubtitle: noop,
     setAudioStream: noop,

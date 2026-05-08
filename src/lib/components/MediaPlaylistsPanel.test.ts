@@ -42,7 +42,7 @@ function createSnapshot(
         media: 'music',
         kind: 'basic',
         extension: 'm3u',
-        capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+        capabilities: { canBrowse: false, canPlay: true, canQueue: true }
       }
     ],
     breadcrumbs: [{ id: 'playlist:1', label: 'Favorites' }],
@@ -197,7 +197,7 @@ describe('MediaPlaylistsPanel', () => {
     expect(text).toContain('Favorites');
     expect(text).toContain('Smart playlist');
     expect(text).toContain('Party mix');
-    expect(text).toContain('Unsupported playlist');
+    expect(text).toContain('Can play and queue');
     expect(text).toContain('Breadcrumbs');
     expect(text).toContain('Sinnerman.flac');
     expect(text).toContain('Audio entry');
@@ -336,7 +336,7 @@ describe('MediaPlaylistsPanel', () => {
     expectSecretSafe(text);
   });
 
-  it('does not render enabled play or queue controls for unsupported or missing-capability playlists', () => {
+  it('renders play and queue for standard playlist files but not missing-capability playlists', () => {
     renderPanel({
       snapshot: createSnapshot({
         playlists: [
@@ -353,7 +353,7 @@ describe('MediaPlaylistsPanel', () => {
             media: 'music',
             kind: 'basic',
             extension: 'm3u',
-            capabilities: { canBrowse: false, canPlay: false, canQueue: false }
+            capabilities: { canBrowse: false, canPlay: true, canQueue: true }
           },
           {
             id: '',
@@ -369,13 +369,12 @@ describe('MediaPlaylistsPanel', () => {
 
     expect(button('Play playlist Playable').disabled).toBe(false);
     expect(button('Queue playlist Playable').disabled).toBe(false);
-    expect(button('Unsupported playlist Basic list').disabled).toBe(true);
+    expect(button('Play playlist Basic list').disabled).toBe(false);
+    expect(button('Queue playlist Basic list').disabled).toBe(false);
 
     const labels = Array.from(document.querySelectorAll('button')).map(
       (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
     );
-    expect(labels.some((label) => label === 'Play playlist Basic list')).toBe(false);
-    expect(labels.some((label) => label === 'Queue playlist Basic list')).toBe(false);
     expect(labels.some((label) => label === 'Play playlist Missing id')).toBe(false);
     expect(labels.some((label) => label === 'Queue playlist Missing id')).toBe(false);
   });
@@ -462,7 +461,7 @@ describe('MediaPlaylistsPanel', () => {
     expectSecretSafe(screenText());
   });
 
-  it('renders video playlists as browse-only with video entry metadata and opaque navigation ids', async () => {
+  it('renders video playlists with playable actions, video entry metadata, and opaque navigation ids', async () => {
     const { dispatch, actionDispatch } = renderPanel({
       snapshot: createSnapshot({
         media: 'video',
@@ -473,7 +472,7 @@ describe('MediaPlaylistsPanel', () => {
             media: 'video',
             kind: 'smart',
             extension: 'xsp',
-            capabilities: { canBrowse: true, canPlay: false, canQueue: false }
+            capabilities: { canBrowse: true, canPlay: true, canQueue: true }
           }
         ],
         breadcrumbs: [{ id: 'playlist:video:1', label: 'Recently Added Movies' }],
@@ -483,7 +482,7 @@ describe('MediaPlaylistsPanel', () => {
             label: 'Movie.mkv',
             mediaKind: 'video',
             extension: 'mkv',
-            capabilities: { canPlay: false, canQueue: false }
+            capabilities: { canPlay: true, canQueue: true }
           },
           {
             id: 'entry:2',
@@ -500,10 +499,10 @@ describe('MediaPlaylistsPanel', () => {
     expect(statusText()).toContain('Showing video playlists. 1 playlist, 2 entries.');
     expect(text).toContain('Video playlists');
     expect(text).toContain('Recently Added Movies');
-    expect(text).toContain('Can open, but video playback and queueing are disabled');
+    expect(text).toContain('Can open, play, and queue');
     expect(text).toContain('Movie.mkv');
     expect(text).toContain('Video entry');
-    expect(text).toContain('Video item is browse-only in this view');
+    expect(text).toContain('Playable video item from the opened playlist');
     expect(text).toContain('notes.txt');
     expect(text).toContain('Unsupported entry');
     expectSecretSafe(text);
@@ -512,16 +511,20 @@ describe('MediaPlaylistsPanel', () => {
     await tick();
     button('Open breadcrumb Recently Added Movies').click();
     await tick();
+    button('Play playlist Recently Added Movies').click();
+    await tick();
+    await tick();
+    button('Queue playlist Recently Added Movies').click();
+    await tick();
+    await tick();
 
     expect(dispatch.openPlaylist).toHaveBeenCalledWith('playlist:video:1');
     expect(dispatch.openBreadcrumb).toHaveBeenCalledWith('playlist:video:1');
-    expect(actionDispatch.playPlaylistItem).not.toHaveBeenCalled();
-    expect(actionDispatch.queuePlaylistItem).not.toHaveBeenCalled();
-
-    const labels = Array.from(document.querySelectorAll('button')).map(
-      (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
+    expect(actionDispatch.playPlaylistItem).toHaveBeenCalledWith(
+      playlistPayload('playlist:video:1', 'Recently Added Movies', 'video')
     );
-    expect(labels.some((label) => label === 'Play playlist Recently Added Movies')).toBe(false);
-    expect(labels.some((label) => label === 'Queue playlist Recently Added Movies')).toBe(false);
+    expect(actionDispatch.queuePlaylistItem).toHaveBeenCalledWith(
+      playlistPayload('playlist:video:1', 'Recently Added Movies', 'video')
+    );
   });
 });

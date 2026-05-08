@@ -229,6 +229,10 @@ type QueueDispatchWithEpisodes = QueueDispatch & {
   queueEpisodeItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithMusicVideos = QueueDispatch & {
+  queueMusicVideoItem(item: unknown): Promise<void>;
+};
+
 type QueueDispatchWithFiles = QueueDispatch & {
   queueFileItem(item: unknown): Promise<void>;
 };
@@ -247,6 +251,10 @@ function asMovieDispatch(dispatch: QueueDispatch): QueueDispatchWithMovies {
 
 function asEpisodeDispatch(dispatch: QueueDispatch): QueueDispatchWithEpisodes {
   return dispatch as QueueDispatchWithEpisodes;
+}
+
+function asMusicVideoDispatch(dispatch: QueueDispatch): QueueDispatchWithMusicVideos {
+  return dispatch as QueueDispatchWithMusicVideos;
 }
 
 function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
@@ -270,7 +278,7 @@ describe('queue dispatch', () => {
     await asMovieDispatch(dispatch).queueMovieItem({ movieid: 4401 });
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } }
     ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);
     expect(playerStore.refreshReasons).toEqual(['command:queueMovieItem']);
@@ -344,7 +352,7 @@ describe('queue dispatch', () => {
     await asMovieDispatch(dispatch).queueMovieItem({ movieid: 4401 });
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } }
     ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem']);
     expect(playerStore.refreshReasons).toEqual(['command:queueMovieItem']);
@@ -380,8 +388,8 @@ describe('queue dispatch', () => {
     await movieDispatch.queueMovieItem({ movieid: 4403 });
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4401 } } },
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { movieid: 4403 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4403 } } }
     ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueMovieItem', 'command:queueMovieItem']);
     expect(playerStore.refreshReasons).toEqual([
@@ -407,7 +415,7 @@ describe('queue dispatch', () => {
     await asEpisodeDispatch(dispatch).queueEpisodeItem({ episodeid: 8801 });
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { episodeid: 8801 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } }
     ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
     expect(playerStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
@@ -416,6 +424,29 @@ describe('queue dispatch', () => {
       lastCommand: 'queueEpisodeItem',
       lastError: null,
       lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('queues music video items through Playlist.Add with video playlist id', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asMusicVideoDispatch(dispatch).queueMusicVideoItem({ musicvideoid: 7701 });
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { musicvideoid: 7701 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueMusicVideoItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueMusicVideoItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueMusicVideoItem',
+      lastError: null
     });
   });
 
@@ -482,7 +513,7 @@ describe('queue dispatch', () => {
     await asEpisodeDispatch(dispatch).queueEpisodeItem({ episodeid: 8801 });
 
     expect(client.calls).toEqual([
-      { method: 'Playlist.Add', params: { playlistid: 0, item: { episodeid: 8801 } } }
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } }
     ]);
     expect(queueStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
     expect(playerStore.refreshReasons).toEqual(['command:queueEpisodeItem']);
@@ -525,22 +556,62 @@ describe('queue dispatch', () => {
     });
   });
 
+  it('queues video smart playlist files through Playlist.Add with video playlist id', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asPlaylistDispatch(dispatch).queuePlaylistItem({
+      file: 'special://profile/playlists/video/recent.xsp',
+      mediaKind: 'video',
+      playlistKind: 'smart'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { file: 'special://profile/playlists/video/recent.xsp' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queuePlaylistItem',
+      lastError: null
+    });
+  });
+
+  it('queues standard playlist files through Playlist.Add', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asPlaylistDispatch(dispatch).queuePlaylistItem({
+      file: 'special://profile/playlists/music/party.m3u',
+      mediaKind: 'music',
+      playlistKind: 'basic'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'special://profile/playlists/music/party.m3u' } }
+      }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:queuePlaylistItem']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queuePlaylistItem',
+      lastError: null
+    });
+  });
+
   it('rejects invalid playlist queue inputs before calling Kodi or refreshing stores', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     const invalidInputs = [
       { file: '', mediaKind: 'music', playlistKind: 'smart' },
       { file: '   ', mediaKind: 'music', playlistKind: 'smart' },
       { file: 42, mediaKind: 'music', playlistKind: 'smart' },
-      {
-        file: 'special://profile/playlists/music/recent.xsp',
-        mediaKind: 'video',
-        playlistKind: 'smart'
-      },
-      {
-        file: 'special://profile/playlists/music/recent.xsp',
-        mediaKind: 'music',
-        playlistKind: 'basic'
-      },
       {
         file: 'special://profile/playlists/music/recent.xsp',
         mediaKind: 'music',
@@ -717,13 +788,57 @@ describe('queue dispatch', () => {
     });
   });
 
+  it('queues video file browser items through Playlist.Add with video playlist id', async () => {
+    const { client, dispatch } = createDispatchHarness();
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asFileDispatch(dispatch).queueFileItem({
+      file: 'smb://nas/videos/Big Buck Bunny.mkv',
+      mediaKind: 'video'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { file: 'smb://nas/videos/Big Buck Bunny.mkv' } }
+      }
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueFileItem',
+      lastError: null
+    });
+  });
+
+  it('queues browser directory items through Playlist.Add with directory payload', async () => {
+    const { client, dispatch } = createDispatchHarness();
+    client.enqueue('Playlist.Add', 'OK');
+
+    await asFileDispatch(dispatch).queueFileItem({
+      file: 'smb://nas/music/Albums/',
+      mediaKind: 'audio',
+      itemType: 'directory'
+    });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { directory: 'smb://nas/music/Albums/' } }
+      }
+    ]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueFileItem',
+      lastError: null
+    });
+  });
+
   it('rejects invalid file queue inputs before calling Kodi or refreshing stores', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     const invalidInputs = [
       { file: '', mediaKind: 'audio' },
       { file: '   ', mediaKind: 'audio' },
       { file: 42, mediaKind: 'audio' },
-      { file: 'smb://secret/song.flac', mediaKind: 'video' },
       { file: 'smb://secret/song.flac', mediaKind: 'unknown' },
       { kind: 'song', songid: 42, file: 'smb://secret/song.flac', mediaKind: 'audio' }
     ];
@@ -1233,6 +1348,7 @@ describe('queue store', () => {
             'title',
             'artist',
             'duration',
+            'file',
             'thumbnail',
             'type'
           ])
@@ -1244,13 +1360,37 @@ describe('queue store', () => {
       playlistid: 7,
       activePosition: 1,
       items: [
-        { position: 0, label: 'Second shuffled item', title: 'Title B', type: 'song' },
-        { position: 1, label: 'First shuffled item', artist: ['Artist A'], duration: 123 }
+        {
+          position: 0,
+          label: 'Second shuffled item',
+          title: 'Title B',
+          type: 'song'
+        },
+        {
+          position: 1,
+          label: 'First shuffled item',
+          artist: ['Artist A'],
+          duration: 123
+        }
       ],
       limits: { start: 0, end: 2, total: 2 },
       lastRefreshReason: 'manual',
       lastError: null
     });
+    expect(store.getPlayableItems()).toEqual([
+      {
+        position: 0,
+        label: 'Second shuffled item',
+        file: 'smb://secret/b.mp3',
+        type: 'song'
+      },
+      {
+        position: 1,
+        label: 'First shuffled item',
+        file: 'smb://secret/a.mp3',
+        duration: 123
+      }
+    ]);
     expectSecretSafe(store.snapshot);
   });
 
