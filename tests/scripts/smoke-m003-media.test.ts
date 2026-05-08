@@ -4,7 +4,7 @@ import {
   MEDIA_SMOKE_METHODS,
   parseM003MediaSmokeEnv,
   runM003MediaSmoke
-} from './smoke-m003-media.mjs';
+} from '../../scripts/smoke-m003-media.mjs';
 
 const SECRET_PASSWORD = 'sentinel-secret-password';
 const SECRET_AUTH = `Basic ${Buffer.from(`media-user:${SECRET_PASSWORD}`, 'utf8').toString('base64')}`;

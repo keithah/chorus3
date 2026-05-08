@@ -5,7 +5,7 @@ import {
   parseM004VideoSmokeEnv,
   runM004VideoSmoke,
   runM004VideoSmokeCli
-} from './smoke-m004-video.mjs';
+} from '../../scripts/smoke-m004-video.mjs';
 
 const SECRET_PASSWORD = 'sentinel-secret-password';
 const SECRET_AUTH = `Basic ${Buffer.from(`video-user:${SECRET_PASSWORD}`, 'utf8').toString('base64')}`;

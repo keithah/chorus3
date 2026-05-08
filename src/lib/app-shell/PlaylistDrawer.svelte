@@ -216,7 +216,9 @@
 
   {#if drawerContent}
     {@render drawerContent()}
-  {:else if localMenuOpen}
+  {/if}
+
+  {#if localMenuOpen}
     <div id={MENU_ID} class="classic-playlist-menu" role="menu" aria-label="Playlist menu">
       <button
         type="button"

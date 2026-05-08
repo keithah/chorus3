@@ -117,7 +117,7 @@ describe('SettingsStore', () => {
     expect(calls).toEqual([
       { method: 'getSettingsSections', args: [{ level: 'expert' }] },
       { method: 'getSettingsCategories', args: [{ section: 'system', level: 'expert' }] },
-      { method: 'getSettings', args: [{ category: 'audio', level: 'expert' }] }
+      { method: 'getSettings', args: [{ section: 'system', category: 'audio', level: 'expert' }] }
     ]);
   });
 
@@ -160,7 +160,7 @@ describe('SettingsStore', () => {
     });
     expect(calls.at(-1)).toEqual({
       method: 'getSettings',
-      args: [{ category: 'audio', level: 'expert' }]
+      args: [{ section: 'system', category: 'audio', level: 'expert' }]
     });
     expect(store.snapshot).toMatchObject({
       writeStatus: 'success',

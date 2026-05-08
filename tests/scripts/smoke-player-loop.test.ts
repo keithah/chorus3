@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
-import { parsePlayerLoopSmokeEnv, runPlayerLoopSmoke } from './smoke-player-loop.mjs';
+import { parsePlayerLoopSmokeEnv, runPlayerLoopSmoke } from '../../scripts/smoke-player-loop.mjs';
 
 const SECRET_PASSWORD = 'sentinel-secret-password';
 const SECRET_AUTH = `Basic ${Buffer.from(`media-user:${SECRET_PASSWORD}`, 'utf8').toString('base64')}`;

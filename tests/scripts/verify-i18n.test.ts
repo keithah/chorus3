@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runI18nVerification } from './verify-i18n.mjs';
+import { runI18nVerification } from '../../scripts/verify-i18n.mjs';
 
 const testRoots: string[] = [];
 

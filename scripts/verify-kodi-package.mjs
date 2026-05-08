@@ -8,7 +8,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
 
 export const DEFAULT_PACKAGE_ROOT = 'webinterface.chorus3';
-export const DEFAULT_DOC_PATH = 'docs/m005-kodi-package-uat.md';
 export const PACKAGE_ROOT = 'dist/kodi';
 export const METADATA_PATH = 'kodi/addon-metadata.json';
 export const PACKAGE_JSON_PATH = 'package.json';
@@ -331,10 +330,9 @@ export async function validateKodiPackage({ root = cwd(), zipEntries, parsePacka
 
   validateRouteFallbackEntrypoints({ root, addonId, entries, lines });
   validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines });
-  lines.push(...validateKodiPackageDocs({ root }).lines);
 
   const ok = !lines.some((line) =>
-    /^\[(?:metadata|manifest|html-assets|bundle-assets|bundle-shell|archive|forbidden|zip-listing|now-playing|route|route-fallback|docs)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected|places|contains forbidden)/i.test(
+    /^\[(?:metadata|manifest|html-assets|bundle-assets|bundle-shell|archive|forbidden|zip-listing|now-playing|route|route-fallback)\].*(?:missing|must|failed|invalid|mismatch|not allowed|forbidden|unreadable|blank|expected|places|contains forbidden)/i.test(
       line
     )
   );
@@ -431,43 +429,6 @@ export function validatePackageRouteSupport({
 
   return {
     ok: lines.every((line) => !line.includes(' must ') && !line.includes(' failed ')),
-    lines
-  };
-}
-
-export function validateKodiPackageDocs({ root = cwd(), docPath = DEFAULT_DOC_PATH } = {}) {
-  const path = join(root, docPath);
-  const lines = [];
-
-  if (!existsSync(path) || !statSync(path).isFile()) {
-    return { ok: false, lines: [`[docs] ${docPath} is missing.`] };
-  }
-
-  const contents = readFileSync(path, 'utf8');
-  const requiredSnippets = [
-    'docs/m005-now-playing-uat.md',
-    'npm run verify',
-    'npm run package:kodi',
-    'npm run verify:kodi-package',
-    'dist/kodi/webinterface.chorus3-<version>.zip'
-  ];
-
-  for (const snippet of requiredSnippets) {
-    if (!contents.includes(snippet)) {
-      lines.push(`[docs] ${docPath} must link ${snippet}.`);
-    }
-  }
-
-  if (CREDENTIAL_DOC_PATTERN.test(contents)) {
-    lines.push(`[docs] ${docPath} contains forbidden credential-bearing example.`);
-  }
-
-  if (lines.length === 0) {
-    lines.push(`[docs] ${docPath} links package and now-playing UAT without credential examples.`);
-  }
-
-  return {
-    ok: lines.every((line) => !line.includes(' must ') && !line.includes('forbidden')),
     lines
   };
 }

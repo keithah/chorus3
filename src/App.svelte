@@ -1912,6 +1912,10 @@
       </div>
     {/if}
 
+    {#snippet drawerContent()}
+      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
+    {/snippet}
+
     {#snippet localRuntime()}
       <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
     {/snippet}
@@ -2359,6 +2363,10 @@
         </div>
       </div>
     {/if}
+
+    {#snippet drawerContent()}
+      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
+    {/snippet}
 
     {#snippet localRuntime()}
       <LocalMediaRuntime onEnded={handleLocalMediaEnded} />

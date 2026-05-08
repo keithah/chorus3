@@ -11,7 +11,7 @@ import {
   redactForLiveKodiProof,
   runLiveKodiProof,
   sanitizeBrowserDiagnostic
-} from './verify-m007-live-kodi-browser-proof.mjs';
+} from '../../scripts/verify-m007-live-kodi-browser-proof.mjs';
 
 describe('M007 live Kodi proof runner helpers', () => {
   let server: Server | undefined;

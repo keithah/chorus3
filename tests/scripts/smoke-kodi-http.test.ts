@@ -4,7 +4,7 @@ import {
   DEFAULT_KODI_SMOKE_TIMEOUT_MS,
   parseKodiSmokeEnv,
   runKodiHttpSmoke
-} from './smoke-kodi-http.mjs';
+} from '../../scripts/smoke-kodi-http.mjs';
 
 const SECRET_PASSWORD = 'sentinel-secret-password';
 const SECRET_AUTH = `Basic ${Buffer.from(`media-user:${SECRET_PASSWORD}`, 'utf8').toString('base64')}`;

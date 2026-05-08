@@ -1608,12 +1608,7 @@ describe('App shell', () => {
     ],
     [
       '/settings/kodi/interface',
-      [
-        'Kodi Settings',
-        'Choose a Kodi settings section.',
-        'Interface',
-        'Editable values dispatch one validated write per control change.'
-      ],
+      ['Kodi Settings', 'Choose a Kodi settings section.', 'Interface', 'Reload settings'],
       [
         'settings/kodi/interface',
         'Deferred Kodi settings section',

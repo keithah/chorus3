@@ -212,7 +212,7 @@ function expectSecretSafe(value: string): void {
 describe('SettingsPage', () => {
   it.each([
     [{ kind: 'settingsWeb' } as const, 'General options', 'Advanced options', 'API Keys'],
-    [{ kind: 'settingsKodi' } as const, 'Kodi Settings', 'Kodi JSON-RPC', 'Sections'],
+    [{ kind: 'settingsKodi' } as const, 'Kodi Settings', 'Reload settings', 'Sections'],
     [
       { kind: 'settingsAddons' } as const,
       'Add-ons',

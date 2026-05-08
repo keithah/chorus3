@@ -698,14 +698,6 @@
     box-shadow: 0 0 0 3px rgb(77 179 230 / 0.55);
   }
 
-  .classic-rail-item:hover .classic-submenu,
-  .classic-rail-item:focus-within .classic-submenu {
-    display: block;
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
   .classic-submenu {
     display: none;
     position: absolute;
@@ -822,8 +814,108 @@
   }
 
   :global(.classic-playlist[data-collapsed='true'] .classic-media-tabs),
-  :global(.classic-playlist[data-collapsed='true'] .classic-playlist-menu) {
+  :global(.classic-playlist[data-collapsed='true'] .classic-playlist-menu),
+  :global(.classic-playlist[data-collapsed='true'] .queue-panel) {
     display: none;
+  }
+
+  :global(.classic-playlist .queue-panel) {
+    display: grid;
+    gap: 0;
+    height: calc(100% - 28px);
+    overflow: auto;
+    color: #c8c8c8;
+    background: #181b1c;
+    scrollbar-width: thin;
+  }
+
+  :global(.classic-playlist .queue-panel [role='status']) {
+    min-height: 0;
+    padding: 9px 12px;
+    overflow: hidden;
+    color: #8e9498;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.classic-playlist .queue-panel p) {
+    margin: 0;
+    padding: 12px;
+    color: #8e9498;
+    font-size: 12px;
+  }
+
+  :global(.classic-playlist .queue-panel > button) {
+    display: none;
+  }
+
+  :global(.classic-playlist .queue-panel ol) {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  :global(.classic-playlist .queue-panel li) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 8px;
+    align-items: center;
+    min-height: 48px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2d3032;
+    color: #d7d7d7;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  :global(.classic-playlist .queue-panel li[aria-current='true']) {
+    color: #fff;
+    background: #050606;
+    box-shadow: inset 4px 0 0 var(--classic-blue);
+  }
+
+  :global(.classic-playlist .queue-panel li span:first-child) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.classic-playlist .queue-panel li span:nth-child(2)) {
+    color: #8e9498;
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  :global(.classic-playlist .queue-panel li button) {
+    width: 24px;
+    height: 24px;
+    border: 0;
+    color: #8e9498;
+    background: #242728;
+    font-size: 0;
+  }
+
+  :global(.classic-playlist .queue-panel li button:hover:not(:disabled)) {
+    color: #fff;
+    background: #3d4143;
+  }
+
+  :global(.classic-playlist .queue-panel li button:nth-of-type(1)::before) {
+    content: '↑';
+    font-size: 13px;
+  }
+
+  :global(.classic-playlist .queue-panel li button:nth-of-type(2)::before) {
+    content: '↓';
+    font-size: 13px;
+  }
+
+  :global(.classic-playlist .queue-panel li button:nth-of-type(3)::before) {
+    content: '×';
+    font-size: 16px;
   }
 
   :global(.classic-collapse-icon) {

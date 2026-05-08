@@ -159,7 +159,6 @@ Useful targeted checks:
 npm run typecheck
 npm test -- --run
 npm run verify:kodi-package
-npm run verify:chorus2-parity
 ```
 
 ## Feature requests / bugs

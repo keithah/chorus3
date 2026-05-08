@@ -6,7 +6,7 @@ import {
   DEFAULT_KODI_WS_SMOKE_TIMEOUT_MS,
   parseKodiWebSocketSmokeEnv,
   runKodiWebSocketSmoke
-} from './smoke-kodi-ws.mjs';
+} from '../../scripts/smoke-kodi-ws.mjs';
 
 const SECRET_PASSWORD = 'sentinel-secret-password';
 

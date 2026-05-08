@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { runNoTailwindVerification, scanForTailwindReferences } from './verify-no-tailwind.mjs';
+import {
+  runNoTailwindVerification,
+  scanForTailwindReferences
+} from '../../scripts/verify-no-tailwind.mjs';
 
 const testRoots: string[] = [];
 

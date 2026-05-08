@@ -326,7 +326,7 @@ describe('AppShell navigation DOM', () => {
     expect(commands).toEqual(['stop', 'repeat']);
   });
 
-  it('keeps rail icons focusable with keyboard-accessible flyout submenus', () => {
+  it('keeps rail icons focusable without exposing hover flyout menus', () => {
     const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
 
     expect(source).toContain('.mdi-av-pause::before');
@@ -335,7 +335,7 @@ describe('AppShell navigation DOM', () => {
     expect(source).toContain('.classic-player .classic-thumb');
     expect(source).toContain('.classic-rail-primary:focus-visible');
     expect(source).toMatch(/class="classic-submenu-link"/u);
-    expect(source).toContain('.classic-rail-item:focus-within .classic-submenu');
+    expect(source).not.toContain('.classic-rail-item:focus-within .classic-submenu');
     expect(source).not.toContain('classic-rail-label');
     expect(source).not.toMatch(/\.classic-rail-item:hover\s+\.visually-hidden/u);
     expect(source).not.toMatch(/\.classic-rail-item:focus-within\s+\.visually-hidden/u);

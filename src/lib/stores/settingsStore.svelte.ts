@@ -204,6 +204,7 @@ export class SettingsStore {
         ? normalizeSettings(
             (
               await this.#methods.getSettings(client, {
+                section: selectedSectionId ?? undefined,
                 category: selectedCategoryId,
                 level: this.#level
               })
@@ -251,6 +252,7 @@ export class SettingsStore {
         ? normalizeSettings(
             (
               await this.#methods.getSettings(client, {
+                section: section.id,
                 category: selectedCategoryId,
                 level: this.#level
               })
@@ -285,8 +287,13 @@ export class SettingsStore {
 
     try {
       const settings = normalizeSettings(
-        (await this.#methods.getSettings(client, { category: category.id, level: this.#level }))
-          .settings
+        (
+          await this.#methods.getSettings(client, {
+            section: this.#snapshot.selectedSectionId ?? undefined,
+            category: category.id,
+            level: this.#level
+          })
+        ).settings
       );
       this.#commitLoad(requestId, {
         sections: this.#snapshot.sections,
@@ -391,8 +398,13 @@ export class SettingsStore {
     if (!categoryId) return;
 
     const settings = normalizeSettings(
-      (await this.#methods.getSettings(client, { category: categoryId, level: this.#level }))
-        .settings
+      (
+        await this.#methods.getSettings(client, {
+          section: this.#snapshot.selectedSectionId ?? undefined,
+          category: categoryId,
+          level: this.#level
+        })
+      ).settings
     );
     this.#snapshot = {
       ...this.#snapshot,

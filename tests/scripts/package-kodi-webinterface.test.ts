@@ -12,11 +12,11 @@ import {
   renderAddonXml,
   stageKodiWebinterfacePackage,
   validateAddonInputs
-} from './package-kodi-webinterface.mjs';
+} from '../../scripts/package-kodi-webinterface.mjs';
 import {
   KODI_PACKAGE_BASE_PATH,
   getKodiPackageRouteFallbacks
-} from './kodi-package-route-contract.mjs';
+} from '../../scripts/kodi-package-route-contract.mjs';
 
 const testRoots: string[] = [];
 

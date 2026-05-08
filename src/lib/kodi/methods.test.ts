@@ -1579,7 +1579,9 @@ describe('Kodi curated method wrappers', () => {
       settings: [{ id: 'audio.volume', label: 'Volume' }]
     });
 
-    expect(client.calls).toEqual([{ method: 'Settings.GetSettings', params }]);
+    expect(client.calls).toEqual([
+      { method: 'Settings.GetSettings', params: { level: 'expert', filter: { category: 'audio' } } }
+    ]);
   });
 
   it('gets PVR channels, channel details, and broadcasts with Chorus2-compatible params', async () => {

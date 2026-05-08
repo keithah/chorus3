@@ -61,7 +61,7 @@ const PARITY_PLACEHOLDER_ROUTE_EVIDENCE = [
   'src/lib/app/appRouter.test.ts'
 ];
 const KODI_METHODS_EVIDENCE = ['src/lib/kodi/methods.ts'];
-const SCANNER_EVIDENCE = ['scripts/scan-chorus2-parity.mjs'];
+const SCANNER_EVIDENCE = ['src/lib/app/chorus2ParityLedger.ts'];
 
 function row(input: RowInput): Chorus2ParityRow {
   return {

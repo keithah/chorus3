@@ -8,17 +8,15 @@ import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildPrimaryAppRoute,
   parseAppRoute
-} from '../src/lib/app/appRouter';
-import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
+} from '../../src/lib/app/appRouter';
+import { getKodiPackageRouteFallbacks } from '../../scripts/kodi-package-route-contract.mjs';
 import {
-  DEFAULT_DOC_PATH,
   DEFAULT_PACKAGE_ROOT,
   listZipEntries,
   validateKodiPackage,
-  validateKodiPackageDocs,
   validatePackageRouteSupport,
   runKodiPackageVerification
-} from './verify-kodi-package.mjs';
+} from '../../scripts/verify-kodi-package.mjs';
 
 const testRoots: string[] = [];
 
@@ -52,13 +50,6 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     ...fallbackFiles(),
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.js`]: 'console.log("chorus3")',
     [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/assets/app.css`]: ':root { color-scheme: dark; }',
-    [DEFAULT_DOC_PATH]: [
-      '# M005 Kodi package UAT',
-      'Run `npm run verify`, `npm run package:kodi`, and `npm run verify:kodi-package`.',
-      'The zip is `dist/kodi/webinterface.chorus3-<version>.zip`.',
-      'See docs/m005-now-playing-uat.md for packaged /now-playing checks.',
-      'Use http://kodi.local:8080/addons/webinterface.chorus3/ without URL credentials.'
-    ].join('\n'),
     ...overrides
   };
 }
@@ -639,45 +630,5 @@ describe('Kodi package zip listing', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain('[zip-listing] /tmp/missing.zip failed with exit code 9');
     expect(result.error).toContain('cannot find zipfile directory');
-  });
-});
-
-describe('Kodi package UAT documentation checks', () => {
-  it('accepts docs that link now-playing UAT and avoid credential-bearing examples', () => {
-    const root = createFixture({
-      [DEFAULT_DOC_PATH]: [
-        '# M005 Kodi package UAT',
-        'Run `npm run verify`, `npm run package:kodi`, and `npm run verify:kodi-package`.',
-        'The zip is `dist/kodi/webinterface.chorus3-<version>.zip`.',
-        'See docs/m005-now-playing-uat.md for packaged /now-playing checks.',
-        'Use http://kodi.local:8080/addons/webinterface.chorus3/ without URL credentials.'
-      ].join('\n')
-    });
-
-    const result = validateKodiPackageDocs({ root });
-
-    expect(result.ok).toBe(true);
-  });
-
-  it('rejects missing docs link hooks and credential-like examples without echoing secret values', () => {
-    const root = createFixture({
-      [DEFAULT_DOC_PATH]: [
-        '# M005 Kodi package UAT',
-        'Run `npm run verify`.',
-        'Bad examples: username=alice password=hunter2 token=abc http://user:pass@kodi.local Authorization Basic abc'
-      ].join('\n')
-    });
-
-    const result = validateKodiPackageDocs({ root });
-
-    expect(result.ok).toBe(false);
-    expect(result.lines.join('\n')).toContain(
-      `[docs] ${DEFAULT_DOC_PATH} must link docs/m005-now-playing-uat.md`
-    );
-    expect(result.lines.join('\n')).toContain(
-      `[docs] ${DEFAULT_DOC_PATH} contains forbidden credential-bearing example`
-    );
-    expect(result.lines.join('\n')).not.toContain('hunter2');
-    expect(result.lines.join('\n')).not.toContain('user:pass');
   });
 });

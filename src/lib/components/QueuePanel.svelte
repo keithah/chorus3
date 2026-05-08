@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { QueueDispatchSnapshot, QueueStoreSnapshot } from '$lib/stores';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import { redactDiagnosticText } from '$lib/safety/redaction';
 
   export interface QueuePanelDispatch {
     readonly snapshot: QueueDispatchSnapshot;
@@ -28,13 +29,12 @@
   const isEmpty = $derived(hasPlaylist && !isLoading && snapshot.items.length === 0);
 
   function sanitize(text: string): string {
-    return text
-      .replace(/https?:\/\/[^\s]*/gi, '[url]')
-      .replace(/smb:\/\/[^\s]*/gi, '[url]')
-      .replace(/Authorization[^\s]*/gi, '[header]')
-      .replace(/Basic\s+[A-Za-z0-9+/=]+/g, '[credentials]')
-      .replace(/p@ssword/gi, '[redacted]')
-      .replace(/localStorage/gi, '[storage]');
+    return redactDiagnosticText(text);
+  }
+
+  function itemLabel(item: QueueStoreSnapshot['items'][number]): string {
+    const sanitized = sanitize(item.label).trim();
+    return sanitized.length > 0 ? sanitized : `Item ${item.position + 1}`;
   }
 
   function formatDuration(seconds: number | undefined): string | null {
@@ -83,13 +83,14 @@
         {@const isFirst = item.position === snapshot.items[0].position}
         {@const isLast = item.position === snapshot.items[snapshot.items.length - 1].position}
         {@const duration = formatDuration((item as { duration?: number }).duration)}
+        {@const label = itemLabel(item)}
         <li aria-current={isActive ? 'true' : undefined}>
-          <span>{item.label}</span>
+          <span>{label}</span>
           {#if duration}
             <span>{duration}</span>
           {/if}
           <button
-            aria-label={i18n.t('queue.panel.moveUp', { label: item.label })}
+            aria-label={i18n.t('queue.panel.moveUp', { label })}
             disabled={isDisabled || isFirst}
             onclick={() => {
               const idx = snapshot.items.findIndex((x) => x.position === item.position);
@@ -97,7 +98,7 @@
             }}>↑</button
           >
           <button
-            aria-label={i18n.t('queue.panel.moveDown', { label: item.label })}
+            aria-label={i18n.t('queue.panel.moveDown', { label })}
             disabled={isDisabled || isLast}
             onclick={() => {
               const idx = snapshot.items.findIndex((x) => x.position === item.position);
@@ -106,7 +107,7 @@
             }}>↓</button
           >
           <button
-            aria-label={i18n.t('queue.panel.removeAria', { label: item.label })}
+            aria-label={i18n.t('queue.panel.removeAria', { label })}
             disabled={isDisabled}
             onclick={() => dispatch.removeAt(item.position)}>{i18n.t('queue.panel.remove')}</button
           >

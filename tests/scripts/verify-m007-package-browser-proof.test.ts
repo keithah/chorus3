@@ -6,14 +6,14 @@ import { cwd } from 'node:process';
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import App from '../src/App.svelte';
-import { KODI_WEBINTERFACE_BASE_PATH } from '../src/lib/app/appRouter';
-import { parseNowPlayingEmbedQuery } from '../src/lib/app/nowPlayingEmbedQuery';
+import App from '../../src/App.svelte';
+import { KODI_WEBINTERFACE_BASE_PATH } from '../../src/lib/app/appRouter';
+import { parseNowPlayingEmbedQuery } from '../../src/lib/app/nowPlayingEmbedQuery';
 import {
   M007_VISUAL_PROOF_FORBIDDEN_TEXT,
   createM007VisualProofAppProps
-} from '../src/lib/testing/m007VisualProofFixtures';
-import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
+} from '../../src/lib/testing/m007VisualProofFixtures';
+import { getKodiPackageRouteFallbacks } from '../../scripts/kodi-package-route-contract.mjs';
 
 const projectRoot = cwd();
 const packageRoot = join(projectRoot, 'dist/kodi/webinterface.chorus3');

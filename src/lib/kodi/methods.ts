@@ -198,6 +198,7 @@ export type SettingsGetCategoriesParams = Record<string, unknown> & {
   level?: SettingsLevel;
 };
 export type SettingsGetSettingsParams = Record<string, unknown> & {
+  section?: string;
   category?: string;
   level?: SettingsLevel;
 };
@@ -1692,10 +1693,24 @@ export function getSettings(
   params: SettingsGetSettingsParams = {},
   options?: KodiHttpCallOptions
 ): Promise<SettingsGetSettingsResult> {
-  return callKodi<SettingsGetSettingsResult, SettingsGetSettingsParams>(
+  const { level, section, category, ...rest } = params;
+  const filter =
+    section || category
+      ? {
+          ...(section ? { section } : {}),
+          ...(category ? { category } : {})
+        }
+      : undefined;
+  const normalizedParams = {
+    ...rest,
+    ...(level ? { level } : {}),
+    ...(filter ? { filter } : {})
+  };
+
+  return callKodi<SettingsGetSettingsResult, JsonRpcParams>(
     client,
     'Settings.GetSettings',
-    params,
+    normalizedParams,
     options
   );
 }

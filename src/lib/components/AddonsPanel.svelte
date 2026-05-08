@@ -212,18 +212,6 @@
     return null;
   }
 
-  function dependencyLabel(addon: AddonSnapshot): string {
-    return addon.dependencyCount === 1
-      ? i18n.t('addons.panel.dependencies.one')
-      : i18n.t('addons.panel.dependencies.many', { count: addon.dependencyCount });
-  }
-
-  function extraInfoLabel(addon: AddonSnapshot): string {
-    return addon.extrainfoCount === 1
-      ? i18n.t('addons.panel.extraFields.one')
-      : i18n.t('addons.panel.extraFields.many', { count: addon.extrainfoCount });
-  }
-
   function addonDetailHref(addon: AddonSnapshot): string {
     return buildPrimaryAppRoute({ kind: 'addonDetail', addonid: addon.addonid }, routeBuildOptions);
   }
@@ -410,16 +398,13 @@
                       <dt>{i18n.t('addons.panel.status')}</dt>
                       <dd>{enabledLabel(addon)}</dd>
                     </div>
+                    {#if brokenLabel(addon)}
+                      <div>
+                        <dt>{i18n.t('addons.panel.broken')}</dt>
+                        <dd>{brokenLabel(addon)}</dd>
+                      </div>
+                    {/if}
                   </dl>
-                  <div
-                    class="addons-badges"
-                    aria-label={i18n.t('addons.panel.badgesAria', { name: addonLabel(addon) })}
-                  >
-                    <span>{enabledLabel(addon)}</span>
-                    {#if brokenLabel(addon)}<span class="danger">{brokenLabel(addon)}</span>{/if}
-                    {#if addon.dependencyCount > 0}<span>{dependencyLabel(addon)}</span>{/if}
-                    {#if addon.extrainfoCount > 0}<span>{extraInfoLabel(addon)}</span>{/if}
-                  </div>
                   {#if canExecuteAddon(addon) && dispatch.executeAddon}
                     <div class="addons-actions">
                       <button
@@ -478,8 +463,7 @@
 
   .addons-status span,
   .addons-group-heading span,
-  .addons-meta dt,
-  .addons-badges span {
+  .addons-meta dt {
     margin: 0;
     color: var(--color-text-muted);
     font-family: var(--font-mono);
@@ -617,11 +601,13 @@
   }
 
   .addons-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, 160px);
+    align-items: start;
   }
 
   .addons-card {
     display: grid;
+    grid-template-rows: auto auto auto;
     gap: 0;
     padding: 0;
     overflow: hidden;
@@ -643,6 +629,10 @@
     color: var(--color-text-muted);
   }
 
+  .addons-summary {
+    display: none;
+  }
+
   .addons-card a {
     color: #333;
     text-decoration: none;
@@ -650,7 +640,7 @@
 
   .addons-card-primary {
     display: grid;
-    grid-template-rows: 132px auto;
+    grid-template-rows: 132px 58px;
     min-width: 0;
   }
 
@@ -682,52 +672,55 @@
   }
 
   .addons-card-detail {
+    display: grid;
+    place-items: center;
+    min-height: 34px;
     padding: 0.45rem 0.65rem;
     border-top: 1px solid #eee;
     color: #42a5dc;
   }
 
   .addons-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: block;
+    padding: 0 0.65rem 0.55rem;
+    color: #888;
+    font-size: 11px;
   }
 
-  .addons-meta div,
-  .addons-badges span {
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-background) 34%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-    border-radius: var(--radius-md);
+  .addons-meta div {
+    display: inline;
   }
 
-  .addons-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
+  .addons-meta dt,
+  .addons-meta dd {
+    display: inline;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .addons-meta div + div::before {
+    content: ' · ';
   }
 
   .addons-actions {
-    display: flex;
-    justify-content: flex-end;
+    display: grid;
+    border-top: 1px solid #eee;
   }
 
   .addons-actions button {
-    padding: var(--space-2xs) var(--space-sm);
-    color: var(--color-text);
-    font-weight: 800;
-    background: color-mix(in srgb, var(--color-background) 32%, transparent);
+    min-height: 34px;
+    padding: 0.45rem 0.65rem;
+    color: #333;
+    font-weight: 400;
+    background: #fff;
   }
 
   .addons-actions button:not(:disabled):hover {
     border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
-  }
-
-  .addons-badges .danger {
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 42%,
-      var(--color-border)
-    );
   }
 
   @media (max-width: 760px) {

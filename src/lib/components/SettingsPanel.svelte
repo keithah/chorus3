@@ -40,10 +40,6 @@
     void dispatch.load();
   }
 
-  function callRetry(): void {
-    void dispatch.retry();
-  }
-
   function selectSection(sectionId: string): void {
     void dispatch.selectSection(sectionId);
   }
@@ -155,6 +151,14 @@
     return i18n.t('settings.panel.write.idle');
   }
 
+  function writeCountsCopy(): string {
+    return `${i18n.t('settings.panel.writes')} ${i18n.t('settings.panel.writeCounts', {
+      attempted: snapshot.writeCounts.attempted,
+      succeeded: snapshot.writeCounts.succeeded,
+      failed: snapshot.writeCounts.failed
+    })}`;
+  }
+
   function safeText(value: string): string {
     return value
       .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
@@ -179,510 +183,403 @@
 </script>
 
 <section class="settings-panel" aria-labelledby="settings-panel-title">
-  <header class="settings-panel-hero">
-    <div>
-      <p class="settings-eyebrow">{i18n.t('settings.panel.eyebrow')}</p>
-      <h2 id="settings-panel-title">{i18n.t('settings.panel.title')}</h2>
-      <p>
-        {i18n.t('settings.panel.description')}
-      </p>
-    </div>
-    <button type="button" class="settings-primary-action" onclick={callLoad} disabled={isBusy}>
+  <div class="settings-panel-toolbar">
+    <h2 id="settings-panel-title">{i18n.t('settings.panel.title')}</h2>
+    <button type="button" onclick={callLoad} disabled={isBusy}>
       {i18n.t('settings.panel.reload')}
     </button>
-  </header>
-
-  <div class="settings-status-grid" aria-label={i18n.t('settings.panel.statusAria')}>
-    <div class="settings-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>{i18n.t('settings.panel.load')}</span>
-      <strong>{loadStatusCopy()}</strong>
-    </div>
-    <div class="settings-status" role="status" aria-live="polite" aria-atomic="true">
-      <span>{i18n.t('settings.panel.write')}</span>
-      <strong>{writeStatusCopy()}</strong>
-    </div>
-    <div class="settings-status settings-status-muted">
-      <span>{i18n.t('settings.panel.writes')}</span>
-      <strong
-        >{i18n.t('settings.panel.writeCounts', {
-          attempted: snapshot.writeCounts.attempted,
-          succeeded: snapshot.writeCounts.succeeded,
-          failed: snapshot.writeCounts.failed
-        })}</strong
-      >
-    </div>
   </div>
 
-  {#if snapshot.lastError}
-    <div class="settings-alert" role="alert">
-      <strong>{safeText(snapshot.lastError.code)}</strong>
-      <span>{safeText(snapshot.lastError.message)}</span>
-    </div>
-  {/if}
-
-  <div class="settings-diagnostics" aria-label={i18n.t('settings.panel.diagnosticsAria')}>
+  <div class="settings-status-line" role="status" aria-live="polite" aria-atomic="true">
+    <span>{loadStatusCopy()}</span>
+    <span>{writeStatusCopy()}</span>
+    <span>{writeCountsCopy()}</span>
     {#if snapshot.lastWrite}
-      <p>
-        {i18n.t('settings.panel.lastWrite', {
+      <span
+        >{i18n.t('settings.panel.lastWrite', {
           settingId: safeText(snapshot.lastWrite.settingId),
           status: snapshot.lastWrite.status,
           value: formatValue(snapshot.lastWrite.value)
-        })}
-      </p>
+        })}</span
+      >
     {/if}
     {#if snapshot.rollbackValue !== null}
-      <p>
-        {i18n.t('settings.panel.rollbackValue', { value: formatValue(snapshot.rollbackValue) })}
-      </p>
+      <span
+        >{i18n.t('settings.panel.rollbackValue', {
+          value: formatValue(snapshot.rollbackValue)
+        })}</span
+      >
     {/if}
     {#if snapshot.refreshAfterWrite}
-      <p>
-        {i18n.t('settings.panel.refreshAfterWrite', {
+      <span
+        >{i18n.t('settings.panel.refreshAfterWrite', {
           status: snapshot.refreshAfterWrite.refreshed
             ? i18n.t('settings.panel.refreshStatus.refreshed')
             : i18n.t('settings.panel.refreshStatus.pending'),
           settingId: safeText(snapshot.refreshAfterWrite.settingId)
-        })}
-      </p>
+        })}</span
+      >
     {/if}
     {#if lastWriteTargetMissing}
-      <p>{i18n.t('settings.panel.lastWriteMissing')}</p>
+      <span>{i18n.t('settings.panel.lastWriteMissing')}</span>
     {/if}
   </div>
 
-  <div class="settings-layout">
-    <nav class="settings-nav" aria-label={i18n.t('settings.panel.sectionsAria')}>
+  {#if snapshot.lastError}
+    <p class="settings-alert" role="alert">
+      {safeText(snapshot.lastError.code)}: {safeText(snapshot.lastError.message)}
+    </p>
+  {/if}
+
+  <div class="settings-panel-body">
+    <nav class="settings-section-tabs" aria-label={i18n.t('settings.panel.sectionsAria')}>
       <h3>{i18n.t('settings.panel.sectionsTitle')}</h3>
-      {#if snapshot.sections.length > 0}
-        <div class="settings-nav-list">
-          {#each snapshot.sections as section (section.id)}
-            <button
-              type="button"
-              class:active={section.id === snapshot.selectedSectionId}
-              aria-label={i18n.t('settings.panel.selectSection', {
-                label: safeText(section.label)
-              })}
-              aria-current={section.id === snapshot.selectedSectionId ? 'page' : undefined}
-              onclick={() => selectSection(section.id)}
-              disabled={isBusy || section.id === snapshot.selectedSectionId}
-            >
-              {safeText(section.label)}
-            </button>
-          {/each}
-        </div>
-      {:else}
-        <p class="settings-empty">{i18n.t('settings.panel.noSections')}</p>
-      {/if}
+      {#each snapshot.sections as section (section.id)}
+        <button
+          type="button"
+          class:active={section.id === snapshot.selectedSectionId}
+          aria-label={i18n.t('settings.panel.selectSection', {
+            label: safeText(section.label)
+          })}
+          aria-current={section.id === snapshot.selectedSectionId ? 'page' : undefined}
+          onclick={() => selectSection(section.id)}
+          disabled={isBusy || section.id === snapshot.selectedSectionId}
+        >
+          {safeText(section.label)}
+        </button>
+      {/each}
     </nav>
 
-    <nav class="settings-nav" aria-label={i18n.t('settings.panel.categoriesAria')}>
+    <nav class="settings-category-tabs" aria-label={i18n.t('settings.panel.categoriesAria')}>
       <h3>{i18n.t('settings.panel.categoriesTitle')}</h3>
-      {#if snapshot.categories.length > 0}
-        <div class="settings-nav-list">
-          {#each snapshot.categories as category (category.id)}
-            <button
-              type="button"
-              class:active={category.id === snapshot.selectedCategoryId}
-              aria-label={i18n.t('settings.panel.selectCategory', {
-                label: safeText(category.label)
-              })}
-              aria-current={category.id === snapshot.selectedCategoryId ? 'page' : undefined}
-              onclick={() => selectCategory(category.id)}
-              disabled={isBusy || category.id === snapshot.selectedCategoryId}
-            >
-              {safeText(category.label)}
-            </button>
-          {/each}
-        </div>
-      {:else}
-        <p class="settings-empty">{i18n.t('settings.panel.noCategories')}</p>
-      {/if}
+      {#each snapshot.categories as category (category.id)}
+        <button
+          type="button"
+          class:active={category.id === snapshot.selectedCategoryId}
+          aria-label={i18n.t('settings.panel.selectCategory', {
+            label: safeText(category.label)
+          })}
+          aria-current={category.id === snapshot.selectedCategoryId ? 'page' : undefined}
+          onclick={() => selectCategory(category.id)}
+          disabled={isBusy || category.id === snapshot.selectedCategoryId}
+        >
+          {safeText(category.label)}
+        </button>
+      {/each}
     </nav>
 
-    <div class="settings-content">
-      <div class="settings-content-heading">
-        <div>
-          <h3>{i18n.t('settings.panel.settingsTitle')}</h3>
-          {#if hasOnlyReadOnlySettings}
-            <p>{i18n.t('settings.panel.readOnlyCategory')}</p>
-          {:else}
-            <p>{i18n.t('settings.panel.editableCategory')}</p>
-          {/if}
-        </div>
-        {#if snapshot.loadStatus === 'error'}
-          <button type="button" onclick={callRetry}>{i18n.t('settings.panel.retryLoad')}</button>
+    {#if snapshot.sections.length === 0}
+      <div class="settings-empty">
+        <p>{i18n.t('settings.panel.noSections')}</p>
+        {#if snapshot.categories.length === 0}
+          <p>{i18n.t('settings.panel.noCategories')}</p>
         {/if}
+        <p>{i18n.t('settings.panel.noSettings')}</p>
       </div>
-
-      {#if snapshot.settings.length > 0}
-        <div class="settings-card-grid">
-          {#each snapshot.settings as setting (setting.id)}
-            <article class:read-only={!canEdit(setting)} class="settings-card">
-              <div class="settings-card-header">
-                <div>
-                  <h4>{settingLabel(setting)}</h4>
-                  <p>{safeText(setting.id)}</p>
-                </div>
-                <span
-                  >{canEdit(setting)
-                    ? i18n.t('settings.panel.editable')
-                    : i18n.t('settings.panel.readOnly')}</span
-                >
-              </div>
-
-              <dl class="settings-meta">
-                <div>
-                  <dt>{i18n.t('settings.panel.type')}</dt>
-                  <dd>{i18n.t('settings.panel.typeValue', { type: typeLabel(setting) })}</dd>
-                </div>
-                <div>
-                  <dt>{i18n.t('settings.panel.current')}</dt>
-                  <dd>
-                    {i18n.t('settings.panel.currentValue', { value: formatValue(setting.value) })}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{i18n.t('settings.panel.default')}</dt>
-                  <dd>
-                    {i18n.t('settings.panel.defaultValue', {
-                      value: formatValue(setting.defaultValue)
-                    })}
-                  </dd>
-                </div>
-              </dl>
-
-              {#if canEdit(setting)}
-                <div class="settings-control">
-                  {#if setting.editKind === 'boolean'}
-                    <label>
-                      <input
-                        data-setting-control={setting.id}
-                        type="checkbox"
-                        checked={setting.value === true}
-                        aria-label={i18n.t('settings.panel.toggleSetting', {
-                          label: settingLabel(setting)
-                        })}
-                        onchange={(event) => writeBoolean(setting, event)}
-                        disabled={isBusy}
-                      />
-                      {i18n.t('settings.panel.enabled')}
-                    </label>
-                  {:else if setting.editKind === 'integer' || setting.editKind === 'number'}
-                    <label for={`setting-${setting.id}`}>
-                      {i18n.t('settings.panel.valueLabel', { label: settingLabel(setting) })}
-                    </label>
-                    <input
-                      id={`setting-${setting.id}`}
-                      data-setting-control={setting.id}
-                      type="text"
-                      inputmode={setting.editKind === 'integer' ? 'numeric' : 'decimal'}
-                      value={formatValue(setting.value)}
-                      aria-label={i18n.t('settings.panel.editSetting', {
-                        label: settingLabel(setting)
-                      })}
-                      onchange={(event) => writeText(setting, event)}
-                      disabled={isBusy}
-                    />
-                  {:else if setting.editKind === 'string'}
-                    <label for={`setting-${setting.id}`}>
-                      {i18n.t('settings.panel.valueLabel', { label: settingLabel(setting) })}
-                    </label>
-                    <input
-                      id={`setting-${setting.id}`}
-                      data-setting-control={setting.id}
-                      type="text"
-                      value={typeof setting.value === 'string' ? safeText(setting.value) : ''}
-                      aria-label={i18n.t('settings.panel.editSetting', {
-                        label: settingLabel(setting)
-                      })}
-                      onchange={(event) => writeText(setting, event)}
-                      disabled={isBusy}
-                    />
-                  {:else if setting.editKind === 'enum'}
-                    <label for={`setting-${setting.id}`}
-                      >{i18n.t('settings.panel.optionLabel', {
-                        label: settingLabel(setting)
-                      })}</label
-                    >
-                    <select
-                      id={`setting-${setting.id}`}
-                      data-setting-control={setting.id}
-                      value={optionKey(setting.value)}
-                      aria-label={i18n.t('settings.panel.chooseSetting', {
-                        label: settingLabel(setting)
-                      })}
-                      onchange={(event) => writeEnum(setting, event)}
-                      disabled={isBusy}
-                    >
-                      {#each setting.options as option (optionKey(option.value))}
-                        <option value={optionKey(option.value)}>{safeText(option.label)}</option>
-                      {/each}
-                    </select>
-                  {/if}
-                </div>
-              {:else}
-                <p class="settings-read-only">{readOnlyReason(setting)}</p>
-              {/if}
-            </article>
-          {/each}
-        </div>
-      {:else}
-        <p class="settings-empty">{i18n.t('settings.panel.noSettings')}</p>
+    {:else if snapshot.settings.length > 0}
+      {#if hasOnlyReadOnlySettings}
+        <p class="settings-read-only-category">{i18n.t('settings.panel.readOnlyCategory')}</p>
       {/if}
-    </div>
+      <div class="settings-list">
+        {#each snapshot.settings as setting (setting.id)}
+          <label class="settings-row" class:read-only={!canEdit(setting)}>
+            <span class="settings-label">
+              <strong>{settingLabel(setting)}</strong>
+              <small>{safeText(setting.id)}</small>
+              <small>
+                {canEdit(setting)
+                  ? i18n.t('settings.panel.editable')
+                  : i18n.t('settings.panel.readOnly')}
+              </small>
+              {#if !canEdit(setting)}
+                <small>{readOnlyReason(setting)}</small>
+              {/if}
+            </span>
+            <span class="settings-control">
+              {#if canEdit(setting) && setting.editKind === 'boolean'}
+                <input
+                  data-setting-control={setting.id}
+                  type="checkbox"
+                  checked={setting.value === true}
+                  aria-label={i18n.t('settings.panel.toggleSetting', {
+                    label: settingLabel(setting)
+                  })}
+                  onchange={(event) => writeBoolean(setting, event)}
+                  disabled={isBusy}
+                />
+              {:else if canEdit(setting) && (setting.editKind === 'integer' || setting.editKind === 'number')}
+                <input
+                  data-setting-control={setting.id}
+                  type="text"
+                  inputmode={setting.editKind === 'integer' ? 'numeric' : 'decimal'}
+                  value={formatValue(setting.value)}
+                  aria-label={i18n.t('settings.panel.editSetting', {
+                    label: settingLabel(setting)
+                  })}
+                  onchange={(event) => writeText(setting, event)}
+                  disabled={isBusy}
+                />
+              {:else if canEdit(setting) && setting.editKind === 'string'}
+                <input
+                  data-setting-control={setting.id}
+                  type="text"
+                  value={typeof setting.value === 'string' ? safeText(setting.value) : ''}
+                  aria-label={i18n.t('settings.panel.editSetting', {
+                    label: settingLabel(setting)
+                  })}
+                  onchange={(event) => writeText(setting, event)}
+                  disabled={isBusy}
+                />
+              {:else if canEdit(setting) && setting.editKind === 'enum'}
+                <select
+                  data-setting-control={setting.id}
+                  value={optionKey(setting.value)}
+                  aria-label={i18n.t('settings.panel.chooseSetting', {
+                    label: settingLabel(setting)
+                  })}
+                  onchange={(event) => writeEnum(setting, event)}
+                  disabled={isBusy}
+                >
+                  {#each setting.options as option (optionKey(option.value))}
+                    <option value={optionKey(option.value)}>{safeText(option.label)}</option>
+                  {/each}
+                </select>
+              {:else}
+                <span>{formatValue(setting.value)}</span>
+              {/if}
+              <span class="setting-meta">
+                {i18n.t('settings.panel.typeValue', { type: typeLabel(setting) })}
+              </span>
+              <span class="setting-meta">
+                {i18n.t('settings.panel.defaultValue', {
+                  value: formatValue(setting.defaultValue)
+                })}
+              </span>
+            </span>
+          </label>
+        {/each}
+      </div>
+    {:else}
+      <div class="settings-empty">
+        {#if snapshot.sections.length === 0}
+          <p>{i18n.t('settings.panel.noSections')}</p>
+        {/if}
+        {#if snapshot.categories.length === 0}
+          <p>{i18n.t('settings.panel.noCategories')}</p>
+        {/if}
+        <p>{i18n.t('settings.panel.noSettings')}</p>
+      </div>
+    {/if}
   </div>
 </section>
 
 <style>
   .settings-panel {
     display: grid;
-    gap: var(--space-lg);
+    gap: 0;
+    color: #333;
+    background: #dedede;
   }
 
-  .settings-panel-hero,
-  .settings-content-heading,
-  .settings-card-header,
-  .settings-status-grid,
-  .settings-layout {
-    display: grid;
-    gap: var(--space-md);
+  .settings-panel-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    padding: 0 18px;
+    background: #f7f7f7;
+    border-bottom: 1px solid #d0d0d0;
   }
 
-  .settings-panel-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    padding: var(--space-xl);
-    overflow: hidden;
-    background:
-      radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--color-accent) 20%, transparent),
-        transparent 42%
-      ),
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-surface-raised) 86%, transparent),
-        var(--color-surface)
-      );
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-soft);
-  }
-
-  .settings-eyebrow,
-  .settings-status span,
-  .settings-card-header span,
-  .settings-meta dt {
+  .settings-panel-toolbar h2 {
     margin: 0;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    color: #555;
+    font-size: 20px;
+    font-weight: 400;
   }
 
-  h2,
-  h3,
-  h4,
-  p,
-  dl,
-  dd {
-    margin: 0;
-  }
-
-  h2 {
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 0.95;
-  }
-
-  h3 {
-    font-size: clamp(1.1rem, 2vw, 1.35rem);
-  }
-
-  h4 {
-    font-size: 1rem;
-  }
-
-  p,
-  dd,
-  label,
-  button,
-  input,
-  select {
-    line-height: 1.5;
-  }
-
-  button,
-  input,
-  select {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-  }
-
-  button {
+  .settings-panel-toolbar button,
+  .settings-section-tabs button,
+  .settings-category-tabs button {
+    border: 0;
+    border-radius: 0;
+    font: inherit;
     cursor: pointer;
   }
 
-  button:disabled,
-  input:disabled,
-  select:disabled {
-    cursor: not-allowed;
-    opacity: 0.58;
+  .settings-panel-toolbar button {
+    padding: 7px 13px;
+    color: #fff;
+    background: #9e9e9e;
   }
 
-  .settings-primary-action,
-  .settings-content-heading button,
-  .settings-nav button {
-    padding: var(--space-xs) var(--space-md);
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-surface-raised) 84%, transparent);
-  }
-
-  .settings-primary-action {
-    font-weight: 800;
-  }
-
-  .settings-nav button.active,
-  .settings-primary-action:not(:disabled):hover,
-  .settings-content-heading button:not(:disabled):hover,
-  .settings-nav button:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
-  }
-
-  .settings-status-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .settings-status,
-  .settings-alert,
-  .settings-diagnostics,
-  .settings-nav,
-  .settings-content,
-  .settings-card {
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-  }
-
-  .settings-status {
-    display: grid;
-    gap: var(--space-2xs);
+  .settings-status-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    padding: 8px 18px;
+    color: #888;
+    background: #fff;
+    border-bottom: 1px solid #d0d0d0;
+    font-size: 12px;
   }
 
   .settings-alert {
+    margin: 0;
+    padding: 12px 18px;
+    color: #9d2f2f;
+    background: #fff;
+    border-bottom: 1px solid #d0d0d0;
+  }
+
+  .settings-panel-body {
     display: grid;
-    gap: var(--space-2xs);
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .settings-diagnostics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm) var(--space-lg);
-    color: var(--color-text-muted);
-  }
-
-  .settings-layout {
-    grid-template-columns: minmax(10rem, 0.55fr) minmax(10rem, 0.55fr) minmax(0, 2fr);
+    grid-template-columns: 150px minmax(0, 1fr);
     align-items: start;
   }
 
-  .settings-nav,
-  .settings-content {
+  .settings-section-tabs,
+  .settings-category-tabs {
     display: grid;
-    gap: var(--space-md);
+    align-content: start;
   }
 
-  .settings-nav-list,
-  .settings-card-grid {
-    display: grid;
-    gap: var(--space-sm);
+  .settings-section-tabs {
+    grid-row: span 2;
+    min-height: 100%;
+    padding: 14px 0;
+    background: #f3f3f3;
+    border-right: 1px solid #d8d8d8;
   }
 
-  .settings-nav button {
-    width: 100%;
+  .settings-category-tabs {
+    grid-column: 2;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    background: #eee;
+    border-bottom: 1px solid #d0d0d0;
+  }
+
+  .settings-section-tabs h3,
+  .settings-category-tabs h3 {
+    margin: 0;
+    padding: 10px 14px 6px;
+    color: #888;
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: uppercase;
+  }
+
+  .settings-section-tabs button,
+  .settings-category-tabs button {
+    min-height: 36px;
+    padding: 0 14px;
+    color: #333;
+    background: transparent;
     text-align: left;
   }
 
-  .settings-content-heading {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .settings-section-tabs button.active,
+  .settings-category-tabs button.active,
+  .settings-section-tabs button:hover:not(:disabled),
+  .settings-category-tabs button:hover:not(:disabled) {
+    color: #4db3e6;
+  }
+
+  .settings-list {
+    grid-column: 2;
+    display: grid;
+    gap: 0;
+    padding: 12px 18px 44px;
+  }
+
+  .settings-read-only-category {
+    grid-column: 2;
+    margin: 0;
+    padding: 12px 18px 0;
+    color: #888;
+    font-size: 13px;
+  }
+
+  .settings-row {
+    display: grid;
+    grid-template-columns: minmax(12rem, 24rem) minmax(16rem, 32rem);
+    gap: 1.4rem;
     align-items: start;
+    min-height: 58px;
+    padding: 12px 0;
+    border-bottom: 1px solid #ececec;
   }
 
-  .settings-card {
+  .settings-label {
     display: grid;
-    gap: var(--space-md);
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--color-surface-raised) 44%, transparent),
-        transparent
-      ),
-      var(--color-surface);
+    gap: 3px;
   }
 
-  .settings-card.read-only {
-    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-background));
+  .settings-label strong {
+    color: #333;
+    font-size: 14px;
+    font-weight: 700;
   }
 
-  .settings-card-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
+  .settings-label small {
+    color: #aaa;
+    font-size: 12px;
+    line-height: 1.35;
   }
 
-  .settings-card-header p,
-  .settings-content-heading p,
-  .settings-empty,
-  .settings-read-only {
-    color: var(--color-text-muted);
-  }
-
-  .settings-meta {
+  .settings-control {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-sm);
+    gap: 4px;
+    color: #777;
+    font-size: 14px;
   }
 
-  .settings-meta div,
-  .settings-control,
-  .settings-read-only {
-    display: grid;
-    gap: var(--space-2xs);
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-background) 34%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-    border-radius: var(--radius-md);
+  .setting-meta {
+    color: #aaa;
+    font-size: 12px;
   }
 
   .settings-control input:not([type='checkbox']),
   .settings-control select {
     width: 100%;
-    padding: var(--space-xs) var(--space-sm);
-    color: var(--color-text);
-    background: var(--color-surface-raised);
+    height: 28px;
+    border: 0;
+    border-bottom: 1px solid #9e9e9e;
+    border-radius: 0;
+    background: transparent;
+    color: #555;
+    font: inherit;
   }
 
-  .settings-control label:has(input[type='checkbox']) {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-xs);
+  .settings-control input[type='checkbox'] {
+    width: 44px;
+    height: 22px;
+    margin: 0;
+    accent-color: #57b6e6;
+  }
+
+  .settings-empty {
+    grid-column: 2;
+    margin: 0;
+    padding: 18px;
+    color: #888;
+  }
+
+  .settings-empty p {
+    margin: 0 0 0.35rem;
   }
 
   @media (max-width: 840px) {
-    .settings-panel-hero,
-    .settings-content-heading,
-    .settings-layout,
-    .settings-status-grid,
-    .settings-meta {
+    .settings-panel-body,
+    .settings-row {
       grid-template-columns: 1fr;
+    }
+
+    .settings-section-tabs,
+    .settings-category-tabs,
+    .settings-list,
+    .settings-empty {
+      grid-column: 1;
     }
   }
 </style>

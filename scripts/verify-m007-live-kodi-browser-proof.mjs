@@ -708,7 +708,7 @@ function parseCliArgs(args) {
 
 function printHelp() {
   console.log(
-    `Usage: node scripts/verify-m007-live-kodi-browser-proof.mjs [--origin http://localhost:8080] [--dry-run] [--output docs/m007-live-kodi-install-proof.md] [--timeout-ms 5000]\n\nClassifies a local-only live Kodi Chorus3 proof run without printing credentials, raw transport bodies, local paths, media paths, or ignored planning paths. Credentials, when needed, must come from KODI_USERNAME and KODI_PASSWORD.`
+    `Usage: node scripts/verify-m007-live-kodi-browser-proof.mjs [--origin http://localhost:8080] [--dry-run] [--output proof.md] [--timeout-ms 5000]\n\nClassifies a local-only live Kodi Chorus3 proof run without printing credentials, raw transport bodies, local paths, media paths, or ignored planning paths. Credentials, when needed, must come from KODI_USERNAME and KODI_PASSWORD.`
   );
 }
 
