@@ -10,32 +10,32 @@ type MountedComponent = ReturnType<typeof mount>;
 let mounted: MountedComponent | null = null;
 
 const HELP_TOPIC_CASES = [
-  [{ kind: 'help' }, 'About Chorus', 'Status report', 'What is Chorus?', 'Bugs and Features'],
+  [{ kind: 'help' }, 'About Chorus 3', 'Status report', 'What is Chorus?', 'Bugs and Features'],
   [
     { kind: 'helpOverview' },
-    'About Chorus',
+    'About Chorus 3',
     'Status report',
     'What is Chorus?',
     'Bugs and Features'
   ],
   [
     { kind: 'helpPage', pageid: 'overview' },
-    'About Chorus',
+    'About Chorus 3',
     'Status report',
     'What is Chorus?',
     'Bugs and Features'
   ],
   [
     { kind: 'helpPage', pageid: 'app-readme' },
-    'Kodi Web Interface - Chorus2',
+    'Kodi Web Interface - Chorus 3',
     'Streaming',
     'Kodi API browser',
     undefined
   ],
   [
     { kind: 'helpPage', pageid: 'app-changelog' },
-    'Version 21.x-1.0.1',
-    'Assorted fixes for Omega Release',
+    'Version 3.0.0',
+    'Initial Chorus 3 release',
     'Added support for music videos',
     undefined
   ],
@@ -69,7 +69,7 @@ const HELP_TOPIC_CASES = [
   ],
   [
     { kind: 'helpPage', pageid: 'license' },
-    'Chorus2 License',
+    'Chorus 3 License',
     'Included Images',
     'Included Libraries',
     undefined
@@ -77,8 +77,8 @@ const HELP_TOPIC_CASES = [
 ] as const satisfies readonly [PrimaryRoute, string, string, string, string?][];
 
 const HELP_ALIAS_CASES = [
-  [{ kind: 'helpPage', pageid: 'readme' }, 'Kodi Web Interface - Chorus2'],
-  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 21.x-1.0.1'],
+  [{ kind: 'helpPage', pageid: 'readme' }, 'Kodi Web Interface - Chorus 3'],
+  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 3.0.0'],
   [{ kind: 'helpPage', pageid: 'keyboard' }, 'Key Binds'],
   [{ kind: 'helpPage', pageid: 'translations' }, 'Translations']
 ] as const satisfies readonly [PrimaryRoute, string][];
@@ -110,7 +110,7 @@ function text(): string {
 
 describe('HelpPage', () => {
   it.each(HELP_TOPIC_CASES)(
-    'renders Chorus2 help topic content for %s',
+    'renders Chorus help topic content for %s',
     (route, heading, firstCopy, secondCopy, thirdCopy) => {
       renderPage(route);
 
@@ -132,7 +132,7 @@ describe('HelpPage', () => {
     }
   );
 
-  it('renders the Chorus2 help topic sidebar in the expected order', () => {
+  it('renders the Chorus help topic sidebar in the expected order', () => {
     renderPage({ kind: 'help' });
 
     const links = [...document.querySelectorAll('.help-sidebar a')].map((link) => ({

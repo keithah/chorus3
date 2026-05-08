@@ -1,8 +1,8 @@
 {
   "id": "webinterface.chorus3",
-  "name": "Chorus3",
+  "name": "Chorus 3",
   "summary": "A faithful modern rewrite of the Chorus2 Kodi web interface.",
-  "description": "Chorus3 is a faithful rewrite of Chorus2 for current Kodi installations. It keeps the classic Chorus browsing, playback, remote, settings, add-on, playlist, PVR, and lab workflows while rebuilding the web interface with Svelte 5, TypeScript, Vite, and direct Kodi JSON-RPC integrations.",
+  "description": "Chorus 3 is a faithful rewrite of Chorus2 for current Kodi installations. It keeps the classic Chorus browsing, playback, remote, settings, add-on, playlist, PVR, and lab workflows while rebuilding the web interface with Svelte 5, TypeScript, Vite, and direct Kodi JSON-RPC integrations.",
   "language": "en_GB",
   "platform": "all",
   "source": "https://github.com/keithah/chorus3",

@@ -1,4 +1,4 @@
-# Kodi Web Interface - Chorus3
+# Kodi Web Interface - Chorus 3
 
 A faithful modern rewrite of Chorus2, the classic Kodi web interface.
 
@@ -7,13 +7,13 @@ from a web browser. Play media through Kodi or stream supported media locally in
 the classic Chorus remote overlay, now-playing views, library pages, API lab, and package-mounted
 routes without the legacy CoffeeScript/Backbone stack.
 
-Chorus3 is intentionally shaped like Chorus2. The goal is not a new product with a new workflow; it
+Chorus 3 is intentionally shaped like Chorus2. The goal is not a new product with a new workflow; it
 is Chorus2 rebuilt for current tooling and current Kodi installations.
 
 ## What changed from Chorus2
 
 Chorus2 was a complete rebuild of the original Chorus using CoffeeScript, Backbone, Marionette, and
-the browser tooling of its time. Chorus3 keeps the Chorus2 user experience and rebuilds it with:
+the browser tooling of its time. Chorus 3 keeps the Chorus2 user experience and rebuilds it with:
 
 - Svelte 5 for the application shell and reactive UI.
 - TypeScript for typed routes, stores, Kodi JSON-RPC payloads, and component contracts.
@@ -24,7 +24,7 @@ the browser tooling of its time. Chorus3 keeps the Chorus2 user experience and r
 
 ## Current state
 
-Chorus3 is at its first `0.1.0` release. The main Chorus2 surfaces have been ported and packaged as
+Chorus 3 is at its first `3.0.0` release. The main Chorus2 surfaces have been ported and packaged as
 `webinterface.chorus3`.
 
 The project is still young. Expect rough edges, but the intended bar is full Chorus2 parity rather
@@ -40,18 +40,18 @@ In Kodi:
 - Enable "Allow remote control via HTTP".
 - Set a username and password.
 - Enable remote control from applications on this system and other systems if you need them.
-- Select the Chorus3 web interface after installing it.
+- Select the Chorus 3 web interface after installing it.
 
 For security reasons, do not expose Kodi's HTTP server to the public internet.
 
 ### Install from zip
 
-Build or download `webinterface.chorus3-0.1.0.zip`, then install it through Kodi:
+Build or download `webinterface.chorus3-3.0.0.zip`, then install it through Kodi:
 
 - Add-ons > Install from zip file.
-- Select the Chorus3 zip.
+- Select the Chorus 3 zip.
 - Open Settings > Services > Control.
-- Select "Chorus3" as the web interface.
+- Select "Chorus 3" as the web interface.
 
 ### Install from the Keithah Kodi repository
 
@@ -60,7 +60,7 @@ The repository add-on is generated in the Kodi repository layout that Kodi expec
 - `addons.xml`
 - `addons.xml.md5`
 - `repository.keithah.kodi/repository.keithah.kodi-0.1.0.zip`
-- `webinterface.chorus3/webinterface.chorus3-0.1.0.zip`
+- `webinterface.chorus3/webinterface.chorus3-3.0.0.zip`
 
 The intended public repository is:
 
@@ -68,7 +68,7 @@ The intended public repository is:
 - Raw metadata: https://raw.githubusercontent.com/keithah/kodi/main/addons.xml
 
 Install the repository zip, then use Install from repository > Keithah Kodi Add-ons > Web
-interfaces > Chorus3.
+interfaces > Chorus 3.
 
 ### Using it
 
@@ -81,7 +81,7 @@ http://localhost:8080
 Replace `localhost` with your Kodi host or IP address, and replace `8080` if you changed Kodi's
 HTTP port.
 
-Chorus3 supports package-mounted Kodi URLs and standalone development URLs. Package routes use the
+Chorus 3 supports package-mounted Kodi URLs and standalone development URLs. Package routes use the
 classic hash style, such as:
 
 ```text
@@ -109,13 +109,13 @@ Kodi playback remains the most reliable path for files that need Kodi's codec su
 
 ## Kodi settings via the web interface
 
-Chorus3 ports the Chorus2 settings flow and exposes Kodi settings through the web interface where
+Chorus 3 ports the Chorus2 settings flow and exposes Kodi settings through the web interface where
 Kodi's JSON-RPC API allows it. Some Kodi settings still require the Kodi GUI or depend on the
 capabilities of the running Kodi version.
 
 ## Kodi API browser
 
-Chorus3 includes the Chorus lab API browser for exploring and running Kodi JSON-RPC methods. It is
+Chorus 3 includes the Chorus lab API browser for exploring and running Kodi JSON-RPC methods. It is
 useful for checking whether a feature is possible before wiring it into the UI.
 
 Open it from the lab route or directly:
@@ -167,13 +167,13 @@ Open issues at https://github.com/keithah/chorus3/issues. For bugs, include:
 
 - Kodi version.
 - Browser and browser version.
-- Chorus3 version.
+- Chorus 3 version.
 - Whether you are using Kodi mode or Local mode.
 - Any browser console errors.
 
 ## License
 
-Chorus3 is free software under the GNU General Public License, version 2 or later.
+Chorus 3 is free software under the GNU General Public License, version 2 or later.
 
 This project is a faithful rewrite of Chorus2 and includes assets and UI behavior derived from the
 Chorus family. See `LICENSE` for the full terms.

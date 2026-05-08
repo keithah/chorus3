@@ -447,7 +447,7 @@ function createProofSnapshot(route: AppRoute): M007VisualProofAppProps['m007Proo
       'Blue in Green',
       'Kodi settings section',
       'Autoplay next item',
-      'About Chorus',
+      'About Chorus 3',
       'Add-ons and developers',
       'Readme',
       'Package usage'

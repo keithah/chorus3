@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to Chorus3 are tracked here.
+All notable changes to Chorus 3 are tracked here.
 
-## 0.1.0 - 2026-05-07
+## 3.0.0 - 2026-05-08
 
 Initial public release.
 
@@ -28,4 +28,4 @@ Initial public release.
 
 - This is a faithful rewrite of Chorus2 using Svelte 5, TypeScript, Vite, Vitest, and modern Kodi
   JSON-RPC/WebSocket integrations.
-- The compatibility target is Chorus2 behavior and layout, not the earlier ambient Chorus3 shell.
+- The compatibility target is Chorus2 behavior and layout, not the earlier ambient Chorus 3 shell.

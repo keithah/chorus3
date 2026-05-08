@@ -1582,7 +1582,7 @@ describe('App shell', () => {
     [
       '/help',
       [
-        'About Chorus',
+        'About Chorus 3',
         'Status report',
         'What is Chorus?',
         'Help Topics',
@@ -1593,12 +1593,12 @@ describe('App shell', () => {
       ],
       []
     ],
-    ['/help/overview', ['About Chorus', 'Status report', 'What is Chorus?'], []],
+    ['/help/overview', ['About Chorus 3', 'Status report', 'What is Chorus?'], []],
     ['/help/keyboard', ['Keyboard', 'Key Binds', 'Play/Pause'], []],
-    ['/help/readme', ['Readme', 'Chorus2', 'Kodi'], []],
+    ['/help/readme', ['Readme', 'Chorus 3', 'Kodi'], []],
     ['/help/changelog', ['Changelog', 'Chorus'], []],
     ['/help/translations', ['Translations', 'Fallback', 'Submitting an update'], []],
-    ['/help/license', ['License', 'Chorus2 License', 'GNU General Public License'], []],
+    ['/help/license', ['License', 'Chorus 3 License', 'GNU General Public License'], []],
     ['/remote', ['Remote control', 'Directional pad'], []],
     ['/browser/music/1', ['Video', 'Music', 'Albums'], ['music/1', 'smb://', 'special://']],
     [
@@ -1672,8 +1672,8 @@ describe('App shell', () => {
         '/settings/kodi/interface',
         ['Kodi settings section', 'Kodi Settings', 'Autoplay next item']
       ],
-      ['/help', ['Help', 'About Chorus', 'Add-ons', 'Developers']],
-      ['/help/readme', ['Readme', 'Chorus2']]
+      ['/help', ['Help', 'About Chorus 3', 'Add-ons', 'Developers']],
+      ['/help/readme', ['Readme', 'Chorus 3']]
     ] as const;
 
     for (const [pathname, expectedCopy] of routes) {

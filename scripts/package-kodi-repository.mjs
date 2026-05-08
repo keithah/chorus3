@@ -49,7 +49,7 @@ export async function packageKodiRepository({ root = cwd(), runZip = runSystemZi
   });
   writeFileSync(
     join(repositoryStageDir, `changelog-${REPOSITORY_VERSION}.txt`),
-    `0.1.0\n- Initial Keithah Kodi add-on repository with Chorus3.\n`
+    `0.1.0\n- Initial Keithah Kodi add-on repository with Chorus 3.\n`
   );
 
   const zipResult = await runZip({
@@ -109,7 +109,7 @@ function renderRepositoryAddonXml() {
   </extension>
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Keithah Kodi add-on repository.</summary>
-    <description lang="en_GB">Install and update Chorus3 and future Keithah Kodi add-ons.</description>
+    <description lang="en_GB">Install and update Chorus 3 and future Keithah Kodi add-ons.</description>
     <license>GPL-2.0-or-later</license>
     <source>${GITHUB_REPOSITORY_URL}</source>
     <platform>all</platform>
@@ -124,7 +124,7 @@ function renderAddonsXml(addonXmls) {
 }
 
 function renderRepositoryReadme() {
-  return `# Keithah Kodi Add-ons\n\nThis repository is a Kodi add-on repository. Install the repository zip, then use Kodi's add-on browser to install or update Chorus3.\n\n## Install\n\n1. Download the repository add-on zip:\n   ${RAW_REPOSITORY_BASE_URL}/${REPOSITORY_ID}/${REPOSITORY_ID}-${REPOSITORY_VERSION}.zip\n2. In Kodi, use Add-ons > Install from zip file.\n3. Then use Install from repository > ${REPOSITORY_NAME} > Web interfaces > Chorus3.\n\nKodi repository metadata is served from:\n\n- ${RAW_REPOSITORY_BASE_URL}/addons.xml\n- ${RAW_REPOSITORY_BASE_URL}/addons.xml.md5\n`;
+  return `# Keithah Kodi Add-ons\n\nThis repository is a Kodi add-on repository. Install the repository zip, then use Kodi's add-on browser to install or update Chorus 3.\n\n## Install\n\n1. Download the repository add-on zip:\n   ${RAW_REPOSITORY_BASE_URL}/${REPOSITORY_ID}/${REPOSITORY_ID}-${REPOSITORY_VERSION}.zip\n2. In Kodi, use Add-ons > Install from zip file.\n3. Then use Install from repository > ${REPOSITORY_NAME} > Web interfaces > Chorus 3.\n\nKodi repository metadata is served from:\n\n- ${RAW_REPOSITORY_BASE_URL}/addons.xml\n- ${RAW_REPOSITORY_BASE_URL}/addons.xml.md5\n`;
 }
 
 function copyRepositoryAsset({ root, source, target }) {

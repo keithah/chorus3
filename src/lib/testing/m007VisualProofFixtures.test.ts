@@ -26,7 +26,7 @@ describe('M007 visual proof fixtures', () => {
     ['/addons/plugin.video.safe-demo', ['Safe Video Demo', 'Enable add-on']],
     ['/playlists', ['Browser Jazz', 'Blue in Green', 'Late Night Jazz.xsp']],
     ['/settings/kodi/interface', ['Kodi settings section', 'Autoplay next item']],
-    ['/help', ['About Chorus', 'Add-ons and developers']],
+    ['/help', ['About Chorus 3', 'Add-ons and developers']],
     ['/help/readme', ['Readme', 'Package usage']]
   ] as const)('creates deterministic safe props for %s', (pathname, expectedTokens) => {
     const first = createM007VisualProofAppProps({ pathname, search: SECRET_SEARCH });

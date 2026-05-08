@@ -1,53 +1,39 @@
 <h1 id="developers-information">Developers information</h1>
 <p>Do you want to help with making Chorus even better? Find help below...</p>
 <p>
-  This page contains information about getting your dev environment up and running so you can build
-  and test your changes without the hassle of setting up all the required dependencies.
+  Chorus 3 is a modern Svelte 5 and TypeScript web interface for Kodi. The local development path is
+  Node.js 22 or newer, npm, and a reachable Kodi instance for live smoke tests.
 </p>
 <h2 id="docker-dev-environment">Docker dev environment</h2>
 <p>
-  Included in this repo is a <code>Dockerfile</code> which builds the Chorus 2 dev environment
-  image. If you wanted to develop <em>without</em> using docker, this is a good reference as to what
-  you need installed on your pc.
+  Docker support is planned for Chorus 3 so contributors can build, test, and package the add-on
+  without matching the host machine setup by hand. Until that lands, use the local Node workflow
+  below.
 </p>
-<p>
-  If you want to make your live much easier, just install docker then grab the pre-built image from
-  docker hub.
-</p>
-<pre><code>docker pull jez500/chorus2<span class="hljs-attribute">-dev</span>:latest
+<pre><code>npm install
+npm run dev
+npm run verify
 </code></pre>
-<h3 id="installing-dev-dependencies">Installing dev dependencies</h3>
-<p>
-  Once you have the docker dev image, you can use this to do all your development related tasks. The
-  first of these should be installing all the nodejs/ruby dependencies.
-</p>
-<pre><code>docker run <span class="hljs-attribute">-tiP</span> <span class="hljs-attribute">-v</span> <span class="hljs-string">`pwd`</span>:/app jez500/chorus2<span class="hljs-attribute">-dev</span>:latest <span class="hljs-built_in">.</span>/build<span class="hljs-built_in">.</span>sh install
+<p>Live Kodi smoke checks can be run with a configured Kodi HTTP endpoint.</p>
+<pre><code>KODI_HOST=127.0.0.1 KODI_PORT=8080 KODI_USERNAME=kodi KODI_PASSWORD=kodi npm run smoke:kodi:http
 </code></pre>
 <p>
-  This will run <code>npm install</code> and <code>bundle install</code> inside the dev container.
-</p>
-<p>
-  You should only need to do this once, unless... <code>package.json</code> or
-  <code>Gemfile</code> are updated
+  A GitHub Action for the Docker development image is tracked separately so the workflow can be
+  verified before it becomes the documented default.
 </p>
 <h3 id="building-compiling-the-project">Building/Compiling the project</h3>
+<p>Build and package Chorus 3 with npm scripts.</p>
+<pre><code>npm run build
+npm run package:kodi
+npm run package:kodi:repo
+</code></pre>
+<h3 id="translations">Translations</h3>
 <p>
-  If you have made changes to some coffee script or sass, you can build those changes via executing
-  commands inside the dev container. To get a command line in the container:
+  Chorus 3 keeps English as the source language for now. Weblate integration is planned so
+  translators can work from the browser and send updates back through GitHub.
 </p>
-<pre><code>docker run <span class="hljs-attribute">-tiP</span> <span class="hljs-attribute">-v</span> <span class="hljs-string">`pwd`</span>:/app jez500/chorus2<span class="hljs-attribute">-dev</span>:latest bash
-</code></pre>
-<p>Once inside the dev container, you can do the following:</p>
-<h4 id="build">Build</h4>
-<p>This will build languages, documentation, js and css.</p>
-<pre><code>grunt build
-</code></pre>
-<h4 id="watch-for-changes-continuously-build-">Watch for changes (continuously build)</h4>
-<p>This will only build js and css.</p>
-<pre><code>grunt
-</code></pre>
 <h2 id="committing-your-changes">Committing your changes</h2>
 <p>
-  As a rule of thumb, you should not commit any compiled files unless you are building a release.
-  Eg. only commit files in the <code>src</code> folder.
+  Do not commit generated build output for normal code changes. Release commits should update the
+  version, changelog, Kodi package metadata, and generated release artifacts only when needed.
 </p>

@@ -123,19 +123,15 @@
 
   <main class="help-content">
     {#if topic.id === 'overview'}
-      <h1 id="help-title">About Chorus</h1>
+      <h1 id="help-title">About Chorus 3</h1>
 
       <section aria-labelledby="status-report-title">
         <h2 id="status-report-title">Status report</h2>
         <table>
           <tbody>
             <tr>
-              <th scope="row">Chorus version</th>
-              <td>21.x-1.0.1</td>
-            </tr>
-            <tr>
-              <th scope="row">Kodi version</th>
-              <td>21.3</td>
+              <th scope="row">Kodi - Chorus</th>
+              <td>Kodi 21.3 - Chorus 3.0.0</td>
             </tr>
             <tr>
               <th scope="row">Remote control</th>

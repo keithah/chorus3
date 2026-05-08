@@ -38,7 +38,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     'package.json': JSON.stringify({ name: 'chorus3', version: '1.2.3' }),
     'kodi/addon-metadata.json': JSON.stringify({
       id: DEFAULT_ADDON_ID,
-      name: 'Chorus3',
+      name: 'Chorus 3',
       summary: 'A modern Kodi web interface.',
       description: 'A packaged static Kodi webinterface add-on.',
       source: 'https://example.test/chorus3',
@@ -62,7 +62,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     'dist/index.html': [
       '<!doctype html>',
       '<html>',
-      '<head><title>Chorus3</title></head>',
+      '<head><title>Chorus 3</title></head>',
       '<body><script type="module" src="./assets/app.js"></script></body>',
       '</html>'
     ].join(''),
@@ -89,7 +89,7 @@ describe('Kodi add-on manifest rendering', () => {
     const result = renderAddonXml({ root });
 
     expect(result.addonXml).toContain('id="webinterface.chorus3"');
-    expect(result.addonXml).toContain('name="Chorus3"');
+    expect(result.addonXml).toContain('name="Chorus 3"');
     expect(result.addonXml).toContain('version="1.2.3"');
     expect(result.addonXml).toContain('<import addon="xbmc.json" version="6.0.0" />');
     expect(result.addonXml).toContain('<extension point="xbmc.webinterface" />');
@@ -102,7 +102,7 @@ describe('Kodi add-on manifest rendering', () => {
       {
         'kodi/addon-metadata.json': JSON.stringify({
           id: '../bad',
-          name: 'Chorus3',
+          name: 'Chorus 3',
           summary: 'A modern Kodi web interface.',
           description: 'A packaged static Kodi webinterface add-on.',
           source: 'https://example.test/chorus3',

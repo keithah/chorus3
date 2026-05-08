@@ -48,7 +48,7 @@ export const HELP_TOPIC_NAV = [
 export const HELP_TOPICS = {
   overview: {
     id: 'overview',
-    title: 'About Chorus',
+    title: 'About Chorus 3',
     html: helpOverviewHtml
   },
   'app-readme': {

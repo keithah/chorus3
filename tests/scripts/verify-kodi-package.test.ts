@@ -38,7 +38,7 @@ function baseFiles(overrides: Record<string, string> = {}): Record<string, strin
     'package.json': JSON.stringify({ name: 'chorus3', version: '1.2.3' }),
     'kodi/addon-metadata.json': JSON.stringify({
       id: DEFAULT_PACKAGE_ROOT,
-      name: 'Chorus3',
+      name: 'Chorus 3',
       summary: 'A modern Kodi web interface.',
       description: 'A packaged static Kodi webinterface add-on.',
       source: 'https://example.test/chorus3',
@@ -72,7 +72,7 @@ function validPackageHtml() {
     '</script>',
     '<script type="module" src="./assets/app.js"></script>',
     '<link rel="stylesheet" href="./assets/app.css">',
-    '</head><body><main>Chorus3</main></body></html>'
+    '</head><body><main>Chorus 3</main></body></html>'
   ].join('');
 }
 
@@ -80,7 +80,7 @@ function validAddonXml(
   overrides: { id?: string; name?: string; version?: string; webinterface?: boolean } = {}
 ) {
   const id = overrides.id ?? DEFAULT_PACKAGE_ROOT;
-  const name = overrides.name ?? 'Chorus3';
+  const name = overrides.name ?? 'Chorus 3';
   const version = overrides.version ?? '1.2.3';
   const webinterface = overrides.webinterface ?? true;
 
