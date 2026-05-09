@@ -456,6 +456,7 @@
     videoSeasonWriteDispatch = defaultVideoSeasonWriteDispatch
   }: Props = $props();
   let localRoute = $state<AppRoute | VideoRoute | null>(null);
+  let lastVideoDetailRefreshKey = $state('');
   const currentRoute = $derived(toAppRoute(localRoute ?? route ?? { kind: 'dashboard' }));
   const currentPrimaryRoute = $derived(currentRoute.kind === 'primary' ? currentRoute.route : null);
   const currentPrimaryShellRoute = $derived<PrimaryRoute | null>(
@@ -505,6 +506,7 @@
       : nowPlayingHostSummary
   );
   const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
+  const currentActiveKodiHost = $derived(configStore.activeHost);
   const isPackageMounted = $derived(packageMountedHost !== null);
   const currentPackageBasePath = $derived(
     isPackageMounted ? packageBasePath || KODI_WEBINTERFACE_BASE_PATH : ''
@@ -636,6 +638,27 @@
   const isVideoEpisodeDetailRoute = $derived(currentVideoRoute?.kind === 'videoEpisodeDetail');
   const isVideoUnknownRoute = $derived(currentVideoRoute?.kind === 'videoUnknown');
 
+  $effect(() => {
+    const videoRoute = currentVideoRoute;
+
+    if (!videoRoute) {
+      lastVideoDetailRefreshKey = '';
+      return;
+    }
+
+    if (!currentActiveKodiHost) {
+      return;
+    }
+
+    const refreshKey = videoDetailRefreshKey(videoRoute, currentActiveKodiHost);
+    if (!refreshKey || refreshKey === lastVideoDetailRefreshKey) {
+      return;
+    }
+
+    lastVideoDetailRefreshKey = refreshKey;
+    void refreshCurrentVideoDetailRoute(videoRoute, refreshKey);
+  });
+
   function toAppRoute(input: AppRoute | VideoRoute): AppRoute {
     if (
       input.kind === 'dashboard' ||
@@ -658,6 +681,69 @@
     }
 
     return { kind: 'video', route: input };
+  }
+
+  function videoRouteRefreshKey(videoRoute: VideoRoute): string {
+    switch (videoRoute.kind) {
+      case 'videoMovieDetail':
+        return `movie:${videoRoute.movieid}`;
+      case 'videoTvShowDetail':
+        return `tvshow:${videoRoute.tvshowid}`;
+      case 'videoTvSeasonDetail':
+        return `season:${videoRoute.tvshowid}:${videoRoute.season}`;
+      case 'videoEpisodeDetail':
+        return `episode:${videoRoute.episodeid}`;
+      default:
+        return '';
+    }
+  }
+
+  function videoDetailRefreshKey(
+    videoRoute: VideoRoute | null | undefined,
+    activeHost: SavedKodiHost | null
+  ): string {
+    if (!videoRoute || !activeHost) {
+      return '';
+    }
+
+    const routeKey = videoRouteRefreshKey(videoRoute);
+    return routeKey ? `${activeHost.id}:${routeKey}` : '';
+  }
+
+  async function refreshCurrentVideoDetailRoute(
+    videoRoute: VideoRoute,
+    expectedRefreshKey: string
+  ): Promise<void> {
+    if (videoTvSnapshot || videoMovieDetailSnapshot) {
+      return;
+    }
+
+    if (videoRoute.kind === 'videoMovieDetail' && videoLibrarySnapshot) {
+      return;
+    }
+
+    switch (videoRoute.kind) {
+      case 'videoMovieDetail':
+        await videoMovieDetailStore.refreshMovieDetail(videoRoute.movieid, 'manual');
+        return;
+      case 'videoTvShowDetail':
+        await videoTvStore.refreshTvShow(videoRoute.tvshowid, 'manual');
+        return;
+      case 'videoTvSeasonDetail':
+        await videoTvStore.refreshTvShow(videoRoute.tvshowid, 'manual');
+        if (
+          videoDetailRefreshKey(currentVideoRoute, currentActiveKodiHost) !== expectedRefreshKey
+        ) {
+          return;
+        }
+        await videoTvStore.refreshSeasonEpisodes(videoRoute.tvshowid, videoRoute.season, 'manual');
+        return;
+      case 'videoEpisodeDetail':
+        await videoTvStore.refreshEpisodeDetail(videoRoute.episodeid, 'manual');
+        return;
+      default:
+        return;
+    }
   }
 
   function primaryRouteToVideoRoute(

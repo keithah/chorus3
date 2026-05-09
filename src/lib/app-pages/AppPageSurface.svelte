@@ -228,9 +228,11 @@
       route.kind === 'musicGenreDetail' ||
       route.kind === 'movies' ||
       route.kind === 'moviesRecent' ||
-      route.kind === 'movieDetail' ||
       route.kind === 'tvshows' ||
-      route.kind === 'tvshowsRecent' ||
+      route.kind === 'tvshowsRecent'
+  );
+  const isVideoDetailRoute = $derived(
+    route.kind === 'movieDetail' ||
       route.kind === 'tvshowDetail' ||
       route.kind === 'tvshowSeasonDetail' ||
       route.kind === 'tvshowEpisodeDetail'
@@ -324,7 +326,34 @@
   data-app-page-surface-kind={metadata.surfaceKind}
   data-app-page-status={metadata.status}
 >
-  {#if isChorus2LibraryRoute}
+  {#if isVideoDetailRoute}
+    {#if route.kind === 'movieDetail'}
+      <VideoMovieDetailShell
+        snapshot={videoLibrarySnapshot}
+        route={renderableVideoRoute}
+        detailSnapshot={videoMovieDetailSnapshot}
+        actionDispatch={videoMovieActionDispatch}
+        {i18n}
+      />
+    {:else if route.kind === 'tvshowDetail'}
+      <VideoTvShowDetailShell snapshot={videoTvSnapshot} route={renderableVideoRoute} {i18n} />
+    {:else if route.kind === 'tvshowSeasonDetail'}
+      <VideoSeasonDetailShell
+        snapshot={videoTvSnapshot}
+        route={renderableVideoRoute}
+        artworkDispatch={videoSeasonArtworkDispatch}
+        writeDispatch={videoSeasonWriteDispatch}
+        {i18n}
+      />
+    {:else if route.kind === 'tvshowEpisodeDetail'}
+      <VideoEpisodeDetailShell
+        snapshot={videoTvSnapshot}
+        route={renderableVideoRoute}
+        actionDispatch={videoEpisodeActionDispatch}
+        {i18n}
+      />
+    {/if}
+  {:else if isChorus2LibraryRoute}
     <LibraryPage
       {route}
       {musicLibrarySnapshot}
@@ -472,35 +501,10 @@
         <QueuePanel snapshot={queueSnapshot} dispatch={queueDispatch} {i18n} />
       {:else if route.kind === 'music'}
         <MusicLibraryPanel snapshot={musicLibrarySnapshot} {i18n} />
-      {:else if route.kind === 'movieDetail'}
-        <VideoMovieDetailShell
-          snapshot={videoLibrarySnapshot}
-          route={renderableVideoRoute}
-          detailSnapshot={videoMovieDetailSnapshot}
-          actionDispatch={videoMovieActionDispatch}
-          {i18n}
-        />
       {:else if route.kind === 'movies' || route.kind === 'moviesRecent'}
         <VideoMoviesPanel snapshot={videoLibrarySnapshot} />
       {:else if route.kind === 'tvshows' || route.kind === 'tvshowsRecent'}
         <VideoTvShowsPanel snapshot={videoLibrarySnapshot} />
-      {:else if route.kind === 'tvshowDetail'}
-        <VideoTvShowDetailShell snapshot={videoTvSnapshot} route={renderableVideoRoute} {i18n} />
-      {:else if route.kind === 'tvshowSeasonDetail'}
-        <VideoSeasonDetailShell
-          snapshot={videoTvSnapshot}
-          route={renderableVideoRoute}
-          artworkDispatch={videoSeasonArtworkDispatch}
-          writeDispatch={videoSeasonWriteDispatch}
-          {i18n}
-        />
-      {:else if route.kind === 'tvshowEpisodeDetail'}
-        <VideoEpisodeDetailShell
-          snapshot={videoTvSnapshot}
-          route={renderableVideoRoute}
-          actionDispatch={videoEpisodeActionDispatch}
-          {i18n}
-        />
       {:else if route.kind === 'browser'}
         <BrowserFilesPage
           {route}

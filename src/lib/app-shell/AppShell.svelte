@@ -483,6 +483,9 @@
   .mdi-action-settings::before {
     content: '\e680';
   }
+  .mdi-action-settings-input-antenna::before {
+    content: '\e667';
+  }
   .mdi-action-thumb-up::before {
     content: '\e6a4';
   }

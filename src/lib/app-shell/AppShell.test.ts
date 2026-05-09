@@ -328,10 +328,25 @@ describe('AppShell navigation DOM', () => {
 
   it('keeps rail icons focusable without exposing hover flyout menus', () => {
     const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
+    const defaultRailIcons = [
+      'mdi-av-my-library-music',
+      'mdi-image-movie-creation',
+      'mdi-hardware-tv',
+      'mdi-editor-format-list-bulleted',
+      'mdi-action-settings-input-antenna',
+      'mdi-action-extension',
+      'mdi-action-thumb-up',
+      'mdi-av-playlist-add',
+      'mdi-action-settings',
+      'mdi-action-help'
+    ];
 
     expect(source).toContain('.mdi-av-pause::before');
     expect(source).toContain("content: '\\e6b6'");
     expect(source).toContain('.mdi-action-settings-remote::before');
+    for (const icon of defaultRailIcons) {
+      expect(source, `${icon} should render a visible glyph`).toContain(`.${icon}::before`);
+    }
     expect(source).toContain('.classic-player .classic-thumb');
     expect(source).toContain('.classic-rail-primary:focus-visible');
     expect(source).toMatch(/class="classic-submenu-link"/u);

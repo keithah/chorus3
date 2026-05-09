@@ -2,6 +2,19 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.1 - 2026-05-08
+
+Patch release for the initial Chorus 3 port.
+
+### Fixed
+
+- Restored the missing PVR rail icon glyph in the classic left navigation.
+- Routed movie, TV show, season, and episode detail URLs to their dedicated detail surfaces instead
+  of the generic library grid.
+- Loaded direct video detail routes from Kodi JSON-RPC so deep links like `#tvshow/1` and
+  `#tvshow/1/5` populate with show, season, and episode data.
+- Guarded video detail refreshes against stale route races and active Kodi host changes.
+
 ## 3.0.0 - 2026-05-08
 
 Initial public release.

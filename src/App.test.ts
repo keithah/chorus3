@@ -1812,6 +1812,26 @@ describe('App shell', () => {
     expect(surfaceSource).not.toMatch(/import\s+(?!type)[^;]+from ['"]\$lib\/stores/u);
   });
 
+  it('routes video detail pages to their detail surfaces before the generic library grid', () => {
+    const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
+    const appSource = readFileSync('src/App.svelte', 'utf8');
+    const videoDetailBranch = surfaceSource.indexOf('{#if isVideoDetailRoute}');
+    const libraryBranch = surfaceSource.indexOf('{:else if isChorus2LibraryRoute}');
+
+    expect(videoDetailBranch).toBeGreaterThanOrEqual(0);
+    expect(libraryBranch).toBeGreaterThan(videoDetailBranch);
+    expect(surfaceSource).toContain('const isVideoDetailRoute = $derived(');
+    expect(surfaceSource).toContain("route.kind === 'movieDetail'");
+    expect(surfaceSource).toContain("route.kind === 'tvshowDetail'");
+    expect(surfaceSource).toContain("route.kind === 'tvshowSeasonDetail'");
+    expect(surfaceSource).toContain("route.kind === 'tvshowEpisodeDetail'");
+    expect(appSource).toContain('function videoDetailRefreshKey(');
+    expect(appSource).toContain('${activeHost.id}:${routeKey}');
+    expect(appSource).toContain(
+      'videoDetailRefreshKey(currentVideoRoute, currentActiveKodiHost) !== expectedRefreshKey'
+    );
+  });
+
   it('keeps the extracted primary shell safe with empty nav, enabled drawer defaults, and trailing package base', () => {
     document.body.innerHTML = '<div id="app-test-root"></div>';
     const target = document.getElementById('app-test-root');
@@ -3165,7 +3185,8 @@ describe('App shell', () => {
       videoTvSnapshot: createVideoTvSnapshot()
     });
 
-    expect(episodeTarget.textContent).toContain('No episodes found.');
+    expect(episodeTarget.textContent).toContain('Episode detail');
+    expect(episodeTarget.textContent).toContain('Signal Mirror');
     expect(episodeTarget.textContent).toContain('TV shows');
     expect(episodeTarget.querySelector('.parity-placeholder')).toBeNull();
     expect(episodeTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);
