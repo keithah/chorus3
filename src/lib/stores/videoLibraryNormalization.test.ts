@@ -134,11 +134,22 @@ describe('video library normalization helpers', () => {
       tagline: 'In space no one can hear you scream.',
       genre: ['Horror', 'Sci-Fi', '', 'smb://secret/genre'],
       director: ['Ridley Scott', 'http://admin:p@ssword@kodi.local/director'],
+      writer: ['Dan O Bannon'],
+      cast: [{ name: 'Sigourney Weaver' }, { name: 'Tom Skerritt' }],
       studio: ['20th Century Fox'],
       mpaa: 'R',
       rating: 8.5,
       userrating: 9,
       premiered: '1979-05-25',
+      imdbnumber: 'tt0078748',
+      streamdetails: {
+        video: [{ codec: 'h264', width: 720, height: 294, aspect: 120 }],
+        audio: [
+          { codec: 'aac', channels: 2, language: 'eng' },
+          { codec: 'aac', channels: 6, language: 'pol' }
+        ],
+        subtitle: [{ language: 'eng' }]
+      },
       uniqueid: { imdb: 'tt0078748', hostile: 'smb://secret/id', empty: '' },
       thumbnail: 'image://poster.jpg/',
       fanart: 'http://cdn.example/fanart.jpg',
@@ -170,11 +181,19 @@ describe('video library normalization helpers', () => {
       tagline: 'In space no one can hear you scream.',
       genre: ['Horror', 'Sci-Fi'],
       director: ['Ridley Scott'],
+      writer: ['Dan O Bannon'],
+      cast: ['Sigourney Weaver', 'Tom Skerritt'],
       studio: ['20th Century Fox'],
       mpaa: 'R',
       rating: 8.5,
       userrating: 9,
       premiered: '1979-05-25',
+      imdbnumber: 'tt0078748',
+      streamdetails: {
+        video: ['H264 SD (720 X 294) [UNKNOWN ASPECT RATIO]'],
+        audio: ['AAC 2.1 (ENGLISH)', 'AAC 6 (POLISH)'],
+        subtitle: ['ENGLISH']
+      },
       uniqueid: { imdb: 'tt0078748' },
       thumbnailAvailable: true,
       fanartAvailable: true,

@@ -2,6 +2,19 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.4 - 2026-05-20
+
+Patch release for Chorus2-style movie detail parity.
+
+### Fixed
+
+- Replaced the generic movie detail card shell with the classic Chorus2 fanart header, poster,
+  metadata, action row, More menu, and synopsis layout.
+- Requested and normalized Kodi movie writers, cast, IMDb IDs, and stream details so direct movie
+  pages show the same rich metadata Chorus2 displays.
+- Wired the movie detail Stream action through the browser playback path while preserving Play,
+  Queue, and Download actions.
+
 ## 3.0.3 - 2026-05-20
 
 Patch release for classic movie detail metadata.

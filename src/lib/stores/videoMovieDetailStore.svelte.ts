@@ -42,11 +42,15 @@ const DEFAULT_MOVIE_DETAIL_PROPERTIES = [
   'tagline',
   'genre',
   'director',
+  'writer',
+  'cast',
   'studio',
   'mpaa',
   'rating',
   'userrating',
   'premiered',
+  'imdbnumber',
+  'streamdetails',
   'uniqueid'
 ] as const satisfies readonly VideoLibraryMoviePropertyName[];
 

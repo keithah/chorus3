@@ -100,11 +100,19 @@ function enqueueSuccessfulDetail(client: FakeKodiClient, movieid = 42, label = '
       tagline: 'Safe tagline.',
       genre: ['Horror'],
       director: ['Ridley Scott'],
+      writer: ['Dan O Bannon'],
+      cast: [{ name: 'Sigourney Weaver' }],
       studio: ['20th Century Fox'],
       mpaa: 'R',
       rating: 8.5,
       userrating: 9,
       premiered: '1979-05-25',
+      imdbnumber: 'tt0078748',
+      streamdetails: {
+        video: [{ codec: 'h264', width: 720, height: 294, aspect: 120 }],
+        audio: [{ codec: 'aac', channels: 2, language: 'eng' }],
+        subtitle: []
+      },
       uniqueid: { imdb: 'tt0078748' },
       thumbnail: 'image://poster.jpg/',
       fanart: 'image://fanart.jpg/',
@@ -190,11 +198,15 @@ describe('video movie detail store', () => {
           'tagline',
           'genre',
           'director',
+          'writer',
+          'cast',
           'studio',
           'mpaa',
           'rating',
           'userrating',
           'premiered',
+          'imdbnumber',
+          'streamdetails',
           'uniqueid'
         ]
       }
@@ -210,6 +222,14 @@ describe('video movie detail store', () => {
         label: 'Alien',
         plot: 'Safe plot.',
         tagline: 'Safe tagline.',
+        writer: ['Dan O Bannon'],
+        cast: ['Sigourney Weaver'],
+        imdbnumber: 'tt0078748',
+        streamdetails: {
+          video: ['H264 SD (720 X 294) [UNKNOWN ASPECT RATIO]'],
+          audio: ['AAC 2.1 (ENGLISH)'],
+          subtitle: []
+        },
         thumbnail: 'image://poster.jpg/',
         fanart: 'image://fanart.jpg/',
         art: { poster: 'image://poster.jpg/' },

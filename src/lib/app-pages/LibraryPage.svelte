@@ -173,6 +173,9 @@
     detailRows?: DetailRow[];
     description?: string;
     rating?: number;
+    movieDetail?: MovieDetailSource;
+    movieDetailLoading?: boolean;
+    movieDetailError?: boolean;
   };
   type MovieDetailSource = VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot;
 
@@ -197,6 +200,7 @@
   let actionStatus = $state('');
   let pendingDownloadKey = $state<string | null>(null);
   let pendingLocalPlaylistKey = $state<string | null>(null);
+  let openMovieMoreId = $state<number | null>(null);
   let filterRevision = $state(0);
   let filterPane: 'normal' | 'filters' | 'options' = $state('normal');
   let selectedFilterKey = $state<string | null>(null);
@@ -611,10 +615,17 @@
         return [
           {
             title: movie ? safe(movie.title ?? movie.label, 'Movie') : 'Movie',
-            cards: movie ? [movieCard(movie)] : [],
-            detailRows: movie ? movieDetailRows(movie) : [],
-            description: movie ? moviePlot(movie) : undefined,
-            ...(rating === undefined ? {} : { rating }),
+            cards: [],
+            movieDetail: movie ?? undefined,
+            movieDetailLoading: isLoading,
+            movieDetailError: hasError,
+            ...(movie
+              ? {
+                  detailRows: movieDetailRows(movie),
+                  description: moviePlot(movie),
+                  ...(rating === undefined ? {} : { rating })
+                }
+              : {}),
             empty: hasError
               ? 'Movie details could not be loaded.'
               : isLoading || !movie
@@ -781,6 +792,124 @@
     return (
       safe(detail.plot, '') || safe(detail.plotoutline, '') || safe(detail.tagline, '') || undefined
     );
+  }
+
+  function movieTagline(item: MovieDetailSource): string | undefined {
+    return (
+      safe(movieDetailFields(item).tagline, '') ||
+      safe(movieDetailFields(item).plotoutline, '') ||
+      undefined
+    );
+  }
+
+  function moviePosterUrl(item: MovieDetailSource): string | undefined {
+    return preferredVideoPosterUrl(item);
+  }
+
+  function movieFanartUrl(item: MovieDetailSource): string | undefined {
+    return (
+      kodiImageUrl(item.art?.['fanart']) ??
+      kodiImageUrl(item.fanart) ??
+      kodiImageUrl(item.art?.['thumb']) ??
+      kodiImageUrl(item.thumbnail)
+    );
+  }
+
+  function movieDuration(item: MovieDetailSource): string {
+    const runtime = typeof item.runtime === 'number' ? item.runtime : 0;
+    if (!Number.isFinite(runtime) || runtime <= 0) {
+      return '';
+    }
+
+    const hours = Math.floor(runtime / 3600);
+    const minutes = Math.floor((runtime % 3600) / 60);
+    const seconds = Math.floor(runtime % 60);
+    return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+  }
+
+  function movieDetailMeta(item: MovieDetailSource): DetailRow[] {
+    const detail = movieDetailFields(item);
+
+    return [
+      { label: 'Genre', value: join(detail.genre) ?? '' },
+      { label: 'Director', value: join(detail.director) ?? '' },
+      { label: 'Writers', value: join(detail.writer) ?? '' },
+      { label: 'Cast', value: joinLimited(detail.cast, 12) ?? '' },
+      { label: 'Rated', value: safe(detail.mpaa, '') }
+    ].filter((row) => row.value.length > 0);
+  }
+
+  function movieStreamMeta(item: MovieDetailSource): DetailRow[] {
+    const streams = movieDetailFields(item).streamdetails;
+    if (!streams) {
+      return [];
+    }
+
+    return [
+      { label: 'Video', value: streams.video.join(', ') },
+      { label: 'Audio', value: streams.audio.join(', ') },
+      { label: 'Subtitle', value: streams.subtitle.join(', ') }
+    ].filter((row) => row.value.length > 0);
+  }
+
+  function joinLimited(values: unknown, limit: number): string | undefined {
+    if (!Array.isArray(values)) {
+      return undefined;
+    }
+
+    const normalized = values.map((entry) => safe(entry, '')).filter(Boolean);
+    if (normalized.length === 0) {
+      return undefined;
+    }
+
+    return normalized.slice(0, limit).join(', ');
+  }
+
+  function movieDetailSearchHref(movie: MovieDetailSource): string {
+    return buildPrimaryAppRoute(
+      { kind: 'searchMedia', media: 'all', query: safe(movie.title ?? movie.label, 'Movie') },
+      buildOptions
+    );
+  }
+
+  function googleMovieSearchHref(movie: MovieDetailSource): string {
+    return `https://www.google.com/search?q=${encodeURIComponent(safe(movie.title ?? movie.label, 'Movie'))}`;
+  }
+
+  function imdbMovieHref(movie: MovieDetailSource): string {
+    const id = safe(movieDetailFields(movie).imdbnumber, '');
+    return id
+      ? `https://www.imdb.com/title/${encodeURIComponent(id)}/`
+      : `https://www.imdb.com/find/?q=${encodeURIComponent(safe(movie.title ?? movie.label, 'Movie'))}`;
+  }
+
+  function youtubeMovieHref(movie: MovieDetailSource): string {
+    return `https://www.youtube.com/results?search_query=${encodeURIComponent(safe(movie.title ?? movie.label, 'Movie'))}`;
+  }
+
+  function movieWatchedButtonLabel(movie: MovieDetailSource): string {
+    return watchedLabel(movie) === 'Watched' ? 'Set unwatched' : 'Set watched';
+  }
+
+  function movieDetailCard(movie: MovieDetailSource): Card {
+    return movieCard(movie);
+  }
+
+  async function playMovieDetail(movie: MovieDetailSource): Promise<void> {
+    await playCard(movieDetailCard(movie));
+  }
+
+  async function queueMovieDetail(movie: MovieDetailSource): Promise<void> {
+    await queueCard(movieDetailCard(movie));
+  }
+
+  async function streamMovieDetail(movie: MovieDetailSource): Promise<void> {
+    await playCardInBrowser(movieDetailCard(movie));
+  }
+
+  async function downloadMovieDetail(movie: MovieDetailSource): Promise<void> {
+    openMovieMoreId = null;
+    await downloadCard(movieDetailCard(movie));
   }
 
   function movieRating(item: MovieDetailSource | null): number | undefined {
@@ -1762,14 +1891,139 @@
     {/if}
     {#each sections as section}
       <section class="classic-card-section" class:compact={section.compact}>
-        {#if section.title}
+        {#if section.movieDetail}
+          {@const movie = section.movieDetail}
+          {@const poster = moviePosterUrl(movie)}
+          {@const fanart = movieFanartUrl(movie)}
+          {@const title = safe(movie.title ?? movie.label, 'Movie')}
+          {@const duration = movieDuration(movie)}
+          {@const rating = movieRating(movie)}
+          <article class="classic-movie-detail">
+            <header class="classic-movie-hero">
+              {#if fanart}
+                <img class="classic-movie-fanart" src={fanart} alt="" aria-hidden="true" />
+              {/if}
+              <div class="classic-movie-shade" aria-hidden="true"></div>
+              <div class="classic-movie-poster" aria-label={`${title} poster`}>
+                {#if poster}
+                  <img src={poster} alt="" decoding="async" />
+                {/if}
+              </div>
+              <div class="classic-movie-copy">
+                <div class="classic-movie-title-row">
+                  <h3>
+                    {title}
+                    {#if typeof movie.year === 'number'}
+                      <span>{movie.year}</span>
+                    {/if}
+                  </h3>
+                  {#if rating !== undefined}
+                    <div class="classic-movie-rating" aria-label={`Rating ${rating}`}>
+                      {rating.toFixed(1)}
+                      <span aria-hidden="true">★</span>
+                    </div>
+                  {/if}
+                </div>
+                {#if duration}
+                  <p class="classic-movie-runtime">{duration}</p>
+                {/if}
+                {#if movieTagline(movie)}
+                  <p class="classic-movie-tagline">{movieTagline(movie)}</p>
+                {/if}
+                <dl class="classic-movie-meta">
+                  {#each movieDetailMeta(movie) as row}
+                    <div>
+                      <dt>{row.label}:</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  {/each}
+                </dl>
+                <dl class="classic-movie-streams">
+                  {#each movieStreamMeta(movie) as row}
+                    <div>
+                      <dt>{row.label}:</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  {/each}
+                </dl>
+                <div class="classic-movie-actions">
+                  <button class="primary" type="button" onclick={() => void playMovieDetail(movie)}>
+                    Play <span aria-hidden="true">▶</span>
+                  </button>
+                  <button type="button" onclick={() => void queueMovieDetail(movie)}>
+                    Queue <span aria-hidden="true">＋</span>
+                  </button>
+                  <button type="button" onclick={() => void streamMovieDetail(movie)}>
+                    Stream <span aria-hidden="true">▣</span>
+                  </button>
+                  <button type="button">{movieWatchedButtonLabel(movie)}</button>
+                  <div class="classic-movie-more">
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={openMovieMoreId === movie.movieid}
+                      onclick={() =>
+                        (openMovieMoreId =
+                          openMovieMoreId === movie.movieid ? null : movie.movieid)}
+                    >
+                      More <span aria-hidden="true">⋮</span>
+                    </button>
+                    {#if openMovieMoreId === movie.movieid}
+                      <div class="classic-movie-more-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onclick={() => void downloadMovieDetail(movie)}
+                        >
+                          Download
+                        </button>
+                        <a role="menuitem" href={movieDetailSearchHref(movie)}>Chorus Search</a>
+                        <a
+                          role="menuitem"
+                          href={googleMovieSearchHref(movie)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          External Search
+                        </a>
+                        <a
+                          role="menuitem"
+                          href={imdbMovieHref(movie)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          IMDb Search
+                        </a>
+                        <a
+                          role="menuitem"
+                          href={youtubeMovieHref(movie)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          YouTube Search
+                        </a>
+                        <button type="button" role="menuitem" disabled>Refresh</button>
+                        <button type="button" role="menuitem" disabled>Edit</button>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            <section class="classic-movie-synopsis">
+              <h3>Synopsis</h3>
+              <p>{moviePlot(movie) ?? 'No synopsis available.'}</p>
+            </section>
+          </article>
+        {:else if section.title}
           <header>
             <h3>{section.title}</h3>
             <button type="button" aria-label={`${section.title} menu`}>⋮</button>
           </header>
         {/if}
 
-        {#if section.cards.length}
+        {#if !section.movieDetail && section.cards.length}
           {#if section.detailRows?.length || section.description || section.rating !== undefined}
             <div class="classic-detail-meta">
               {#if section.rating !== undefined}
@@ -1856,7 +2110,7 @@
               </article>
             {/each}
           </div>
-        {:else}
+        {:else if !section.movieDetail}
           <p class="classic-empty">{section.empty}</p>
         {/if}
       </section>
@@ -2128,6 +2382,227 @@
     font-weight: 700;
   }
 
+  .classic-movie-detail {
+    margin: -1rem -1rem 1rem;
+    background: #fff;
+  }
+
+  .classic-movie-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 2rem;
+    min-height: 405px;
+    padding: 2rem;
+    overflow: hidden;
+    background: #333;
+    color: #eee;
+  }
+
+  .classic-movie-fanart {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .classic-movie-shade {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        90deg,
+        rgb(40 40 40 / 0.98) 0%,
+        rgb(40 40 40 / 0.86) 34%,
+        rgb(40 40 40 / 0.34) 100%
+      ),
+      linear-gradient(0deg, rgb(40 40 40 / 0.92) 0%, rgb(40 40 40 / 0.18) 100%);
+  }
+
+  .classic-movie-poster,
+  .classic-movie-copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .classic-movie-poster {
+    align-self: start;
+    min-height: 405px;
+    overflow: hidden;
+    background: #222;
+    box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  }
+
+  .classic-movie-poster::before {
+    content: 'POSTER';
+    position: absolute;
+    left: 0.85rem;
+    bottom: 0.85rem;
+    z-index: 1;
+    color: #d8d8d8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .classic-movie-poster img {
+    display: block;
+    width: 100%;
+    height: 405px;
+    object-fit: cover;
+  }
+
+  .classic-movie-copy {
+    align-self: center;
+    max-width: 760px;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
+
+  .classic-movie-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+  }
+
+  .classic-movie-title-row h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 2.35rem;
+    font-weight: 300;
+  }
+
+  .classic-movie-title-row h3 span {
+    margin-left: 0.6rem;
+    color: #bcbcbc;
+    font-size: 1.2rem;
+  }
+
+  .classic-movie-rating {
+    color: #e6e6e6;
+    font-size: 1.75rem;
+    font-weight: 300;
+    white-space: nowrap;
+  }
+
+  .classic-movie-rating span {
+    color: #fff;
+  }
+
+  .classic-movie-runtime,
+  .classic-movie-tagline {
+    margin: 1rem 0;
+    color: #d7d7d7;
+    font-size: 1.05rem;
+  }
+
+  .classic-movie-meta,
+  .classic-movie-streams {
+    display: grid;
+    gap: 0.35rem;
+    margin: 1rem 0;
+    color: #ddd;
+  }
+
+  .classic-movie-meta div,
+  .classic-movie-streams div {
+    display: flex;
+    gap: 0.35rem;
+    line-height: 1.45;
+  }
+
+  .classic-movie-meta dt,
+  .classic-movie-streams dt {
+    flex: 0 0 auto;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .classic-movie-meta dd,
+  .classic-movie-streams dd {
+    margin: 0;
+    color: #c9c9c9;
+  }
+
+  .classic-movie-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1.5rem;
+  }
+
+  .classic-movie-actions button,
+  .classic-movie-more-menu a {
+    min-height: 2.6rem;
+    padding: 0 1rem;
+    border: 0;
+    background: rgb(75 75 75 / 0.88);
+    color: #fff;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .classic-movie-actions button.primary {
+    background: #5dade2;
+  }
+
+  .classic-movie-actions button:disabled {
+    color: #aaa;
+    cursor: default;
+  }
+
+  .classic-movie-more {
+    position: relative;
+  }
+
+  .classic-movie-more-menu {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    z-index: 5;
+    display: grid;
+    min-width: 220px;
+    padding: 0.35rem 0;
+    background: #1c1f20;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
+  }
+
+  .classic-movie-more-menu button,
+  .classic-movie-more-menu a {
+    display: block;
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    background: transparent;
+    color: #f5f5f5;
+    text-align: left;
+  }
+
+  .classic-movie-more-menu button:hover,
+  .classic-movie-more-menu a:hover {
+    background: #2f3233;
+  }
+
+  .classic-movie-synopsis {
+    padding: 2rem;
+    background: #fff;
+    color: #333;
+  }
+
+  .classic-movie-synopsis h3 {
+    margin: 0 0 1.5rem;
+    color: #555;
+    font-size: 2rem;
+    font-weight: 300;
+  }
+
+  .classic-movie-synopsis p {
+    max-width: 92ch;
+    margin: 0;
+    color: #333;
+    line-height: 1.5;
+  }
+
   .compact .classic-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     max-width: 860px;
@@ -2248,5 +2723,25 @@
   .classic-empty {
     margin: 1rem 0;
     color: #777;
+  }
+
+  @media (max-width: 820px) {
+    .classic-movie-hero {
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    .classic-movie-poster {
+      min-height: 270px;
+    }
+
+    .classic-movie-poster img {
+      height: 270px;
+    }
+
+    .classic-movie-title-row h3 {
+      font-size: 1.65rem;
+    }
   }
 </style>

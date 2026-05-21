@@ -191,11 +191,15 @@ export interface VideoMovieDetailSnapshot {
   tagline?: string;
   genre?: string[];
   director?: string[];
+  writer?: string[];
+  cast?: string[];
   studio?: string[];
   mpaa?: string;
   rating?: number;
   userrating?: number;
   premiered?: string;
+  imdbnumber?: string;
+  streamdetails?: VideoMovieStreamDetailsSnapshot;
   uniqueid?: Record<string, string>;
   thumbnailAvailable: boolean;
   fanartAvailable: boolean;
@@ -206,6 +210,12 @@ export interface VideoMovieDetailSnapshot {
   dateadded?: string;
   watched?: boolean;
   versions: VideoMovieVersionsSnapshot;
+}
+
+export interface VideoMovieStreamDetailsSnapshot {
+  video: string[];
+  audio: string[];
+  subtitle: string[];
 }
 
 export interface VideoMovieDetailStoreSnapshot {
@@ -324,11 +334,15 @@ export function normalizeVideoMovieDetail(item: unknown): VideoMovieDetailSnapsh
     ...stringField('tagline', item.tagline),
     ...arrayStringField('genre', item.genre),
     ...arrayStringField('director', item.director),
+    ...arrayStringField('writer', item.writer),
+    ...castField(item.cast),
     ...arrayStringField('studio', item.studio),
     ...stringField('mpaa', item.mpaa),
     ...numberField('rating', item.rating),
     ...numberField('userrating', item.userrating),
     ...stringField('premiered', item.premiered),
+    ...stringField('imdbnumber', item.imdbnumber),
+    ...streamDetailsField(item.streamdetails),
     ...uniqueIdField(item.uniqueid),
     thumbnailAvailable: isSafeArtworkReference(item.thumbnail),
     fanartAvailable: isSafeArtworkReference(item.fanart),
@@ -673,8 +687,19 @@ export function cloneVideoMovieDetailSnapshot(
         ...detail,
         ...(detail.genre ? { genre: [...detail.genre] } : {}),
         ...(detail.director ? { director: [...detail.director] } : {}),
+        ...(detail.writer ? { writer: [...detail.writer] } : {}),
+        ...(detail.cast ? { cast: [...detail.cast] } : {}),
         ...(detail.studio ? { studio: [...detail.studio] } : {}),
         ...(detail.uniqueid ? { uniqueid: { ...detail.uniqueid } } : {}),
+        ...(detail.streamdetails
+          ? {
+              streamdetails: {
+                video: [...detail.streamdetails.video],
+                audio: [...detail.streamdetails.audio],
+                subtitle: [...detail.streamdetails.subtitle]
+              }
+            }
+          : {}),
         ...(detail.art ? { art: { ...detail.art } } : {}),
         artwork: { ...detail.artwork },
         ...(detail.resume ? { resume: { ...detail.resume } } : {}),
@@ -1004,6 +1029,127 @@ function arrayStringField<Key extends string>(
 
   const normalized = value.filter((item): item is string => safeStringValue(item) !== undefined);
   return normalized.length === 0 ? {} : ({ [key]: normalized } as Partial<Record<Key, string[]>>);
+}
+
+function castField(value: unknown): Partial<Pick<VideoMovieDetailSnapshot, 'cast'>> {
+  if (!Array.isArray(value)) {
+    return {};
+  }
+
+  const cast = value.flatMap((entry): string[] => {
+    if (typeof entry === 'string') {
+      const name = safeStringValue(entry);
+      return name === undefined ? [] : [name];
+    }
+
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const name = safeStringValue(entry.name);
+    return name === undefined ? [] : [name];
+  });
+
+  return cast.length === 0 ? {} : { cast };
+}
+
+function streamDetailsField(
+  value: unknown
+): Partial<Pick<VideoMovieDetailSnapshot, 'streamdetails'>> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const video = streamDetailList(value.video, formatVideoStreamDetail);
+  const audio = streamDetailList(value.audio, formatAudioStreamDetail);
+  const subtitle = streamDetailList(value.subtitle, formatSubtitleStreamDetail);
+
+  if (video.length === 0 && audio.length === 0 && subtitle.length === 0) {
+    return {};
+  }
+
+  return { streamdetails: { video, audio, subtitle } };
+}
+
+function streamDetailList(
+  value: unknown,
+  formatter: (record: Record<string, unknown>) => string | null
+): string[] {
+  return Array.isArray(value)
+    ? value.flatMap((entry): string[] => {
+        if (!isRecord(entry)) {
+          return [];
+        }
+
+        const formatted = formatter(entry);
+        return formatted === null ? [] : [formatted];
+      })
+    : [];
+}
+
+function formatVideoStreamDetail(record: Record<string, unknown>): string | null {
+  const codec = safeStringValue(record.codec)?.toUpperCase();
+  const width = finiteNonNegativeNumber(record.width);
+  const height = finiteNonNegativeNumber(record.height);
+  const aspect = finiteNonNegativeNumber(record.aspect);
+  const quality =
+    width !== undefined && height !== undefined
+      ? width >= 1280 || height >= 720
+        ? 'HD'
+        : 'SD'
+      : undefined;
+  const dimensions =
+    width !== undefined && height !== undefined ? `(${width} X ${height})` : undefined;
+  const aspectLabel =
+    aspect !== undefined && aspect >= 1 && aspect <= 3
+      ? `[${aspect.toFixed(2)}]`
+      : '[UNKNOWN ASPECT RATIO]';
+
+  return [codec, quality, dimensions, aspectLabel].filter(Boolean).join(' ') || null;
+}
+
+function formatAudioStreamDetail(record: Record<string, unknown>): string | null {
+  const codec = safeStringValue(record.codec)?.toUpperCase();
+  const channels = finiteNonNegativeNumber(record.channels);
+  const language = languageLabel(record.language);
+  const channelLabel =
+    channels === undefined ? undefined : channels === 2 ? '2.1' : String(channels);
+
+  return (
+    [codec, channelLabel, language ? `(${language})` : undefined].filter(Boolean).join(' ') || null
+  );
+}
+
+function formatSubtitleStreamDetail(record: Record<string, unknown>): string | null {
+  return languageLabel(record.language) ?? safeStringValue(record.name) ?? null;
+}
+
+function languageLabel(value: unknown): string | undefined {
+  const language = safeStringValue(value)?.trim().toLowerCase();
+  if (!language || language === 'und') {
+    return undefined;
+  }
+
+  const known: Record<string, string> = {
+    eng: 'ENGLISH',
+    en: 'ENGLISH',
+    pol: 'POLISH',
+    pl: 'POLISH',
+    spa: 'SPANISH',
+    es: 'SPANISH',
+    fre: 'FRENCH',
+    fra: 'FRENCH',
+    fr: 'FRENCH',
+    ger: 'GERMAN',
+    deu: 'GERMAN',
+    de: 'GERMAN',
+    ita: 'ITALIAN',
+    it: 'ITALIAN',
+    jpn: 'JAPANESE',
+    ja: 'JAPANESE'
+  };
+
+  return known[language] ?? language.toUpperCase();
 }
 
 function uniqueIdField(value: unknown): Partial<Pick<VideoMovieDetailSnapshot, 'uniqueid'>> {
