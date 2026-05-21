@@ -192,7 +192,8 @@
     settingsDispatch,
     addonsSnapshot,
     addonsDispatch,
-    addonDetailDispatch
+    addonDetailDispatch,
+    videoMovieDetailSnapshot
   }: Props = $props();
 
   const routeBuildOptions = $derived({
@@ -322,6 +323,7 @@
       {localPlaylistSnapshot}
       {localPlaylistDispatch}
       {thumbsUpDispatch}
+      {videoMovieDetailSnapshot}
       buildOptions={routeBuildOptions}
     />
   {:else if isChorus2BrowserRoute}

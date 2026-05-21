@@ -240,6 +240,72 @@ describe('LibraryPage', () => {
     expect(target!.textContent).toContain('Started browser playback for Big Buck Bunny.');
   });
 
+  it('renders movie detail metadata from the Kodi detail snapshot when the movie is outside the loaded list', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'movieDetail', movieid: '4401' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: {
+          ...emptyVideoSnapshot(),
+          isEmpty: false,
+          movies: [{ movieid: 1, label: 'Loaded movie' }]
+        } as never,
+        videoMovieDetailSnapshot: {
+          refreshStatus: 'ready',
+          lastRefreshReason: 'manual',
+          lastUpdatedAt: '2026-05-20T00:00:00.000Z',
+          selectedMovieId: 4401,
+          detail: {
+            movieid: 4401,
+            label: 'Arrival',
+            title: 'Arrival',
+            year: 2016,
+            runtime: 6960,
+            genre: ['Drama', 'Sci-Fi'],
+            director: ['Denis Villeneuve'],
+            studio: ['Paramount Pictures'],
+            mpaa: 'PG-13',
+            rating: 7.9,
+            userrating: 8,
+            premiered: '2016-11-11',
+            dateadded: '2026-05-20 01:02:03',
+            plot: 'A linguist works with the military to communicate with alien lifeforms.',
+            thumbnail: 'image://arrival-screenshot.jpg/',
+            art: { poster: 'image://arrival-poster.jpg/' },
+            thumbnailAvailable: true,
+            fanartAvailable: false,
+            artwork: { poster: true },
+            versions: { status: 'unsupported', reason: 'not requested' }
+          },
+          lastError: null
+        } as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+      }
+    });
+    await settle();
+
+    const text = target!.textContent ?? '';
+    expect(text).toContain('Arrival');
+    expect(text).toContain('Drama, Sci-Fi');
+    expect(text).toContain('Denis Villeneuve');
+    expect(text).toContain('Paramount Pictures');
+    expect(text).toContain('PG-13');
+    expect(text).toContain(
+      'A linguist works with the military to communicate with alien lifeforms.'
+    );
+    expect(target!.querySelector('.classic-card-art img')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Farrival-poster.jpg%2F'
+    );
+    expect(text).not.toContain('Movie not found.');
+  });
+
   it('adds classic music library actions to the selected local playlist', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const target = document.getElementById('target');

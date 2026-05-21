@@ -37,6 +37,10 @@
     VideoMusicVideoSnapshot,
     VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import type {
+    VideoMovieDetailSnapshot,
+    VideoMovieDetailStoreSnapshot
+  } from '$lib/stores/videoMovieDetailStore.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import type {
@@ -59,6 +63,7 @@
     localPlaylistSnapshot?: LocalPlaylistStoreSnapshot;
     localPlaylistDispatch?: LocalPlaylistDispatch;
     thumbsUpDispatch?: ThumbsUpDispatch;
+    videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     playerDispatch: PlayerControlsDispatch & {
       setMode?: (mode: 'kodi' | 'local') => void;
       playMusicItem?: (item: MusicPlaybackItem) => Promise<void> | void;
@@ -169,6 +174,7 @@
     description?: string;
     rating?: number;
   };
+  type MovieDetailSource = VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot;
 
   let {
     route,
@@ -177,6 +183,7 @@
     localPlaylistSnapshot,
     localPlaylistDispatch,
     thumbsUpDispatch,
+    videoMovieDetailSnapshot,
     playerDispatch,
     queueDispatch,
     buildOptions = {}
@@ -227,7 +234,12 @@
   });
   const sections = $derived.by(() => {
     void filterRevision;
-    return contentSections(route, musicLibrarySnapshot, videoLibrarySnapshot);
+    return contentSections(
+      route,
+      musicLibrarySnapshot,
+      videoLibrarySnapshot,
+      videoMovieDetailSnapshot
+    );
   });
 
   $effect(() => {
@@ -431,7 +443,8 @@
   function contentSections(
     value: PrimaryRoute,
     music: MusicLibraryStoreSnapshot,
-    video: VideoLibraryStoreSnapshot
+    video: VideoLibraryStoreSnapshot,
+    movieDetail: VideoMovieDetailStoreSnapshot | undefined
   ): Section[] {
     switch (value.kind) {
       case 'music':
@@ -585,13 +598,28 @@
         return [{ cards: movieCards(filterMovies(video.movies)), empty: 'No movies found.' }];
       case 'movieDetail': {
         const movieid = Number(value.movieid);
-        const movie = video.movies.find((item) => item.movieid === movieid);
+        const detail =
+          movieDetail?.selectedMovieId === movieid && movieDetail.detail?.movieid === movieid
+            ? movieDetail.detail
+            : null;
+        const movie = detail ?? findMovieSnapshot(video, movieid);
+        const isSelectedMovie = movieDetail?.selectedMovieId === movieid;
+        const isLoading = isSelectedMovie && movieDetail?.refreshStatus === 'loading';
+        const hasError = isSelectedMovie && movieDetail?.refreshStatus === 'error';
+        const rating = movieRating(movie);
 
         return [
           {
             title: movie ? safe(movie.title ?? movie.label, 'Movie') : 'Movie',
-            cards: movie ? movieCards(filterMovies([movie])) : [],
-            empty: 'Movie not found.'
+            cards: movie ? [movieCard(movie)] : [],
+            detailRows: movie ? movieDetailRows(movie) : [],
+            description: movie ? moviePlot(movie) : undefined,
+            ...(rating === undefined ? {} : { rating }),
+            empty: hasError
+              ? 'Movie details could not be loaded.'
+              : isLoading || !movie
+                ? 'Loading movie...'
+                : 'Movie not found.'
           }
         ];
       }
@@ -695,7 +723,11 @@
   }
 
   function movieCards(items: readonly VideoLibraryMovieSnapshot[]): Card[] {
-    return items.map((item) => ({
+    return items.map(movieCard);
+  }
+
+  function movieCard(item: MovieDetailSource): Card {
+    return {
       key: `movie:${item.movieid}`,
       title: safe(item.title ?? item.label, 'Unknown movie'),
       subtitle: typeof item.year === 'number' ? String(item.year) : undefined,
@@ -703,7 +735,100 @@
       poster: true,
       route: { kind: 'movieDetail', movieid: String(item.movieid) },
       action: { media: 'movie', movieid: item.movieid }
-    }));
+    };
+  }
+
+  function findMovieSnapshot(
+    video: VideoLibraryStoreSnapshot,
+    movieid: number
+  ): VideoLibraryMovieSnapshot | null {
+    return (
+      [...video.movies, ...video.recentlyAddedMovies, ...video.recentlyPlayedMovies].find(
+        (item) => item.movieid === movieid
+      ) ?? null
+    );
+  }
+
+  function movieDetailRows(
+    item: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot
+  ): DetailRow[] {
+    const detail = movieDetailFields(item);
+    const runtime = formatRuntime(item.runtime);
+    const resume = formatResume(item.resume);
+
+    return [
+      { label: 'year', value: typeof item.year === 'number' ? String(item.year) : '' },
+      { label: 'runtime', value: runtime },
+      { label: 'genres', value: join(detail.genre) ?? '' },
+      { label: 'Directors', value: join(detail.director) ?? '' },
+      { label: 'Studios', value: join(detail.studio) ?? '' },
+      { label: 'MPAA', value: safe(detail.mpaa, '') },
+      { label: 'rating', value: typeof detail.rating === 'number' ? String(detail.rating) : '' },
+      {
+        label: 'user rating',
+        value: typeof detail.userrating === 'number' ? String(detail.userrating) : ''
+      },
+      { label: 'premiered', value: safe(detail.premiered, '') },
+      { label: 'date added', value: safe(item.dateadded, '') },
+      { label: 'last played', value: safe(item.lastplayed, '') },
+      { label: 'resume', value: resume },
+      { label: 'watched', value: watchedLabel(item) }
+    ].filter((row) => row.value.length > 0);
+  }
+
+  function moviePlot(item: MovieDetailSource): string | undefined {
+    const detail = movieDetailFields(item);
+    return (
+      safe(detail.plot, '') || safe(detail.plotoutline, '') || safe(detail.tagline, '') || undefined
+    );
+  }
+
+  function movieRating(item: MovieDetailSource | null): number | undefined {
+    if (!item) {
+      return undefined;
+    }
+
+    const rating = movieDetailFields(item).rating;
+    return typeof rating === 'number' ? rating : undefined;
+  }
+
+  function movieDetailFields(item: MovieDetailSource): Partial<VideoMovieDetailSnapshot> {
+    return item as Partial<VideoMovieDetailSnapshot>;
+  }
+
+  function formatRuntime(value: unknown): string {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      return '';
+    }
+
+    const minutes = Math.round(value / 60);
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+
+    return hours > 0 ? `${hours}h ${remainder}m` : `${minutes}m`;
+  }
+
+  function formatResume(value: unknown): string {
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('position' in value) ||
+      typeof value.position !== 'number' ||
+      !Number.isFinite(value.position) ||
+      value.position <= 0
+    ) {
+      return '';
+    }
+
+    return `${formatRuntime(value.position)} watched`;
+  }
+
+  function watchedLabel(item: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot): string {
+    if (typeof item.watched === 'boolean') {
+      return item.watched ? 'Watched' : 'Not watched';
+    }
+
+    return typeof item.playcount === 'number' && item.playcount > 0 ? 'Watched' : '';
   }
 
   function episodeCards(items: readonly VideoEpisodeSnapshot[]): Card[] {

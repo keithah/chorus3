@@ -2,6 +2,19 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.3 - 2026-05-20
+
+Patch release for classic movie detail metadata.
+
+### Fixed
+
+- Routed `#movie/:id` detail pages through the Kodi movie detail snapshot so movies outside the
+  initial library page show their metadata instead of "Movie not found."
+- Restored classic movie detail fields for plot, genre, director, studio, MPAA, runtime, ratings,
+  watched state, resume point, and dates.
+- Kept the movie detail poster preference on Kodi `art.poster` while preserving the classic
+  Chorus-style surface.
+
 ## 3.0.2 - 2026-05-20
 
 Patch release for movie artwork and detail parity.

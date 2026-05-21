@@ -494,6 +494,9 @@
     videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
   );
   const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
+  const currentVideoMovieDetailSnapshot = $derived(
+    videoMovieDetailSnapshot ?? videoMovieDetailStore.snapshot
+  );
   const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
   const currentLocaleSnapshot = $derived(localeSnapshot ?? localeStore.snapshot);
   const currentI18n = $derived(createTranslationContext(currentLocaleSnapshot.locale));
@@ -1959,7 +1962,7 @@
       addonsSnapshot={currentAddonsSnapshot}
       {addonsDispatch}
       {addonDetailDispatch}
-      {videoMovieDetailSnapshot}
+      videoMovieDetailSnapshot={currentVideoMovieDetailSnapshot}
       {videoMovieActionDispatch}
       videoTvSnapshot={currentVideoTvSnapshot}
       {videoEpisodeActionDispatch}
