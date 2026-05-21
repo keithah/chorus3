@@ -2344,8 +2344,10 @@
 
   .classic-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, 159px);
+    gap: 10px;
+    align-items: start;
+    justify-content: start;
     max-width: none;
   }
 
@@ -2613,13 +2615,14 @@
   }
 
   .compact .classic-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, 159px);
     max-width: 860px;
   }
 
   .classic-card {
     overflow: hidden;
-    min-height: 132px;
+    width: 159px;
+    min-height: 216px;
     background: #fff;
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
   }
@@ -2631,7 +2634,7 @@
   }
 
   .classic-card.poster {
-    min-height: auto;
+    min-height: 300px;
   }
 
   .compact .classic-card {
@@ -2640,7 +2643,9 @@
 
   .classic-card-art {
     display: grid;
-    min-height: 98px;
+    width: 159px;
+    height: 159px;
+    min-height: 159px;
     place-items: center;
     background: #cfcfcf;
   }
@@ -2659,18 +2664,18 @@
   .classic-card-art img {
     display: block;
     width: 100%;
-    height: 98px;
+    height: 159px;
     object-fit: cover;
   }
 
   .poster .classic-card-art {
-    aspect-ratio: 2 / 3;
-    min-height: 0;
+    height: 235px;
+    min-height: 235px;
   }
 
   .poster .classic-card-art img {
-    height: 100%;
-    object-fit: contain;
+    height: 235px;
+    object-fit: cover;
   }
 
   .compact .classic-card-art {

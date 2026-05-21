@@ -2,6 +2,17 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.7 - 2026-05-21
+
+Patch release for Chorus2-faithful media card sizing.
+
+### Fixed
+
+- Matched Chorus2's fixed tall poster card dimensions instead of using a flexible 2:3 CSS ratio.
+- Restored Chorus2-style fixed-width card grid columns so desktop media grids fill with more cards
+  instead of stretching a small number of cards across the available area.
+- Restored square card artwork to the Chorus2 `159px` artwork window.
+
 ## 3.0.6 - 2026-05-21
 
 Patch release for media grid and browser streaming regressions found with a larger video library.
