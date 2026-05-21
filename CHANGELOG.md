@@ -2,6 +2,23 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.6 - 2026-05-21
+
+Patch release for media grid and browser streaming regressions found with a larger video library.
+
+### Fixed
+
+- Loaded full movie, TV show, and music video library snapshots instead of capping the "All" views
+  at 25 items.
+- Kept Recently Added and Recently Played video sections bounded to the Chorus-style 25-item
+  summaries.
+- Preserved 2:3 poster framing on movie and TV cards so Kodi poster artwork is not cropped like a
+  video thumbnail.
+- Changed Movie, Episode, and Music Video "Play in browser" actions to resolve the file from Kodi
+  library details and stream locally without first starting playback on the TV.
+- Added a visible close control to the bottom-left Kodi remote overlay and kept empty filter panes
+  recoverable instead of sliding the section menu to a blank panel.
+
 ## 3.0.5 - 2026-05-21
 
 Patch release for Kodi queue and movie detail action polish.

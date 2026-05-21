@@ -45,7 +45,8 @@ export interface VideoLibraryStoreOptions {
 }
 
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIST_LIMIT = { start: 0, end: 25 } as const;
+const DEFAULT_LIBRARY_LIMIT = { start: 0, end: 5000 } as const;
+const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
 const DEFAULT_MOVIE_PROPERTIES = [
   'title',
   'year',
@@ -167,35 +168,35 @@ export class VideoLibraryStore {
       ] = await Promise.all([
         getVideoLibraryMovies(client, {
           properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         }),
         getVideoLibraryTvShows(client, {
           properties: DEFAULT_TV_SHOW_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         }),
         getVideoLibraryMovies(client, {
           properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'dateadded', order: 'descending' }
         }),
         getVideoLibraryMovies(client, {
           properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'lastplayed', order: 'descending' }
         }),
         getVideoLibraryEpisodes(client, {
           properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'dateadded', order: 'descending' }
         }),
         getVideoLibraryEpisodes(client, {
           properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'lastplayed', order: 'descending' }
         }),
         getVideoLibraryMusicVideos(client, {
           properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_LIBRARY_LIMIT,
           sort: { method: 'title', order: 'ascending' }
         })
       ]);

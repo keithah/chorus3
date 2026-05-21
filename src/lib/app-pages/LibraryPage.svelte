@@ -1834,17 +1834,21 @@
           </button>
         </h2>
         <ul class="classic-selection-list">
-          {#each filterableFilters as filter}
-            <li>
-              <button
-                type="button"
-                class:active={filter.active}
-                onclick={() => selectFilter(filter)}
-              >
-                {filter.title}
-              </button>
-            </li>
-          {/each}
+          {#if filterableFilters.length}
+            {#each filterableFilters as filter}
+              <li>
+                <button
+                  type="button"
+                  class:active={filter.active}
+                  onclick={() => selectFilter(filter)}
+                >
+                  {filter.title}
+                </button>
+              </li>
+            {/each}
+          {:else}
+            <li class="classic-empty-filter">No filters available</li>
+          {/if}
         </ul>
       </div>
 
@@ -2151,6 +2155,7 @@
   }
 
   .classic-filter-pane {
+    box-sizing: border-box;
     min-width: 0;
     padding: 2rem 1.5rem;
   }
@@ -2264,6 +2269,11 @@
     background: #fff;
     color: #333;
     font: inherit;
+  }
+
+  .classic-empty-filter {
+    color: #8a8a8a;
+    font-size: 0.95rem;
   }
 
   .classic-deselect-all {
@@ -2621,7 +2631,7 @@
   }
 
   .classic-card.poster {
-    min-height: 305px;
+    min-height: auto;
   }
 
   .compact .classic-card {
@@ -2654,11 +2664,13 @@
   }
 
   .poster .classic-card-art {
-    min-height: 215px;
+    aspect-ratio: 2 / 3;
+    min-height: 0;
   }
 
   .poster .classic-card-art img {
-    height: 215px;
+    height: 100%;
+    object-fit: contain;
   }
 
   .compact .classic-card-art {

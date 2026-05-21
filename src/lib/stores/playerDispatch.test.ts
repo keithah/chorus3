@@ -268,6 +268,44 @@ function createMusicVideoPlayerSnapshot(
   });
 }
 
+function enqueueMovieStreamDetails(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetMovieDetails', {
+    moviedetails: {
+      movieid: 4401,
+      file: 'smb://nas/movies/arrival.mkv',
+      label: 'Arrival',
+      title: 'Arrival',
+      type: 'movie'
+    }
+  });
+}
+
+function enqueueEpisodeStreamDetails(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetEpisodeDetails', {
+    episodedetails: {
+      episodeid: 8801,
+      file: 'smb://nas/tv/severance/s02e01.mkv',
+      label: 'Hello, Ms. Cobel',
+      title: 'Hello, Ms. Cobel',
+      showtitle: 'Severance',
+      type: 'episode'
+    }
+  });
+}
+
+function enqueueMusicVideoStreamDetails(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetMusicVideoDetails', {
+    musicvideodetails: {
+      musicvideoid: 7701,
+      file: 'smb://nas/videos/live-cut.mkv',
+      label: 'Live cut',
+      title: 'Live cut',
+      type: 'musicvideo',
+      thumbnail: 'image://musicvideo-live-cut.jpg/'
+    }
+  });
+}
+
 describe('active Kodi client resolution', () => {
   it('converts a saved Kodi host into an HTTP host without exposing summaries', () => {
     const host = savedKodiHostToKodiHttpHost({
@@ -455,11 +493,11 @@ describe('player dispatch', () => {
     expectSecretSafe(dispatch.snapshot);
   });
 
-  it('streams a movie through Kodi open, refreshed file resolution, prepared Local URL, and Kodi pause', async () => {
+  it('streams a movie through Kodi library details, prepared Local URL, and Kodi pause without opening Kodi playback', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
     playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueMovieStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/arrival.mkv' },
@@ -469,7 +507,10 @@ describe('player dispatch', () => {
     await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
 
     expect(client.calls).toEqual([
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      {
+        method: 'VideoLibrary.GetMovieDetails',
+        params: { movieid: 4401, properties: ['title', 'thumbnail', 'file', 'art'] }
+      },
       { method: 'Player.PlayPause', params: { playerid: 7 } },
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/movies/arrival.mkv' } }
     ]);
@@ -498,12 +539,12 @@ describe('player dispatch', () => {
   it('streams a movie with the resume option through the curated movie wrapper', async () => {
     const { client, dispatch, playerStore } = createHarness();
     playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueMovieStreamDetails(client);
+    client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/arrival.mkv' },
       mode: 'redirect'
     });
-    client.enqueue('Player.PlayPause', { speed: 0 });
 
     await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({
       movieid: 4401,
@@ -511,8 +552,8 @@ describe('player dispatch', () => {
     });
 
     expect(client.calls[0]).toEqual({
-      method: 'Player.Open',
-      params: { item: { movieid: 4401 }, options: { resume: true } }
+      method: 'VideoLibrary.GetMovieDetails',
+      params: { movieid: 4401, properties: ['title', 'thumbnail', 'file', 'art'] }
     });
     expect(dispatch.snapshot).toMatchObject({
       mode: 'local',
@@ -569,58 +610,36 @@ describe('player dispatch', () => {
     });
   });
 
-  it('requires one active video player and a file after opening a movie for streaming', async () => {
+  it('requires a library file before movie browser streaming', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
-    const invalidSnapshots = [
-      createSnapshot({ activePlayers: [], primaryPlayer: null }),
-      createSnapshot({
-        playbackStatus: 'multiple',
-        activePlayers: [
-          { playerid: 2, type: 'audio' },
-          { playerid: 7, type: 'video' }
-        ],
-        primaryPlayer: { playerid: 7, type: 'video' }
-      }),
-      createSnapshot({
-        activePlayers: [{ playerid: 2, type: 'audio' }],
-        primaryPlayer: { playerid: 2, type: 'audio' },
-        item: { file: 'smb://nas/music/song.flac', label: 'Song', type: 'song' }
-      }),
-      createMoviePlayerSnapshot({ item: { label: 'Arrival', title: 'Arrival', type: 'movie' } })
-    ];
+    client.enqueue('VideoLibrary.GetMovieDetails', {
+      moviedetails: { movieid: 4401, label: 'Arrival', title: 'Arrival' }
+    });
 
-    for (const snapshot of invalidSnapshots) {
-      playerStore.enqueueRefreshSnapshot(snapshot);
-      client.enqueue('Player.Open', 'OK');
-      await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
-      expect(dispatch.snapshot).toMatchObject({
-        commandStatus: 'error',
-        lastCommand: 'streamMovieItem'
-      });
-    }
+    await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
 
     expect(client.calls).toEqual([
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } }
+      {
+        method: 'VideoLibrary.GetMovieDetails',
+        params: { movieid: 4401, properties: ['title', 'thumbnail', 'file', 'art'] }
+      }
     ]);
     expect(client.calls.some((call) => call.method === 'Files.PrepareDownload')).toBe(false);
     expect(client.calls.some((call) => call.method === 'Player.PlayPause')).toBe(false);
-    expect(playerStore.refreshReasons).toEqual([
-      'command:streamMovieItem',
-      'command:streamMovieItem',
-      'command:streamMovieItem',
-      'command:streamMovieItem'
-    ]);
+    expect(playerStore.refreshReasons).toEqual([]);
     expect(localPlayerStore.calls).toEqual([]);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'error',
+      lastCommand: 'streamMovieItem',
+      lastError: { source: 'input', code: 'input/missing-file' }
+    });
     expectSecretSafe(dispatch.snapshot);
   });
 
   it('does not pause Kodi when movie stream preparation fails and keeps diagnostics redacted', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueMovieStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue(
       'Files.PrepareDownload',
@@ -632,7 +651,10 @@ describe('player dispatch', () => {
     await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
 
     expect(client.calls).toEqual([
-      { method: 'Player.Open', params: { item: { movieid: 4401 } } },
+      {
+        method: 'VideoLibrary.GetMovieDetails',
+        params: { movieid: 4401, properties: ['title', 'thumbnail', 'file', 'art'] }
+      },
       { method: 'Player.PlayPause', params: { playerid: 7 } },
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/movies/arrival.mkv' } }
     ]);
@@ -648,7 +670,7 @@ describe('player dispatch', () => {
   it('records Local load failures after pausing Kodi for movie streaming', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.enqueueRefreshSnapshot(createMoviePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueMovieStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/arrival.mkv' },
@@ -661,7 +683,7 @@ describe('player dispatch', () => {
     await (dispatch as PlayerDispatchWithMovieStream).streamMovieItem({ movieid: 4401 });
 
     expect(client.calls.map((call) => call.method)).toEqual([
-      'Player.Open',
+      'VideoLibrary.GetMovieDetails',
       'Player.PlayPause',
       'Files.PrepareDownload'
     ]);
@@ -719,11 +741,11 @@ describe('player dispatch', () => {
     });
   });
 
-  it('streams a music video through Kodi open, prepared Local URL, and Kodi pause', async () => {
+  it('streams a music video through Kodi library details, prepared Local URL, and Kodi pause', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
     playerStore.enqueueRefreshSnapshot(createMusicVideoPlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueMusicVideoStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/live-cut.mkv' },
@@ -733,7 +755,10 @@ describe('player dispatch', () => {
     await (dispatch as PlayerDispatchWithMusicVideos).streamMusicVideoItem({ musicvideoid: 7701 });
 
     expect(client.calls).toEqual([
-      { method: 'Player.Open', params: { item: { musicvideoid: 7701 } } },
+      {
+        method: 'VideoLibrary.GetMusicVideoDetails',
+        params: { musicvideoid: 7701, properties: ['title', 'thumbnail', 'file', 'art'] }
+      },
       { method: 'Player.PlayPause', params: { playerid: 7 } },
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/videos/live-cut.mkv' } }
     ]);
@@ -877,11 +902,11 @@ describe('player dispatch', () => {
     expectSecretSafe(dispatch.snapshot);
   });
 
-  it('streams an episode through Kodi open, refreshed file resolution, prepared Local URL, and Kodi pause', async () => {
+  it('streams an episode through Kodi library details, prepared Local URL, and Kodi pause', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.snapshot = createSnapshot({ activePlayers: [], primaryPlayer: null });
     playerStore.enqueueRefreshSnapshot(createEpisodePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueEpisodeStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/severance-s02e01.mkv' },
@@ -894,7 +919,13 @@ describe('player dispatch', () => {
     });
 
     expect(client.calls).toEqual([
-      { method: 'Player.Open', params: { item: { episodeid: 8801 } } },
+      {
+        method: 'VideoLibrary.GetEpisodeDetails',
+        params: {
+          episodeid: 8801,
+          properties: ['title', 'showtitle', 'thumbnail', 'file', 'art']
+        }
+      },
       { method: 'Player.PlayPause', params: { playerid: 7 } },
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/tv/severance/s02e01.mkv' } }
     ]);
@@ -928,7 +959,7 @@ describe('player dispatch', () => {
   it('records Local load failures after pausing Kodi for episode streaming', async () => {
     const { client, dispatch, localPlayerStore, playerStore } = createHarness();
     playerStore.enqueueRefreshSnapshot(createEpisodePlayerSnapshot());
-    client.enqueue('Player.Open', 'OK');
+    enqueueEpisodeStreamDetails(client);
     client.enqueue('Player.PlayPause', { speed: 0 });
     client.enqueue('Files.PrepareDownload', {
       details: { path: '/vfs/severance-s02e01.mkv' },
@@ -941,7 +972,7 @@ describe('player dispatch', () => {
     await (dispatch as PlayerDispatchWithEpisodes).streamEpisodeItem({ episodeid: 8801 });
 
     expect(client.calls.map((call) => call.method)).toEqual([
-      'Player.Open',
+      'VideoLibrary.GetEpisodeDetails',
       'Player.PlayPause',
       'Files.PrepareDownload'
     ]);

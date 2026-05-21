@@ -2560,8 +2560,10 @@
 
   .remote-overlay__close {
     position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
+    top: auto;
+    right: auto;
+    bottom: 210px;
+    left: 272px;
     z-index: 3;
     display: grid;
     width: 2.25rem;

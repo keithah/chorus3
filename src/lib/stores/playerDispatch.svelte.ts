@@ -1,6 +1,9 @@
 import {
   KodiHttpClientError,
   goToPlayerItem,
+  getVideoLibraryEpisodeDetails,
+  getVideoLibraryMovieDetails,
+  getVideoLibraryMusicVideoDetails,
   isKodiHttpClientError,
   openPlayerEpisodeItem,
   openPlayerFile,
@@ -20,6 +23,7 @@ import {
   type KodiEndpointDescription,
   type KodiEpisodeLibraryItem,
   type KodiJsonRpcHttpClient,
+  type KodiMovieLibraryItem,
   type KodiMusicVideoLibraryItem,
   type KodiMusicLibraryItem,
   type KodiPvrChannelItem,
@@ -884,7 +888,6 @@ export class PlayerDispatch {
     }
 
     const movieItem = toKodiMoviePlaybackItem(item) ?? { movieid: 0 };
-    const openOptions = item?.resume === true ? { resume: true } : undefined;
     const client = this.#resolveClient();
     if (!client) {
       this.#failCommand(
@@ -896,32 +899,15 @@ export class PlayerDispatch {
       return;
     }
 
-    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
-
+    let detail: KodiMovieLibraryItem | null = null;
     try {
-      await openPlayerMovieItem(client, movieItem, openOptions);
+      detail = await resolveMovieStreamDetail(client, movieItem.movieid);
     } catch (error) {
-      commandError = createSafeError(error);
-    }
-
-    try {
-      await this.#playerStore.refresh('command:streamMovieItem');
-    } catch {
-      // PlayerStore owns refresh failure diagnostics. Preserve command status.
-    }
-
-    if (commandError) {
-      this.#failCommand(commandError);
+      this.#failCommand(createSafeError(error));
       return;
     }
 
-    const playerid = this.#resolveSingleVideoPlayerId();
-    if (playerid === null) {
-      return;
-    }
-
-    const snapshot = this.#playerStore.snapshot;
-    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+    const file = rawMediaFile(detail);
 
     if (!file) {
       this.#failCommand({
@@ -932,12 +918,7 @@ export class PlayerDispatch {
       return;
     }
 
-    try {
-      await playPausePlayer(client, playerid);
-    } catch (error) {
-      this.#failCommand(createSafeError(error));
-      return;
-    }
+    const kodiWasPaused = await this.#pauseActiveVideoPlayback(client, 'streamMovieItem');
 
     let streamUrl: string;
     try {
@@ -954,9 +935,9 @@ export class PlayerDispatch {
     try {
       await this.#loadLocalMediaOrThrow({
         source: streamUrl,
-        item: extractMovieLocalItemIdentity(snapshot.item, movieItem.movieid),
+        item: extractMovieLocalItemIdentity(detail, movieItem.movieid),
         mediaKind: 'video',
-        kodiWasPaused: true
+        kodiWasPaused
       });
     } catch (error) {
       this.#failCommand(createSafeError(error));
@@ -993,32 +974,15 @@ export class PlayerDispatch {
       return;
     }
 
-    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
-
+    let detail: KodiMusicVideoLibraryItem | null = null;
     try {
-      await openPlayerItem(client, musicVideoItem);
+      detail = await resolveMusicVideoStreamDetail(client, musicVideoItem.musicvideoid);
     } catch (error) {
-      commandError = createSafeError(error);
-    }
-
-    try {
-      await this.#playerStore.refresh('command:streamMusicVideoItem');
-    } catch {
-      // PlayerStore owns refresh failure diagnostics. Preserve command status.
-    }
-
-    if (commandError) {
-      this.#failCommand(commandError);
+      this.#failCommand(createSafeError(error));
       return;
     }
 
-    const playerid = this.#resolveSingleVideoPlayerId();
-    if (playerid === null) {
-      return;
-    }
-
-    const snapshot = this.#playerStore.snapshot;
-    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+    const file = rawMediaFile(detail);
 
     if (!file) {
       this.#failCommand({
@@ -1029,12 +993,7 @@ export class PlayerDispatch {
       return;
     }
 
-    try {
-      await playPausePlayer(client, playerid);
-    } catch (error) {
-      this.#failCommand(createSafeError(error));
-      return;
-    }
+    const kodiWasPaused = await this.#pauseActiveVideoPlayback(client, 'streamMusicVideoItem');
 
     let streamUrl: string;
     try {
@@ -1051,9 +1010,9 @@ export class PlayerDispatch {
     try {
       await this.#loadLocalMediaOrThrow({
         source: streamUrl,
-        item: extractMusicVideoLocalItemIdentity(snapshot.item, musicVideoItem.musicvideoid),
+        item: extractMusicVideoLocalItemIdentity(detail, musicVideoItem.musicvideoid),
         mediaKind: 'video',
-        kodiWasPaused: true
+        kodiWasPaused
       });
     } catch (error) {
       this.#failCommand(createSafeError(error));
@@ -1079,7 +1038,6 @@ export class PlayerDispatch {
     }
 
     const episodeItem = toKodiEpisodeStreamItem(item) ?? { episodeid: 0 };
-    const openOptions = item?.resume === true ? { resume: true } : undefined;
     const client = this.#resolveClient();
     if (!client) {
       this.#failCommand(
@@ -1091,32 +1049,15 @@ export class PlayerDispatch {
       return;
     }
 
-    let commandError: PlayerDispatchSafeErrorSnapshot | null = null;
-
+    let detail: KodiEpisodeLibraryItem | null = null;
     try {
-      await openPlayerEpisodeItem(client, episodeItem, openOptions);
+      detail = await resolveEpisodeStreamDetail(client, episodeItem.episodeid);
     } catch (error) {
-      commandError = createSafeError(error);
-    }
-
-    try {
-      await this.#playerStore.refresh('command:streamEpisodeItem');
-    } catch {
-      // PlayerStore owns refresh failure diagnostics. Preserve command status.
-    }
-
-    if (commandError) {
-      this.#failCommand(commandError);
+      this.#failCommand(createSafeError(error));
       return;
     }
 
-    const playerid = this.#resolveSingleVideoPlayerId();
-    if (playerid === null) {
-      return;
-    }
-
-    const snapshot = this.#playerStore.snapshot;
-    const file = typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+    const file = rawMediaFile(detail);
 
     if (!file) {
       this.#failCommand({
@@ -1127,12 +1068,7 @@ export class PlayerDispatch {
       return;
     }
 
-    try {
-      await playPausePlayer(client, playerid);
-    } catch (error) {
-      this.#failCommand(createSafeError(error));
-      return;
-    }
+    const kodiWasPaused = await this.#pauseActiveVideoPlayback(client, 'streamEpisodeItem');
 
     let streamUrl: string;
     try {
@@ -1149,9 +1085,9 @@ export class PlayerDispatch {
     try {
       await this.#loadLocalMediaOrThrow({
         source: streamUrl,
-        item: extractEpisodeLocalItemIdentity(snapshot.item, episodeItem.episodeid, item),
+        item: extractEpisodeLocalItemIdentity(detail, episodeItem.episodeid, item),
         mediaKind: 'video',
-        kodiWasPaused: true
+        kodiWasPaused
       });
     } catch (error) {
       this.#failCommand(createSafeError(error));
@@ -1507,6 +1443,34 @@ export class PlayerDispatch {
     ) as Error & { code: string };
     error.code = localSnapshot.lastError?.code || 'media/error';
     throw error;
+  }
+
+  async #pauseActiveVideoPlayback(
+    client: KodiJsonRpcHttpClient,
+    command: PlayerCommandName
+  ): Promise<boolean> {
+    try {
+      await this.#playerStore.refresh(`command:${command}`);
+    } catch {
+      // PlayerStore owns refresh failure diagnostics. Browser streaming can still continue.
+    }
+
+    const playerid = this.#resolveSingleVideoPlayerId();
+    if (playerid === null) {
+      return false;
+    }
+
+    const speed = this.#playerStore.snapshot.properties?.speed;
+    if (typeof speed === 'number' && speed === 0) {
+      return false;
+    }
+
+    try {
+      await playPausePlayer(client, playerid);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async #refreshUntilPlayableFile(
@@ -2213,6 +2177,43 @@ function extractLocalItemIdentity(item: PlayerStoreSnapshot['item']): {
 
 function currentPlayerFile(snapshot: PlayerStoreSnapshot): string {
   return typeof snapshot.item?.file === 'string' ? snapshot.item.file.trim() : '';
+}
+
+async function resolveMovieStreamDetail(
+  client: KodiJsonRpcHttpClient,
+  movieid: number
+): Promise<KodiMovieLibraryItem | null> {
+  const result = await getVideoLibraryMovieDetails(client, {
+    movieid,
+    properties: ['title', 'thumbnail', 'file', 'art']
+  });
+  return result.moviedetails ?? null;
+}
+
+async function resolveEpisodeStreamDetail(
+  client: KodiJsonRpcHttpClient,
+  episodeid: number
+): Promise<KodiEpisodeLibraryItem | null> {
+  const result = await getVideoLibraryEpisodeDetails(client, {
+    episodeid,
+    properties: ['title', 'showtitle', 'thumbnail', 'file', 'art']
+  });
+  return result.episodedetails ?? null;
+}
+
+async function resolveMusicVideoStreamDetail(
+  client: KodiJsonRpcHttpClient,
+  musicvideoid: number
+): Promise<KodiMusicVideoLibraryItem | null> {
+  const result = await getVideoLibraryMusicVideoDetails(client, {
+    musicvideoid,
+    properties: ['title', 'thumbnail', 'file', 'art']
+  });
+  return result.musicvideodetails ?? null;
+}
+
+function rawMediaFile(item: Record<string, unknown> | null): string {
+  return typeof item?.file === 'string' ? item.file.trim() : '';
 }
 
 async function sleep(ms: number): Promise<void> {

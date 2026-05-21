@@ -215,7 +215,7 @@ describe('video library store', () => {
             'resume',
             'dateadded'
           ],
-          limits: { start: 0, end: 25 }
+          limits: { start: 0, end: 5000 }
         }
       },
       {
@@ -233,7 +233,7 @@ describe('video library store', () => {
             'lastplayed',
             'dateadded'
           ],
-          limits: { start: 0, end: 25 }
+          limits: { start: 0, end: 5000 }
         }
       },
       {
@@ -334,7 +334,7 @@ describe('video library store', () => {
             'resume',
             'dateadded'
           ],
-          limits: { start: 0, end: 25 },
+          limits: { start: 0, end: 5000 },
           sort: { method: 'title', order: 'ascending' }
         }
       }
