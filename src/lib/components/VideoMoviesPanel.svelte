@@ -13,6 +13,8 @@
     className: 'has-fanart' | 'has-poster' | 'has-thumb' | 'no-artwork';
     badges: string[];
     initials: string;
+    imageUrl?: string;
+    fanartUrl?: string;
   };
 
   let { snapshot }: Props = $props();
@@ -140,8 +142,21 @@
     return {
       className: artworkClass(keys),
       badges,
-      initials: initialsFor(safeMovieLabel(movie), 'M')
+      initials: initialsFor(safeMovieLabel(movie), 'M'),
+      ...optionalArtworkUrl('imageUrl', movie.art?.poster ?? movie.art?.thumb ?? movie.thumbnail),
+      ...optionalArtworkUrl('fanartUrl', movie.art?.fanart ?? movie.fanart)
     };
+  }
+
+  function optionalArtworkUrl<Key extends string>(
+    key: Key,
+    value: unknown
+  ): Partial<Record<Key, string>> {
+    if (typeof value !== 'string' || value.trim() === '') {
+      return {};
+    }
+
+    return { [key]: `/image/${encodeURIComponent(value.trim())}` } as Partial<Record<Key, string>>;
   }
 
   function artworkKeys(movie: VideoLibraryMovieSnapshot): Set<string> {
@@ -300,15 +315,26 @@
         {@const metadata = movieMetadata(movie)}
         {@const artwork = artworkPresentation(movie)}
         <li class={`movie-card ${artwork.className}`}>
-          <div class="fanart-wash" aria-hidden="true"></div>
+          <div
+            class="fanart-wash"
+            aria-hidden="true"
+            style={artwork.fanartUrl
+              ? `--movie-card-fanart-url: url('${artwork.fanartUrl}')`
+              : undefined}
+          ></div>
           <div
             class={`poster-frame ${artwork.className}`}
+            class:has-image={Boolean(artwork.imageUrl)}
             aria-label={`${label} artwork availability`}
           >
-            <span class="fallback-initials" aria-hidden="true">{artwork.initials}</span>
-            <span class="artwork-copy">{artwork.badges[0]}</span>
-            {#if artwork.badges.includes('Fanart wash')}
-              <span class="artwork-copy muted">Fanart wash</span>
+            {#if artwork.imageUrl}
+              <img src={artwork.imageUrl} alt="" loading="lazy" decoding="async" />
+            {:else}
+              <span class="fallback-initials" aria-hidden="true">{artwork.initials}</span>
+              <span class="artwork-copy">{artwork.badges[0]}</span>
+              {#if artwork.badges.includes('Fanart wash')}
+                <span class="artwork-copy muted">Fanart wash</span>
+              {/if}
             {/if}
           </div>
 
@@ -436,6 +462,16 @@
     pointer-events: none;
   }
 
+  .movie-card.has-fanart .fanart-wash {
+    background:
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--color-surface) 74%, transparent),
+        color-mix(in srgb, var(--color-surface) 44%, transparent)
+      ),
+      var(--movie-card-fanart-url) center / cover;
+  }
+
   .movie-card.no-artwork .fanart-wash {
     opacity: 0.34;
   }
@@ -500,6 +536,17 @@
         transparent 1px 12px
       ),
       color-mix(in srgb, var(--color-surface) 84%, transparent);
+  }
+
+  .poster-frame.has-image {
+    padding: 0;
+    background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
+  }
+
+  .poster-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .fallback-initials {

@@ -699,7 +699,7 @@
       key: `movie:${item.movieid}`,
       title: safe(item.title ?? item.label, 'Unknown movie'),
       subtitle: typeof item.year === 'number' ? String(item.year) : undefined,
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: preferredVideoPosterUrl(item),
       poster: true,
       route: { kind: 'movieDetail', movieid: String(item.movieid) },
       action: { media: 'movie', movieid: item.movieid }
@@ -916,13 +916,14 @@
       label: string;
       year?: number;
       thumbnail?: string;
+      art?: Record<string, string>;
     }[]
   ): Card[] {
     return items.map((item) => ({
       key: `tvshow:${item.tvshowid}`,
       title: safe(item.title ?? item.label, 'Unknown TV show'),
       subtitle: typeof item.year === 'number' ? String(item.year) : undefined,
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: preferredVideoPosterUrl(item),
       poster: true,
       route: { kind: 'tvshowDetail', tvshowid: String(item.tvshowid) },
       action: { media: 'tvshow', tvshowid: item.tvshowid }
@@ -943,6 +944,17 @@
     }
 
     return `/image/${encodeURIComponent(rawPath.trim())}`;
+  }
+
+  function preferredVideoPosterUrl(item: {
+    thumbnail?: string;
+    art?: Record<string, string> | undefined;
+  }): string | undefined {
+    return (
+      kodiImageUrl(item.art?.poster) ??
+      kodiImageUrl(item.art?.['thumb']) ??
+      kodiImageUrl(item.thumbnail)
+    );
   }
 
   function optionalCardText<Key extends string>(
@@ -1945,7 +1957,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 0.65rem;
-    max-width: 760px;
+    max-width: none;
   }
 
   .classic-detail-meta {

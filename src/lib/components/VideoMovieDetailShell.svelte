@@ -34,6 +34,7 @@
     detailSnapshot?: VideoMovieDetailStoreSnapshot;
     actionDispatch?: VideoMovieActionDispatch;
     i18n?: TranslationContext;
+    backHref?: string;
   }
 
   type ActionKind = 'play' | 'resume' | 'queue' | 'mark-watched' | 'mark-unwatched';
@@ -56,7 +57,8 @@
     route,
     detailSnapshot,
     actionDispatch = noopActionDispatch,
-    i18n = defaultI18n
+    i18n = defaultI18n,
+    backHref
   }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: '' });
   $effect.pre(() => {
@@ -79,6 +81,9 @@
   const streamHref = $derived(
     movieid === null ? null : buildVideoRoute({ kind: 'videoMovieStream', movieid })
   );
+  const moviesHref = $derived(backHref ?? buildVideoRoute({ kind: 'videoMovies' }));
+  const posterUrl = $derived(movie ? preferredPosterUrl(movie) : undefined);
+  const fanartUrl = $derived(movie ? kodiImageUrl(movie.fanart ?? movie.art?.fanart) : undefined);
   const versionItems = $derived(
     detailMovie?.versions.status === 'ready' ? safeVersionItems(detailMovie.versions) : []
   );
@@ -212,6 +217,22 @@
         ));
 
     return hasArtwork ? [i18n.t('video.movie.artworkMetadataAvailable')] : [];
+  }
+
+  function preferredPosterUrl(
+    value: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot
+  ): string | undefined {
+    return (
+      kodiImageUrl(value.art?.poster) ??
+      kodiImageUrl(value.art?.thumb) ??
+      kodiImageUrl(value.thumbnail)
+    );
+  }
+
+  function kodiImageUrl(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim()
+      ? `/image/${encodeURIComponent(value.trim())}`
+      : undefined;
   }
 
   function versionText(value: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot): string {
@@ -444,14 +465,21 @@
 </script>
 
 <section class="video-movie-detail-shell surface" aria-labelledby="video-movie-detail-title">
-  <a class="back-link" href={buildVideoRoute({ kind: 'videoMovies' })}
-    >{i18n.t('video.movie.backToMovies')}</a
-  >
+  <a class="back-link" href={moviesHref}>{i18n.t('video.movie.backToMovies')}</a>
 
-  <div class="panel-heading movie-detail-hero" aria-label={i18n.t('video.movie.artworkAria')}>
+  <div
+    class="panel-heading movie-detail-hero"
+    class:has-fanart={Boolean(fanartUrl)}
+    aria-label={i18n.t('video.movie.artworkAria')}
+    style={fanartUrl ? `--movie-fanart-url: url('${fanartUrl}')` : undefined}
+  >
     <div class="fanart-wash" aria-hidden="true"></div>
-    <div class="poster-frame" aria-hidden="true">
-      <span>{i18n.t('video.movie.poster')}</span>
+    <div class="poster-frame" class:has-poster={Boolean(posterUrl)} aria-hidden="true">
+      {#if posterUrl}
+        <img src={posterUrl} alt="" loading="lazy" decoding="async" />
+      {:else}
+        <span>{i18n.t('video.movie.poster')}</span>
+      {/if}
     </div>
     <div class="hero-copy">
       <p class="section-kicker">{i18n.t('video.movie.detailKicker')}</p>
@@ -631,6 +659,17 @@
       0 1.2rem 3rem color-mix(in srgb, black 16%, transparent);
   }
 
+  .movie-detail-hero.has-fanart {
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-surface) 92%, transparent),
+        color-mix(in srgb, var(--color-surface) 44%, transparent)
+      ),
+      var(--movie-fanart-url) center / cover,
+      color-mix(in srgb, var(--color-surface-raised) 76%, transparent);
+  }
+
   .fanart-wash {
     position: absolute;
     inset: 0;
@@ -669,6 +708,19 @@
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
       0 1rem 2rem color-mix(in srgb, black 24%, transparent);
+  }
+
+  .poster-frame.has-poster {
+    place-items: stretch;
+    padding: 0;
+    background: color-mix(in srgb, var(--color-surface) 88%, black);
+  }
+
+  .poster-frame img {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    object-fit: cover;
   }
 
   .hero-copy {

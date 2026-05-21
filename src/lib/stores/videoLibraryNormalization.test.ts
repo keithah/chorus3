@@ -159,6 +159,12 @@ describe('video library normalization helpers', () => {
       title: 'Alien',
       year: 1979,
       runtime: 7020,
+      thumbnail: 'image://poster.jpg/',
+      fanart: 'http://cdn.example/fanart.jpg',
+      art: {
+        poster: 'image://poster.jpg/',
+        fanart: 'https://cdn.example/fanart.jpg'
+      },
       plot: 'A safe plot.',
       plotoutline: 'Safe outline.',
       tagline: 'In space no one can hear you scream.',

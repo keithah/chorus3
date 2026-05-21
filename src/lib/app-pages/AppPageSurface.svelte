@@ -38,18 +38,13 @@
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import ThumbsUpPage from './ThumbsUpPage.svelte';
-  import VideoEpisodeDetailShell, {
-    type VideoEpisodeActionDispatch
-  } from '$components/VideoEpisodeDetailShell.svelte';
-  import VideoMovieDetailShell, {
-    type VideoMovieActionDispatch
-  } from '$components/VideoMovieDetailShell.svelte';
+  import type { VideoEpisodeActionDispatch } from '$components/VideoEpisodeDetailShell.svelte';
+  import type { VideoMovieActionDispatch } from '$components/VideoMovieDetailShell.svelte';
   import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
-  import VideoSeasonDetailShell, {
-    type VideoSeasonArtworkDispatch,
-    type VideoSeasonWriteDispatch
+  import type {
+    VideoSeasonArtworkDispatch,
+    VideoSeasonWriteDispatch
   } from '$components/VideoSeasonDetailShell.svelte';
-  import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
   import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
   import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
@@ -197,14 +192,7 @@
     settingsDispatch,
     addonsSnapshot,
     addonsDispatch,
-    addonDetailDispatch,
-    videoMovieDetailSnapshot,
-    videoMovieActionDispatch,
-    videoTvSnapshot,
-    videoEpisodeActionDispatch,
-    videoSeasonArtworkDispatch,
-    videoSeasonWriteDispatch,
-    renderableVideoRoute
+    addonDetailDispatch
   }: Props = $props();
 
   const routeBuildOptions = $derived({
@@ -228,11 +216,9 @@
       route.kind === 'musicGenreDetail' ||
       route.kind === 'movies' ||
       route.kind === 'moviesRecent' ||
+      route.kind === 'movieDetail' ||
       route.kind === 'tvshows' ||
-      route.kind === 'tvshowsRecent'
-  );
-  const isVideoDetailRoute = $derived(
-    route.kind === 'movieDetail' ||
+      route.kind === 'tvshowsRecent' ||
       route.kind === 'tvshowDetail' ||
       route.kind === 'tvshowSeasonDetail' ||
       route.kind === 'tvshowEpisodeDetail'
@@ -326,34 +312,7 @@
   data-app-page-surface-kind={metadata.surfaceKind}
   data-app-page-status={metadata.status}
 >
-  {#if isVideoDetailRoute}
-    {#if route.kind === 'movieDetail'}
-      <VideoMovieDetailShell
-        snapshot={videoLibrarySnapshot}
-        route={renderableVideoRoute}
-        detailSnapshot={videoMovieDetailSnapshot}
-        actionDispatch={videoMovieActionDispatch}
-        {i18n}
-      />
-    {:else if route.kind === 'tvshowDetail'}
-      <VideoTvShowDetailShell snapshot={videoTvSnapshot} route={renderableVideoRoute} {i18n} />
-    {:else if route.kind === 'tvshowSeasonDetail'}
-      <VideoSeasonDetailShell
-        snapshot={videoTvSnapshot}
-        route={renderableVideoRoute}
-        artworkDispatch={videoSeasonArtworkDispatch}
-        writeDispatch={videoSeasonWriteDispatch}
-        {i18n}
-      />
-    {:else if route.kind === 'tvshowEpisodeDetail'}
-      <VideoEpisodeDetailShell
-        snapshot={videoTvSnapshot}
-        route={renderableVideoRoute}
-        actionDispatch={videoEpisodeActionDispatch}
-        {i18n}
-      />
-    {/if}
-  {:else if isChorus2LibraryRoute}
+  {#if isChorus2LibraryRoute}
     <LibraryPage
       {route}
       {musicLibrarySnapshot}

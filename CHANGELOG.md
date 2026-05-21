@@ -2,6 +2,20 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.2 - 2026-05-20
+
+Patch release for movie artwork and detail parity.
+
+### Fixed
+
+- Preferred Kodi `art.poster` over `thumbnail` for movie and TV show cards so poster artwork is
+  shown instead of generated video screenshots when Kodi provides it.
+- Removed the fixed-width cap from the classic media card grid so desktop movie libraries can use
+  the available content area.
+- Preserved movie detail poster, fanart, and artwork URLs in the detail store and rendered them on
+  the movie detail surface.
+- Made the movie detail "Back to movies" link package-aware for Kodi-mounted hash routes.
+
 ## 3.0.1 - 2026-05-08
 
 Patch release for the initial Chorus 3 port.

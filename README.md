@@ -24,9 +24,9 @@ the browser tooling of its time. Chorus 3 keeps the Chorus2 user experience and 
 
 ## Current state
 
-Chorus 3 is at `3.0.1`. The main Chorus2 surfaces have been ported and packaged as
-`webinterface.chorus3`, with the first patch release focused on video detail route parity and
-navigation polish.
+Chorus 3 is at `3.0.2`. The main Chorus2 surfaces have been ported and packaged as
+`webinterface.chorus3`, with the latest patch release focused on movie poster/detail parity and
+desktop library layout polish.
 
 The project is still young. Expect rough edges, but the intended bar is full Chorus2 parity rather
 than a smaller replacement shell.
@@ -47,7 +47,7 @@ For security reasons, do not expose Kodi's HTTP server to the public internet.
 
 ### Install from zip
 
-Build or download `webinterface.chorus3-3.0.1.zip`, then install it through Kodi:
+Build or download `webinterface.chorus3-3.0.2.zip`, then install it through Kodi:
 
 - Add-ons > Install from zip file.
 - Select the Chorus 3 zip.
@@ -61,7 +61,7 @@ The repository add-on is generated in the Kodi repository layout that Kodi expec
 - `addons.xml`
 - `addons.xml.md5`
 - `repository.keithah.kodi/repository.keithah.kodi-0.1.0.zip`
-- `webinterface.chorus3/webinterface.chorus3-3.0.1.zip`
+- `webinterface.chorus3/webinterface.chorus3-3.0.2.zip`
 
 The intended public repository is:
 

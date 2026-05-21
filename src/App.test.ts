@@ -1812,15 +1812,14 @@ describe('App shell', () => {
     expect(surfaceSource).not.toMatch(/import\s+(?!type)[^;]+from ['"]\$lib\/stores/u);
   });
 
-  it('routes video detail pages to their detail surfaces before the generic library grid', () => {
+  it('keeps Chorus2 primary video detail routes on the classic library surface', () => {
     const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
     const appSource = readFileSync('src/App.svelte', 'utf8');
-    const videoDetailBranch = surfaceSource.indexOf('{#if isVideoDetailRoute}');
-    const libraryBranch = surfaceSource.indexOf('{:else if isChorus2LibraryRoute}');
+    const libraryBranch = surfaceSource.indexOf('{#if isChorus2LibraryRoute}');
 
-    expect(videoDetailBranch).toBeGreaterThanOrEqual(0);
-    expect(libraryBranch).toBeGreaterThan(videoDetailBranch);
-    expect(surfaceSource).toContain('const isVideoDetailRoute = $derived(');
+    expect(libraryBranch).toBeGreaterThanOrEqual(0);
+    expect(surfaceSource).not.toContain('const isVideoDetailRoute = $derived(');
+    expect(surfaceSource).not.toContain('<VideoMovieDetailShell');
     expect(surfaceSource).toContain("route.kind === 'movieDetail'");
     expect(surfaceSource).toContain("route.kind === 'tvshowDetail'");
     expect(surfaceSource).toContain("route.kind === 'tvshowSeasonDetail'");
@@ -3185,8 +3184,8 @@ describe('App shell', () => {
       videoTvSnapshot: createVideoTvSnapshot()
     });
 
-    expect(episodeTarget.textContent).toContain('Episode detail');
-    expect(episodeTarget.textContent).toContain('Signal Mirror');
+    expect(episodeTarget.textContent).toContain('Episodes');
+    expect(episodeTarget.textContent).toContain('No episodes found.');
     expect(episodeTarget.textContent).toContain('TV shows');
     expect(episodeTarget.querySelector('.parity-placeholder')).toBeNull();
     expect(episodeTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);

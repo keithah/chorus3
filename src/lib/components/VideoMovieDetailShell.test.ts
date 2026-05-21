@@ -96,6 +96,9 @@ function createMovieDetailSnapshot(
       title: 'Alien',
       year: 1979,
       runtime: 7020,
+      thumbnail: 'image://detail-thumbnail-alien/',
+      fanart: 'image://detail-fanart-alien/',
+      art: { poster: 'image://detail-poster-alien/', fanart: 'image://detail-fanart-alien/' },
       plot: 'A commercial crew investigates a distress call.',
       tagline: 'In space no one can hear you scream.',
       genre: ['Horror', 'Science Fiction'],
@@ -134,6 +137,7 @@ function renderShell(
     detailSnapshot?: VideoMovieDetailStoreSnapshot;
     actionDispatch?: VideoMovieActionDispatch;
     i18n?: ReturnType<typeof createTranslationContext>;
+    backHref?: string;
   } = {}
 ): void {
   mounted = mount(VideoMovieDetailShell, {
@@ -252,6 +256,9 @@ describe('VideoMovieDetailShell', () => {
     ).not.toBeNull();
     expect(document.querySelector('.poster-frame[aria-hidden="true"]')).not.toBeNull();
     expect(document.querySelector('.fanart-wash[aria-hidden="true"]')).not.toBeNull();
+    expect(document.querySelector<HTMLImageElement>('.poster-frame img')?.getAttribute('src')).toBe(
+      '/image/image%3A%2F%2Fposter-alien%2F'
+    );
     expect(text).toContain('Poster-led movie detail surface');
     expect(text).toContain('Movie ID 42');
     expect(text).toContain('1979');
@@ -311,6 +318,20 @@ describe('VideoMovieDetailShell', () => {
       buildVideoRoute({ kind: 'videoMovies' })
     );
     expectSecretSafe(text);
+  });
+
+  it('allows package-aware callers to provide the back-to-movies href', () => {
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoMovieDetail', movieid: 42 },
+      {
+        backHref: '/addons/webinterface.chorus3#movies'
+      }
+    );
+
+    expect(document.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
+      '/addons/webinterface.chorus3#movies'
+    );
   });
 
   it('defensively drops unsafe labels artwork values and malformed optional metadata', () => {
@@ -373,6 +394,10 @@ describe('VideoMovieDetailShell', () => {
     expect(text).toContain('User rating 9');
     expect(text).toContain('Poster artwork available');
     expect(text).toContain('Fanart artwork available');
+    expect(document.querySelector<HTMLImageElement>('.poster-frame img')?.getAttribute('src')).toBe(
+      '/image/image%3A%2F%2Fdetail-poster-alien%2F'
+    );
+    expect(document.querySelector('.movie-detail-hero.has-fanart')).not.toBeNull();
     expect(text).toContain('Movie version');
     expect(document.querySelectorAll('select#video-movie-version option')).toHaveLength(2);
     expect(

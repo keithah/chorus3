@@ -214,7 +214,8 @@ describe('LibraryPage', () => {
               movieid: 88,
               label: 'Big Buck Bunny',
               title: 'Big Buck Bunny',
-              thumbnail: 'image://movie-poster.jpg/'
+              thumbnail: 'image://movie-screenshot.jpg/',
+              art: { poster: 'image://movie-poster.jpg/' }
             }
           ]
         } as never,

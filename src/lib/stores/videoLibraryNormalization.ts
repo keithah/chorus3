@@ -183,6 +183,9 @@ export interface VideoMovieDetailSnapshot {
   title?: string;
   year?: number;
   runtime?: number;
+  thumbnail?: string;
+  fanart?: string;
+  art?: Record<string, string>;
   plot?: string;
   plotoutline?: string;
   tagline?: string;
@@ -313,6 +316,9 @@ export function normalizeVideoMovieDetail(item: unknown): VideoMovieDetailSnapsh
     ...stringField('title', item.title),
     ...numberField('year', item.year),
     ...numberField('runtime', item.runtime),
+    ...stringField('thumbnail', item.thumbnail),
+    ...stringField('fanart', item.fanart),
+    ...artField(item.art),
     ...stringField('plot', item.plot),
     ...stringField('plotoutline', item.plotoutline),
     ...stringField('tagline', item.tagline),
@@ -669,6 +675,7 @@ export function cloneVideoMovieDetailSnapshot(
         ...(detail.director ? { director: [...detail.director] } : {}),
         ...(detail.studio ? { studio: [...detail.studio] } : {}),
         ...(detail.uniqueid ? { uniqueid: { ...detail.uniqueid } } : {}),
+        ...(detail.art ? { art: { ...detail.art } } : {}),
         artwork: { ...detail.artwork },
         ...(detail.resume ? { resume: { ...detail.resume } } : {}),
         versions: cloneVideoMovieVersionsSnapshot(detail.versions)
