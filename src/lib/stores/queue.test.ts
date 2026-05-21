@@ -1343,18 +1343,12 @@ describe('queue store', () => {
         method: 'Playlist.GetItems',
         params: {
           playlistid: 7,
-          properties: expect.arrayContaining([
-            'label',
-            'title',
-            'artist',
-            'duration',
-            'file',
-            'thumbnail',
-            'type'
-          ])
+          properties: expect.arrayContaining(['title', 'artist', 'duration', 'file', 'thumbnail'])
         }
       }
     ]);
+    expect((client.calls[0].params as { properties: string[] }).properties).not.toContain('label');
+    expect((client.calls[0].params as { properties: string[] }).properties).not.toContain('type');
     expect(store.snapshot).toMatchObject({
       refreshStatus: 'ready',
       playlistid: 7,

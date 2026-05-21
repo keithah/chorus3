@@ -187,13 +187,11 @@ const DEFAULT_PLAYLIST_PROPERTIES = [
   'duration',
   'episode',
   'file',
-  'label',
   'season',
   'showtitle',
   'thumbnail',
   'title',
-  'track',
-  'type'
+  'track'
 ] as const satisfies readonly PlaylistItemPropertyName[];
 
 export class QueueStore {

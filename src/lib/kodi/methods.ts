@@ -535,7 +535,7 @@ export interface PlayerItemResult {
   [key: string]: unknown;
 }
 
-export type PlaylistItemPropertyName = PlayerItemPropertyName;
+export type PlaylistItemPropertyName = Exclude<PlayerItemPropertyName, 'label' | 'type'>;
 
 export type PlaylistItem = PlayerItem;
 

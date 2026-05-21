@@ -2,6 +2,17 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.5 - 2026-05-21
+
+Patch release for Kodi queue and movie detail action polish.
+
+### Fixed
+
+- Stopped requesting playlist `label` and `type` properties that Kodi rejects for
+  `Playlist.GetItems`, fixing the JSON-RPC error after Queue on movie details.
+- Let the Chorus2-style movie detail More menu render outside the fanart header instead of being
+  clipped by the hero container.
+
 ## 3.0.4 - 2026-05-20
 
 Patch release for Chorus2-style movie detail parity.

@@ -2394,7 +2394,6 @@
     gap: 2rem;
     min-height: 405px;
     padding: 2rem;
-    overflow: hidden;
     background: #333;
     color: #eee;
   }
