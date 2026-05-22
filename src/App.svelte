@@ -551,6 +551,12 @@
       ? (currentKodiStageArtUrl ?? lastKnownKodiStageArtUrl)
       : undefined
   );
+
+  $effect(() => {
+    if (remoteOverlayOpen && currentPlayerSnapshot.playbackStatus === 'none') {
+      remoteOverlayOpen = false;
+    }
+  });
   const isPlayerDestinationCommandRunning = $derived(
     playerDispatch.snapshot?.commandStatus === 'running'
   );
@@ -558,6 +564,10 @@
   const isLocalPlaylistMutationRunning = $derived(
     currentLocalPlaylistSnapshot.mutationStatus === 'running'
   );
+  const remoteOverlayPlayerDispatch = $derived({
+    ...playerDispatch,
+    stop: stopPlaybackFromShell
+  });
   const currentQueuePlayableItems = $derived<QueuePlayableItemSnapshot[]>(
     queueSnapshot === undefined
       ? queueStore.getPlayableItems()
@@ -1819,6 +1829,15 @@
     remoteOverlayOpen = !remoteOverlayOpen;
   }
 
+  function closeRemoteOverlay(): void {
+    remoteOverlayOpen = false;
+  }
+
+  function stopPlaybackFromShell(): void {
+    closeRemoteOverlay();
+    void playerDispatch.stop();
+  }
+
   function dashboardTime(seconds: number | null): string {
     if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
       return '--:--';
@@ -1878,7 +1897,7 @@
           ? () => playerDispatch.setShuffle('toggle')
           : toggleLocalShuffle,
       fullscreen: toggleAppFullscreen,
-      stop: () => playerDispatch.stop(),
+      stop: stopPlaybackFromShell,
       repeat:
         currentDrawerDestinationMode === 'kodi'
           ? () => playerDispatch.setRepeat('cycle')
@@ -1978,14 +1997,14 @@
           class="remote-overlay__scrim"
           aria-hidden="true"
           tabindex="-1"
-          onclick={() => (remoteOverlayOpen = false)}
+          onclick={closeRemoteOverlay}
         ></button>
         <div class="remote-overlay__panel">
           <button
             type="button"
             class="remote-overlay__close"
             aria-label="Close Kodi remote"
-            onclick={() => (remoteOverlayOpen = false)}
+            onclick={closeRemoteOverlay}
           >
             <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
           </button>
@@ -1993,7 +2012,7 @@
             remoteSnapshot={currentRemoteSnapshot}
             {remoteInputDispatch}
             playerSnapshot={currentPlayerSnapshot}
-            {playerDispatch}
+            playerDispatch={remoteOverlayPlayerDispatch}
             backgroundUrl={currentShellStageArtUrl}
             i18n={currentI18n}
           />
@@ -2027,7 +2046,7 @@
           ? () => playerDispatch.setShuffle('toggle')
           : toggleLocalShuffle,
       fullscreen: toggleAppFullscreen,
-      stop: () => playerDispatch.stop(),
+      stop: stopPlaybackFromShell,
       repeat:
         currentDrawerDestinationMode === 'kodi'
           ? () => playerDispatch.setRepeat('cycle')
@@ -2064,7 +2083,7 @@
               ? () => playerDispatch.setShuffle('toggle')
               : toggleLocalShuffle,
           fullscreen: toggleAppFullscreen,
-          stop: () => playerDispatch.stop(),
+          stop: stopPlaybackFromShell,
           repeat:
             currentDrawerDestinationMode === 'kodi'
               ? () => playerDispatch.setRepeat('cycle')
@@ -2160,14 +2179,14 @@
               class="remote-overlay__scrim"
               aria-hidden="true"
               tabindex="-1"
-              onclick={() => (remoteOverlayOpen = false)}
+              onclick={closeRemoteOverlay}
             ></button>
             <div class="remote-overlay__panel">
               <button
                 type="button"
                 class="remote-overlay__close"
                 aria-label="Close Kodi remote"
-                onclick={() => (remoteOverlayOpen = false)}
+                onclick={closeRemoteOverlay}
               >
                 <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
               </button>
@@ -2175,7 +2194,7 @@
                 remoteSnapshot={currentRemoteSnapshot}
                 {remoteInputDispatch}
                 playerSnapshot={currentPlayerSnapshot}
-                {playerDispatch}
+                playerDispatch={remoteOverlayPlayerDispatch}
                 backgroundUrl={currentShellStageArtUrl}
                 i18n={currentI18n}
               />
@@ -2430,14 +2449,14 @@
           class="remote-overlay__scrim"
           aria-hidden="true"
           tabindex="-1"
-          onclick={() => (remoteOverlayOpen = false)}
+          onclick={closeRemoteOverlay}
         ></button>
         <div class="remote-overlay__panel">
           <button
             type="button"
             class="remote-overlay__close"
             aria-label="Close Kodi remote"
-            onclick={() => (remoteOverlayOpen = false)}
+            onclick={closeRemoteOverlay}
           >
             <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
           </button>
@@ -2445,7 +2464,7 @@
             remoteSnapshot={currentRemoteSnapshot}
             {remoteInputDispatch}
             playerSnapshot={currentPlayerSnapshot}
-            {playerDispatch}
+            playerDispatch={remoteOverlayPlayerDispatch}
             backgroundUrl={currentShellStageArtUrl}
             i18n={currentI18n}
           />
@@ -2546,16 +2565,19 @@
     z-index: 0;
     border: 0;
     background: transparent;
-    pointer-events: auto;
+    pointer-events: none;
   }
 
   .remote-overlay__panel {
     position: absolute;
-    inset: 0;
+    bottom: 0;
+    left: 0;
     z-index: 1;
-    overflow: hidden;
-    background: #282c2e;
-    pointer-events: auto;
+    width: 320px;
+    height: 380px;
+    overflow: visible;
+    background: transparent;
+    pointer-events: none;
   }
 
   .remote-overlay__close {
@@ -2574,6 +2596,7 @@
     color: #f4f4f4;
     font-size: 1.25rem;
     cursor: pointer;
+    pointer-events: auto;
   }
 
   .remote-overlay__close:hover,
@@ -2583,19 +2606,25 @@
   }
 
   .remote-overlay__panel :global(.remote-input-panel) {
-    min-height: 100%;
-    height: 100%;
+    width: 320px;
+    min-height: 380px;
+    height: 380px;
+    overflow: visible;
+    background: transparent;
+    pointer-events: none;
   }
 
   .remote-overlay__panel :global(.remote-background) {
-    inset: 0;
+    display: none;
   }
 
   .remote-overlay__panel :global(.kodi-remote) {
     right: auto;
+    bottom: 0;
     left: 0;
     width: 320px;
     margin-inline: 0;
+    pointer-events: auto;
   }
 
   @media (max-width: 760px) {
@@ -2604,7 +2633,8 @@
     }
 
     .remote-overlay__panel {
-      inset: 0;
+      width: 320px;
+      height: 380px;
     }
   }
 </style>

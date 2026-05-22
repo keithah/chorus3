@@ -522,6 +522,26 @@ describe('LibraryPage', () => {
       ?.click();
     await settle();
 
+    const panes = target!.querySelector<HTMLElement>('.classic-filter-panes');
+    expect(panes).toBeInstanceOf(HTMLElement);
+    expect(panes?.classList.contains('show-filters')).toBe(true);
+    expect(panes?.classList.contains('show-options')).toBe(false);
+    expect(target!.querySelector('.classic-filter-pane.current')?.textContent).toContain('Music');
+    expect(target!.querySelector('.filters-page .classic-pane-title')?.textContent).toContain(
+      'Sections'
+    );
+
+    target!.querySelector<HTMLButtonElement>('.filters-page .classic-pane-title')?.click();
+    await settle();
+
+    expect(panes?.classList.contains('show-filters')).toBe(false);
+    expect(panes?.classList.contains('show-options')).toBe(false);
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Filters'))
+      ?.click();
+    await settle();
+
     Array.from(target!.querySelectorAll<HTMLButtonElement>('.filters-page button'))
       .find((button) => button.textContent?.trim() === 'year')
       ?.click();

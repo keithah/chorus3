@@ -2441,12 +2441,13 @@ describe('App shell', () => {
   it('opens and closes the package shell Kodi remote overlay from the footer control', async () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
     const remoteInputDispatch = createRemoteInputDispatch();
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
 
     const target = renderApp({
       route: { kind: 'dashboard' },
       packageMountedHost: createPackageMountedHost(),
       playerSnapshot: activeVideoSnapshot(),
-      playerDispatch: createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' })),
+      playerDispatch,
       remoteSnapshot: remoteInputDispatch.snapshot,
       remoteInputDispatch
     });
@@ -2463,6 +2464,17 @@ describe('App shell', () => {
     requirePackageShellButtonByAria(target, 'Close Kodi remote').click();
     await tick();
 
+    expect(target.querySelector('.remote-overlay')).toBeNull();
+
+    requirePackageShellButtonByAria(target, 'Open Kodi remote').click();
+    await tick();
+
+    expect(target.querySelector('.remote-overlay')).toBeInstanceOf(HTMLElement);
+
+    requirePackageShellButtonByAria(target, 'Stop').click();
+    await tick();
+
+    expect(playerDispatch.stop).toHaveBeenCalledTimes(1);
     expect(target.querySelector('.remote-overlay')).toBeNull();
   });
 

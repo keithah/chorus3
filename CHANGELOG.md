@@ -2,6 +2,20 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.8 - 2026-05-22
+
+Patch release for sidebar filter and remote overlay recovery.
+
+### Fixed
+
+- Fixed Movies and TV Shows filter pane navigation so opening filters no longer slides the section
+  menu off-screen or strands the user in a blank pane.
+- Added explicit back affordances in the filter and filter-option panes.
+- Changed the Kodi remote overlay into a non-blocking floating controller so the main UI remains
+  clickable behind it.
+- Closed the Kodi remote overlay when Stop is triggered from either the footer controls or the
+  remote controller, and when playback becomes idle.
+
 ## 3.0.7 - 2026-05-21
 
 Patch release for Chorus2-faithful media card sizing.

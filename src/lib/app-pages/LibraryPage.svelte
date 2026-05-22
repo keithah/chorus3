@@ -1830,7 +1830,8 @@
       <div class="classic-filter-pane filters-page">
         <h2>
           <button type="button" class="classic-pane-title" onclick={closeFilterPane}>
-            Select a filter
+            <span aria-hidden="true">‹</span>
+            Sections
           </button>
         </h2>
         <ul class="classic-selection-list">
@@ -1855,7 +1856,8 @@
       <div class="classic-filter-pane options-page">
         <h2>
           <button type="button" class="classic-pane-title" onclick={closeOptionsPane}>
-            Select an option
+            <span aria-hidden="true">‹</span>
+            Select a filter
           </button>
         </h2>
         {#if selectedFilterOptions.length > 10 || optionSearch}
@@ -2140,22 +2142,23 @@
   }
 
   .classic-filter-panes {
-    display: grid;
-    grid-template-columns: repeat(3, 100%);
-    width: 300%;
+    display: flex;
+    width: 100%;
     transition: transform 160ms ease;
   }
 
   .classic-filter-panes.show-filters {
-    transform: translateX(-33.3333%);
+    transform: translateX(-100%);
   }
 
   .classic-filter-panes.show-options {
-    transform: translateX(-66.6666%);
+    transform: translateX(-200%);
   }
 
   .classic-filter-pane {
     box-sizing: border-box;
+    width: 100%;
+    flex: 0 0 100%;
     min-width: 0;
     padding: 2rem 1.5rem;
   }
