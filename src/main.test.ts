@@ -77,7 +77,7 @@ describe('main entrypoint', () => {
       ],
       [
         '/addons/webinterface.chorus3/lab/screenshot',
-        { kind: 'labUnknown', pathLabel: '/lab/screenshot' }
+        { kind: 'primary', route: { kind: 'labScreenshot' } }
       ],
       ['/addons/webinterface.chorus3/pvr/tv', { kind: 'primary', route: { kind: 'pvrTv' } }]
     ] as const) {
@@ -498,7 +498,6 @@ describe('main entrypoint', () => {
 
     expect(document.body.textContent).toContain('Kodi Add-ons');
     expect(document.body.textContent).toContain('Safe Video Demo');
-    expect(document.body.textContent).toContain('Safe Helper Module');
     expect(document.body.textContent).toContain('Safe Radio');
     expect(document.body.textContent).toContain('Broken: Safe fixture dependency missing');
     expect(document.body.textContent).not.toContain('Kodi Settings');
@@ -520,7 +519,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('fixture.addon-write-rejected');
   });
 
-  it('keeps M005 browser-proof Lab routes non-routable', async () => {
+  it('keeps unknown M005 browser-proof Lab routes non-routable while allowing real Lab routes', async () => {
     setPathAndSearch('/lab/shortcuts', '?m005-browser-proof=1');
 
     await importMain();
@@ -535,8 +534,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab route not found');
-    expect(document.body.textContent).toContain('/lab/api-browser');
+    expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|admin:p@ssword|SENTINEL_SECRET|localStorage|sessionStorage|smb:\/\//i
@@ -548,7 +546,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
     expect(document.body.textContent).not.toContain('fixture-ok');
 
@@ -558,7 +556,7 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Lab route not found');
+    expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
 
     const { resolveEntrypointAppProps } = await importMain();
@@ -567,7 +565,7 @@ describe('main entrypoint', () => {
         { pathname: '/lab/api-browser', search: '?m005-browser-proof=1' },
         { DEV: false, MODE: 'production' }
       )
-    ).toEqual({ route: { kind: 'labUnknown', pathLabel: '/lab/api-browser' } });
+    ).toEqual({ route: { kind: 'primary', route: { kind: 'labApiBrowser' } } });
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';

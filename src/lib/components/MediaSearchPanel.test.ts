@@ -9,6 +9,13 @@ import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import type { MediaSearchStoreSnapshot } from '$lib/stores/mediaSearch.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
+type MediaSearchSnapshotOverrides = Partial<
+  Omit<MediaSearchStoreSnapshot, 'results' | 'limits' | 'resultCounts'>
+> & {
+  results?: Partial<MediaSearchStoreSnapshot['results']>;
+  limits?: Partial<MediaSearchStoreSnapshot['limits']>;
+  resultCounts?: Partial<MediaSearchStoreSnapshot['resultCounts']>;
+};
 
 let mounted: MountedComponent | null = null;
 
@@ -20,10 +27,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function createSnapshot(
-  overrides: Partial<MediaSearchStoreSnapshot> = {}
-): MediaSearchStoreSnapshot {
-  return {
+function createSnapshot(overrides: MediaSearchSnapshotOverrides = {}): MediaSearchStoreSnapshot {
+  const base: MediaSearchStoreSnapshot = {
     searchStatus: 'ready',
     scope: 'music',
     query: 'nina',
@@ -53,42 +58,88 @@ function createSnapshot(
           playcount: 3
         }
       ],
-      genres: [{ kind: 'genre', genreid: 30, label: 'Jazz', title: 'Jazz' }]
+      genres: [{ kind: 'genre', genreid: 30, label: 'Jazz', title: 'Jazz' }],
+      movies: [{ kind: 'movie', movieid: 40, label: 'Nina', title: 'Nina', year: 2016 }],
+      tvShows: [{ kind: 'tvshow', tvshowid: 50, label: 'Nina TV', title: 'Nina TV', year: 2026 }],
+      musicVideos: [
+        {
+          kind: 'musicvideo',
+          musicvideoid: 60,
+          label: 'Nina Live',
+          title: 'Nina Live',
+          artist: ['Nina Simone'],
+          album: 'Live',
+          year: 1969
+        }
+      ]
     },
     limits: {
       artists: { start: 0, end: 1, total: 1 },
       albums: { start: 0, end: 1, total: 1 },
       songs: { start: 0, end: 1, total: 1 },
-      genres: { start: 0, end: 1, total: 1 }
+      genres: { start: 0, end: 1, total: 1 },
+      movies: { start: 0, end: 1, total: 1 },
+      tvShows: { start: 0, end: 1, total: 1 },
+      musicVideos: { start: 0, end: 1, total: 1 }
     },
     resultCounts: {
       artists: 1,
       albums: 1,
       songs: 1,
       genres: 1,
-      total: 4
+      movies: 1,
+      tvShows: 1,
+      musicVideos: 1,
+      total: 7
     },
     isEmpty: false,
-    lastError: null,
-    ...overrides
+    lastError: null
+  };
+
+  return {
+    ...base,
+    ...overrides,
+    results: { ...base.results, ...overrides.results },
+    limits: { ...base.limits, ...overrides.limits },
+    resultCounts: { ...base.resultCounts, ...overrides.resultCounts }
   };
 }
 
 function createEmptySnapshot(
-  overrides: Partial<MediaSearchStoreSnapshot> = {}
+  overrides: MediaSearchSnapshotOverrides = {}
 ): MediaSearchStoreSnapshot {
   return createSnapshot({
     searchStatus: 'idle',
     query: '',
     lastUpdatedAt: null,
-    results: { artists: [], albums: [], songs: [], genres: [] },
+    results: {
+      artists: [],
+      albums: [],
+      songs: [],
+      genres: [],
+      movies: [],
+      tvShows: [],
+      musicVideos: []
+    },
     limits: {
       artists: { start: 0, end: 0, total: 0 },
       albums: { start: 0, end: 0, total: 0 },
       songs: { start: 0, end: 0, total: 0 },
-      genres: { start: 0, end: 0, total: 0 }
+      genres: { start: 0, end: 0, total: 0 },
+      movies: { start: 0, end: 0, total: 0 },
+      tvShows: { start: 0, end: 0, total: 0 },
+      musicVideos: { start: 0, end: 0, total: 0 }
     },
-    resultCounts: { artists: 0, albums: 0, songs: 0, genres: 0, total: 0 },
+    resultCounts: {
+      artists: 0,
+      albums: 0,
+      songs: 0,
+      genres: 0,
+      movies: 0,
+      tvShows: 0,
+      musicVideos: 0,
+      total: 0
+    },
     isEmpty: true,
     lastError: null,
     ...overrides
@@ -218,11 +269,16 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Albums');
     expect(text).toContain('Songs');
     expect(text).toContain('Genres');
+    expect(text).toContain('Movies');
+    expect(text).toContain('TV Shows');
+    expect(text).toContain('Music Videos');
     expect(text).toContain('Nina Simone');
     expect(text).toContain('Pastel Blues');
     expect(text).toContain('Sinnerman');
     expect(text).toContain('Jazz');
-    expect(text).toContain('4 results');
+    expect(text).toContain('Nina TV');
+    expect(text).toContain('Nina Live');
+    expect(text).toContain('7 results');
   });
 
   it('renders German search labels, counts, empty states, and fallback labels', () => {
@@ -235,15 +291,30 @@ describe('MediaSearchPanel', () => {
           artists: [{ kind: 'artist', artistid: 1, label: 'smb://secret/share/artist' }],
           albums: [],
           songs: [],
-          genres: []
+          genres: [],
+          movies: [],
+          tvShows: [],
+          musicVideos: []
         },
         limits: {
           artists: { start: 0, end: 1, total: 1 },
           albums: { start: 0, end: 0, total: 0 },
           songs: { start: 0, end: 0, total: 0 },
-          genres: { start: 0, end: 0, total: 0 }
+          genres: { start: 0, end: 0, total: 0 },
+          movies: { start: 0, end: 0, total: 0 },
+          tvShows: { start: 0, end: 0, total: 0 },
+          musicVideos: { start: 0, end: 0, total: 0 }
         },
-        resultCounts: { artists: 1, albums: 0, songs: 0, genres: 0, total: 1 },
+        resultCounts: {
+          artists: 1,
+          albums: 0,
+          songs: 0,
+          genres: 0,
+          movies: 0,
+          tvShows: 0,
+          musicVideos: 0,
+          total: 1
+        },
         isEmpty: false
       })
     });
@@ -274,7 +345,7 @@ describe('MediaSearchPanel', () => {
     await tick();
 
     expect(dispatch.search).toHaveBeenCalledTimes(1);
-    expect(dispatch.search).toHaveBeenCalledWith({ query: 'pastel blues' });
+    expect(dispatch.search).toHaveBeenCalledWith({ query: 'pastel blues', scope: 'all' });
 
     button('Clear media search').click();
     await tick();
@@ -371,7 +442,16 @@ describe('MediaSearchPanel', () => {
           ],
           genres: [{ kind: 'genre', genreid: 30, label: 'Jazz', title: 'Jazz' }]
         },
-        resultCounts: { artists: 2, albums: 2, songs: 2, genres: 1, total: 7 },
+        resultCounts: {
+          artists: 2,
+          albums: 2,
+          songs: 2,
+          genres: 1,
+          movies: 0,
+          tvShows: 0,
+          musicVideos: 0,
+          total: 7
+        },
         isEmpty: false
       })
     });

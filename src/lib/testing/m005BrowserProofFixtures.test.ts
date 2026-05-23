@@ -201,7 +201,7 @@ describe('createM005BrowserProofAppProps', () => {
     });
 
     expect(shortcuts.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/shortcuts' });
-    expect(apiBrowser.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/api-browser' });
+    expect(apiBrowser.route).toEqual({ kind: 'primary', route: { kind: 'labApiBrowser' } });
     expect(unsafe.route).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
     expect(JSON.stringify(unsafe.route)).not.toMatch(
       /admin:p@ssword|Authorization|Basic|SENTINEL_SECRET|token=/i

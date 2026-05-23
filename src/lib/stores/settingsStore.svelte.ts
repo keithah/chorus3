@@ -176,6 +176,11 @@ export class SettingsStore {
     return cloneSnapshot(this.#snapshot);
   }
 
+  reset(): void {
+    this.#requestId += 1;
+    this.#snapshot = cloneSnapshot(DEFAULT_SNAPSHOT);
+  }
+
   async load(): Promise<void> {
     const requestId = this.#beginLoad();
     const client = await this.#resolveClient();

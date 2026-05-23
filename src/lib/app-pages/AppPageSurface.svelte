@@ -4,6 +4,10 @@
   import AddonsPage from './AddonsPage.svelte';
   import BrowserFilesPage from './BrowserFilesPage.svelte';
   import LibraryPage from './LibraryPage.svelte';
+  import LabApiBrowserPage from '$components/LabApiBrowserPage.svelte';
+  import LabIconBrowserPage from '$components/LabIconBrowserPage.svelte';
+  import LabLandingPage from '$components/LabLandingPage.svelte';
+  import LabScreenshotPage from '$components/LabScreenshotPage.svelte';
   import DeferredPrimaryPage from './DeferredPrimaryPage.svelte';
   import HelpPage from './HelpPage.svelte';
   import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
@@ -38,13 +42,16 @@
   import StatusCard from '$components/StatusCard.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import ThumbsUpPage from './ThumbsUpPage.svelte';
-  import type { VideoEpisodeActionDispatch } from '$components/VideoEpisodeDetailShell.svelte';
+  import VideoEpisodeDetailShell, {
+    type VideoEpisodeActionDispatch
+  } from '$components/VideoEpisodeDetailShell.svelte';
   import type { VideoMovieActionDispatch } from '$components/VideoMovieDetailShell.svelte';
   import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
-  import type {
-    VideoSeasonArtworkDispatch,
-    VideoSeasonWriteDispatch
+  import VideoSeasonDetailShell, {
+    type VideoSeasonArtworkDispatch,
+    type VideoSeasonWriteDispatch
   } from '$components/VideoSeasonDetailShell.svelte';
+  import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
   import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
   import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
@@ -193,7 +200,12 @@
     addonsSnapshot,
     addonsDispatch,
     addonDetailDispatch,
-    videoMovieDetailSnapshot
+    videoMovieDetailSnapshot,
+    videoTvSnapshot,
+    videoEpisodeActionDispatch,
+    videoSeasonArtworkDispatch,
+    videoSeasonWriteDispatch,
+    renderableVideoRoute
   }: Props = $props();
 
   const routeBuildOptions = $derived({
@@ -224,10 +236,17 @@
       route.kind === 'tvshowSeasonDetail' ||
       route.kind === 'tvshowEpisodeDetail'
   );
+  const isChorus2TvDetailRoute = $derived(
+    route.kind === 'tvshowDetail' ||
+      route.kind === 'tvshowSeasonDetail' ||
+      route.kind === 'tvshowEpisodeDetail'
+  );
   const isChorus2BrowserRoute = $derived(route.kind === 'browser' || route.kind === 'browserItem');
   const isVideoBrowserRoute = $derived(route.kind === 'browserItem' && route.media === 'video');
   const isChorus2PlaylistRoute = $derived(
-    route.kind === 'playlists' || route.kind === 'playlistDetail'
+    route.kind === 'currentPlaylist' ||
+      route.kind === 'playlists' ||
+      route.kind === 'playlistDetail'
   );
   const isChorus2AddonsRoute = $derived(
     route.kind === 'addonsAll' ||
@@ -249,6 +268,13 @@
     route.kind === 'help' || route.kind === 'helpOverview' || route.kind === 'helpPage'
   );
   const isChorus2SearchRoute = $derived(route.kind === 'search' || route.kind === 'searchMedia');
+  const isChorus2LabRoute = $derived(
+    route.kind === 'lab' ||
+      route.kind === 'labApiBrowser' ||
+      route.kind === 'labApiBrowserMethod' ||
+      route.kind === 'labScreenshot' ||
+      route.kind === 'labIconBrowser'
+  );
   const isChorus2PvrRoute = $derived(
     route.kind === 'pvrTv' ||
       route.kind === 'pvrTvChannel' ||
@@ -273,7 +299,10 @@
     }
 
     lastRouteSearchKey = key;
-    void mediaSearchDispatch.search({ query });
+    void mediaSearchDispatch.search({
+      query,
+      scope: route.media === 'video' ? 'video' : route.media === 'music' ? 'music' : 'all'
+    });
   });
 
   $effect(() => {
@@ -314,18 +343,39 @@
   data-app-page-status={metadata.status}
 >
   {#if isChorus2LibraryRoute}
-    <LibraryPage
-      {route}
-      {musicLibrarySnapshot}
-      {videoLibrarySnapshot}
-      {playerDispatch}
-      {queueDispatch}
-      {localPlaylistSnapshot}
-      {localPlaylistDispatch}
-      {thumbsUpDispatch}
-      {videoMovieDetailSnapshot}
-      buildOptions={routeBuildOptions}
-    />
+    {#if isChorus2TvDetailRoute}
+      {#if route.kind === 'tvshowDetail'}
+        <VideoTvShowDetailShell snapshot={videoTvSnapshot} route={renderableVideoRoute} {i18n} />
+      {:else if route.kind === 'tvshowSeasonDetail'}
+        <VideoSeasonDetailShell
+          snapshot={videoTvSnapshot}
+          route={renderableVideoRoute}
+          artworkDispatch={videoSeasonArtworkDispatch}
+          writeDispatch={videoSeasonWriteDispatch}
+          {i18n}
+        />
+      {:else}
+        <VideoEpisodeDetailShell
+          snapshot={videoTvSnapshot}
+          route={renderableVideoRoute}
+          actionDispatch={videoEpisodeActionDispatch}
+          {i18n}
+        />
+      {/if}
+    {:else}
+      <LibraryPage
+        {route}
+        {musicLibrarySnapshot}
+        {videoLibrarySnapshot}
+        {playerDispatch}
+        {queueDispatch}
+        {localPlaylistSnapshot}
+        {localPlaylistDispatch}
+        {thumbsUpDispatch}
+        {videoMovieDetailSnapshot}
+        buildOptions={routeBuildOptions}
+      />
+    {/if}
   {:else if isChorus2BrowserRoute}
     <BrowserFilesPage
       {route}
@@ -341,17 +391,24 @@
       buildOptions={routeBuildOptions}
     />
   {:else if isChorus2PlaylistRoute}
-    <PlaylistsPage
-      snapshot={mediaPlaylistsSnapshot}
-      dispatch={mediaPlaylistsDispatch}
-      actionDispatch={mediaPlaylistsActionDispatch}
-      {localPlaylistSnapshot}
-      {localPlaylistDispatch}
-      {localPlaylistActions}
-      {route}
-      {i18n}
-      buildOptions={routeBuildOptions}
-    />
+    {#if route.kind === 'currentPlaylist'}
+      <section class="classic-current-playlist-page" aria-labelledby="current-playlist-title">
+        <h2 id="current-playlist-title">Current playlist</h2>
+        <QueuePanel snapshot={queueSnapshot} dispatch={queueDispatch} {i18n} />
+      </section>
+    {:else}
+      <PlaylistsPage
+        snapshot={mediaPlaylistsSnapshot}
+        dispatch={mediaPlaylistsDispatch}
+        actionDispatch={mediaPlaylistsActionDispatch}
+        {localPlaylistSnapshot}
+        {localPlaylistDispatch}
+        {localPlaylistActions}
+        {route}
+        {i18n}
+        buildOptions={routeBuildOptions}
+      />
+    {/if}
   {:else if isChorus2AddonsRoute}
     <AddonsPage
       route={addonsDisplayRoute}
@@ -381,6 +438,19 @@
       actionDispatch={mediaSearchActionDispatch}
       {i18n}
     />
+  {:else if isChorus2LabRoute}
+    {#if route.kind === 'lab'}
+      <LabLandingPage buildOptions={routeBuildOptions} />
+    {:else if route.kind === 'labApiBrowser' || route.kind === 'labApiBrowserMethod'}
+      <LabApiBrowserPage
+        {i18n}
+        initialMethod={route.kind === 'labApiBrowserMethod' ? route.method : ''}
+      />
+    {:else if route.kind === 'labScreenshot'}
+      <LabScreenshotPage dispatch={remoteInputDispatch} buildOptions={routeBuildOptions} />
+    {:else if route.kind === 'labIconBrowser'}
+      <LabIconBrowserPage />
+    {/if}
   {:else if isChorus2PvrRoute}
     <PvrPage
       {route}

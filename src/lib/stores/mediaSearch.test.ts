@@ -133,6 +133,30 @@ function enqueueMusicResults(client: FakeKodiClient): void {
   });
 }
 
+function enqueueVideoResults(client: FakeKodiClient): void {
+  client.enqueue('VideoLibrary.GetMovies', {
+    movies: [{ movieid: 21, label: 'Aeon Flux', title: 'Aeon Flux', year: 2005 }],
+    limits: { start: 0, end: 25, total: 1 }
+  });
+  client.enqueue('VideoLibrary.GetTVShows', {
+    tvshows: [{ tvshowid: 31, label: 'Aerial TV', title: 'Aerial TV', year: 2026 }],
+    limits: { start: 0, end: 25, total: 1 }
+  });
+  client.enqueue('VideoLibrary.GetMusicVideos', {
+    musicvideos: [
+      {
+        musicvideoid: 41,
+        label: 'Ae Live',
+        title: 'Ae Live',
+        artist: ['Autechre'],
+        album: 'AE_LIVE',
+        year: 2015
+      }
+    ],
+    limits: { start: 0, end: 25, total: 1 }
+  });
+}
+
 function expectSecretSafe(value: unknown): void {
   const serialized = JSON.stringify(value);
 
@@ -161,19 +185,28 @@ describe('media search store', () => {
         artists: [],
         albums: [],
         songs: [],
-        genres: []
+        genres: [],
+        movies: [],
+        tvShows: [],
+        musicVideos: []
       },
       limits: {
         artists: { start: 0, end: 0, total: 0 },
         albums: { start: 0, end: 0, total: 0 },
         songs: { start: 0, end: 0, total: 0 },
-        genres: { start: 0, end: 0, total: 0 }
+        genres: { start: 0, end: 0, total: 0 },
+        movies: { start: 0, end: 0, total: 0 },
+        tvShows: { start: 0, end: 0, total: 0 },
+        musicVideos: { start: 0, end: 0, total: 0 }
       },
       resultCounts: {
         artists: 0,
         albums: 0,
         songs: 0,
         genres: 0,
+        movies: 0,
+        tvShows: 0,
+        musicVideos: 0,
         total: 0
       },
       isEmpty: true,
@@ -323,6 +356,51 @@ describe('media search store', () => {
       lastError: null
     });
     expectSecretSafe(store.snapshot);
+  });
+
+  it('searches all media with Chorus2-style video result groups', async () => {
+    const { client, store } = createHarness();
+    enqueueMusicResults(client);
+    enqueueVideoResults(client);
+
+    await store.search({ scope: 'all', text: 'ae' });
+
+    expect(client.calls.map((call) => call.method)).toEqual([
+      'AudioLibrary.GetArtists',
+      'AudioLibrary.GetAlbums',
+      'AudioLibrary.GetSongs',
+      'AudioLibrary.GetGenres',
+      'VideoLibrary.GetMovies',
+      'VideoLibrary.GetTVShows',
+      'VideoLibrary.GetMusicVideos'
+    ]);
+    expect(store.snapshot).toMatchObject({
+      searchStatus: 'ready',
+      scope: 'all',
+      query: 'ae',
+      results: {
+        movies: [{ kind: 'movie', movieid: 21, label: 'Aeon Flux', title: 'Aeon Flux' }],
+        tvShows: [{ kind: 'tvshow', tvshowid: 31, label: 'Aerial TV', title: 'Aerial TV' }],
+        musicVideos: [{ kind: 'musicvideo', musicvideoid: 41, label: 'Ae Live', title: 'Ae Live' }]
+      },
+      limits: {
+        movies: { start: 0, end: 25, total: 1 },
+        tvShows: { start: 0, end: 25, total: 1 },
+        musicVideos: { start: 0, end: 25, total: 1 }
+      },
+      resultCounts: {
+        artists: 1,
+        albums: 1,
+        songs: 1,
+        genres: 1,
+        movies: 1,
+        tvShows: 1,
+        musicVideos: 1,
+        total: 7
+      },
+      isEmpty: false,
+      lastError: null
+    });
   });
 
   it('normalizes malformed responses to safe empty result groups', async () => {

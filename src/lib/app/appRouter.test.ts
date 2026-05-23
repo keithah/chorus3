@@ -84,6 +84,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/addons/executable', { kind: 'addonsExecutable' }],
   ['/addons/plugin.video.safe-demo', { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }],
   ['/addon/execute/plugin.video.demo', { kind: 'addonExecute', addonid: 'plugin.video.demo' }],
+  ['/playlist', { kind: 'currentPlaylist' }],
   ['/playlists', { kind: 'playlists' }],
   ['/playlist/local', { kind: 'playlistDetail', playlistid: 'local' }],
   ['/settings', { kind: 'settingsWeb' }],
@@ -102,6 +103,11 @@ const PRIMARY_ROUTE_CASES = [
   ['/search', { kind: 'search' }],
   ['/search/music/query', { kind: 'searchMedia', media: 'music', query: 'query' }],
   ['/search/all/blue%20scholars', { kind: 'searchMedia', media: 'all', query: 'blue scholars' }],
+  ['/lab', { kind: 'lab' }],
+  ['/lab/api-browser', { kind: 'labApiBrowser' }],
+  ['/lab/api-browser/JSONRPC.Ping', { kind: 'labApiBrowserMethod', method: 'JSONRPC.Ping' }],
+  ['/lab/screenshot', { kind: 'labScreenshot' }],
+  ['/lab/icon-browser', { kind: 'labIconBrowser' }],
   ['/thumbsup', { kind: 'thumbsup' }],
   ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
@@ -354,8 +360,8 @@ describe('parseAppRoute', () => {
       pathLabel: '/lab/shortcuts'
     });
     expect(parseAppRoute('/lab/api-browser')).toEqual({
-      kind: 'labUnknown',
-      pathLabel: '/lab/api-browser'
+      kind: 'primary',
+      route: { kind: 'labApiBrowser' }
     });
     expect(parseAppRoute('/now-playing')).toEqual({ kind: 'nowPlaying' });
     expect(parseAppRoute('/now-playing', '?theme=light&username=admin')).toEqual({
@@ -464,18 +470,18 @@ describe('parseAppRoute', () => {
       route: { kind: 'pvrTv' }
     });
 
-    expect(parseAppRoute('/lab')).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
+    expect(parseAppRoute('/lab')).toEqual({ kind: 'primary', route: { kind: 'lab' } });
     expect(parseAppRoute('/lab/screenshot')).toEqual({
-      kind: 'labUnknown',
-      pathLabel: '/lab/screenshot'
+      kind: 'primary',
+      route: { kind: 'labScreenshot' }
     });
     expect(parseAppRoute('/lab/icon-browser')).toEqual({
-      kind: 'labUnknown',
-      pathLabel: '/lab/icon-browser'
+      kind: 'primary',
+      route: { kind: 'labIconBrowser' }
     });
     expect(parseAppRoute('/lab/api-browser/JSONRPC.Ping')).toEqual({
-      kind: 'labUnknown',
-      pathLabel: '/lab/api-browser/JSONRPC.Ping'
+      kind: 'primary',
+      route: { kind: 'labApiBrowserMethod', method: 'JSONRPC.Ping' }
     });
   });
 
@@ -496,8 +502,8 @@ describe('parseAppRoute', () => {
     );
 
     expect(mountedLabScreenshot).toEqual({
-      kind: 'labUnknown',
-      pathLabel: '/lab/screenshot'
+      kind: 'primary',
+      route: { kind: 'labScreenshot' }
     });
     expect(
       buildAppRoute(mountedLabScreenshot, { packageBasePath: KODI_WEBINTERFACE_BASE_PATH })
@@ -710,12 +716,12 @@ describe('parseAppRoute', () => {
       parseAppRoute('/addons/webinterface.chorus3/lab/index.html', '', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'labUnknown', pathLabel: '/lab/[redacted]' });
+    ).toEqual({ kind: 'primary', route: { kind: 'lab' } });
     expect(
       parseAppRoute('/addons/webinterface.chorus3/lab/api-browser/index.html', '', {
         packageBasePath: KODI_WEBINTERFACE_BASE_PATH
       })
-    ).toEqual({ kind: 'labUnknown', pathLabel: '/lab/api-browser' });
+    ).toEqual({ kind: 'primary', route: { kind: 'labApiBrowser' } });
   });
 
   test('normalizes malformed package-mounted inputs without leaking unsafe labels', () => {

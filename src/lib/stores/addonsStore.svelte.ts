@@ -266,6 +266,12 @@ export class AddonsStore {
     return cloneSnapshot(this.#snapshot);
   }
 
+  reset(): void {
+    this.#listRequestId += 1;
+    this.#detailRequestId += 1;
+    this.#snapshot = cloneSnapshot(DEFAULT_SNAPSHOT);
+  }
+
   getAddonEntities(type: AddonEntityFilter = 'all'): AddonSnapshot[] {
     return this.#snapshot.addons
       .filter((addon) => addonMatchesEntityType(addon, type))

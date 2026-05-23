@@ -14,6 +14,7 @@ export type AppPageSurfaceKind =
   | 'help'
   | 'remote'
   | 'search'
+  | 'lab'
   | 'pvr';
 
 export interface AppPageMetadata {
@@ -65,6 +66,7 @@ const APP_PAGE_METADATA_BY_KIND = {
   addonsExecutable: staticSurface('addons', 'Executable add-ons', 'Add-on catalog', 'Static route'),
   addonDetail: staticSurface('addons', 'Add-on details', 'Add-on catalog', 'Detail surface'),
   addonExecute: implemented('addons', 'Execute add-on', 'Add-on catalog', 'Action route'),
+  currentPlaylist: implemented('playlists', 'Current playlist', 'Playlist library', 'Kodi queue'),
   playlists: implemented('playlists', 'Playlists', 'Playlist library', 'Local playlists'),
   playlistDetail: implemented(
     'playlists',
@@ -89,6 +91,11 @@ const APP_PAGE_METADATA_BY_KIND = {
   remote: staticSurface('remote', 'Remote', 'Remote control', 'Static route'),
   search: implemented('search', 'Search', 'Search', 'Search surface'),
   searchMedia: implemented('search', 'Media search', 'Search', 'Search results'),
+  lab: implemented('lab', 'Lab', 'Lab', 'Developer tools'),
+  labApiBrowser: implemented('lab', 'API browser', 'Lab', 'JSON-RPC browser'),
+  labApiBrowserMethod: implemented('lab', 'API browser method', 'Lab', 'JSON-RPC method'),
+  labScreenshot: implemented('lab', 'Screenshot', 'Lab', 'Kodi screenshot tool'),
+  labIconBrowser: implemented('lab', 'Icon browser', 'Lab', 'Icon catalog'),
   thumbsup: implemented('playlists', 'Thumbs up', 'Playlist library', 'Local thumbs-up surface'),
   pvrTv: implemented('pvr', 'PVR TV', 'PVR', 'PVR TV channel list'),
   pvrTvChannel: implemented('pvr', 'PVR TV channel', 'PVR', 'PVR TV channel detail'),

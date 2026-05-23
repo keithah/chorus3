@@ -31,6 +31,8 @@ const VIDEO_ADDON: AddonSnapshot = {
   enabled: false,
   installed: true,
   type: 'xbmc.addon.video',
+  provides: ['video'],
+  providesDefault: 'video',
   broken: null,
   dependencyCount: 0,
   extrainfoCount: 0
@@ -42,6 +44,8 @@ const AUDIO_ADDON: AddonSnapshot = {
   name: 'Safe Radio',
   summary: 'Safe audio fixture.',
   type: 'XBMC.ADDON.AUDIO',
+  provides: ['audio'],
+  providesDefault: 'audio',
   enabled: true
 };
 
@@ -51,6 +55,18 @@ const EXECUTABLE_ADDON: AddonSnapshot = {
   name: 'Safe Runner',
   summary: 'Safe executable fixture.',
   type: 'xbmc.addon.executable',
+  provides: ['executable'],
+  providesDefault: 'executable',
+  enabled: true
+};
+
+const SYSTEM_AUDIO_ENCODER: AddonSnapshot = {
+  ...VIDEO_ADDON,
+  addonid: 'audioencoder.safe-aac',
+  name: 'Safe AAC Encoder',
+  summary: 'System encoder, not a browsable Chorus2 add-on.',
+  type: 'xbmc.addon.audioencoder',
+  provides: [],
   enabled: true
 };
 
@@ -178,6 +194,21 @@ describe('AddonsPage', () => {
       if (!expectedNames.includes(name)) expect(text()).not.toContain(name);
     }
     expect(dispatch.setSearchQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not include enabled system add-ons that only match by broad type text', () => {
+    renderPage(
+      { kind: 'addonsAll' },
+      {
+        snapshot: createSnapshot({
+          addons: [AUDIO_ADDON, SYSTEM_AUDIO_ENCODER],
+          visibleAddons: [AUDIO_ADDON, SYSTEM_AUDIO_ENCODER]
+        })
+      }
+    );
+
+    expect(text()).toContain('Safe Radio');
+    expect(text()).not.toContain('Safe AAC Encoder');
   });
 
   it('builds package-mounted detail links without escaping the Kodi webinterface base', () => {

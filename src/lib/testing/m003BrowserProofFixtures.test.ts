@@ -48,7 +48,7 @@ describe('M003 browser proof fixtures', () => {
     expect(props.musicLibrarySnapshot?.genres).toHaveLength(1);
     expect(props.musicBrowseSnapshot?.albums).toHaveLength(1);
     expect(props.musicBrowseSnapshot?.songs).toHaveLength(1);
-    expect(props.mediaSearchSnapshot?.resultCounts.total).toBe(4);
+    expect(props.mediaSearchSnapshot?.resultCounts.total).toBe(7);
     expect(props.mediaFilesSnapshot?.sources).toHaveLength(1);
     expect(props.mediaFilesSnapshot?.entries).toHaveLength(3);
     expect(props.mediaPlaylistsSnapshot?.playlists).toHaveLength(2);

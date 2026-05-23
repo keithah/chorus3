@@ -556,4 +556,128 @@ describe('LibraryPage', () => {
     expect(target!.textContent).not.toContain('Archive');
     expect(target!.textContent).toContain('2024');
   });
+
+  it('initializes classic filters from hash query params and writes filter changes back to the hash URL', async () => {
+    window.history.replaceState({}, '', '/#movies?year=2026');
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'movies' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: {
+          ...emptyVideoSnapshot(),
+          isEmpty: false,
+          movies: [
+            { movieid: 1, label: 'Future Movie', title: 'Future Movie', year: 2026 },
+            { movieid: 2, label: 'Past Movie', title: 'Past Movie', year: 1987 }
+          ]
+        } as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash' }
+      }
+    });
+    await settle();
+
+    expect(target!.textContent).toContain('Future Movie');
+    expect(target!.textContent).not.toContain('Past Movie');
+    expect(target!.textContent).toContain('2026');
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Filters'))
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.filters-page button'))
+      .find((button) => button.textContent?.trim() === 'year')
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === '1987')
+      ?.click();
+    await settle();
+
+    expect(window.location.hash).toBe('#movies?year=2026&year=1987');
+    expect(target!.textContent).toContain('Future Movie');
+    expect(target!.textContent).toContain('Past Movie');
+  });
+
+  it('exposes Chorus2 movie and TV filter sections exactly', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'movies' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    const movieFilters = Array.from(
+      target!.querySelectorAll<HTMLButtonElement>('.filters-page button')
+    )
+      .map((button) => button.textContent?.replace(/\s+/g, ' ').trim())
+      .filter((text) => text && text !== '‹ Sections');
+
+    expect(movieFilters).toEqual([
+      'year',
+      'genre',
+      'writer',
+      'director',
+      'actor',
+      'set',
+      'unwatched',
+      'watched',
+      'in progress',
+      'rated',
+      'studio',
+      'Thumbs up',
+      'tag'
+    ]);
+
+    unmount(mounted!);
+    mounted = null;
+    document.body.innerHTML = '<div id="target"></div>';
+
+    mounted = mount(LibraryPage, {
+      target: document.getElementById('target') as HTMLElement,
+      props: {
+        route: { kind: 'tvshows' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    const tvFilters = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.filters-page button')
+    )
+      .map((button) => button.textContent?.replace(/\s+/g, ' ').trim())
+      .filter((text) => text && text !== '‹ Sections');
+
+    expect(tvFilters).toEqual([
+      'year',
+      'genre',
+      'unwatched',
+      'in progress',
+      'actor',
+      'rated',
+      'studio',
+      'Thumbs up',
+      'tag'
+    ]);
+  });
 });

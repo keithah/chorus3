@@ -10,7 +10,8 @@
     getAudioLibrarySongs,
     getVideoLibraryEpisodeDetails,
     getVideoLibraryMovieDetails,
-    getVideoLibraryMusicVideoDetails
+    getVideoLibraryMusicVideoDetails,
+    refreshVideoLibraryMovie
   } from '$lib/kodi';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
@@ -199,12 +200,14 @@
   let loadingMusicVideoDetailIds = $state<Record<number, true>>({});
   let actionStatus = $state('');
   let pendingDownloadKey = $state<string | null>(null);
+  let pendingMovieMoreActionKey = $state<string | null>(null);
   let pendingLocalPlaylistKey = $state<string | null>(null);
   let openMovieMoreId = $state<number | null>(null);
   let filterRevision = $state(0);
   let filterPane: 'normal' | 'filters' | 'options' = $state('normal');
   let selectedFilterKey = $state<string | null>(null);
   let optionSearch = $state('');
+  let initializedFilterPath = $state('');
 
   const family = $derived(routeFamily(route));
   const navItems = $derived(sectionNav(route));
@@ -248,6 +251,7 @@
 
   $effect(() => {
     ensureFilterAvailable();
+    initializeFiltersFromCurrentUrl();
     if (!availableFilters.filter.includes(selectedFilterKey ?? '')) {
       selectedFilterKey = null;
       filterPane = filterPane === 'options' ? 'normal' : filterPane;
@@ -376,12 +380,12 @@
 
   function availableFiltersForRoute(value: PrimaryRoute): LibraryAvailableFilters {
     if (value.kind === 'musicArtists') {
-      return { sort: ['label', 'random'], filter: ['genre', 'thumbsUp'] };
+      return { sort: ['label', 'random'], filter: ['mood', 'genre', 'style', 'thumbsUp'] };
     }
     if (value.kind === 'musicAlbums' || value.kind === 'music' || value.kind === 'home') {
       return {
-        sort: ['title', 'artist', 'year', 'dateadded', 'random'],
-        filter: ['artist', 'genre', 'year', 'albumlabel', 'thumbsUp']
+        sort: ['label', 'year', 'rating', 'artist', 'dateadded', 'random'],
+        filter: ['year', 'genre', 'style', 'albumlabel', 'thumbsUp']
       };
     }
     if (
@@ -396,8 +400,8 @@
     }
     if (value.kind === 'musicVideos' || value.kind === 'musicVideoDetail') {
       return {
-        sort: ['title', 'artist', 'album', 'year', 'dateadded', 'random'],
-        filter: ['artist', 'album', 'genre', 'year', 'director', 'studio', 'tag', 'thumbsUp']
+        sort: ['label', 'year', 'artist', 'album'],
+        filter: ['studio', 'director', 'artist', 'album', 'year']
       };
     }
     if (value.kind === 'movies' || value.kind === 'moviesRecent' || value.kind === 'movieDetail') {
@@ -406,15 +410,17 @@
         filter: [
           'year',
           'genre',
-          'watched',
-          'unwatched',
-          'inprogress',
+          'writer',
           'director',
-          'tag',
           'cast',
+          'set',
+          'unwatched',
+          'watched',
+          'inprogress',
           'mpaa',
           'studio',
-          'thumbsUp'
+          'thumbsUp',
+          'tag'
         ]
       };
     }
@@ -424,15 +430,13 @@
         filter: [
           'year',
           'genre',
-          'watched',
           'unwatched',
           'inprogress',
-          'director',
-          'writer',
-          'tag',
           'cast',
+          'mpaa',
           'studio',
-          'thumbsUp'
+          'thumbsUp',
+          'tag'
         ]
       };
     }
@@ -442,6 +446,18 @@
 
   function ensureFilterAvailable(): void {
     libraryFilterStore.setAvailable(filterPath, availableFilters);
+  }
+
+  function initializeFiltersFromCurrentUrl(): void {
+    if (initializedFilterPath === filterPath) return;
+    initializedFilterPath = filterPath;
+    const params = currentFilterSearchParams();
+    if ([...params.keys()].length > 0) {
+      libraryFilterStore.initFromParams(filterPath, availableFilters, params);
+    } else {
+      libraryFilterStore.setStoreFilters(filterPath, {});
+    }
+    filterRevision += 1;
   }
 
   function contentSections(
@@ -912,6 +928,59 @@
     await downloadCard(movieDetailCard(movie));
   }
 
+  async function refreshMovieDetail(movie: MovieDetailSource): Promise<void> {
+    const movieid = movie.movieid;
+    if (!Number.isSafeInteger(movieid) || movieid <= 0) return;
+
+    openMovieMoreId = null;
+    pendingMovieMoreActionKey = `refresh:${movieid}`;
+    actionStatus = `Refreshing ${safe(movie.title ?? movie.label, 'movie')}...`;
+
+    try {
+      const client = createActiveKodiJsonRpcHttpClient();
+      if (!client) {
+        throw new Error('Choose an active Kodi host before refreshing media.');
+      }
+
+      await refreshVideoLibraryMovie(client, { movieid });
+      actionStatus = `Refresh requested for ${safe(movie.title ?? movie.label, 'movie')}.`;
+    } catch (error) {
+      actionStatus = `Could not refresh ${safe(movie.title ?? movie.label, 'movie')}. ${safeErrorMessage(error)}`;
+    } finally {
+      pendingMovieMoreActionKey = null;
+    }
+  }
+
+  async function editMovieTitle(movie: MovieDetailSource): Promise<void> {
+    const movieid = movie.movieid;
+    if (!Number.isSafeInteger(movieid) || movieid <= 0 || typeof window === 'undefined') return;
+
+    const currentTitle = safe(movie.title ?? movie.label, 'Movie');
+    const nextTitle = window.prompt('Edit movie title', currentTitle)?.trim();
+    if (!nextTitle || nextTitle === currentTitle) {
+      openMovieMoreId = null;
+      return;
+    }
+
+    openMovieMoreId = null;
+    pendingMovieMoreActionKey = `edit:${movieid}`;
+    actionStatus = `Saving ${currentTitle}...`;
+
+    try {
+      const client = createActiveKodiJsonRpcHttpClient();
+      if (!client) {
+        throw new Error('Choose an active Kodi host before editing media.');
+      }
+
+      await client.call('VideoLibrary.SetMovieDetails', { movieid, title: nextTitle });
+      actionStatus = `Saved title for ${nextTitle}.`;
+    } catch (error) {
+      actionStatus = `Could not save ${currentTitle}. ${safeErrorMessage(error)}`;
+    } finally {
+      pendingMovieMoreActionKey = null;
+    }
+  }
+
   function movieRating(item: MovieDetailSource | null): number | undefined {
     if (!item) {
       return undefined;
@@ -1107,6 +1176,7 @@
   function selectSort(method: string, order: 'asc' | 'desc'): void {
     libraryFilterStore.setStoreSort(filterPath, method, order);
     filterRevision += 1;
+    syncFilterUrl();
   }
 
   function openFilterPane(): void {
@@ -1125,6 +1195,7 @@
     if (filter.type === 'boolean') {
       libraryFilterStore.toggleStoreFiltersKey(filterPath, filter.key, filter.alias);
       filterRevision += 1;
+      syncFilterUrl();
       return;
     }
 
@@ -1142,17 +1213,20 @@
   function toggleFilterOption(option: LibraryFilterOption): void {
     libraryFilterStore.toggleStoreFiltersKey(filterPath, option.key, option.value);
     filterRevision += 1;
+    syncFilterUrl();
   }
 
   function removeFilter(key: string): void {
     libraryFilterStore.updateStoreFiltersKey(filterPath, key, []);
     filterRevision += 1;
+    syncFilterUrl();
   }
 
   function deselectCurrentFilterOptions(): void {
     if (!selectedFilterKey) return;
     libraryFilterStore.updateStoreFiltersKey(filterPath, selectedFilterKey, []);
     filterRevision += 1;
+    syncFilterUrl();
   }
 
   function removeAllFilters(): void {
@@ -1161,6 +1235,32 @@
     selectedFilterKey = null;
     optionSearch = '';
     filterRevision += 1;
+    syncFilterUrl();
+  }
+
+  function currentFilterSearchParams(): URLSearchParams {
+    if (typeof window === 'undefined') return new URLSearchParams();
+    const hash = window.location.hash;
+    if (hash.includes('?')) {
+      return new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    }
+    return new URLSearchParams(window.location.search);
+  }
+
+  function syncFilterUrl(): void {
+    if (typeof window === 'undefined') return;
+    const filters = libraryFilterStore.getStoreFilters(filterPath);
+    const params = new URLSearchParams();
+    for (const key of availableFilters.filter) {
+      for (const value of filters[key] ?? []) {
+        params.append(key, String(value));
+      }
+    }
+
+    const query = params.toString();
+    const routeHref = hrefFor(route);
+    const baseHref = routeHref.split('?', 1)[0] ?? routeHref;
+    window.history.replaceState?.({}, '', query ? `${baseHref}?${query}` : baseHref);
   }
 
   function tvShowCards(
@@ -2008,8 +2108,18 @@
                         >
                           YouTube Search
                         </a>
-                        <button type="button" role="menuitem" disabled>Refresh</button>
-                        <button type="button" role="menuitem" disabled>Edit</button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={pendingMovieMoreActionKey === `refresh:${movie.movieid}`}
+                          onclick={() => void refreshMovieDetail(movie)}>Refresh</button
+                        >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={pendingMovieMoreActionKey === `edit:${movie.movieid}`}
+                          onclick={() => void editMovieTitle(movie)}>Edit</button
+                        >
                       </div>
                     {/if}
                   </div>

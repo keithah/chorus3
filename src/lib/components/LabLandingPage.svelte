@@ -1,27 +1,35 @@
 <script lang="ts">
+  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+
   interface LabItem {
     title: string;
     description: string;
     href: string;
   }
 
-  const items: readonly LabItem[] = [
+  interface Props {
+    buildOptions?: BuildAppRouteOptions;
+  }
+
+  let { buildOptions = {} }: Props = $props();
+
+  const items = $derived<readonly LabItem[]>([
     {
       title: 'API browser',
       description: 'Execute any API command.',
-      href: '/'
+      href: buildPrimaryAppRoute({ kind: 'labApiBrowser' }, buildOptions)
     },
     {
       title: 'Screenshot',
       description: 'Take a screenshot of Kodi right now.',
-      href: '/'
+      href: buildPrimaryAppRoute({ kind: 'labScreenshot' }, buildOptions)
     },
     {
       title: 'Icon browser',
       description: 'View all the icons available to Chorus.',
-      href: '/'
+      href: buildPrimaryAppRoute({ kind: 'labIconBrowser' }, buildOptions)
     }
-  ];
+  ]);
 </script>
 
 <section class="classic-lab-landing" aria-labelledby="lab-landing-title">

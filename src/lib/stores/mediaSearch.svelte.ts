@@ -3,11 +3,17 @@ import {
   getAudioLibraryArtists,
   getAudioLibraryGenres,
   getAudioLibrarySongs,
+  getVideoLibraryMovies,
+  getVideoLibraryMusicVideos,
+  getVideoLibraryTvShows,
   type AudioLibraryAlbumPropertyName,
   type AudioLibraryArtistPropertyName,
   type AudioLibraryGenrePropertyName,
   type AudioLibrarySongPropertyName,
-  type KodiJsonRpcHttpClient
+  type KodiJsonRpcHttpClient,
+  type VideoLibraryMoviePropertyName,
+  type VideoLibraryMusicVideoPropertyName,
+  type VideoLibraryTvShowPropertyName
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 import {
@@ -32,9 +38,22 @@ import {
   type MusicLibrarySafeErrorSnapshot,
   type MusicLibrarySongSnapshot
 } from './musicLibraryNormalization';
+import {
+  cloneVideoLibraryMovieSnapshots,
+  cloneVideoMusicVideoSnapshots,
+  cloneVideoTvShowSnapshots,
+  normalizeVideoLibraryLimits,
+  normalizeVideoMovies,
+  normalizeVideoMusicVideos,
+  normalizeVideoTvShows,
+  type VideoLibraryLimitsSnapshot,
+  type VideoLibraryMovieSnapshot,
+  type VideoMusicVideoSnapshot,
+  type VideoTvShowSnapshot
+} from './videoLibraryNormalization';
 
 export type MediaSearchStatus = MusicLibraryRefreshStatus;
-export type MediaSearchScope = 'music';
+export type MediaSearchScope = 'all' | 'music' | 'video';
 
 export interface MediaSearchQuery {
   scope?: MediaSearchScope;
@@ -45,17 +64,26 @@ export type MediaSearchArtistResult = MusicLibraryArtistSnapshot & { kind: 'arti
 export type MediaSearchAlbumResult = MusicLibraryAlbumSnapshot & { kind: 'album' };
 export type MediaSearchSongResult = MusicLibrarySongSnapshot & { kind: 'song' };
 export type MediaSearchGenreResult = MusicLibraryGenreSnapshot & { kind: 'genre' };
+export type MediaSearchMovieResult = VideoLibraryMovieSnapshot & { kind: 'movie' };
+export type MediaSearchTvShowResult = VideoTvShowSnapshot & { kind: 'tvshow' };
+export type MediaSearchMusicVideoResult = VideoMusicVideoSnapshot & { kind: 'musicvideo' };
 export type MediaSearchResult =
   | MediaSearchArtistResult
   | MediaSearchAlbumResult
   | MediaSearchSongResult
-  | MediaSearchGenreResult;
+  | MediaSearchGenreResult
+  | MediaSearchMovieResult
+  | MediaSearchTvShowResult
+  | MediaSearchMusicVideoResult;
 
 export interface MediaSearchResultGroups {
   artists: MediaSearchArtistResult[];
   albums: MediaSearchAlbumResult[];
   songs: MediaSearchSongResult[];
   genres: MediaSearchGenreResult[];
+  movies: MediaSearchMovieResult[];
+  tvShows: MediaSearchTvShowResult[];
+  musicVideos: MediaSearchMusicVideoResult[];
 }
 
 export interface MediaSearchResultCounts {
@@ -63,6 +91,9 @@ export interface MediaSearchResultCounts {
   albums: number;
   songs: number;
   genres: number;
+  movies: number;
+  tvShows: number;
+  musicVideos: number;
   total: number;
 }
 
@@ -77,6 +108,9 @@ export interface MediaSearchStoreSnapshot {
     albums: MusicLibraryLimitsSnapshot;
     songs: MusicLibraryLimitsSnapshot;
     genres: MusicLibraryLimitsSnapshot;
+    movies: VideoLibraryLimitsSnapshot;
+    tvShows: VideoLibraryLimitsSnapshot;
+    musicVideos: VideoLibraryLimitsSnapshot;
   };
   resultCounts: MediaSearchResultCounts;
   isEmpty: boolean;
@@ -120,12 +154,26 @@ const DEFAULT_GENRE_PROPERTIES = [
   'title',
   'thumbnail'
 ] as const satisfies readonly AudioLibraryGenrePropertyName[];
+const DEFAULT_VIDEO_PROPERTIES = ['title', 'thumbnail', 'year'] as const satisfies readonly (
+  | VideoLibraryMoviePropertyName
+  | VideoLibraryTvShowPropertyName
+)[];
+const DEFAULT_MUSIC_VIDEO_PROPERTIES = [
+  'title',
+  'artist',
+  'album',
+  'thumbnail',
+  'year'
+] as const satisfies readonly VideoLibraryMusicVideoPropertyName[];
 
 const EMPTY_RESULT_GROUPS: MediaSearchResultGroups = {
   artists: [],
   albums: [],
   songs: [],
-  genres: []
+  genres: [],
+  movies: [],
+  tvShows: [],
+  musicVideos: []
 };
 
 const EMPTY_RESULT_COUNTS: MediaSearchResultCounts = {
@@ -133,6 +181,9 @@ const EMPTY_RESULT_COUNTS: MediaSearchResultCounts = {
   albums: 0,
   songs: 0,
   genres: 0,
+  movies: 0,
+  tvShows: 0,
+  musicVideos: 0,
   total: 0
 };
 
@@ -146,7 +197,10 @@ const DEFAULT_SNAPSHOT: MediaSearchStoreSnapshot = {
     artists: EMPTY_LIMITS,
     albums: EMPTY_LIMITS,
     songs: EMPTY_LIMITS,
-    genres: EMPTY_LIMITS
+    genres: EMPTY_LIMITS,
+    movies: EMPTY_LIMITS,
+    tvShows: EMPTY_LIMITS,
+    musicVideos: EMPTY_LIMITS
   },
   resultCounts: EMPTY_RESULT_COUNTS,
   isEmpty: true,
@@ -191,30 +245,72 @@ export class MediaSearchStore {
 
     try {
       const client = this.#resolveClient();
-      const [artistsResult, albumsResult, songsResult, genresResult] = await Promise.all([
-        getAudioLibraryArtists(client, {
-          properties: DEFAULT_ARTIST_PROPERTIES,
-          limits: SEARCH_LIMIT,
-          filter: containsFilter('artist', normalizedQuery.text),
-          sort: LABEL_SORT
-        }),
-        getAudioLibraryAlbums(client, {
-          properties: DEFAULT_ALBUM_PROPERTIES,
-          limits: SEARCH_LIMIT,
-          filter: containsFilter('album', normalizedQuery.text),
-          sort: LABEL_SORT
-        }),
-        getAudioLibrarySongs(client, {
-          properties: DEFAULT_SONG_PROPERTIES,
-          limits: SEARCH_LIMIT,
-          filter: containsFilter('title', normalizedQuery.text),
-          sort: TITLE_SORT
-        }),
-        getAudioLibraryGenres(client, {
-          properties: DEFAULT_GENRE_PROPERTIES,
-          limits: GENRE_SEARCH_LIMIT,
-          sort: TITLE_SORT
-        })
+      const includeMusic = normalizedQuery.scope === 'all' || normalizedQuery.scope === 'music';
+      const includeVideo = normalizedQuery.scope === 'all' || normalizedQuery.scope === 'video';
+      const [
+        artistsResult,
+        albumsResult,
+        songsResult,
+        genresResult,
+        moviesResult,
+        tvShowsResult,
+        musicVideosResult
+      ] = await Promise.all([
+        includeMusic
+          ? getAudioLibraryArtists(client, {
+              properties: DEFAULT_ARTIST_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('artist', normalizedQuery.text),
+              sort: LABEL_SORT
+            })
+          : Promise.resolve({ artists: [], limits: EMPTY_LIMITS }),
+        includeMusic
+          ? getAudioLibraryAlbums(client, {
+              properties: DEFAULT_ALBUM_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('album', normalizedQuery.text),
+              sort: LABEL_SORT
+            })
+          : Promise.resolve({ albums: [], limits: EMPTY_LIMITS }),
+        includeMusic
+          ? getAudioLibrarySongs(client, {
+              properties: DEFAULT_SONG_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('title', normalizedQuery.text),
+              sort: TITLE_SORT
+            })
+          : Promise.resolve({ songs: [], limits: EMPTY_LIMITS }),
+        includeMusic
+          ? getAudioLibraryGenres(client, {
+              properties: DEFAULT_GENRE_PROPERTIES,
+              limits: GENRE_SEARCH_LIMIT,
+              sort: TITLE_SORT
+            })
+          : Promise.resolve({ genres: [], limits: EMPTY_LIMITS }),
+        includeVideo
+          ? getVideoLibraryMovies(client, {
+              properties: DEFAULT_VIDEO_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('title', normalizedQuery.text),
+              sort: TITLE_SORT
+            })
+          : Promise.resolve({ movies: [], limits: EMPTY_LIMITS }),
+        includeVideo
+          ? getVideoLibraryTvShows(client, {
+              properties: DEFAULT_VIDEO_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('title', normalizedQuery.text),
+              sort: TITLE_SORT
+            })
+          : Promise.resolve({ tvshows: [], limits: EMPTY_LIMITS }),
+        includeVideo
+          ? getVideoLibraryMusicVideos(client, {
+              properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
+              limits: SEARCH_LIMIT,
+              filter: containsFilter('title', normalizedQuery.text),
+              sort: TITLE_SORT
+            })
+          : Promise.resolve({ musicvideos: [], limits: EMPTY_LIMITS })
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -230,14 +326,28 @@ export class MediaSearchStore {
         ),
         'genre'
       );
-      const resultCounts = countResults({ artists, albums, songs, genres });
+      const movies = withResultKind(normalizeVideoMovies(moviesResult.movies), 'movie');
+      const tvShows = withResultKind(normalizeVideoTvShows(tvShowsResult.tvshows), 'tvshow');
+      const musicVideos = withResultKind(
+        normalizeVideoMusicVideos(musicVideosResult.musicvideos),
+        'musicvideo'
+      );
+      const resultCounts = countResults({
+        artists,
+        albums,
+        songs,
+        genres,
+        movies,
+        tvShows,
+        musicVideos
+      });
 
       this.#snapshot = {
         searchStatus: 'ready',
         scope: normalizedQuery.scope,
         query: normalizedQuery.text,
         lastUpdatedAt: this.#now(),
-        results: { artists, albums, songs, genres },
+        results: { artists, albums, songs, genres, movies, tvShows, musicVideos },
         limits: {
           artists: normalizeMusicLimits(artistsResult.limits, artists),
           albums: normalizeMusicLimits(albumsResult.limits, albums),
@@ -245,7 +355,10 @@ export class MediaSearchStore {
           genres: normalizeMusicLimits(
             { start: 0, end: genres.length, total: genres.length },
             genres
-          )
+          ),
+          movies: normalizeVideoLibraryLimits(moviesResult.limits, movies),
+          tvShows: normalizeVideoLibraryLimits(tvShowsResult.limits, tvShows),
+          musicVideos: normalizeVideoLibraryLimits(musicVideosResult.limits, musicVideos)
         },
         resultCounts,
         isEmpty: resultCounts.total === 0,
@@ -308,7 +421,7 @@ function normalizeSearchQuery(query: string | MediaSearchQuery): Required<MediaS
   }
 
   return {
-    scope: query.scope ?? 'music',
+    scope: query.scope ?? 'all',
     text: query.text.trim()
   };
 }
@@ -351,13 +464,19 @@ function countResults(results: MediaSearchResultGroups): MediaSearchResultCounts
   const albums = results.albums.length;
   const songs = results.songs.length;
   const genres = results.genres.length;
+  const movies = results.movies.length;
+  const tvShows = results.tvShows.length;
+  const musicVideos = results.musicVideos.length;
 
   return {
     artists,
     albums,
     songs,
     genres,
-    total: artists + albums + songs + genres
+    movies,
+    tvShows,
+    musicVideos,
+    total: artists + albums + songs + genres + movies + tvShows + musicVideos
   };
 }
 
@@ -370,7 +489,10 @@ function cloneMediaSearchSnapshot(snapshot: MediaSearchStoreSnapshot): MediaSear
       artists: cloneMusicLibraryLimits(snapshot.limits.artists),
       albums: cloneMusicLibraryLimits(snapshot.limits.albums),
       songs: cloneMusicLibraryLimits(snapshot.limits.songs),
-      genres: cloneMusicLibraryLimits(snapshot.limits.genres)
+      genres: cloneMusicLibraryLimits(snapshot.limits.genres),
+      movies: normalizeVideoLibraryLimits(snapshot.limits.movies, results.movies),
+      tvShows: normalizeVideoLibraryLimits(snapshot.limits.tvShows, results.tvShows),
+      musicVideos: normalizeVideoLibraryLimits(snapshot.limits.musicVideos, results.musicVideos)
     },
     resultCounts: { ...snapshot.resultCounts },
     isEmpty: snapshot.resultCounts.total === 0,
@@ -395,6 +517,18 @@ function cloneMediaSearchResultGroups(results: MediaSearchResultGroups): MediaSe
     genres: cloneMusicLibraryGenreSnapshots(results.genres).map((genre) => ({
       kind: 'genre',
       ...genre
+    })),
+    movies: cloneVideoLibraryMovieSnapshots(results.movies).map((movie) => ({
+      kind: 'movie',
+      ...movie
+    })),
+    tvShows: cloneVideoTvShowSnapshots(results.tvShows).map((tvShow) => ({
+      kind: 'tvshow',
+      ...tvShow
+    })),
+    musicVideos: cloneVideoMusicVideoSnapshots(results.musicVideos).map((musicVideo) => ({
+      kind: 'musicvideo',
+      ...musicVideo
     }))
   };
 }

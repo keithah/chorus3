@@ -108,15 +108,17 @@
   }
 
   function addonMatchesTypeFilter(addon: AddonSnapshot, filter: AddonsTypeFilter): boolean {
-    const provides = Array.isArray(addon.provides) ? addon.provides : [];
-    if (filter === 'video' && provides.length > 0) return provides.includes('video');
-    if (filter === 'audio' && provides.length > 0) return provides.includes('audio');
-    if (filter === 'executable' && addon.canExecute === true) return true;
+    const provides = Array.isArray(addon.provides)
+      ? addon.provides.map((value) => safeText(value).trim().toLowerCase())
+      : [];
+    if (provides.includes(filter)) return true;
 
     const normalizedType = safeText(addon.type).trim().toLowerCase();
-    if (!normalizedType) return false;
-    if (filter === 'executable') return canExecuteAddon(addon);
-    return normalizedType === `xbmc.addon.${filter}` || normalizedType.includes(`.${filter}`);
+    return (
+      (filter === 'audio' && normalizedType === 'xbmc.addon.audio') ||
+      (filter === 'video' && normalizedType === 'xbmc.addon.video') ||
+      (filter === 'executable' && normalizedType === 'xbmc.addon.executable')
+    );
   }
 
   function canExecuteAddon(addon: AddonSnapshot): boolean {

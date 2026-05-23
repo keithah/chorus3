@@ -26,6 +26,7 @@ export type PrimaryRoute =
   | { kind: 'addonsExecutable' }
   | { kind: 'addonDetail'; addonid: string }
   | { kind: 'addonExecute'; addonid: string }
+  | { kind: 'currentPlaylist' }
   | { kind: 'playlists' }
   | { kind: 'playlistDetail'; playlistid: string }
   | { kind: 'settingsWeb' }
@@ -40,6 +41,11 @@ export type PrimaryRoute =
   | { kind: 'remote' }
   | { kind: 'search' }
   | { kind: 'searchMedia'; media: string; query: string }
+  | { kind: 'lab' }
+  | { kind: 'labApiBrowser' }
+  | { kind: 'labApiBrowserMethod'; method: string }
+  | { kind: 'labScreenshot' }
+  | { kind: 'labIconBrowser' }
   | { kind: 'thumbsup' }
   | { kind: 'pvrTv' }
   | { kind: 'pvrTvChannel'; channelid: string }
@@ -76,6 +82,7 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/addons/video', { kind: 'addonsVideo' }],
   ['/addons/audio', { kind: 'addonsAudio' }],
   ['/addons/executable', { kind: 'addonsExecutable' }],
+  ['/playlist', { kind: 'currentPlaylist' }],
   ['/playlists', { kind: 'playlists' }],
   ['/localPlaylist', { kind: 'playlists' }],
   ['/settings', { kind: 'settingsWeb' }],
@@ -97,6 +104,10 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/help/overview', { kind: 'helpOverview' }],
   ['/remote', { kind: 'remote' }],
   ['/search', { kind: 'search' }],
+  ['/lab', { kind: 'lab' }],
+  ['/lab/api-browser', { kind: 'labApiBrowser' }],
+  ['/lab/screenshot', { kind: 'labScreenshot' }],
+  ['/lab/icon-browser', { kind: 'labIconBrowser' }],
   ['/thumbsup', { kind: 'thumbsup' }],
   ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
@@ -212,6 +223,13 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
     return media && query ? { kind: 'searchMedia', media, query } : null;
   }
 
+  if (segments.length === 3 && segments[0] === 'lab' && segments[1] === 'api-browser') {
+    return withSafeDynamicSegment(segments[2], (method) => ({
+      kind: 'labApiBrowserMethod',
+      method
+    }));
+  }
+
   if (segments.length === 3 && segments[0] === 'pvr' && segments[1] === 'tv') {
     return withSafeDynamicSegment(segments[2], (channelid) => ({
       kind: 'pvrTvChannel',
@@ -304,6 +322,8 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return buildDynamicPath('/addons', route.addonid);
     case 'addonExecute':
       return buildDynamicPath('/addon/execute', route.addonid);
+    case 'currentPlaylist':
+      return '/playlist';
     case 'playlists':
       return '/playlists';
     case 'playlistDetail':
@@ -332,6 +352,16 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return '/search';
     case 'searchMedia':
       return buildSearchPath(route.media, route.query);
+    case 'lab':
+      return '/lab';
+    case 'labApiBrowser':
+      return '/lab/api-browser';
+    case 'labApiBrowserMethod':
+      return buildDynamicPath('/lab/api-browser', route.method);
+    case 'labScreenshot':
+      return '/lab/screenshot';
+    case 'labIconBrowser':
+      return '/lab/icon-browser';
     case 'thumbsup':
       return '/thumbsup';
     case 'pvrTv':

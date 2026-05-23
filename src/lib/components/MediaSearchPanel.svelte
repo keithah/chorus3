@@ -10,7 +10,7 @@
   }
 
   export interface MediaSearchPanelDispatch {
-    search: (request: { query: string }) => Promise<void> | void;
+    search: (request: { query: string; scope?: 'all' | 'music' | 'video' }) => Promise<void> | void;
     clear: () => Promise<void> | void;
   }
 </script>
@@ -22,9 +22,12 @@
     MediaSearchAlbumResult,
     MediaSearchArtistResult,
     MediaSearchGenreResult,
+    MediaSearchMovieResult,
+    MediaSearchMusicVideoResult,
     MediaSearchResult,
     MediaSearchStoreSnapshot,
-    MediaSearchSongResult
+    MediaSearchSongResult,
+    MediaSearchTvShowResult
   } from '$lib/stores/mediaSearch.svelte';
   import type { MusicLibraryLimitsSnapshot } from '$lib/stores/musicLibraryNormalization';
 
@@ -35,7 +38,14 @@
     i18n?: TranslationContext;
   }
 
-  type ResultGroupKey = 'artists' | 'albums' | 'songs' | 'genres';
+  type ResultGroupKey =
+    | 'artists'
+    | 'albums'
+    | 'songs'
+    | 'genres'
+    | 'movies'
+    | 'tvShows'
+    | 'musicVideos';
   type MusicActionVerb = 'play' | 'queue';
   type PendingOperation = 'search' | 'clear' | null;
 
@@ -84,7 +94,7 @@
     pendingOperation = 'search';
 
     try {
-      await dispatch.search({ query });
+      await dispatch.search({ query, scope: 'all' });
       localStatusText = null;
     } catch (error) {
       const message = sanitizeUiText(
@@ -218,6 +228,12 @@
         return i18n.t('media.search.empty.songs');
       case 'genres':
         return i18n.t('media.search.empty.genres');
+      case 'movies':
+        return 'No matching movies.';
+      case 'tvShows':
+        return 'No matching TV shows.';
+      case 'musicVideos':
+        return 'No matching music videos.';
     }
   }
 
@@ -273,6 +289,18 @@
     return displayText(genre.title ?? genre.label, i18n.t('media.unknown.genre'));
   }
 
+  function safeMovieLabel(movie: MediaSearchMovieResult): string {
+    return displayText(movie.title ?? movie.label, 'Unknown movie');
+  }
+
+  function safeTvShowLabel(tvShow: MediaSearchTvShowResult): string {
+    return displayText(tvShow.title ?? tvShow.label, 'Unknown TV show');
+  }
+
+  function safeMusicVideoLabel(musicVideo: MediaSearchMusicVideoResult): string {
+    return displayText(musicVideo.title ?? musicVideo.label, 'Unknown music video');
+  }
+
   function artistMeta(artist: MediaSearchArtistResult): string | null {
     return joinText(artist.genre);
   }
@@ -289,6 +317,20 @@
       formatTrack(song.track),
       formatPlaycount(song.playcount)
     ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function movieMeta(movie: MediaSearchMovieResult): string {
+    return formatYear(movie.year) ?? '';
+  }
+
+  function tvShowMeta(tvShow: MediaSearchTvShowResult): string {
+    return formatYear(tvShow.year) ?? '';
+  }
+
+  function musicVideoMeta(musicVideo: MediaSearchMusicVideoResult): string {
+    return [joinText(musicVideo.artist), musicVideo.album, formatYear(musicVideo.year)]
       .filter(Boolean)
       .join(' · ');
   }
@@ -661,6 +703,75 @@
                       {i18n.t('media.action.queue')}
                     </button>
                   </div>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <section class="result-section" aria-labelledby="media-search-movies-title">
+        <div class="section-heading">
+          <h4 id="media-search-movies-title">Movies</h4>
+          <p>{groupCountSummary('movies')}</p>
+        </div>
+        {#if snapshot.results.movies.length === 0}
+          <p class="empty-copy">{sectionEmptyCopy('movies')}</p>
+        {:else}
+          <ul class="result-list">
+            {#each snapshot.results.movies as movie, index (safeEachKey('movie', movie.movieid, index))}
+              {@const label = safeMovieLabel(movie)}
+              <li class="result-card">
+                <span class="item-kicker">Movie</span>
+                <span class="item-title">{label}</span>
+                {#if movieMeta(movie)}
+                  <span class="item-meta">{movieMeta(movie)}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <section class="result-section" aria-labelledby="media-search-tvshows-title">
+        <div class="section-heading">
+          <h4 id="media-search-tvshows-title">TV Shows</h4>
+          <p>{groupCountSummary('tvShows')}</p>
+        </div>
+        {#if snapshot.results.tvShows.length === 0}
+          <p class="empty-copy">{sectionEmptyCopy('tvShows')}</p>
+        {:else}
+          <ul class="result-list">
+            {#each snapshot.results.tvShows as tvShow, index (safeEachKey('tvshow', tvShow.tvshowid, index))}
+              {@const label = safeTvShowLabel(tvShow)}
+              <li class="result-card">
+                <span class="item-kicker">TV show</span>
+                <span class="item-title">{label}</span>
+                {#if tvShowMeta(tvShow)}
+                  <span class="item-meta">{tvShowMeta(tvShow)}</span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
+      <section class="result-section" aria-labelledby="media-search-musicvideos-title">
+        <div class="section-heading">
+          <h4 id="media-search-musicvideos-title">Music Videos</h4>
+          <p>{groupCountSummary('musicVideos')}</p>
+        </div>
+        {#if snapshot.results.musicVideos.length === 0}
+          <p class="empty-copy">{sectionEmptyCopy('musicVideos')}</p>
+        {:else}
+          <ul class="result-list">
+            {#each snapshot.results.musicVideos as musicVideo, index (safeEachKey('musicvideo', musicVideo.musicvideoid, index))}
+              {@const label = safeMusicVideoLabel(musicVideo)}
+              <li class="result-card">
+                <span class="item-kicker">Music video</span>
+                <span class="item-title">{label}</span>
+                {#if musicVideoMeta(musicVideo)}
+                  <span class="item-meta">{musicVideoMeta(musicVideo)}</span>
                 {/if}
               </li>
             {/each}

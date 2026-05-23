@@ -255,12 +255,22 @@ export class LibraryFilterStore {
     }
 
     for (const key of available.filter) {
-      const value = entries[key];
-      if (typeof value !== 'string' || value.length === 0) continue;
+      const rawValues =
+        params instanceof URLSearchParams
+          ? params.getAll(key)
+          : typeof entries[key] === 'string'
+            ? [entries[key]]
+            : [];
+      const values = rawValues.filter((value) => value.length > 0);
+      if (values.length === 0) continue;
       const settings = getFilterSettings(key, false);
-      this.updateStoreFiltersKey(path, key, [
-        settings?.type === 'number' ? Number.parseInt(value, 10) : decodeURIComponent(value)
-      ]);
+      this.updateStoreFiltersKey(
+        path,
+        key,
+        values.map((value) =>
+          settings?.type === 'number' ? Number.parseInt(value, 10) : decodeURIComponent(value)
+        )
+      );
     }
   }
 
@@ -272,9 +282,13 @@ export class LibraryFilterStore {
   ): LibrarySortField[] | LibraryFilterField[] {
     const available = this.getAvailable(path)[type];
     if (type === 'sort') {
-      return LIBRARY_SORT_FIELDS.filter((field) => available.includes(field.key));
+      return available.flatMap(
+        (key) => LIBRARY_SORT_FIELDS.find((field) => field.key === key) ?? []
+      );
     }
-    return LIBRARY_FILTER_FIELDS.filter((field) => available.includes(field.key));
+    return available.flatMap(
+      (key) => LIBRARY_FILTER_FIELDS.find((field) => field.key === key) ?? []
+    );
   }
 
   getSortableEntities(path: string): LibraryParsedSortField[] {

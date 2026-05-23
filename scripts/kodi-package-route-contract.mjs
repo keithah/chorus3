@@ -49,6 +49,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     stagedIndexPath: 'addons/plugin.video.safe-demo/index.html'
   },
   { name: 'playlists', routePath: '/playlists', stagedIndexPath: 'playlists/index.html' },
+  { name: 'current-playlist', routePath: '/playlist', stagedIndexPath: 'playlist/index.html' },
   {
     name: 'local-playlist',
     routePath: '/localPlaylist',
@@ -143,6 +144,22 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   { name: 'help-license', routePath: '/help/license', stagedIndexPath: 'help/license/index.html' },
   { name: 'search', routePath: '/search', stagedIndexPath: 'search/index.html' },
   { name: 'thumbsup', routePath: '/thumbsup', stagedIndexPath: 'thumbsup/index.html' },
+  { name: 'lab', routePath: '/lab', stagedIndexPath: 'lab/index.html' },
+  {
+    name: 'lab-api-browser',
+    routePath: '/lab/api-browser',
+    stagedIndexPath: 'lab/api-browser/index.html'
+  },
+  {
+    name: 'lab-screenshot',
+    routePath: '/lab/screenshot',
+    stagedIndexPath: 'lab/screenshot/index.html'
+  },
+  {
+    name: 'lab-icon-browser',
+    routePath: '/lab/icon-browser',
+    stagedIndexPath: 'lab/icon-browser/index.html'
+  },
   { name: 'pvr', routePath: '/pvr', stagedIndexPath: 'pvr/index.html' },
   { name: 'pvr-tv', routePath: '/pvr/tv', stagedIndexPath: 'pvr/tv/index.html' },
   { name: 'pvr-radio', routePath: '/pvr/radio', stagedIndexPath: 'pvr/radio/index.html' },

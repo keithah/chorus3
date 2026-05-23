@@ -2,6 +2,24 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.9 - 2026-05-23
+
+Patch release for deeper Chorus2 UI parity across filters, Lab, search, add-ons, TV details, and
+Kodi package routes.
+
+### Fixed
+
+- Restored Chorus2-style hash query filters, duplicate filter values, and per-screen filter order
+  for music, movies, TV shows, and music videos.
+- Added the Chorus2 Lab routes, current playlist route, and Kodi package route fallbacks for the
+  newly ported Lab and playlist screens.
+- Expanded media search from music-only to all Chorus2 result groups: artists, albums, songs,
+  genres, movies, TV shows, and music videos.
+- Tightened add-on category filtering so system add-ons are excluded while real audio, video, and
+  executable providers still match their Chorus2 category screens.
+- Routed Chorus2 TV show, season, and episode detail URLs through the rich TV detail shells.
+- Enabled movie detail menu Refresh and Edit actions instead of leaving inert menu items.
+
 ## 3.0.8 - 2026-05-22
 
 Patch release for sidebar filter and remote overlay recovery.

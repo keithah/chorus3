@@ -143,7 +143,7 @@ describe('createAppNavigationItems', () => {
       id: '1001',
       label: 'Lab',
       href: '#lab/icon-browser',
-      route: { kind: 'home' },
+      route: { kind: 'labIconBrowser' },
       isActive: false
     });
     expect(items[0].submenuGroups).toBeUndefined();

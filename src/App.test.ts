@@ -54,10 +54,12 @@ import type { VideoRoute } from './lib/video/videoRouter';
 import {
   configStore,
   connectionStore,
+  addonsStore,
   hostConnectionStore,
   localPlayerStore,
   localPlaylistStore,
   mediaPlaylistsStore,
+  settingsStore,
   videoMediaPlaylistsStore,
   playerDispatch as defaultPlayerDispatch,
   queueDispatch as defaultQueueDispatch,
@@ -598,6 +600,8 @@ function createSettingsDispatch(
 function createAddonSnapshot(
   overrides: Partial<AddonsStoreSnapshot['addons'][number]> = {}
 ): AddonsStoreSnapshot['addons'][number] {
+  const type = overrides.type ?? 'xbmc.python.pluginsource';
+  const inferredProvides = inferAddonProvides(type);
   return {
     addonid: 'plugin.video.safe-demo',
     name: 'Safe Video Demo',
@@ -607,12 +611,21 @@ function createAddonSnapshot(
     author: 'Fixture Maintainers',
     enabled: false,
     installed: true,
-    type: 'xbmc.python.pluginsource',
+    type,
     broken: null,
     dependencyCount: 2,
     extrainfoCount: 1,
+    provides: inferredProvides,
+    providesDefault: inferredProvides[0] ?? null,
     ...overrides
   };
+}
+
+function inferAddonProvides(type: string): string[] {
+  if (type.includes('audio')) return ['audio'];
+  if (type.includes('executable') || type.startsWith('script.')) return ['executable'];
+  if (type.includes('video') || type === 'xbmc.python.pluginsource') return ['video'];
+  return [];
 }
 
 function createAddonsSnapshot(overrides: Partial<AddonsStoreSnapshot> = {}): AddonsStoreSnapshot {
@@ -1426,9 +1439,11 @@ async function waitForText(target: HTMLElement, text: string): Promise<void> {
 beforeEach(() => {
   vi.restoreAllMocks();
   window.history.pushState({}, '', '/');
+  addonsStore.reset();
   configStore.reset();
   hostConnectionStore.destroy();
   connectionStore.destroy();
+  settingsStore.reset();
   localeStore.setLocale('en');
 });
 
@@ -1439,8 +1454,10 @@ afterEach(() => {
   }
 
   hostConnectionStore.destroy();
+  addonsStore.reset();
   localPlayerStore.stop();
   localPlaylistStore.reset();
+  settingsStore.reset();
   configStore.reset();
   connectionStore.destroy();
   localeStore.setLocale('en');
@@ -2732,7 +2749,8 @@ describe('App shell', () => {
 
     expect(addonsText).toContain('Kodi Add-ons');
     expect(addonsText).toContain('Add-ons loaded.');
-    expect(addonsText).toContain('1 of 3 add-ons');
+    expect(addonsText).toContain('2 of 3 add-ons');
+    expect(addonsText).toContain('Safe Video Demo');
     expect(addonsText).toContain('Safe Radio');
     expect(addonsText).toContain('Broken: Safe fixture dependency missing');
     expect(target.textContent).not.toContain('Kodi Settings');
@@ -3138,7 +3156,8 @@ describe('App shell', () => {
     expect(playerDispatch.next).not.toHaveBeenCalled();
   });
 
-  it('renders store-backed settings load errors through SettingsPanel by default', () => {
+  it('renders store-backed settings load errors through SettingsPanel by default', async () => {
+    await settingsStore.load();
     const target = renderApp({ route: { kind: 'settings' } });
     const settingsText = getSettingsPanelText(target);
 
@@ -3196,9 +3215,9 @@ describe('App shell', () => {
       videoTvSnapshot: createVideoTvSnapshot()
     });
 
-    expect(episodeTarget.textContent).toContain('Episodes');
-    expect(episodeTarget.textContent).toContain('No episodes found.');
-    expect(episodeTarget.textContent).toContain('TV shows');
+    expect(episodeTarget.textContent).toContain('Episode detail');
+    expect(episodeTarget.textContent).toContain('Signal Mirror');
+    expect(episodeTarget.textContent).toContain('Back to Aurora Files');
     expect(episodeTarget.querySelector('.parity-placeholder')).toBeNull();
     expect(episodeTarget.textContent).not.toMatch(CHORUS2_VIDEO_ALIAS_FORBIDDEN_COPY);
   });

@@ -231,15 +231,40 @@ function createMediaSearchSnapshot(): MediaSearchStoreSnapshot {
           duration: 622
         }
       ],
-      genres: [{ kind: 'genre', genreid: 4, label: 'Soul', title: 'Soul' }]
+      genres: [{ kind: 'genre', genreid: 4, label: 'Soul', title: 'Soul' }],
+      movies: [{ kind: 'movie', movieid: 5, label: 'Nina', title: 'Nina', year: 2016 }],
+      tvShows: [{ kind: 'tvshow', tvshowid: 6, label: 'Nina TV', title: 'Nina TV', year: 2026 }],
+      musicVideos: [
+        {
+          kind: 'musicvideo',
+          musicvideoid: 7,
+          label: 'Nina Live',
+          title: 'Nina Live',
+          artist: ['Nina Simone'],
+          album: 'Live',
+          year: 1969
+        }
+      ]
     },
     limits: {
       artists: { start: 0, end: 1, total: 1 },
       albums: { start: 0, end: 1, total: 1 },
       songs: { start: 0, end: 1, total: 1 },
-      genres: { start: 0, end: 1, total: 1 }
+      genres: { start: 0, end: 1, total: 1 },
+      movies: { start: 0, end: 1, total: 1 },
+      tvShows: { start: 0, end: 1, total: 1 },
+      musicVideos: { start: 0, end: 1, total: 1 }
     },
-    resultCounts: { artists: 1, albums: 1, songs: 1, genres: 1, total: 4 },
+    resultCounts: {
+      artists: 1,
+      albums: 1,
+      songs: 1,
+      genres: 1,
+      movies: 1,
+      tvShows: 1,
+      musicVideos: 1,
+      total: 7
+    },
     isEmpty: false,
     lastError: null
   };
