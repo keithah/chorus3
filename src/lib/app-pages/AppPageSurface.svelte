@@ -437,6 +437,7 @@
       dispatch={mediaSearchDispatch}
       actionDispatch={mediaSearchActionDispatch}
       {i18n}
+      buildOptions={routeBuildOptions}
     />
   {:else if isChorus2LabRoute}
     {#if route.kind === 'lab'}
@@ -510,6 +511,7 @@
           dispatch={mediaSearchDispatch}
           actionDispatch={mediaSearchActionDispatch}
           {i18n}
+          buildOptions={routeBuildOptions}
         />
         <MediaFilesPanel
           snapshot={mediaFilesSnapshot}
@@ -624,6 +626,7 @@
           dispatch={mediaSearchDispatch}
           actionDispatch={mediaSearchActionDispatch}
           {i18n}
+          buildOptions={routeBuildOptions}
         />
       {:else if parityPlaceholder}
         <ParityPlaceholder placeholder={parityPlaceholder} {packageBasePath} {i18n} />

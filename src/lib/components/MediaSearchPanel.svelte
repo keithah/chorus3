@@ -17,7 +17,13 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import {
+    searchAddonsStore as defaultSearchAddonsStore,
+    type SearchAddonSetting,
+    type SearchAddonsStore
+  } from '$lib/stores/searchAddons.svelte';
   import type {
     MediaSearchAlbumResult,
     MediaSearchArtistResult,
@@ -36,6 +42,8 @@
     dispatch: MediaSearchPanelDispatch;
     actionDispatch: MediaSearchActionDispatch;
     i18n?: TranslationContext;
+    searchAddons?: SearchAddonsStore;
+    buildOptions?: BuildAppRouteOptions;
   }
 
   type ResultGroupKey =
@@ -59,7 +67,9 @@
     snapshot,
     dispatch,
     actionDispatch,
-    i18n = createTranslationContext('en')
+    i18n = createTranslationContext('en'),
+    searchAddons = defaultSearchAddonsStore,
+    buildOptions = {}
   }: Props = $props();
 
   let inputValue = $state(untrack(() => snapshot.query));
@@ -72,6 +82,10 @@
   const searchDisabled = $derived(isSearchLoading || pendingOperation === 'search');
   const clearDisabled = $derived(isSearchLoading || pendingOperation === 'clear');
   const statusText = $derived(localStatusText ?? formatSearchStatus(snapshot));
+  const customAddonSearchRows = $derived(
+    searchAddons.snapshot.rows.filter((row) => row.title.trim() && row.url.trim())
+  );
+  const hasProviderLinks = $derived(providerQuery().length > 0);
 
   $effect(() => {
     if (snapshot.query !== inputValue && pendingOperation !== 'search') {
@@ -435,6 +449,33 @@
     return `${itemKindLabel(item.kind)} ${label}`;
   }
 
+  function providerQuery(): string {
+    return inputValue.trim() || snapshot.query.trim();
+  }
+
+  function externalSearchUrl(
+    provider: 'google' | 'imdb' | 'tmdb' | 'tvdb' | 'soundcloud' | 'youtube'
+  ): string {
+    const query = encodeURIComponent(providerQuery());
+
+    if (provider === 'google') return `https://www.google.com/webhp?#q=${query}`;
+    if (provider === 'imdb') return `https://www.imdb.com/find/?s=all&q=${query}`;
+    if (provider === 'tmdb') return `https://www.themoviedb.org/search?query=${query}`;
+    if (provider === 'tvdb') return `https://thetvdb.com/search?query=${query}`;
+    if (provider === 'soundcloud') return `https://soundcloud.com/search?q=${query}`;
+    return `https://www.youtube.com/results?search_query=${query}`;
+  }
+
+  function customAddonSearchHref(row: SearchAddonSetting): string {
+    const query = providerQuery();
+    const pluginUrl = row.url.replaceAll('[QUERY]', query).replaceAll('{query}', query);
+
+    return buildPrimaryAppRoute(
+      { kind: 'browserItem', media: row.media, itemid: pluginUrl },
+      buildOptions
+    );
+  }
+
   function sanitizeUiText(value: string): string {
     return value
       .replace(/raw response body/gi, 'response body [redacted]')
@@ -516,6 +557,65 @@
   {#if localErrorText}
     <p class="error-copy" role="alert">{localErrorText}</p>
   {/if}
+
+  <section class="provider-search" aria-labelledby="media-search-providers-title">
+    <div class="provider-search__heading">
+      <h3 id="media-search-providers-title">Search providers</h3>
+      <a href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}>Configure add-ons</a>
+    </div>
+    <div class="provider-search__links">
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('google') : '#'}
+        target="_blank"
+        rel="noreferrer">Google</a
+      >
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('imdb') : '#'}
+        target="_blank"
+        rel="noreferrer">IMDb</a
+      >
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('tvdb') : '#'}
+        target="_blank"
+        rel="noreferrer">TVDb</a
+      >
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('tmdb') : '#'}
+        target="_blank"
+        rel="noreferrer">TMDb</a
+      >
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('soundcloud') : '#'}
+        target="_blank"
+        rel="noreferrer">SoundCloud</a
+      >
+      <a
+        class:disabled={!hasProviderLinks}
+        aria-disabled={!hasProviderLinks}
+        href={hasProviderLinks ? externalSearchUrl('youtube') : '#'}
+        target="_blank"
+        rel="noreferrer">YouTube</a
+      >
+      {#each customAddonSearchRows as row (row.id)}
+        <a
+          class:disabled={!hasProviderLinks}
+          aria-disabled={!hasProviderLinks}
+          href={hasProviderLinks ? customAddonSearchHref(row) : '#'}
+          data-custom-addon-search={row.id}>{displayText(row.title, 'Add-on search')}</a
+        >
+      {/each}
+    </div>
+  </section>
 
   {#if snapshot.searchStatus === 'loading'}
     <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
@@ -964,6 +1064,41 @@
     background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
     border-radius: var(--radius-md);
     box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+
+  .provider-search {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+
+  .provider-search__heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+  }
+
+  .provider-search__heading a,
+  .provider-search__links a {
+    color: var(--color-accent);
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .provider-search__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-md);
+  }
+
+  .provider-search__links a.disabled {
+    color: var(--color-text-muted);
+    pointer-events: none;
+    opacity: 0.65;
   }
 
   .error-copy {

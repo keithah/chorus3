@@ -32,7 +32,7 @@
 
     if (typeof window !== 'undefined') {
       window.queueMicrotask(() => {
-        navigateToHref(buildAppRoute({ kind: 'primary', route: { kind: 'home' } }, buildOptions));
+        navigateToHref(buildAppRoute({ kind: 'primary', route: { kind: 'lab' } }, buildOptions));
       });
     }
   });

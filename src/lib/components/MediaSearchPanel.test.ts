@@ -6,6 +6,7 @@ import MediaSearchPanel, {
   type MediaSearchPanelDispatch
 } from './MediaSearchPanel.svelte';
 import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+import { createSearchAddonsStore, type SearchAddonsStore } from '$lib/stores/searchAddons.svelte';
 import type { MediaSearchStoreSnapshot } from '$lib/stores/mediaSearch.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -172,6 +173,7 @@ function renderPanel(
     dispatch?: MediaSearchPanelDispatch;
     actionDispatch?: MediaSearchActionDispatch;
     i18n?: TranslationContext;
+    searchAddons?: SearchAddonsStore;
   } = {}
 ): { dispatch: MediaSearchPanelDispatch; actionDispatch: MediaSearchActionDispatch } {
   const dispatch = props.dispatch ?? createDispatch();
@@ -182,7 +184,8 @@ function renderPanel(
       snapshot: props.snapshot ?? createSnapshot(),
       dispatch,
       actionDispatch,
-      i18n: props.i18n ?? createTranslationContext('en')
+      i18n: props.i18n ?? createTranslationContext('en'),
+      searchAddons: props.searchAddons
     }
   });
   return { dispatch, actionDispatch };
@@ -272,6 +275,13 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Movies');
     expect(text).toContain('TV Shows');
     expect(text).toContain('Music Videos');
+    expect(text).toContain('Search providers');
+    expect(text).toContain('Google');
+    expect(text).toContain('IMDb');
+    expect(text).toContain('TVDb');
+    expect(text).toContain('TMDb');
+    expect(text).toContain('SoundCloud');
+    expect(text).toContain('YouTube');
     expect(text).toContain('Nina Simone');
     expect(text).toContain('Pastel Blues');
     expect(text).toContain('Sinnerman');
@@ -279,6 +289,53 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Nina TV');
     expect(text).toContain('Nina Live');
     expect(text).toContain('7 results');
+  });
+
+  it('renders Chorus2 external and custom add-on search links for the current query', () => {
+    const searchAddons = createSearchAddonsStore({ storage: null });
+    searchAddons.replace([
+      {
+        id: 'custom.addon.youtube',
+        title: 'Kodi YouTube',
+        url: 'plugin://plugin.video.youtube/search/?q=[QUERY]',
+        media: 'video',
+        weight: 0
+      },
+      {
+        id: 'custom.addon.music',
+        title: 'Music Plug-in',
+        url: 'plugin://plugin.audio.example/search/?q={query}',
+        media: 'music',
+        weight: 1
+      }
+    ]);
+
+    renderPanel({ searchAddons });
+
+    const google = document.querySelector('a[href^="https://www.google.com"]');
+    const imdb = document.querySelector('a[href^="https://www.imdb.com"]');
+    const tvdb = document.querySelector('a[href^="https://thetvdb.com"]');
+    const tmdb = document.querySelector('a[href^="https://www.themoviedb.org"]');
+    const soundcloud = document.querySelector('a[href^="https://soundcloud.com"]');
+    const youtube = document.querySelector('a[href^="https://www.youtube.com"]');
+    const kodiYoutube = document.querySelector(
+      'a[data-custom-addon-search="custom.addon.youtube"]'
+    );
+    const musicPlugin = document.querySelector('a[data-custom-addon-search="custom.addon.music"]');
+
+    expect(google?.getAttribute('href')).toContain('nina');
+    expect(imdb?.getAttribute('href')).toContain('nina');
+    expect(tvdb?.getAttribute('href')).toContain('nina');
+    expect(tmdb?.getAttribute('href')).toContain('nina');
+    expect(soundcloud?.getAttribute('href')).toContain('nina');
+    expect(youtube?.getAttribute('href')).toContain('nina');
+    expect(kodiYoutube?.textContent).toBe('Kodi YouTube');
+    expect(kodiYoutube?.getAttribute('href')).toContain('/browser/video/');
+    expect(kodiYoutube?.getAttribute('href')).toContain('plugin.video.youtube');
+    expect(kodiYoutube?.getAttribute('href')).toContain('q%3Dnina');
+    expect(musicPlugin?.textContent).toBe('Music Plug-in');
+    expect(musicPlugin?.getAttribute('href')).toContain('/browser/music/');
+    expect(musicPlugin?.getAttribute('href')).toContain('plugin.audio.example');
   });
 
   it('renders German search labels, counts, empty states, and fallback labels', () => {
