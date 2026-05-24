@@ -43,19 +43,25 @@ const fakeClient = {
     }
 
     if (method === 'AudioLibrary.GetSongs') {
+      const songid = (params as { filter?: { songid?: number } }).filter?.songid ?? 55;
+      const title = songid === 56 ? 'Feeling Good' : 'Sinnerman';
       return {
         songs: [
           {
-            songid: 55,
-            label: 'Sinnerman',
-            title: 'Sinnerman',
+            songid,
+            label: title,
+            title,
             artist: ['Nina Simone'],
             duration: 320,
             thumbnail: 'image://song-thumb.jpg/',
-            file: 'smb://nas/private/sinnerman.flac'
+            file: `smb://nas/private/${songid}.flac`
           }
         ]
       } as TResult;
+    }
+
+    if (method.endsWith('.SetSongDetails') || method.includes('Library.Set')) {
+      return 'OK' as TResult;
     }
 
     throw new Error(`Unexpected Kodi call: ${method}`);
@@ -378,7 +384,7 @@ describe('LibraryPage', () => {
       {
         kind: 'audio',
         label: 'Nina Simone - Sinnerman',
-        file: 'smb://nas/private/sinnerman.flac',
+        file: 'smb://nas/private/55.flac',
         sourceId: 'song:55',
         durationSeconds: 320,
         thumbnail: 'image://song-thumb.jpg/'
@@ -386,6 +392,133 @@ describe('LibraryPage', () => {
     ]);
     expect(target!.textContent).toContain('Added 1 item to playlist.');
     expect(target!.innerHTML).not.toContain('smb://');
+  });
+
+  it('supports Chorus2-style selected card bulk queue and local playlist actions', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+    const queueDispatch = {
+      queueMusicItem: vi.fn()
+    };
+    const localPlaylistDispatch = {
+      addItems: vi.fn(() => ({ ok: true, items: [] }))
+    };
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicTop' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          recentlyAddedSongs: [
+            { songid: 55, label: 'Sinnerman', title: 'Sinnerman', artist: ['Nina Simone'] },
+            { songid: 56, label: 'Feeling Good', title: 'Feeling Good', artist: ['Nina Simone'] }
+          ]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        localPlaylistSnapshot: { selectedPlaylistId: 'playlist-bayani' } as never,
+        localPlaylistDispatch: localPlaylistDispatch as never,
+        playerDispatch: { playMusicItem: vi.fn() } as never,
+        queueDispatch: queueDispatch as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+      }
+    });
+    await settle();
+
+    const selectors = Array.from(
+      target!.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-card-select]')
+    );
+    expect(selectors).toHaveLength(2);
+    selectors.forEach((input) => input.click());
+    await settle();
+
+    expect(target!.textContent).toContain('2 selected');
+    expect(target!.querySelectorAll('.classic-selected-toolbar')).toHaveLength(1);
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === 'Queue selected')
+      ?.click();
+    await settle();
+
+    expect(queueDispatch.queueMusicItem).toHaveBeenCalledTimes(2);
+    expect(queueDispatch.queueMusicItem).toHaveBeenCalledWith({ kind: 'song', songid: 55 });
+    expect(queueDispatch.queueMusicItem).toHaveBeenCalledWith({ kind: 'song', songid: 56 });
+
+    fakeClient.calls = [];
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === 'Add selected to playlist')
+      ?.click();
+    await settle();
+
+    expect(fakeClient.calls).toEqual(
+      expect.arrayContaining([
+        {
+          method: 'AudioLibrary.GetSongs',
+          params: {
+            filter: { songid: 55 },
+            properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
+            limits: { start: 0, end: 1000 }
+          }
+        },
+        {
+          method: 'AudioLibrary.GetSongs',
+          params: {
+            filter: { songid: 56 },
+            properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
+            limits: { start: 0, end: 1000 }
+          }
+        }
+      ])
+    );
+    expect(localPlaylistDispatch.addItems).toHaveBeenCalledWith(
+      'playlist-bayani',
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'audio', sourceId: 'song:55' }),
+        expect.objectContaining({ kind: 'audio', sourceId: 'song:56' })
+      ])
+    );
+    expect(target!.textContent).toContain('Added 2 selected items to playlist.');
+  });
+
+  it('edits classic card titles through the matching Kodi SetDetails method', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('New Sinnerman');
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicTop' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          recentlyAddedSongs: [
+            { songid: 55, label: 'Sinnerman', title: 'Sinnerman', artist: ['Nina Simone'] }
+          ]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: { playMusicItem: vi.fn() } as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+      }
+    });
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.classic-card-actions button'))
+      .find((button) => button.textContent?.trim() === 'Edit')
+      ?.click();
+    await settle();
+
+    expect(promptSpy).toHaveBeenCalledWith('Edit title', 'Sinnerman');
+    expect(fakeClient.calls.at(-1)).toEqual({
+      method: 'AudioLibrary.SetSongDetails',
+      params: { songid: 55, title: 'New Sinnerman' }
+    });
+    expect(target!.textContent).toContain('Saved title for New Sinnerman.');
+    promptSpy.mockRestore();
   });
 
   it('hydrates classic music video detail routes from Kodi and keeps actions playable', async () => {

@@ -8,6 +8,7 @@ import MediaSearchPanel, {
 import { createTranslationContext, type TranslationContext } from '$lib/i18n';
 import { createSearchAddonsStore, type SearchAddonsStore } from '$lib/stores/searchAddons.svelte';
 import type { MediaSearchStoreSnapshot } from '$lib/stores/mediaSearch.svelte';
+import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
 type MediaSearchSnapshotOverrides = Partial<
@@ -336,6 +337,81 @@ describe('MediaSearchPanel', () => {
     expect(musicPlugin?.textContent).toBe('Music Plug-in');
     expect(musicPlugin?.getAttribute('href')).toContain('/browser/music/');
     expect(musicPlugin?.getAttribute('href')).toContain('plugin.audio.example');
+  });
+
+  it('loads custom add-on search results inline without leaving the search screen', async () => {
+    const searchAddons = createSearchAddonsStore({ storage: null });
+    searchAddons.replace([
+      {
+        id: 'custom.addon.youtube',
+        title: 'Kodi YouTube',
+        url: 'plugin://plugin.video.youtube/search/?q=[QUERY]',
+        media: 'video',
+        weight: 0
+      }
+    ]);
+    const dispatch = createDispatch({
+      searchAddon: vi.fn(async ({ row, query }: { row: SearchAddonSetting; query: string }) => ({
+        row,
+        query,
+        items: [
+          {
+            file: 'plugin://plugin.video.youtube/play/?video_id=abc',
+            filetype: 'file',
+            label: `Video result for ${query}`,
+            thumbnail: 'image://thumb.jpg/'
+          }
+        ]
+      }))
+    } as Partial<MediaSearchPanelDispatch>);
+
+    renderPanel({ searchAddons, dispatch });
+
+    const addonButton = button('Search Kodi YouTube add-on');
+    addonButton.click();
+    await tick();
+    await tick();
+
+    expect(dispatch.searchAddon).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: 'nina',
+        row: expect.objectContaining({
+          id: 'custom.addon.youtube',
+          url: 'plugin://plugin.video.youtube/search/?q=[QUERY]'
+        })
+      })
+    );
+    expect(screenText()).toContain('Kodi YouTube results');
+    expect(screenText()).toContain('Video result for nina');
+    expect(document.querySelector('a[data-custom-addon-search="custom.addon.youtube"]')).toBeNull();
+  });
+
+  it('renders disabled provider controls without keyboard-focusable placeholder links', () => {
+    const searchAddons = createSearchAddonsStore({ storage: null });
+    searchAddons.replace([
+      {
+        id: 'custom.addon.music',
+        title: 'Music Plug-in',
+        url: 'plugin://plugin.audio.example/search/?q={query}',
+        media: 'music',
+        weight: 0
+      }
+    ]);
+
+    renderPanel({
+      snapshot: createEmptySnapshot(),
+      searchAddons,
+      dispatch: createDispatch({
+        searchAddon: vi.fn()
+      } as Partial<MediaSearchPanelDispatch>)
+    });
+
+    expect(
+      Array.from(document.querySelectorAll('.provider-search__links a')).some(
+        (link) => link.getAttribute('href') === '#'
+      )
+    ).toBe(false);
+    expect(button('Search Music Plug-in add-on').disabled).toBe(true);
   });
 
   it('renders German search labels, counts, empty states, and fallback labels', () => {

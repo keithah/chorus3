@@ -202,6 +202,9 @@
   let pendingDownloadKey = $state<string | null>(null);
   let pendingMovieMoreActionKey = $state<string | null>(null);
   let pendingLocalPlaylistKey = $state<string | null>(null);
+  let pendingSelectedAction = $state<'play' | 'queue' | 'localadd' | null>(null);
+  let pendingEditKey = $state<string | null>(null);
+  let selectedCardKeys = $state<Set<string>>(new Set());
   let openMovieMoreId = $state<number | null>(null);
   let filterRevision = $state(0);
   let filterPane: 'normal' | 'filters' | 'options' = $state('normal');
@@ -248,6 +251,13 @@
       videoMovieDetailSnapshot
     );
   });
+  const selectedCards = $derived(
+    sections.flatMap((section) => section.cards).filter((card) => selectedCardKeys.has(card.key))
+  );
+  const selectedPlaylistCards = $derived(
+    selectedCards.filter((card) => localPlaylistAction(card.action))
+  );
+  const hasSelectedCards = $derived(selectedCards.length > 0);
 
   $effect(() => {
     ensureFilterAvailable();
@@ -1432,6 +1442,176 @@
     }
   }
 
+  function toggleCardSelection(card: Card): void {
+    const next = new Set(selectedCardKeys);
+    if (next.has(card.key)) {
+      next.delete(card.key);
+    } else {
+      next.add(card.key);
+    }
+    selectedCardKeys = next;
+  }
+
+  function clearSelectedCards(): void {
+    selectedCardKeys = new Set();
+  }
+
+  async function playSelectedCards(): Promise<void> {
+    if (pendingSelectedAction || selectedCards.length === 0) return;
+    pendingSelectedAction = 'play';
+    actionStatus = `Playing ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}...`;
+
+    try {
+      for (const card of selectedCards) {
+        await playCard(card);
+      }
+      actionStatus = `Played ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}.`;
+    } finally {
+      pendingSelectedAction = null;
+    }
+  }
+
+  async function queueSelectedCards(): Promise<void> {
+    if (pendingSelectedAction || selectedCards.length === 0) return;
+    pendingSelectedAction = 'queue';
+    actionStatus = `Queueing ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}...`;
+
+    try {
+      for (const card of selectedCards) {
+        await queueCard(card);
+      }
+      actionStatus = `Queued ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}.`;
+    } finally {
+      pendingSelectedAction = null;
+    }
+  }
+
+  async function addSelectedToLocalPlaylist(): Promise<void> {
+    const playlistId = localPlaylistSnapshot?.selectedPlaylistId ?? null;
+    if (
+      pendingSelectedAction ||
+      selectedPlaylistCards.length === 0 ||
+      !playlistId ||
+      !localPlaylistDispatch
+    ) {
+      return;
+    }
+
+    pendingSelectedAction = 'localadd';
+    actionStatus = `Adding ${selectedPlaylistCards.length} selected item${selectedPlaylistCards.length === 1 ? '' : 's'} to playlist...`;
+
+    try {
+      const items = (
+        await Promise.all(
+          selectedPlaylistCards.map((card) => {
+            const action = localPlaylistAction(card.action);
+            return action ? resolveLocalPlaylistItems(action) : [];
+          })
+        )
+      ).flat();
+      const result = localPlaylistDispatch.addItems(playlistId, items);
+      if (!result.ok) {
+        actionStatus = Object.values(result.errors).join(' ') || 'Could not add selected items.';
+        return;
+      }
+      actionStatus = `Added ${items.length} selected item${items.length === 1 ? '' : 's'} to playlist.`;
+    } catch (error) {
+      actionStatus = `Could not add selected items. ${safeErrorMessage(error)}`;
+    } finally {
+      pendingSelectedAction = null;
+    }
+  }
+
+  async function editCardTitle(card: Card): Promise<void> {
+    if (!card.action || typeof window === 'undefined') return;
+
+    const editRequest = editRequestForCard(card);
+    if (!editRequest) return;
+
+    const currentTitle = safe(card.title, 'Title');
+    const nextTitle = window.prompt('Edit title', currentTitle)?.trim();
+    if (!nextTitle || nextTitle === currentTitle) return;
+
+    pendingEditKey = card.key;
+    actionStatus = `Saving ${currentTitle}...`;
+
+    try {
+      const client = createActiveKodiJsonRpcHttpClient();
+      if (!client) {
+        throw new Error('Choose an active Kodi host before editing media.');
+      }
+
+      await client.call(editRequest.method, {
+        ...editRequest.params,
+        [editRequest.titleKey]: nextTitle
+      });
+      actionStatus = `Saved title for ${nextTitle}.`;
+    } catch (error) {
+      actionStatus = `Could not save ${currentTitle}. ${safeErrorMessage(error)}`;
+    } finally {
+      pendingEditKey = null;
+    }
+  }
+
+  function editRequestForCard(
+    card: Card
+  ): { method: string; params: Record<string, number>; titleKey: 'title' | 'artist' } | null {
+    const action = card.action;
+    if (!action) return null;
+
+    if (action.media === 'music' && action.kind === 'artist') {
+      return {
+        method: 'AudioLibrary.SetArtistDetails',
+        params: { artistid: action.artistid },
+        titleKey: 'artist'
+      };
+    }
+    if (action.media === 'music' && action.kind === 'album') {
+      return {
+        method: 'AudioLibrary.SetAlbumDetails',
+        params: { albumid: action.albumid },
+        titleKey: 'title'
+      };
+    }
+    if (action.media === 'music' && action.kind === 'song') {
+      return {
+        method: 'AudioLibrary.SetSongDetails',
+        params: { songid: action.songid },
+        titleKey: 'title'
+      };
+    }
+    if (action.media === 'movie') {
+      return {
+        method: 'VideoLibrary.SetMovieDetails',
+        params: { movieid: action.movieid },
+        titleKey: 'title'
+      };
+    }
+    if (action.media === 'episode') {
+      return {
+        method: 'VideoLibrary.SetEpisodeDetails',
+        params: { episodeid: action.episodeid },
+        titleKey: 'title'
+      };
+    }
+    if (action.media === 'musicvideo') {
+      return {
+        method: 'VideoLibrary.SetMusicVideoDetails',
+        params: { musicvideoid: action.musicvideoid },
+        titleKey: 'title'
+      };
+    }
+    if (action.media === 'tvshow') {
+      return {
+        method: 'VideoLibrary.SetTVShowDetails',
+        params: { tvshowid: action.tvshowid },
+        titleKey: 'title'
+      };
+    }
+
+    return null;
+  }
+
   function toggleThumbsUp(card: Card): void {
     const item = thumbsUpItem(card);
     if (!item || !thumbsUpDispatch) {
@@ -1995,6 +2175,30 @@
         <button type="button" aria-label="Remove all filters" onclick={removeAllFilters}>×</button>
       </div>
     {/if}
+    {#if hasSelectedCards}
+      <div class="classic-selected-toolbar" aria-label="Selected items">
+        <span>{selectedCards.length} selected</span>
+        <button
+          type="button"
+          disabled={pendingSelectedAction !== null}
+          onclick={() => void playSelectedCards()}>Play selected</button
+        >
+        <button
+          type="button"
+          disabled={pendingSelectedAction !== null}
+          onclick={() => void queueSelectedCards()}>Queue selected</button
+        >
+        <button
+          type="button"
+          disabled={pendingSelectedAction !== null ||
+            !localPlaylistDispatch ||
+            !localPlaylistSnapshot?.selectedPlaylistId ||
+            selectedPlaylistCards.length === 0}
+          onclick={() => void addSelectedToLocalPlaylist()}>Add selected to playlist</button
+        >
+        <button type="button" onclick={clearSelectedCards}>Clear selected</button>
+      </div>
+    {/if}
     {#each sections as section}
       <section class="classic-card-section" class:compact={section.compact}>
         {#if section.movieDetail}
@@ -2163,6 +2367,15 @@
           <div class="classic-card-grid">
             {#each section.cards as card}
               <article class="classic-card" class:poster={card.poster}>
+                <label class="classic-card-select">
+                  <input
+                    type="checkbox"
+                    data-card-select={card.key}
+                    checked={selectedCardKeys.has(card.key)}
+                    onchange={() => toggleCardSelection(card)}
+                  />
+                  <span>Select</span>
+                </label>
                 <a class="classic-card-main" href={cardHref(card) ?? '#'} aria-label={card.title}>
                   <div
                     class="classic-card-art"
@@ -2190,6 +2403,11 @@
                       <button type="button" onclick={() => void playCard(card)}>Play</button>
                       <button type="button" onclick={() => void queueCard(card)}>Queue</button>
                     {/if}
+                    <button
+                      type="button"
+                      disabled={pendingEditKey === card.key}
+                      onclick={() => void editCardTitle(card)}>Edit</button
+                    >
                     {#if thumbsItem}
                       <button
                         type="button"
@@ -2733,11 +2951,48 @@
   }
 
   .classic-card {
+    position: relative;
     overflow: hidden;
     width: 159px;
     min-height: 216px;
     background: #fff;
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  }
+
+  .classic-selected-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.85rem;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  }
+
+  .classic-selected-toolbar span {
+    margin-right: auto;
+    font-weight: 700;
+  }
+
+  .classic-card-select {
+    position: absolute;
+    z-index: 2;
+    top: 0.45rem;
+    left: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.35rem;
+    background: rgb(255 255 255 / 0.92);
+    color: #333;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .classic-card-select input {
+    margin: 0;
   }
 
   .classic-card-main {

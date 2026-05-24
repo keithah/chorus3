@@ -17,6 +17,7 @@
     type MediaPlaylistsPanelDispatch
   } from '$components/MediaPlaylistsPanel.svelte';
   import MediaSearchPanel, {
+    type MediaSearchAddonResultGroup,
     type MediaSearchActionDispatch,
     type MediaSearchActionItem,
     type MediaSearchPanelDispatch
@@ -105,6 +106,7 @@
     type ThumbsUpStoreSnapshot,
     type LocaleStoreSnapshot
   } from '$lib/stores';
+  import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
   import {
     videoLibraryStore,
     type VideoLibraryStoreSnapshot
@@ -146,6 +148,7 @@
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { handleRemoteInputShortcut } from '$lib/app/remoteInputShortcuts';
   import type { VideoRoute } from '$lib/video/videoRouter';
+  import { getFileDirectory } from '$lib/kodi';
 
   interface VideoNavigationDispatch {
     openMovieGrid: () => Promise<void>;
@@ -251,13 +254,58 @@
 
   const defaultMediaSearchDispatch: MediaSearchPanelDispatch = {
     search: ({ query }) => mediaSearchStore.search(query),
-    clear: () => mediaSearchStore.clear()
+    clear: () => mediaSearchStore.clear(),
+    searchAddon: async ({ row, query, pluginUrl }) => searchAddonInline(row, query, pluginUrl)
   };
 
   const defaultMediaSearchActionDispatch: MediaSearchActionDispatch = {
     playMusicItem: (item) => defaultPlayerDispatch.playMusicItem(toMusicPlaybackItem(item)),
     queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(toMusicQueueItem(item))
   };
+
+  async function searchAddonInline(
+    row: SearchAddonSetting,
+    query: string,
+    pluginUrl: string
+  ): Promise<MediaSearchAddonResultGroup> {
+    const client = createActiveKodiJsonRpcHttpClient();
+    if (!client) {
+      throw new Error('Choose an active Kodi host before searching add-ons.');
+    }
+
+    const result = await getFileDirectory(client, {
+      directory: pluginUrl,
+      media: row.media === 'video' ? 'video' : 'music',
+      properties: ['title', 'thumbnail']
+    });
+    const files = Array.isArray(result.files) ? result.files : [];
+
+    return {
+      row,
+      query,
+      items: files.flatMap((item) => {
+        if (
+          !item ||
+          typeof item !== 'object' ||
+          !('file' in item) ||
+          typeof item.file !== 'string'
+        ) {
+          return [];
+        }
+
+        const record = item as Record<string, unknown>;
+        return [
+          {
+            file: item.file,
+            filetype: typeof record.filetype === 'string' ? record.filetype : undefined,
+            label: typeof record.label === 'string' ? record.label : undefined,
+            title: typeof record.title === 'string' ? record.title : undefined,
+            thumbnail: typeof record.thumbnail === 'string' ? record.thumbnail : undefined
+          }
+        ];
+      })
+    };
+  }
 
   const defaultMediaFilesDispatch: MediaFilesPanelDispatch = {
     refresh: () => mediaFilesStore.refreshSources(),

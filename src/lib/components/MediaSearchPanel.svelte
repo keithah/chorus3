@@ -1,8 +1,24 @@
 <script lang="ts" module>
+  import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
+
   export type MediaSearchActionItem =
     | { kind: 'artist'; id: number }
     | { kind: 'album'; id: number }
     | { kind: 'song'; id: number };
+
+  export interface MediaSearchAddonResultItem {
+    file: string;
+    filetype?: string;
+    label?: string;
+    title?: string;
+    thumbnail?: string;
+  }
+
+  export interface MediaSearchAddonResultGroup {
+    row: SearchAddonSetting;
+    query: string;
+    items: MediaSearchAddonResultItem[];
+  }
 
   export interface MediaSearchActionDispatch {
     playMusicItem: (item: MediaSearchActionItem) => Promise<void> | void;
@@ -12,6 +28,11 @@
   export interface MediaSearchPanelDispatch {
     search: (request: { query: string; scope?: 'all' | 'music' | 'video' }) => Promise<void> | void;
     clear: () => Promise<void> | void;
+    searchAddon?: (request: {
+      row: SearchAddonSetting;
+      query: string;
+      pluginUrl: string;
+    }) => Promise<MediaSearchAddonResultGroup> | MediaSearchAddonResultGroup;
   }
 </script>
 
@@ -21,7 +42,6 @@
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import {
     searchAddonsStore as defaultSearchAddonsStore,
-    type SearchAddonSetting,
     type SearchAddonsStore
   } from '$lib/stores/searchAddons.svelte';
   import type {
@@ -56,6 +76,13 @@
     | 'musicVideos';
   type MusicActionVerb = 'play' | 'queue';
   type PendingOperation = 'search' | 'clear' | null;
+  type ExternalSearchProviderId = 'google' | 'imdb' | 'tmdb' | 'tvdb' | 'soundcloud' | 'youtube';
+
+  interface ExternalSearchProvider {
+    id: ExternalSearchProviderId;
+    label: string;
+    buildUrl: (query: string) => string;
+  }
 
   type PendingMusicAction = {
     verb: MusicActionVerb;
@@ -75,8 +102,39 @@
   let inputValue = $state(untrack(() => snapshot.query));
   let pendingOperation = $state<PendingOperation>(null);
   let pendingAction = $state<PendingMusicAction | null>(null);
+  let pendingAddonSearchId = $state<string | null>(null);
+  let addonSearchResults = $state<MediaSearchAddonResultGroup[]>([]);
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
+
+  const EXTERNAL_SEARCH_PROVIDERS: readonly ExternalSearchProvider[] = [
+    {
+      id: 'google',
+      label: 'Google',
+      buildUrl: (query) => `https://www.google.com/webhp?#q=${query}`
+    },
+    {
+      id: 'imdb',
+      label: 'IMDb',
+      buildUrl: (query) => `https://www.imdb.com/find/?s=all&q=${query}`
+    },
+    { id: 'tvdb', label: 'TVDb', buildUrl: (query) => `https://thetvdb.com/search?query=${query}` },
+    {
+      id: 'tmdb',
+      label: 'TMDb',
+      buildUrl: (query) => `https://www.themoviedb.org/search?query=${query}`
+    },
+    {
+      id: 'soundcloud',
+      label: 'SoundCloud',
+      buildUrl: (query) => `https://soundcloud.com/search?q=${query}`
+    },
+    {
+      id: 'youtube',
+      label: 'YouTube',
+      buildUrl: (query) => `https://www.youtube.com/results?search_query=${query}`
+    }
+  ];
 
   const isSearchLoading = $derived(snapshot.searchStatus === 'loading');
   const searchDisabled = $derived(isSearchLoading || pendingOperation === 'search');
@@ -181,6 +239,37 @@
       localStatusText = localErrorText;
     } finally {
       pendingAction = null;
+    }
+  }
+
+  async function handleAddonSearch(row: SearchAddonSetting): Promise<void> {
+    if (!dispatch.searchAddon || pendingAddonSearchId || !hasProviderLinks) {
+      return;
+    }
+
+    const query = providerQuery();
+    const pluginUrl = addonSearchPluginUrl(row, query);
+    pendingAddonSearchId = row.id;
+    localErrorText = null;
+    localStatusText = `Searching ${displayText(row.title, 'add-on')} for ${query}...`;
+
+    try {
+      const result = await dispatch.searchAddon({ row, query, pluginUrl });
+      const safeItems = result.items.filter((item) => textOrNull(item.file));
+      const safeResult = { row: result.row, query: result.query, items: safeItems };
+      addonSearchResults = [
+        safeResult,
+        ...addonSearchResults.filter((group) => group.row.id !== row.id)
+      ];
+      localStatusText = `${displayText(row.title, 'Add-on')} returned ${safeItems.length} result${safeItems.length === 1 ? '' : 's'}.`;
+    } catch (error) {
+      const message = sanitizeUiText(
+        error instanceof Error ? error.message : 'Add-on search failed.'
+      );
+      localErrorText = `Could not search ${displayText(row.title, 'add-on')}. ${message}`;
+      localStatusText = localErrorText;
+    } finally {
+      pendingAddonSearchId = null;
     }
   }
 
@@ -453,27 +542,47 @@
     return inputValue.trim() || snapshot.query.trim();
   }
 
-  function externalSearchUrl(
-    provider: 'google' | 'imdb' | 'tmdb' | 'tvdb' | 'soundcloud' | 'youtube'
-  ): string {
-    const query = encodeURIComponent(providerQuery());
+  function externalSearchUrl(provider: ExternalSearchProvider): string {
+    return provider.buildUrl(encodeURIComponent(providerQuery()));
+  }
 
-    if (provider === 'google') return `https://www.google.com/webhp?#q=${query}`;
-    if (provider === 'imdb') return `https://www.imdb.com/find/?s=all&q=${query}`;
-    if (provider === 'tmdb') return `https://www.themoviedb.org/search?query=${query}`;
-    if (provider === 'tvdb') return `https://thetvdb.com/search?query=${query}`;
-    if (provider === 'soundcloud') return `https://soundcloud.com/search?q=${query}`;
-    return `https://www.youtube.com/results?search_query=${query}`;
+  function addonSearchPluginUrl(row: SearchAddonSetting, query = providerQuery()): string {
+    return row.url.replaceAll('[QUERY]', query).replaceAll('{query}', query);
   }
 
   function customAddonSearchHref(row: SearchAddonSetting): string {
-    const query = providerQuery();
-    const pluginUrl = row.url.replaceAll('[QUERY]', query).replaceAll('{query}', query);
+    const pluginUrl = addonSearchPluginUrl(row);
 
     return buildPrimaryAppRoute(
       { kind: 'browserItem', media: row.media, itemid: pluginUrl },
       buildOptions
     );
+  }
+
+  function addonItemHref(
+    group: MediaSearchAddonResultGroup,
+    item: MediaSearchAddonResultItem
+  ): string {
+    return buildPrimaryAppRoute(
+      { kind: 'browserItem', media: group.row.media, itemid: item.file },
+      buildOptions
+    );
+  }
+
+  function addonResultLabel(item: MediaSearchAddonResultItem, fallbackIndex: number): string {
+    return displayText(item.title ?? item.label, `Result ${fallbackIndex + 1}`);
+  }
+
+  function addonResultMeta(item: MediaSearchAddonResultItem): string {
+    return textOrNull(item.filetype) ?? 'Add-on result';
+  }
+
+  function canSearchAddon(row: SearchAddonSetting): boolean {
+    return Boolean(dispatch.searchAddon && hasProviderLinks && pendingAddonSearchId !== row.id);
+  }
+
+  function addonButtonLabel(row: SearchAddonSetting): string {
+    return `Search ${displayText(row.title, 'add-on')} add-on`;
   }
 
   function sanitizeUiText(value: string): string {
@@ -564,58 +673,75 @@
       <a href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}>Configure add-ons</a>
     </div>
     <div class="provider-search__links">
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('google') : '#'}
-        target="_blank"
-        rel="noreferrer">Google</a
-      >
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('imdb') : '#'}
-        target="_blank"
-        rel="noreferrer">IMDb</a
-      >
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('tvdb') : '#'}
-        target="_blank"
-        rel="noreferrer">TVDb</a
-      >
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('tmdb') : '#'}
-        target="_blank"
-        rel="noreferrer">TMDb</a
-      >
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('soundcloud') : '#'}
-        target="_blank"
-        rel="noreferrer">SoundCloud</a
-      >
-      <a
-        class:disabled={!hasProviderLinks}
-        aria-disabled={!hasProviderLinks}
-        href={hasProviderLinks ? externalSearchUrl('youtube') : '#'}
-        target="_blank"
-        rel="noreferrer">YouTube</a
-      >
+      {#each EXTERNAL_SEARCH_PROVIDERS as provider (provider.id)}
+        {#if hasProviderLinks}
+          <a href={externalSearchUrl(provider)} target="_blank" rel="noreferrer">
+            {provider.label}
+          </a>
+        {:else}
+          <span class="disabled" aria-disabled="true">{provider.label}</span>
+        {/if}
+      {/each}
       {#each customAddonSearchRows as row (row.id)}
-        <a
-          class:disabled={!hasProviderLinks}
-          aria-disabled={!hasProviderLinks}
-          href={hasProviderLinks ? customAddonSearchHref(row) : '#'}
-          data-custom-addon-search={row.id}>{displayText(row.title, 'Add-on search')}</a
-        >
+        {#if dispatch.searchAddon}
+          <button
+            type="button"
+            class="provider-search__addon-button"
+            aria-label={addonButtonLabel(row)}
+            disabled={!canSearchAddon(row)}
+            onclick={() => void handleAddonSearch(row)}
+            data-custom-addon-search-button={row.id}
+          >
+            {displayText(row.title, 'Add-on search')}
+          </button>
+        {:else if hasProviderLinks}
+          <a href={customAddonSearchHref(row)} data-custom-addon-search={row.id}>
+            {displayText(row.title, 'Add-on search')}
+          </a>
+        {:else}
+          <span class="disabled" aria-disabled="true"
+            >{displayText(row.title, 'Add-on search')}</span
+          >
+        {/if}
       {/each}
     </div>
   </section>
+
+  {#if addonSearchResults.length > 0}
+    <section class="addon-results-shell" aria-labelledby="media-search-addon-results-title">
+      <div class="results-heading">
+        <div>
+          <p class="breadcrumb">Add-on search</p>
+          <h3 id="media-search-addon-results-title">Add-on results</h3>
+        </div>
+      </div>
+      {#each addonSearchResults as group (group.row.id)}
+        <section
+          class="result-section"
+          aria-label={`${displayText(group.row.title, 'Add-on')} results`}
+        >
+          <div class="section-heading">
+            <h4>{displayText(group.row.title, 'Add-on')} results</h4>
+            <p>{group.items.length} result{group.items.length === 1 ? '' : 's'}</p>
+          </div>
+          {#if group.items.length === 0}
+            <p class="empty-copy">No matching add-on results.</p>
+          {:else}
+            <ul class="result-list">
+              {#each group.items as item, index (item.file)}
+                <li class="result-card">
+                  <span class="item-kicker">{addonResultMeta(item)}</span>
+                  <a class="item-title" href={addonItemHref(group, item)}>
+                    {addonResultLabel(item, index)}
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </section>
+      {/each}
+    </section>
+  {/if}
 
   {#if snapshot.searchStatus === 'loading'}
     <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
@@ -1083,10 +1209,21 @@
   }
 
   .provider-search__heading a,
-  .provider-search__links a {
+  .provider-search__links a,
+  .provider-search__addon-button {
     color: var(--color-accent);
     font-weight: 800;
     text-decoration: none;
+  }
+
+  .provider-search__addon-button {
+    min-height: 0;
+    padding: 0;
+    font: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
   }
 
   .provider-search__links {
@@ -1095,9 +1232,13 @@
     gap: var(--space-xs) var(--space-md);
   }
 
-  .provider-search__links a.disabled {
+  .provider-search__links .disabled {
     color: var(--color-text-muted);
-    pointer-events: none;
+    opacity: 0.65;
+  }
+
+  .provider-search__addon-button:disabled {
+    cursor: not-allowed;
     opacity: 0.65;
   }
 
@@ -1111,6 +1252,7 @@
   }
 
   .results-shell,
+  .addon-results-shell,
   .result-section {
     padding: var(--space-md);
     background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
