@@ -17,6 +17,14 @@ export type AddonDetailRoute = { kind: 'addonDetail'; addonid: string };
 export type AddonsUnknownRoute = { kind: 'addonsUnknown'; pathLabel: string };
 export type LabUnknownRoute = { kind: 'labUnknown'; pathLabel: string };
 export type NowPlayingRoute = { kind: 'nowPlaying' };
+export type LocalPlayerRoute =
+  | { kind: 'localPlayer'; media: 'movie' | 'episode' | 'musicvideo'; id: number }
+  | {
+      kind: 'localPlayer';
+      media: 'music';
+      musicKind: 'artist' | 'album' | 'song';
+      id: number;
+    };
 export type DelegatedVideoRoute = { kind: 'video'; route: Exclude<VideoRoute, DashboardRoute> };
 export type ParityPlaceholderStatus = 'missing' | 'deferred' | 'intentionallyChanged';
 
@@ -48,6 +56,7 @@ export type AppRoute =
   | AddonsUnknownRoute
   | LabUnknownRoute
   | NowPlayingRoute
+  | LocalPlayerRoute
   | DelegatedVideoRoute
   | ParityPlaceholderRoute;
 
@@ -78,6 +87,7 @@ const REMOTE_PATH = '/remote';
 const ADDONS_PATH = '/addons';
 const LAB_PATH = '/lab';
 const NOW_PLAYING_PATH = '/now-playing';
+const LOCAL_PLAYER_PATH = '/local-player';
 const UNKNOWN_SETTINGS_PATH = '/settings/unknown';
 const UNKNOWN_ADDONS_PATH = '/addons/[redacted]';
 const UNKNOWN_LAB_PATH = '/lab/[redacted]';
@@ -170,6 +180,12 @@ export function parseAppRoute(
     };
   }
 
+  const localPlayerRoute = parseLocalPlayerRoute(path);
+
+  if (localPlayerRoute) {
+    return localPlayerRoute;
+  }
+
   if (path === LAB_PATH || path.startsWith(`${LAB_PATH}/`)) {
     return { kind: 'labUnknown', pathLabel: normalizeUnknownLabPathLabel(path) };
   }
@@ -217,12 +233,49 @@ export function buildPrimaryAppRoute(
   options: BuildAppRouteOptions = {}
 ): string {
   const path = buildPrimaryRoutePath(route);
+  return buildPathWithOptions(path, options);
+}
+
+export function buildKodiPackageSafePrimaryAppRoute(
+  route: PrimaryRoute,
+  options: BuildAppRouteOptions = {}
+): string {
+  const path = isKodiPackagePathMode(options)
+    ? buildKodiPackageSafePrimaryRoutePath(route)
+    : buildPrimaryRoutePath(route);
+  return buildPathWithOptions(path, options);
+}
+
+function buildPathWithOptions(path: string, options: BuildAppRouteOptions): string {
   const packageBasePath = normalizePackageBasePath(options.packageBasePath);
   if (options.routeMode === 'hash') {
     return `${packageBasePath}${toHashRoute(path)}`;
   }
 
   return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+}
+
+function isKodiPackagePathMode(options: BuildAppRouteOptions): boolean {
+  return options.routeMode === 'path' && normalizePackageBasePath(options.packageBasePath) !== '';
+}
+
+function buildKodiPackageSafePrimaryRoutePath(route: PrimaryRoute): string {
+  switch (route.kind) {
+    case 'music':
+      return '/music/home';
+    case 'movies':
+      return '/movies/all';
+    case 'tvshows':
+      return '/tvshows/all';
+    case 'settingsKodi':
+      return '/settings/kodi/home';
+    case 'help':
+      return '/help/about';
+    case 'lab':
+      return '/lab/home';
+    default:
+      return buildPrimaryRoutePath(route);
+  }
 }
 
 function buildAppRoutePath(route: AppRoute): string {
@@ -262,6 +315,10 @@ function buildAppRoutePath(route: AppRoute): string {
     return NOW_PLAYING_PATH;
   }
 
+  if (route.kind === 'localPlayer') {
+    return buildLocalPlayerRoutePath(route);
+  }
+
   if (route.kind === 'parityPlaceholder') {
     return normalizeParityPlaceholderRoutePath(route.placeholder);
   }
@@ -275,6 +332,53 @@ function buildAppRoutePath(route: AppRoute): string {
   }
 
   return ROOT_PATH;
+}
+
+function parseLocalPlayerRoute(path: string): LocalPlayerRoute | null {
+  if (path === LOCAL_PLAYER_PATH || !path.startsWith(`${LOCAL_PLAYER_PATH}/`)) {
+    return null;
+  }
+
+  const segments = path
+    .slice(LOCAL_PLAYER_PATH.length + 1)
+    .split('/')
+    .filter(Boolean);
+
+  if (segments[0] === 'music') {
+    const musicKind = segments[1];
+    const id = parseSafeIntegerSegment(segments[2]);
+
+    return segments.length === 3 &&
+      (musicKind === 'artist' || musicKind === 'album' || musicKind === 'song') &&
+      id !== null
+      ? { kind: 'localPlayer', media: 'music', musicKind, id }
+      : null;
+  }
+
+  const media = segments[0];
+  const id = parseSafeIntegerSegment(segments[1]);
+
+  return segments.length === 2 &&
+    (media === 'movie' || media === 'episode' || media === 'musicvideo') &&
+    id !== null
+    ? { kind: 'localPlayer', media, id }
+    : null;
+}
+
+function buildLocalPlayerRoutePath(route: LocalPlayerRoute): string {
+  if (!Number.isSafeInteger(route.id) || route.id <= 0) {
+    return ROOT_PATH;
+  }
+
+  if (route.media === 'music') {
+    return route.musicKind === 'artist' || route.musicKind === 'album' || route.musicKind === 'song'
+      ? `${LOCAL_PLAYER_PATH}/music/${route.musicKind}/${route.id}`
+      : ROOT_PATH;
+  }
+
+  return route.media === 'movie' || route.media === 'episode' || route.media === 'musicvideo'
+    ? `${LOCAL_PLAYER_PATH}/${route.media}/${route.id}`
+    : ROOT_PATH;
 }
 
 export function isDelegatedVideoRoute(route: unknown): route is DelegatedVideoRoute {

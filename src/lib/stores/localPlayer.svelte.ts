@@ -29,6 +29,7 @@ export type LocalPlayerItemSnapshot = Pick<PlayerItem, 'id' | 'label' | 'title' 
 export interface LocalPlayerStoreSnapshot {
   status: LocalPlaybackStatus;
   mediaKind: LocalMediaKind;
+  source: string | null;
   item: LocalPlayerItemSnapshot | null;
   currentSeconds: number;
   durationSeconds: number | null;
@@ -77,6 +78,7 @@ export type PrepareLocalStreamUrlOptions = {
 const DEFAULT_SNAPSHOT: LocalPlayerStoreSnapshot = {
   status: 'idle',
   mediaKind: 'unknown',
+  source: null,
   item: null,
   currentSeconds: 0,
   durationSeconds: null,
@@ -253,6 +255,10 @@ export class LocalPlayerStore {
     this.#detachListeners = null;
     this.#adapter = null;
     this.#activeSource = '';
+    this.#snapshot = {
+      ...this.#snapshot,
+      source: null
+    };
   }
 
   async loadAndPlay(input: LoadAndPlayInput): Promise<void> {
@@ -277,6 +283,7 @@ export class LocalPlayerStore {
       ...this.#snapshot,
       status: 'loading',
       mediaKind: input.mediaKind,
+      source: null,
       item: cloneItemSnapshot(input.item),
       currentSeconds: 0,
       durationSeconds: normalizeDuration(adapter.duration),
@@ -290,6 +297,10 @@ export class LocalPlayerStore {
 
     const source = sanitizeMediaSource(input.source);
     this.#activeSource = source;
+    this.#snapshot = {
+      ...this.#snapshot,
+      source
+    };
     adapter.src = source;
     adapter.load();
 

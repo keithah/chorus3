@@ -113,11 +113,12 @@ function createActionDispatch(
 function renderShell(
   snapshot: VideoTvStoreSnapshot,
   route: VideoRoute,
-  actionDispatch?: VideoEpisodeActionDispatch
+  actionDispatch?: VideoEpisodeActionDispatch,
+  metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void
 ): void {
   mounted = mount(VideoEpisodeDetailShell, {
     target: document.body,
-    props: { snapshot, route, actionDispatch }
+    props: { snapshot, route, actionDispatch, metadataSave }
   });
 }
 
@@ -177,8 +178,50 @@ describe('VideoEpisodeDetailShell', () => {
     expect(document.querySelector('[role="status"]')?.textContent).toContain(
       'Episode actions are ready.'
     );
-    expect(document.querySelectorAll('button')).toHaveLength(5);
+    expect(document.querySelectorAll('button')).toHaveLength(6);
     expectSecretSafe(text);
+  });
+
+  it('edits episode detail routes through the full Chorus2 metadata editor', async () => {
+    const metadataSave = vi.fn(async () => undefined);
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoEpisodeDetail', tvshowid: 11, season: 2, episodeid: 100 },
+      createActionDispatch(),
+      metadataSave
+    );
+
+    getButton('Edit episode Hello, Ms. Cobel').click();
+    await tick();
+
+    expect(screenText()).toContain('Edit Episode: Hello, Ms. Cobel');
+    expect(screenText()).toContain('General');
+    expect(screenText()).toContain('Information');
+
+    const title = document.querySelector<HTMLInputElement>('input[name="title"]');
+    const rating = document.querySelector<HTMLInputElement>('input[name="rating"]');
+    expect(title).toBeInstanceOf(HTMLInputElement);
+    expect(rating).toBeInstanceOf(HTMLInputElement);
+
+    title!.value = 'New Cobel';
+    title!.dispatchEvent(new Event('input', { bubbles: true }));
+    rating!.value = '9.4';
+    rating!.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick();
+
+    document.querySelector<HTMLButtonElement>('.metadata-edit-save')?.click();
+    await tick();
+    await tick();
+
+    expect(metadataSave).toHaveBeenCalledWith(
+      'VideoLibrary.SetEpisodeDetails',
+      expect.objectContaining({
+        episodeid: 100,
+        title: 'New Cobel',
+        rating: 9.4
+      })
+    );
+    expect(screenText()).toContain('Saved metadata for New Cobel.');
   });
 
   it('routes play resume queue and stream through injected dispatch with finite episode IDs', async () => {

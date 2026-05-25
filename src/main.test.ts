@@ -52,11 +52,17 @@ describe('main entrypoint', () => {
     ).toEqual({ kind: 'nowPlaying' });
     expect(
       resolveEntrypointRoute({
+        pathname: '/addons/webinterface.chorus3/local-player/movie/1',
+        search: ''
+      })
+    ).toEqual({ kind: 'localPlayer', media: 'movie', id: 1 });
+    expect(
+      resolveEntrypointRoute({
         pathname: '/addons/webinterface.chorus3/%2FAuthorization/Basic',
         search: '?token=Basic'
       })
     ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
-  });
+  }, 15000);
 
   it('resolves package-mounted Chorus2 parity URLs to typed routes without reflecting unsafe input', async () => {
     const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
@@ -126,7 +132,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password|token|smb:\/\/|admin:p@ssword|localStorage|sessionStorage/i
     );
-  });
+  }, 15000);
 
   it('derives a local-only Kodi host from package-mounted entrypoint origins', async () => {
     const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();

@@ -95,7 +95,8 @@ export function buildLiveRouteMatrix(rawOrigin = DEFAULT_LIVE_KODI_ORIGIN) {
       label: `Package ${fallback.name}`,
       path,
       url: new URL(path, origin).toString(),
-      surface: 'package-route'
+      surface: 'package-route',
+      liveProbeable: !fallback.stagedIndexPath.endsWith('/index.html')
     });
   }
 
@@ -227,14 +228,14 @@ export async function runLiveKodiProof(options = {}) {
   const routes = buildLiveRouteMatrix(origin);
   const startedAt = new Date().toISOString();
 
-  const probe = await probeRoot(origin, timeoutMs, fetchImpl);
+  const probe = await probeRoot(origin, timeoutMs, fetchImpl, credentials);
   const jsonRpc = await probeJsonRpc(origin, timeoutMs, fetchImpl, credentials);
   const routeResults = [];
   const browserDiagnostics = [];
 
   if (!['unavailable', 'auth-required', 'timeout'].includes(probe.statusClass)) {
     for (const route of routes) {
-      const routeResult = await checkLiveRoute(route, timeoutMs, fetchImpl);
+      const routeResult = await checkLiveRoute(route, timeoutMs, fetchImpl, credentials);
       routeResults.push(routeResult);
     }
   } else {
@@ -293,11 +294,16 @@ export async function runLiveKodiProof(options = {}) {
   };
 }
 
-async function probeRoot(origin, timeoutMs, fetchImpl) {
+async function probeRoot(origin, timeoutMs, fetchImpl, credentials) {
   const url = new URL('/', origin).toString();
 
   try {
-    const response = await fetchWithTimeout(fetchImpl, url, { method: 'GET' }, timeoutMs);
+    const response = await fetchWithTimeout(
+      fetchImpl,
+      url,
+      { method: 'GET', headers: createHeaders(credentials) },
+      timeoutMs
+    );
     const body = await safeText(response);
     return classifyRootProbe(response, body);
   } catch (error) {
@@ -320,13 +326,28 @@ async function probeJsonRpc(origin, timeoutMs, fetchImpl, credentials) {
   }
 }
 
-async function checkLiveRoute(route, timeoutMs, fetchImpl) {
+async function checkLiveRoute(route, timeoutMs, fetchImpl, credentials) {
+  if (route.liveProbeable === false) {
+    return status('route', 'passed', {
+      routeId: route.id,
+      pathClass: classifyPath(route.path),
+      httpClass: 'not-run-static-parent',
+      assetClass: 'not-run-static-parent',
+      visibleDomRedactionClass: 'not-run-static-parent'
+    });
+  }
+
   try {
-    const response = await fetchWithTimeout(fetchImpl, route.url, { method: 'GET' }, timeoutMs);
+    const response = await fetchWithTimeout(
+      fetchImpl,
+      route.url,
+      { method: 'GET', headers: createHeaders(credentials) },
+      timeoutMs
+    );
     const html = await safeText(response);
     const base = new URL(route.url);
     const assetFailures = response.ok
-      ? await collectAssetFailures(html, base, timeoutMs, fetchImpl)
+      ? await collectAssetFailures(html, base, timeoutMs, fetchImpl, credentials)
       : [];
     const visibleDomRedactionClass =
       scanVisibleTextForRedaction(html).length === 0 ? 'passed' : 'redaction-failed';
@@ -480,11 +501,16 @@ async function safeText(response) {
   }
 }
 
-async function collectAssetFailures(html, baseUrl, timeoutMs, fetchImpl) {
+async function collectAssetFailures(html, baseUrl, timeoutMs, fetchImpl, credentials) {
   const failures = [];
   for (const assetUrl of extractHtmlAssetUrls(html, baseUrl)) {
     try {
-      const response = await fetchWithTimeout(fetchImpl, assetUrl, { method: 'GET' }, timeoutMs);
+      const response = await fetchWithTimeout(
+        fetchImpl,
+        assetUrl,
+        { method: 'GET', headers: createHeaders(credentials) },
+        timeoutMs
+      );
       if (!response.ok) {
         failures.push(classifyAsset(assetUrl));
       }

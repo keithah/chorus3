@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildAppRoute,
+    buildKodiPackageSafePrimaryAppRoute,
+    buildPrimaryAppRoute,
+    type AppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
+  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
   import {
     libraryFilterStore,
     type LibraryAvailableFilters,
@@ -56,6 +63,14 @@
     MusicQueueItem,
     MusicVideoQueueItem
   } from '$lib/stores/queue.svelte';
+  import {
+    displayTitleForMetadataEditor,
+    metadataEditorDefinitionForAction,
+    metadataEditorIdForAction,
+    type MetadataEditableAction,
+    type MetadataEditorDefinition,
+    type MetadataEditorPayload
+  } from '$lib/metadata/metadataEditor';
 
   interface Props {
     route: PrimaryRoute;
@@ -102,70 +117,22 @@
     | { media: 'movie'; movieid: number }
     | { media: 'episode'; episodeid: number }
     | { media: 'musicvideo'; musicvideoid: number };
-  type Card =
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'music'; kind: 'artist'; artistid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'music'; kind: 'album'; albumid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'music'; kind: 'song'; songid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'movie'; movieid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'episode'; episodeid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'musicvideo'; musicvideoid: number };
-      }
-    | {
-        key: string;
-        title: string;
-        subtitle?: string;
-        thumbnail?: string;
-        poster?: boolean;
-        route?: PrimaryRoute;
-        action?: { media: 'tvshow'; tvshowid: number };
-      };
+  type Card = {
+    key: string;
+    title: string;
+    subtitle?: string;
+    thumbnail?: string;
+    poster?: boolean;
+    route?: PrimaryRoute;
+    action?: MetadataEditableAction;
+    source?: Record<string, unknown>;
+  };
+  type MetadataEditTarget = {
+    key: string;
+    action: MetadataEditableAction;
+    definition: MetadataEditorDefinition;
+    source: Record<string, unknown>;
+  };
   type Section = {
     title?: string;
     cards: Card[];
@@ -204,6 +171,8 @@
   let pendingLocalPlaylistKey = $state<string | null>(null);
   let pendingSelectedAction = $state<'play' | 'queue' | 'localadd' | null>(null);
   let pendingEditKey = $state<string | null>(null);
+  let metadataEditTarget = $state<MetadataEditTarget | null>(null);
+  let metadataEditError = $state<string | null>(null);
   let selectedCardKeys = $state<Set<string>>(new Set());
   let openMovieMoreId = $state<number | null>(null);
   let filterRevision = $state(0);
@@ -707,7 +676,8 @@
       title: safe(item.label, 'Unknown artist'),
       thumbnail: kodiImageUrl(item.thumbnail),
       route: { kind: 'musicArtistDetail', artistid: String(item.artistid) },
-      action: { media: 'music', kind: 'artist', artistid: item.artistid }
+      action: { media: 'music', kind: 'artist', artistid: item.artistid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
@@ -718,7 +688,8 @@
       subtitle: join(item.artist),
       thumbnail: kodiImageUrl(item.thumbnail),
       route: { kind: 'musicAlbumDetail', albumid: String(item.albumid) },
-      action: { media: 'music', kind: 'album', albumid: item.albumid }
+      action: { media: 'music', kind: 'album', albumid: item.albumid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
@@ -737,7 +708,8 @@
       title: safe(item.title ?? item.label, 'Unknown song'),
       subtitle: join(item.artist) ?? safe(item.album, ''),
       thumbnail: kodiImageUrl(item.thumbnail),
-      action: { media: 'music', kind: 'song', songid: item.songid }
+      action: { media: 'music', kind: 'song', songid: item.songid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
@@ -753,7 +725,8 @@
           title,
           subtitle: join(item.artist),
           thumbnail: kodiImageUrl(item.thumbnail),
-          action: { media: 'music', kind: 'song', songid: item.songid }
+          action: { media: 'music', kind: 'song', songid: item.songid },
+          source: item as unknown as Record<string, unknown>
         }
       ];
     });
@@ -771,7 +744,8 @@
       thumbnail: preferredVideoPosterUrl(item),
       poster: true,
       route: { kind: 'movieDetail', movieid: String(item.movieid) },
-      action: { media: 'movie', movieid: item.movieid }
+      action: { media: 'movie', movieid: item.movieid },
+      source: item as unknown as Record<string, unknown>
     };
   }
 
@@ -961,34 +935,9 @@
     }
   }
 
-  async function editMovieTitle(movie: MovieDetailSource): Promise<void> {
-    const movieid = movie.movieid;
-    if (!Number.isSafeInteger(movieid) || movieid <= 0 || typeof window === 'undefined') return;
-
-    const currentTitle = safe(movie.title ?? movie.label, 'Movie');
-    const nextTitle = window.prompt('Edit movie title', currentTitle)?.trim();
-    if (!nextTitle || nextTitle === currentTitle) {
-      openMovieMoreId = null;
-      return;
-    }
-
+  function editMovieMetadata(movie: MovieDetailSource): void {
     openMovieMoreId = null;
-    pendingMovieMoreActionKey = `edit:${movieid}`;
-    actionStatus = `Saving ${currentTitle}...`;
-
-    try {
-      const client = createActiveKodiJsonRpcHttpClient();
-      if (!client) {
-        throw new Error('Choose an active Kodi host before editing media.');
-      }
-
-      await client.call('VideoLibrary.SetMovieDetails', { movieid, title: nextTitle });
-      actionStatus = `Saved title for ${nextTitle}.`;
-    } catch (error) {
-      actionStatus = `Could not save ${currentTitle}. ${safeErrorMessage(error)}`;
-    } finally {
-      pendingMovieMoreActionKey = null;
-    }
+    openMetadataEditor(movieDetailCard(movie));
   }
 
   function movieRating(item: MovieDetailSource | null): number | undefined {
@@ -1045,7 +994,8 @@
       title: safe(item.title ?? item.label, 'Unknown episode'),
       subtitle: safe(item.showtitle, ''),
       thumbnail: kodiImageUrl(item.thumbnail),
-      action: { media: 'episode', episodeid: item.episodeid }
+      action: { media: 'episode', episodeid: item.episodeid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
@@ -1056,7 +1006,8 @@
       subtitle: join(item.artist) ?? safe(item.album, ''),
       thumbnail: kodiImageUrl(item.thumbnail),
       route: { kind: 'musicVideoDetail', musicvideoid: String(item.musicvideoid) },
-      action: { media: 'musicvideo', musicvideoid: item.musicvideoid }
+      action: { media: 'musicvideo', musicvideoid: item.musicvideoid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
@@ -1290,12 +1241,13 @@
       thumbnail: preferredVideoPosterUrl(item),
       poster: true,
       route: { kind: 'tvshowDetail', tvshowid: String(item.tvshowid) },
-      action: { media: 'tvshow', tvshowid: item.tvshowid }
+      action: { media: 'tvshow', tvshowid: item.tvshowid },
+      source: item as unknown as Record<string, unknown>
     }));
   }
 
   function hrefFor(target: PrimaryRoute): string {
-    return buildPrimaryAppRoute(target, buildOptions);
+    return buildKodiPackageSafePrimaryAppRoute(target, buildOptions);
   }
 
   function cardHref(card: Card): string | null {
@@ -1522,17 +1474,37 @@
     }
   }
 
-  async function editCardTitle(card: Card): Promise<void> {
-    if (!card.action || typeof window === 'undefined') return;
+  function openMetadataEditor(card: Card): void {
+    const action = card.action;
+    const definition = metadataEditorDefinitionForAction(action);
+    if (!action || !definition) return;
 
-    const editRequest = editRequestForCard(card);
-    if (!editRequest) return;
+    metadataEditTarget = {
+      key: card.key,
+      action,
+      definition,
+      source: {
+        ...(card.source ?? {}),
+        label: card.source?.label ?? card.title,
+        [definition.displayKey]: card.source?.[definition.displayKey] ?? card.title
+      }
+    };
+    metadataEditError = null;
+  }
 
-    const currentTitle = safe(card.title, 'Title');
-    const nextTitle = window.prompt('Edit title', currentTitle)?.trim();
-    if (!nextTitle || nextTitle === currentTitle) return;
+  async function saveMetadataEdit(payload: MetadataEditorPayload): Promise<void> {
+    const target = metadataEditTarget;
+    if (!target) return;
+    const id = metadataEditorIdForAction(target.definition, target.action);
+    if (!id) return;
 
-    pendingEditKey = card.key;
+    const currentTitle = displayTitleForMetadataEditor(
+      target.definition,
+      target.source,
+      target.definition.title
+    );
+    pendingEditKey = target.key;
+    metadataEditError = null;
     actionStatus = `Saving ${currentTitle}...`;
 
     try {
@@ -1541,75 +1513,20 @@
         throw new Error('Choose an active Kodi host before editing media.');
       }
 
-      await client.call(editRequest.method, {
-        ...editRequest.params,
-        [editRequest.titleKey]: nextTitle
+      await client.call(target.definition.method, {
+        [target.definition.idParam]: id,
+        ...payload
       });
-      actionStatus = `Saved title for ${nextTitle}.`;
+      const nextTitle = displayTitleForMetadataEditor(target.definition, payload, currentTitle);
+      actionStatus = `Saved metadata for ${nextTitle}.`;
+      metadataEditTarget = null;
     } catch (error) {
+      metadataEditError = safeErrorMessage(error);
       actionStatus = `Could not save ${currentTitle}. ${safeErrorMessage(error)}`;
     } finally {
       pendingEditKey = null;
+      pendingMovieMoreActionKey = null;
     }
-  }
-
-  function editRequestForCard(
-    card: Card
-  ): { method: string; params: Record<string, number>; titleKey: 'title' | 'artist' } | null {
-    const action = card.action;
-    if (!action) return null;
-
-    if (action.media === 'music' && action.kind === 'artist') {
-      return {
-        method: 'AudioLibrary.SetArtistDetails',
-        params: { artistid: action.artistid },
-        titleKey: 'artist'
-      };
-    }
-    if (action.media === 'music' && action.kind === 'album') {
-      return {
-        method: 'AudioLibrary.SetAlbumDetails',
-        params: { albumid: action.albumid },
-        titleKey: 'title'
-      };
-    }
-    if (action.media === 'music' && action.kind === 'song') {
-      return {
-        method: 'AudioLibrary.SetSongDetails',
-        params: { songid: action.songid },
-        titleKey: 'title'
-      };
-    }
-    if (action.media === 'movie') {
-      return {
-        method: 'VideoLibrary.SetMovieDetails',
-        params: { movieid: action.movieid },
-        titleKey: 'title'
-      };
-    }
-    if (action.media === 'episode') {
-      return {
-        method: 'VideoLibrary.SetEpisodeDetails',
-        params: { episodeid: action.episodeid },
-        titleKey: 'title'
-      };
-    }
-    if (action.media === 'musicvideo') {
-      return {
-        method: 'VideoLibrary.SetMusicVideoDetails',
-        params: { musicvideoid: action.musicvideoid },
-        titleKey: 'title'
-      };
-    }
-    if (action.media === 'tvshow') {
-      return {
-        method: 'VideoLibrary.SetTVShowDetails',
-        params: { tvshowid: action.tvshowid },
-        titleKey: 'title'
-      };
-    }
-
-    return null;
   }
 
   function toggleThumbsUp(card: Card): void {
@@ -1709,24 +1626,50 @@
     const action = browserPlayableAction(card.action);
     if (!action) return;
 
-    actionStatus = `Starting browser playback for ${card.title}...`;
+    actionStatus = `Opening browser playback for ${card.title}...`;
+    openBrowserPlayerWindow(browserPlayerRouteForAction(action));
+    actionStatus = `Opened browser playback for ${card.title}.`;
+  }
 
+  function openBrowserPlayerWindow(route: AppRoute): void {
+    if (typeof window === 'undefined') return;
     try {
-      if (action.media === 'music') {
-        playerDispatch.setMode?.('local');
-        await playerDispatch.playMusicItem?.(toMusicActionPayload(action));
-      } else if (action.media === 'movie') {
-        await playerDispatch.streamMovieItem?.({ movieid: action.movieid });
-      } else if (action.media === 'episode') {
-        await playerDispatch.streamEpisodeItem?.({ episodeid: action.episodeid });
-      } else {
-        await playerDispatch.streamMusicVideoItem?.({ musicvideoid: action.musicvideoid });
-      }
-
-      actionStatus = `Started browser playback for ${card.title}.`;
-    } catch (error) {
-      actionStatus = `Could not play ${card.title} in browser. ${safeErrorMessage(error)}`;
+      const playerWindow = window.open(
+        buildAppRoute(route, buildOptions),
+        '_blank',
+        'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
+      );
+      playerWindow?.focus?.();
+    } catch {
+      actionStatus = 'The browser blocked the playback popup.';
     }
+  }
+
+  function browserPlayerRouteForAction(action: BrowserPlayableCardAction): AppRoute {
+    if (action.media === 'music') {
+      return {
+        kind: 'localPlayer',
+        media: 'music',
+        musicKind: action.kind,
+        id: musicActionId(action)
+      };
+    }
+
+    if (action.media === 'movie') {
+      return { kind: 'localPlayer', media: 'movie', id: action.movieid };
+    }
+
+    if (action.media === 'episode') {
+      return { kind: 'localPlayer', media: 'episode', id: action.episodeid };
+    }
+
+    return { kind: 'localPlayer', media: 'musicvideo', id: action.musicvideoid };
+  }
+
+  function musicActionId(action: Extract<BrowserPlayableCardAction, { media: 'music' }>): number {
+    if (action.kind === 'artist') return action.artistid;
+    if (action.kind === 'album') return action.albumid;
+    return action.songid;
   }
 
   function downloadableAction(action: Card['action']): DownloadableCardAction | null {
@@ -2322,7 +2265,7 @@
                           type="button"
                           role="menuitem"
                           disabled={pendingMovieMoreActionKey === `edit:${movie.movieid}`}
-                          onclick={() => void editMovieTitle(movie)}>Edit</button
+                          onclick={() => editMovieMetadata(movie)}>Edit</button
                         >
                       </div>
                     {/if}
@@ -2376,23 +2319,43 @@
                   />
                   <span>Select</span>
                 </label>
-                <a class="classic-card-main" href={cardHref(card) ?? '#'} aria-label={card.title}>
-                  <div
-                    class="classic-card-art"
-                    class:has-artwork={Boolean(card.thumbnail)}
-                    aria-hidden="true"
-                  >
-                    {#if card.thumbnail}
-                      <img src={card.thumbnail} alt="" loading="lazy" decoding="async" />
-                    {/if}
+                {#if cardHref(card)}
+                  <a class="classic-card-main" href={cardHref(card) ?? ''} aria-label={card.title}>
+                    <div
+                      class="classic-card-art"
+                      class:has-artwork={Boolean(card.thumbnail)}
+                      aria-hidden="true"
+                    >
+                      {#if card.thumbnail}
+                        <img src={card.thumbnail} alt="" loading="lazy" decoding="async" />
+                      {/if}
+                    </div>
+                    <div class="classic-card-copy">
+                      <strong>{card.title}</strong>
+                      {#if card.subtitle}
+                        <span>{card.subtitle}</span>
+                      {/if}
+                    </div>
+                  </a>
+                {:else}
+                  <div class="classic-card-main" aria-label={card.title}>
+                    <div
+                      class="classic-card-art"
+                      class:has-artwork={Boolean(card.thumbnail)}
+                      aria-hidden="true"
+                    >
+                      {#if card.thumbnail}
+                        <img src={card.thumbnail} alt="" loading="lazy" decoding="async" />
+                      {/if}
+                    </div>
+                    <div class="classic-card-copy">
+                      <strong>{card.title}</strong>
+                      {#if card.subtitle}
+                        <span>{card.subtitle}</span>
+                      {/if}
+                    </div>
                   </div>
-                  <div class="classic-card-copy">
-                    <strong>{card.title}</strong>
-                    {#if card.subtitle}
-                      <span>{card.subtitle}</span>
-                    {/if}
-                  </div>
-                </a>
+                {/if}
                 {#if card.action}
                   {@const thumbsItem = thumbsUpItem(card)}
                   {@const downloadAction = downloadableAction(card.action)}
@@ -2406,7 +2369,7 @@
                     <button
                       type="button"
                       disabled={pendingEditKey === card.key}
-                      onclick={() => void editCardTitle(card)}>Edit</button
+                      onclick={() => openMetadataEditor(card)}>Edit</button
                     >
                     {#if thumbsItem}
                       <button
@@ -2449,6 +2412,19 @@
         {/if}
       </section>
     {/each}
+    {#if metadataEditTarget}
+      <MetadataEditDialog
+        definition={metadataEditTarget.definition}
+        source={metadataEditTarget.source}
+        pending={pendingEditKey === metadataEditTarget.key}
+        error={metadataEditError}
+        onSave={saveMetadataEdit}
+        onCancel={() => {
+          metadataEditTarget = null;
+          metadataEditError = null;
+        }}
+      />
+    {/if}
     {#if actionStatus}
       <p class="classic-action-status" role="status" aria-live="polite">{actionStatus}</p>
     {/if}

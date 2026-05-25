@@ -55,7 +55,7 @@
   import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
   import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
-  import { buildPrimaryAppRoute, type ParityRoutePlaceholder } from '$lib/app/appRouter';
+  import type { ParityRoutePlaceholder } from '$lib/app/appRouter';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsStoreSnapshot,
@@ -210,11 +210,8 @@
 
   const routeBuildOptions = $derived({
     packageBasePath,
-    routeMode: packageBasePath ? 'hash' : 'path'
+    routeMode: 'path'
   } as const);
-  const addonsDisplayRoute = $derived(
-    route.kind === 'addonExecute' ? ({ kind: 'addonsExecutable' } as const) : route
-  );
   const isChorus2LibraryRoute = $derived(
     route.kind === 'home' ||
       route.kind === 'music' ||
@@ -277,6 +274,7 @@
   );
   const isChorus2PvrRoute = $derived(
     route.kind === 'pvrTv' ||
+      route.kind === 'pvrEpg' ||
       route.kind === 'pvrTvChannel' ||
       route.kind === 'pvrRadio' ||
       route.kind === 'pvrRadioChannel' ||
@@ -317,22 +315,6 @@
 
     lastAddonExecuteKey = addonid;
     void addonsDispatch.executeAddon?.(addonid);
-
-    if (typeof window !== 'undefined') {
-      window.queueMicrotask(() => {
-        const executableHref = buildPrimaryAppRoute(
-          { kind: 'addonsExecutable' },
-          routeBuildOptions
-        );
-        if (executableHref.startsWith('#')) {
-          window.location.hash = executableHref;
-          return;
-        }
-
-        window.history.replaceState?.({}, '', executableHref);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      });
-    }
   });
 </script>
 
@@ -411,7 +393,7 @@
     {/if}
   {:else if isChorus2AddonsRoute}
     <AddonsPage
-      route={addonsDisplayRoute}
+      {route}
       snapshot={addonsSnapshot}
       dispatch={addonsDispatch}
       {addonDetailDispatch}

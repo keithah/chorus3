@@ -276,6 +276,27 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('exposes the full Chorus2 language selector inventory', () => {
+    renderPage({ kind: 'settingsWeb' });
+
+    const language = document.querySelector(
+      'select[aria-label="Language"]'
+    ) as HTMLSelectElement | null;
+
+    expect(language).not.toBeNull();
+    expect(language!.options.length).toBe(76);
+    expect([...language!.options].map((option) => [option.value, option.text])).toEqual(
+      expect.arrayContaining([
+        ['en', 'English (United Kingdom)'],
+        ['de', 'German'],
+        ['he', 'Hebrew (Israel)'],
+        ['pt_br', 'Portuguese (Brazil)'],
+        ['sr_rs@latin', 'Serbian (latin)'],
+        ['zh_tw', 'Chinese (Traditional)']
+      ])
+    );
+  });
+
   it('renders Chorus2 add-on settings as grouped toggles and dispatches enablement writes', async () => {
     const addonsDispatch = createAddonsDispatch();
     renderPage(
@@ -301,6 +322,11 @@ describe('SettingsPage', () => {
     await tick();
 
     expect(addonsDispatch.setAddonEnabled).toHaveBeenCalledWith('plugin.video.safe-demo', true);
+
+    const settingsLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a')).find(
+      (link) => link.textContent?.trim() === 'Settings'
+    );
+    expect(settingsLink?.getAttribute('href')).toBe('/addons/plugin.video.safe-demo');
   });
 
   it('persists Chorus2 main menu rows in the compatible local format', async () => {

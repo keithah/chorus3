@@ -50,7 +50,10 @@ const S03_ROUTE_KIND_CASES = [
   ['searchMedia', { kind: 'searchMedia', media: 'music', query: 'bowie' }],
   ['thumbsup', { kind: 'thumbsup' }],
   ['pvrTv', { kind: 'pvrTv' }],
+  ['pvrEpg', { kind: 'pvrEpg' }],
+  ['pvrTvChannel', { kind: 'pvrTvChannel', channelid: '101' }],
   ['pvrRadio', { kind: 'pvrRadio' }],
+  ['pvrRadioChannel', { kind: 'pvrRadioChannel', channelid: '202' }],
   ['pvrRecordings', { kind: 'pvrRecordings' }]
 ] as const satisfies readonly [PrimaryRoute['kind'], PrimaryRoute][];
 
@@ -134,6 +137,28 @@ describe('app page metadata', () => {
     ).toBe('');
   });
 
+  test.each([
+    [{ kind: 'movieDetail', movieid: 'movie-1' }, 'Movie details', 'movies'],
+    [{ kind: 'tvshowDetail', tvshowid: 'show-1' }, 'TV show details', 'tv'],
+    [{ kind: 'tvshowSeasonDetail', tvshowid: 'show-1', season: '1' }, 'Season details', 'tv'],
+    [
+      { kind: 'tvshowEpisodeDetail', tvshowid: 'show-1', season: '1', episodeid: 'episode-1' },
+      'Episode details',
+      'tv'
+    ]
+  ] as const)('classifies %s as an implemented detail surface', (route, heading, surfaceKind) => {
+    const metadata = getAppPageMetadata(route);
+
+    expect(metadata).toMatchObject({
+      routeKind: route.kind,
+      surfaceKind,
+      status: 'implemented',
+      heading
+    });
+    expect(metadata.statusLabel).toBe('Detail surface');
+    expect(metadata.deferredMessage).toBe('');
+  });
+
   test('classifies Kodi settings section routes as real settings surfaces with generic copy', () => {
     const metadata = getAppPageMetadata({
       kind: 'settingsKodiSection',
@@ -151,6 +176,24 @@ describe('app page metadata', () => {
     expect(metadata.deferredMessage).toBe('');
     expect(metadata.description).toContain('Select a known Kodi settings section');
     expect(JSON.stringify(metadata)).not.toMatch(FORBIDDEN_LABEL_TEXT);
+  });
+
+  test.each([
+    [{ kind: 'pvrTvChannel', channelid: '101' }, 'PVR TV channel'],
+    [{ kind: 'pvrEpg' }, 'PVR EPG'],
+    [{ kind: 'pvrRadioChannel', channelid: '202' }, 'PVR radio channel']
+  ] as const)('classifies %s as a real PVR EPG surface', (route, heading) => {
+    const metadata = getAppPageMetadata(route);
+
+    expect(metadata).toMatchObject({
+      routeKind: route.kind,
+      surfaceKind: 'pvr',
+      status: 'implemented',
+      heading,
+      stageLabel: 'PVR'
+    });
+    expect(metadata.statusLabel).toMatch(/channel detail|guide/u);
+    expect(metadata.deferredMessage).toBe('');
   });
 
   test.each([

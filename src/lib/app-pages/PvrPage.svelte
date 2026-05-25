@@ -37,6 +37,7 @@
   let { route, snapshot, dispatch, playerDispatch, buildOptions = {} }: Props = $props();
 
   let lastRefreshKey = $state('');
+  let lastGlobalEpgKey = $state('');
   const mode = $derived(resolveMode(route));
   const channels = $derived(mode === 'radio' ? snapshot.radioChannels : snapshot.tvChannels);
   const channelStatus = $derived(mode === 'radio' ? snapshot.radioStatus : snapshot.tvStatus);
@@ -44,10 +45,22 @@
   const selectedBroadcasts = $derived(
     selectedChannel ? (snapshot.broadcastsByChannelId[selectedChannel.channelid] ?? []) : []
   );
+  const isGlobalEpgPage = $derived(route.kind === 'pvrEpg');
+  const isEpgPage = $derived(
+    route.kind === 'pvrEpg' || route.kind === 'pvrTvChannel' || route.kind === 'pvrRadioChannel'
+  );
   const isChannelPage = $derived(mode === 'tv' || mode === 'radio');
   const isRecordingPage = $derived(mode === 'recordings');
   const heading = $derived(
-    mode === 'radio' ? 'Radio Stations' : mode === 'recordings' ? 'Recordings' : 'TV Channels'
+    isGlobalEpgPage
+      ? 'TV Guide'
+      : isEpgPage
+        ? (selectedChannel?.label ?? (mode === 'radio' ? 'Radio Station' : 'TV Channel'))
+        : mode === 'radio'
+          ? 'Radio Stations'
+          : mode === 'recordings'
+            ? 'Recordings'
+            : 'TV Channels'
   );
   const activeGroup = $derived(mode === 'radio' ? 'allradio' : 'alltv');
 
@@ -64,6 +77,23 @@
     }
 
     void dispatch.refreshChannels(activeGroup);
+  });
+
+  $effect(() => {
+    if (route.kind !== 'pvrEpg') {
+      lastGlobalEpgKey = '';
+      return;
+    }
+
+    const key = snapshot.tvChannels.map((channel) => channel.channelid).join(',');
+    if (!key || key === lastGlobalEpgKey) {
+      return;
+    }
+
+    lastGlobalEpgKey = key;
+    for (const channel of snapshot.tvChannels) {
+      void dispatch.refreshBroadcasts?.(channel.channelid);
+    }
   });
 
   $effect(() => {
@@ -151,11 +181,37 @@
       return;
     }
 
+    if (route.kind === 'pvrEpg') {
+      await refreshGlobalEpg();
+      return;
+    }
+
+    if (isEpgPage) {
+      const channelid = Number(
+        route.kind === 'pvrTvChannel' || route.kind === 'pvrRadioChannel' ? route.channelid : 0
+      );
+      if (Number.isSafeInteger(channelid) && channelid > 0) {
+        await dispatch.refreshBroadcasts?.(channelid);
+      }
+      return;
+    }
+
     await dispatch.refreshChannels(activeGroup);
   }
 
   async function playChannel(channel: PvrChannelSnapshot): Promise<void> {
     await playerDispatch.playChannelItem?.({ channelid: channel.channelid });
+  }
+
+  async function refreshGlobalEpg(): Promise<void> {
+    await dispatch.refreshChannels('alltv');
+    await Promise.all(
+      snapshot.tvChannels.map((channel) => dispatch.refreshBroadcasts?.(channel.channelid))
+    );
+  }
+
+  function broadcastsFor(channel: PvrChannelSnapshot): readonly PvrBroadcastSnapshot[] {
+    return snapshot.broadcastsByChannelId[channel.channelid] ?? [];
   }
 
   async function toggleRecording(channel: PvrChannelSnapshot): Promise<void> {
@@ -232,6 +288,11 @@
       onclick={(event) => handleRouteLink(event, hrefFor({ kind: 'pvrTv' }))}>TV Channels</a
     >
     <a
+      class:active={route.kind === 'pvrEpg'}
+      href={hrefFor({ kind: 'pvrEpg' })}
+      onclick={(event) => handleRouteLink(event, hrefFor({ kind: 'pvrEpg' }))}>Guide</a
+    >
+    <a
       class:active={mode === 'radio'}
       href={hrefFor({ kind: 'pvrRadio' })}
       onclick={(event) => handleRouteLink(event, hrefFor({ kind: 'pvrRadio' }))}>Radio Stations</a
@@ -247,7 +308,7 @@
     <header class="pvr-toolbar">
       <h2 id="pvr-page-title">{heading}</h2>
       <button type="button" onclick={refreshCurrent}>
-        {isRecordingPage ? 'Refresh recordings' : 'Refresh channels'}
+        {isRecordingPage ? 'Refresh recordings' : isEpgPage ? 'Refresh EPG' : 'Refresh channels'}
       </button>
     </header>
 
@@ -255,7 +316,108 @@
       <p class="pvr-error" role="status">{snapshot.lastError.message}</p>
     {/if}
 
-    {#if isChannelPage}
+    {#if isGlobalEpgPage}
+      {#if channelStatus === 'loading' && channels.length === 0}
+        <p class="empty-state">Loading EPG...</p>
+      {:else if channels.length === 0}
+        <p class="empty-state">No TV channels found.</p>
+      {:else}
+        <div class="broadcast-list programmes global-epg" aria-label="TV Guide">
+          {#each channels as channel (channel.channelid)}
+            <section class="global-epg-channel" aria-labelledby={`pvr-guide-${channel.channelid}`}>
+              <h3 id={`pvr-guide-${channel.channelid}`}>{channel.label}</h3>
+              {#if broadcastsFor(channel).length === 0}
+                <p class="empty-state">No broadcasts found.</p>
+              {:else}
+                {#each broadcastsFor(channel) as broadcast (broadcast.broadcastid)}
+                  <article
+                    class:active={broadcast.isactive}
+                    class:aired={broadcast.wasactive}
+                    class:airing={broadcast.isactive}
+                    class:hasTimer={broadcast.hastimer || broadcast.hastimerrule}
+                    class="broadcast-row pvr-card"
+                  >
+                    <span class="broadcast-time">
+                      {formatClock(broadcast.starttime) || broadcast.starttime || ''}
+                      {#if broadcast.endtime}
+                        <small>{formatClock(broadcast.endtime) || broadcast.endtime}</small>
+                      {/if}
+                    </span>
+                    <span class="pvr-card__text">
+                      <strong>{broadcast.title ?? broadcast.label}</strong>
+                      {#if broadcast.plot}
+                        <span>{broadcast.plot}</span>
+                      {/if}
+                    </span>
+                    <button type="button" class="pvr-play" onclick={() => playChannel(channel)}>
+                      Play
+                    </button>
+                    <button type="button" class="pvr-play" onclick={() => toggleRecording(channel)}>
+                      Record
+                    </button>
+                    <button type="button" class="pvr-play" onclick={() => toggleTimer(broadcast)}>
+                      {broadcast.hastimer || broadcast.hastimerrule ? 'Timer on' : 'Timer'}
+                    </button>
+                  </article>
+                {/each}
+              {/if}
+            </section>
+          {/each}
+        </div>
+      {/if}
+    {:else if isEpgPage}
+      {#if !selectedChannel && channelStatus === 'loading'}
+        <p class="empty-state">Loading channel...</p>
+      {:else if !selectedChannel}
+        <p class="empty-state">Channel not found.</p>
+      {:else}
+        <section class="channel-actions" aria-label={`${selectedChannel.label} actions`}>
+          <button type="button" class="pvr-play" onclick={() => playChannel(selectedChannel)}>
+            Play
+          </button>
+          <button type="button" class="pvr-play" onclick={() => toggleRecording(selectedChannel)}>
+            {selectedChannel.isrecording ? 'Stop record' : 'Record'}
+          </button>
+        </section>
+        {#if selectedBroadcasts.length === 0}
+          <p class="empty-state">No broadcasts found.</p>
+        {:else}
+          <div class="broadcast-list programmes" aria-label={`${selectedChannel.label} EPG`}>
+            {#each selectedBroadcasts as broadcast (broadcast.broadcastid)}
+              <article
+                class:active={broadcast.isactive}
+                class:aired={broadcast.wasactive}
+                class:airing={broadcast.isactive}
+                class:hasTimer={broadcast.hastimer || broadcast.hastimerrule}
+                class="broadcast-row pvr-card"
+              >
+                <span class="broadcast-time">
+                  {formatClock(broadcast.starttime) || broadcast.starttime || ''}
+                  {#if broadcast.endtime}
+                    <small>{formatClock(broadcast.endtime) || broadcast.endtime}</small>
+                  {/if}
+                </span>
+                <span class="pvr-card__text">
+                  <strong>{broadcast.title ?? broadcast.label}</strong>
+                  {#if broadcast.plot}
+                    <span>{broadcast.plot}</span>
+                  {/if}
+                </span>
+                <button type="button" class="pvr-play" onclick={() => playSelectedBroadcast()}>
+                  Play
+                </button>
+                <button type="button" class="pvr-play" onclick={() => recordSelectedBroadcast()}>
+                  Record
+                </button>
+                <button type="button" class="pvr-play" onclick={() => toggleTimer(broadcast)}>
+                  {broadcast.hastimer || broadcast.hastimerrule ? 'Timer on' : 'Timer'}
+                </button>
+              </article>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+    {:else if isChannelPage}
       {#if channelStatus === 'loading' && channels.length === 0}
         <p class="empty-state">Loading channels...</p>
       {:else if channels.length === 0}
@@ -484,6 +646,18 @@
   .pvr-card.active,
   .broadcast-row.active {
     outline: 2px solid #4bb3e8;
+  }
+
+  .broadcast-row.airing {
+    border-left: 4px solid #4bb3e8;
+  }
+
+  .broadcast-row.aired {
+    opacity: 0.7;
+  }
+
+  .broadcast-row.hasTimer {
+    border-right: 4px solid #8c8c8c;
   }
 
   .pvr-card__main,

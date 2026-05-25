@@ -52,12 +52,12 @@ const APP_PAGE_METADATA_BY_KIND = {
     'Movie library',
     'Reference route'
   ),
-  movieDetail: deferred('movies', 'Movie details', 'Movie library', 'Deferred detail surface'),
+  movieDetail: implemented('movies', 'Movie details', 'Movie library', 'Detail surface'),
   tvshows: implemented('tv', 'TV shows', 'TV library', 'Library root'),
   tvshowsRecent: staticSurface('tv', 'Recently added TV shows', 'TV library', 'Reference route'),
-  tvshowDetail: deferred('tv', 'TV show details', 'TV library', 'Deferred detail surface'),
-  tvshowSeasonDetail: deferred('tv', 'Season details', 'TV library', 'Deferred detail surface'),
-  tvshowEpisodeDetail: deferred('tv', 'Episode details', 'TV library', 'Deferred detail surface'),
+  tvshowDetail: implemented('tv', 'TV show details', 'TV library', 'Detail surface'),
+  tvshowSeasonDetail: implemented('tv', 'Season details', 'TV library', 'Detail surface'),
+  tvshowEpisodeDetail: implemented('tv', 'Episode details', 'TV library', 'Detail surface'),
   browser: implemented('browser', 'Browser / Files', 'File browser', 'Primary files surface'),
   browserItem: implemented('browser', 'Browser item', 'File browser', 'Directory/file surface'),
   addonsAll: staticSurface('addons', 'Add-ons', 'Add-on catalog', 'Static route'),
@@ -98,6 +98,7 @@ const APP_PAGE_METADATA_BY_KIND = {
   labIconBrowser: implemented('lab', 'Icon browser', 'Lab', 'Icon catalog'),
   thumbsup: implemented('playlists', 'Thumbs up', 'Playlist library', 'Local thumbs-up surface'),
   pvrTv: implemented('pvr', 'PVR TV', 'PVR', 'PVR TV channel list'),
+  pvrEpg: implemented('pvr', 'PVR EPG', 'PVR', 'PVR guide'),
   pvrTvChannel: implemented('pvr', 'PVR TV channel', 'PVR', 'PVR TV channel detail'),
   pvrRadio: implemented('pvr', 'PVR radio', 'PVR', 'PVR radio channel list'),
   pvrRadioChannel: implemented('pvr', 'PVR radio channel', 'PVR', 'PVR radio channel detail'),
@@ -251,13 +252,4 @@ function staticSurface(
   statusLabel: string
 ): StaticAppPageMetadata {
   return { surfaceKind, status: 'static', heading, stageLabel, statusLabel };
-}
-
-function deferred(
-  surfaceKind: AppPageSurfaceKind,
-  heading: string,
-  stageLabel: string,
-  statusLabel: string
-): StaticAppPageMetadata {
-  return { surfaceKind, status: 'deferred', heading, stageLabel, statusLabel };
 }

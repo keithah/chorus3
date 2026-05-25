@@ -120,6 +120,7 @@ function createAddonsDispatch(overrides: Partial<AddonsPanelDispatch> = {}): Add
     setSearchQuery: vi.fn(),
     setGroupBy: vi.fn(),
     setAddonEnabled: vi.fn(),
+    executeAddon: vi.fn(),
     ...overrides
   };
 }
@@ -196,7 +197,7 @@ describe('AddonsPage', () => {
     expect(dispatch.setSearchQuery).not.toHaveBeenCalled();
   });
 
-  it('does not include enabled system add-ons that only match by broad type text', () => {
+  it('shows all installed add-ons on the full catalog while category routes stay content-filtered', () => {
     renderPage(
       { kind: 'addonsAll' },
       {
@@ -208,10 +209,29 @@ describe('AddonsPage', () => {
     );
 
     expect(text()).toContain('Safe Radio');
+    expect(text()).toContain('Safe AAC Encoder');
+    expect(text()).toContain('2 of 2 add-ons');
+
+    unmount(mounted as MountedComponent);
+    mounted = null;
+    document.body.innerHTML = '';
+
+    renderPage(
+      { kind: 'addonsAudio' },
+      {
+        snapshot: createSnapshot({
+          addons: [AUDIO_ADDON, SYSTEM_AUDIO_ENCODER],
+          visibleAddons: [AUDIO_ADDON, SYSTEM_AUDIO_ENCODER]
+        })
+      }
+    );
+
+    expect(text()).toContain('Safe Radio');
     expect(text()).not.toContain('Safe AAC Encoder');
+    expect(text()).toContain('1 of 1 add-ons');
   });
 
-  it('builds package-mounted detail links without escaping the Kodi webinterface base', () => {
+  it('builds package-mounted detail links as non-hash paths under the Kodi webinterface base', () => {
     renderPage(
       { kind: 'addonsVideo' },
       {
@@ -220,7 +240,7 @@ describe('AddonsPage', () => {
     );
 
     expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#addons/plugin.video.safe-demo'
+      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
     );
   });
 
@@ -230,6 +250,33 @@ describe('AddonsPage', () => {
     expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
       '/addons/plugin.video.safe-demo'
     );
+  });
+
+  it('renders add-on execute routes as real Chorus2 action status surfaces', async () => {
+    const dispatch = createAddonsDispatch();
+    renderPage(
+      { kind: 'addonExecute', addonid: 'script.safe-runner' },
+      {
+        dispatch,
+        snapshot: createSnapshot({
+          writeStatus: 'pending',
+          selectedAddonId: 'script.safe-runner',
+          detail: EXECUTABLE_ADDON
+        })
+      }
+    );
+    await tick();
+
+    expect(document.querySelector('#addons-page-title')?.textContent).toBe('Execute add-on');
+    expect(text()).toContain('Safe Runner');
+    expect(text()).toContain('Starting add-on.');
+    expect(text()).not.toContain('Detailed parity for this route is deferred');
+    expect(document.querySelector('.deferred-primary-page')).toBeNull();
+
+    button('Open executable add-ons').click();
+    await tick();
+
+    expect(dispatch.executeAddon).not.toHaveBeenCalled();
   });
 
   it('uses path links in standalone mode and dispatches route-state updates when switching tabs', async () => {

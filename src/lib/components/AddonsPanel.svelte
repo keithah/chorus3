@@ -45,12 +45,13 @@
     options: BuildAppRouteOptions | undefined,
     basePath: string
   ): BuildAppRouteOptions {
-    return options ?? { packageBasePath: basePath, routeMode: basePath ? 'hash' : 'path' };
+    return options ?? { packageBasePath: basePath, routeMode: 'path' };
   }
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');
+  const categoryAddons = $derived(filterVisibleAddons(snapshot.addons, typeFilter));
   const filteredVisibleAddons = $derived(filterVisibleAddons(snapshot.visibleAddons, typeFilter));
-  const hasInstalledAddons = $derived(snapshot.addons.length > 0);
+  const hasInstalledAddons = $derived(categoryAddons.length > 0);
   const hasVisibleAddons = $derived(filteredVisibleAddons.length > 0);
   const renderedGroups = $derived(createRenderedGroups());
 
@@ -91,20 +92,19 @@
     return i18n.t('addons.panel.grouping.enabled');
   }
 
+  function noInstalledCopy(): string {
+    if (typeFilter === 'audio') return i18n.t('addons.panel.noInstalled.audio');
+    if (typeFilter === 'video') return i18n.t('addons.panel.noInstalled.video');
+    if (typeFilter === 'executable') return i18n.t('addons.panel.noInstalled.executable');
+    return i18n.t('addons.panel.noInstalled');
+  }
+
   function filterVisibleAddons(
     addons: readonly AddonSnapshot[],
     filter: AddonsTypeFilter | null
   ): AddonSnapshot[] {
-    if (!filter) return addons.filter(addonIsContentProvider);
+    if (!filter) return [...addons];
     return addons.filter((addon) => addonMatchesTypeFilter(addon, filter));
-  }
-
-  function addonIsContentProvider(addon: AddonSnapshot): boolean {
-    return (
-      addonMatchesTypeFilter(addon, 'video') ||
-      addonMatchesTypeFilter(addon, 'audio') ||
-      addonMatchesTypeFilter(addon, 'executable')
-    );
   }
 
   function addonMatchesTypeFilter(addon: AddonSnapshot, filter: AddonsTypeFilter): boolean {
@@ -300,7 +300,7 @@
       <strong
         >{i18n.t('addons.panel.visibleCount', {
           visible: filteredVisibleAddons.length,
-          total: snapshot.addons.length
+          total: categoryAddons.length
         })}</strong
       >
     </div>
@@ -433,7 +433,7 @@
       {i18n.t('addons.panel.noMatches', { query: safeText(snapshot.searchQuery) })}
     </p>
   {:else}
-    <p class="addons-empty">{i18n.t('addons.panel.noInstalled')}</p>
+    <p class="addons-empty">{noInstalledCopy()}</p>
   {/if}
 </section>
 

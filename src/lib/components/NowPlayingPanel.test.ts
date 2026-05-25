@@ -111,6 +111,7 @@ describe('NowPlayingPanel', () => {
       localPlayerSnapshot: {
         status: 'paused',
         mediaKind: 'audio',
+        source: null,
         item: { label: 'Song', type: 'song' },
         currentSeconds: 10,
         durationSeconds: 100,
@@ -135,6 +136,7 @@ describe('NowPlayingPanel', () => {
       localPlayerSnapshot: {
         status: 'playing',
         mediaKind: 'video',
+        source: null,
         item: { label: 'Local Movie', type: 'movie' },
         currentSeconds: 45,
         durationSeconds: 300,
@@ -169,6 +171,7 @@ describe('NowPlayingPanel', () => {
       localPlayerSnapshot: {
         status: 'idle',
         mediaKind: 'unknown',
+        source: null,
         item: null,
         currentSeconds: 0,
         durationSeconds: null,
@@ -198,6 +201,7 @@ describe('NowPlayingPanel', () => {
       localPlayerSnapshot: {
         status: 'error',
         mediaKind: 'video',
+        source: null,
         item: { label: 'Video', type: 'movie' },
         currentSeconds: 0,
         durationSeconds: null,
@@ -343,6 +347,7 @@ describe('NowPlayingPanel', () => {
       localPlayerSnapshot: {
         status: 'error',
         mediaKind: 'video',
+        source: null,
         item: null,
         currentSeconds: 0,
         durationSeconds: null,

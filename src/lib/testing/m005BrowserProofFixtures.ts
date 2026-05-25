@@ -257,6 +257,7 @@ function createNowPlayingLocalPlayerSnapshot(): LocalPlayerStoreSnapshot {
   return {
     status: 'idle',
     mediaKind: 'video',
+    source: null,
     item: null,
     currentSeconds: 0,
     durationSeconds: null,

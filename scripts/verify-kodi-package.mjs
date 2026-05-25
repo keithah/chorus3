@@ -13,7 +13,7 @@ export const METADATA_PATH = 'kodi/addon-metadata.json';
 export const PACKAGE_JSON_PATH = 'package.json';
 
 const MAX_LISTED_FAILURES = 10;
-const REQUIRED_ZIP_ENTRIES = ['addon.xml', 'index.html', 'now-playing/index.html'];
+const REQUIRED_ZIP_ENTRIES = ['addon.xml', 'index.html'];
 const REQUIRED_MANIFEST_SNIPPETS = [
   '<requires',
   'addon="xbmc.json"',
@@ -84,6 +84,11 @@ const PRIMARY_ROUTE_CHECKS = [
   },
   { name: 'primary-music-root', path: '/music', expected: { kind: 'primary', routeKind: 'music' } },
   {
+    name: 'primary-music-home-root',
+    path: '/music/home',
+    expected: { kind: 'primary', routeKind: 'music' }
+  },
+  {
     name: 'primary-addons-alias-root',
     path: '/addons',
     expected: { kind: 'primary', routeKind: 'addonsAll' }
@@ -94,8 +99,18 @@ const PRIMARY_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'movies' }
   },
   {
+    name: 'primary-movies-all-root',
+    path: '/movies/all',
+    expected: { kind: 'primary', routeKind: 'movies' }
+  },
+  {
     name: 'primary-tvshows-root',
     path: '/tvshows',
+    expected: { kind: 'primary', routeKind: 'tvshows' }
+  },
+  {
+    name: 'primary-tvshows-all-root',
+    path: '/tvshows/all',
     expected: { kind: 'primary', routeKind: 'tvshows' }
   },
   {
@@ -139,6 +154,11 @@ const PRIMARY_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'settingsWeb' }
   },
   { name: 'primary-help-root', path: '/help', expected: { kind: 'primary', routeKind: 'help' } },
+  {
+    name: 'primary-help-about-root',
+    path: '/help/about',
+    expected: { kind: 'primary', routeKind: 'help' }
+  },
   {
     name: 'primary-search-root',
     path: '/search',
@@ -273,13 +293,43 @@ const SUBMENU_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'helpPage' }
   },
   {
+    name: 'submenu-help-app-readme-root',
+    path: '/help/app-readme',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
     name: 'submenu-help-changelog-root',
     path: '/help/changelog',
     expected: { kind: 'primary', routeKind: 'helpPage' }
   },
   {
+    name: 'submenu-help-app-changelog-root',
+    path: '/help/app-changelog',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-keybind-readme-root',
+    path: '/help/keybind-readme',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-addons-root',
+    path: '/help/addons',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-developers-root',
+    path: '/help/developers',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
     name: 'submenu-help-translations-root',
     path: '/help/translations',
+    expected: { kind: 'primary', routeKind: 'helpPage' }
+  },
+  {
+    name: 'submenu-help-lang-readme-root',
+    path: '/help/lang-readme',
     expected: { kind: 'primary', routeKind: 'helpPage' }
   },
   {
@@ -776,13 +826,16 @@ function safeStagedIndexPath(fallback) {
 
   const stagedIndexPath = fallback.stagedIndexPath.trim().replace(/\\/g, '/');
   const segments = stagedIndexPath.split('/');
+  const routeFile =
+    typeof fallback.routePath === 'string' ? fallback.routePath.trim().replace(/^\//u, '') : '';
   if (
     !stagedIndexPath ||
     stagedIndexPath.startsWith('/') ||
     stagedIndexPath.includes('//') ||
     segments.includes('..') ||
     segments.includes('.') ||
-    !stagedIndexPath.endsWith('/index.html')
+    ((!stagedIndexPath.endsWith('/index.html') || stagedIndexPath === 'index.html') &&
+      stagedIndexPath !== routeFile)
   ) {
     return '';
   }
@@ -791,7 +844,11 @@ function safeStagedIndexPath(fallback) {
 }
 
 function validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines }) {
-  const nowPlayingEntry = `${addonId}/now-playing/index.html`;
+  const nowPlayingFallback = getKodiPackageRouteFallbacks().find(
+    (fallback) => fallback.routePath === '/now-playing'
+  );
+  const nowPlayingPath = safeStagedIndexPath(nowPlayingFallback);
+  const nowPlayingEntry = `${addonId}/${nowPlayingPath || 'now-playing'}`;
   const relativePath = `${PACKAGE_ROOT}/${nowPlayingEntry}`;
   const path = join(root, relativePath);
 
@@ -862,6 +919,7 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/home':
       return { kind: 'primary', route: { kind: 'home' } };
     case '/music':
+    case '/music/home':
       return { kind: 'primary', route: { kind: 'music' } };
     case '/music/top':
       return { kind: 'primary', route: { kind: 'musicTop' } };
@@ -877,12 +935,14 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/music/videos':
       return { kind: 'primary', route: { kind: 'musicVideos' } };
     case '/movies':
+    case '/movies/all':
       return { kind: 'primary', route: { kind: 'movies' } };
     case '/movies/recent':
       return { kind: 'primary', route: { kind: 'moviesRecent' } };
     case '/video/movies':
       return { kind: 'primary', route: { kind: 'movies' } };
     case '/tvshows':
+    case '/tvshows/all':
       return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/tvshows/recent':
       return { kind: 'primary', route: { kind: 'tvshowsRecent' } };
@@ -912,6 +972,7 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/settings/web-interface':
       return { kind: 'primary', route: { kind: 'settingsWeb' } };
     case '/settings/kodi':
+    case '/settings/kodi/home':
       return { kind: 'primary', route: { kind: 'settingsKodi' } };
     case '/settings/games':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'games' } };
@@ -936,6 +997,7 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/settings/search':
       return { kind: 'primary', route: { kind: 'settingsSearch' } };
     case '/help':
+    case '/help/about':
       return { kind: 'primary', route: { kind: 'help' } };
     case '/help/overview':
       return { kind: 'primary', route: { kind: 'helpOverview' } };
@@ -943,19 +1005,36 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'keyboard' } };
     case '/help/readme':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'readme' } };
+    case '/help/app-readme':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'app-readme' } };
     case '/help/changelog':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'changelog' } };
+    case '/help/app-changelog':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'app-changelog' } };
+    case '/help/keybind-readme':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'keybind-readme' } };
+    case '/help/addons':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'addons' } };
+    case '/help/developers':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'developers' } };
     case '/help/translations':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'translations' } };
+    case '/help/lang-readme':
+      return { kind: 'primary', route: { kind: 'helpPage', pageid: 'lang-readme' } };
     case '/help/license':
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'license' } };
     case '/search':
       return { kind: 'primary', route: { kind: 'search' } };
     case '/thumbsup':
       return { kind: 'primary', route: { kind: 'thumbsup' } };
+    case '/lab':
+    case '/lab/home':
+      return { kind: 'primary', route: { kind: 'lab' } };
     case '/pvr':
     case '/pvr/tv':
       return { kind: 'primary', route: { kind: 'pvrTv' } };
+    case '/pvr/epg':
+      return { kind: 'primary', route: { kind: 'pvrEpg' } };
     case '/pvr/radio':
       return { kind: 'primary', route: { kind: 'pvrRadio' } };
     case '/pvr/recordings':

@@ -14,6 +14,7 @@ import { localeStore, type LocaleMutationResult, type LocaleStoreSnapshot } from
 import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
+  buildKodiPackageSafePrimaryAppRoute,
   parseAppRoute,
   type AppRoute
 } from './lib/app/appRouter';
@@ -59,6 +60,8 @@ import {
   localPlayerStore,
   localPlaylistStore,
   mediaPlaylistsStore,
+  playerStore,
+  queueStore,
   settingsStore,
   videoMediaPlaylistsStore,
   playerDispatch as defaultPlayerDispatch,
@@ -968,6 +971,7 @@ function createLocalPlayerSnapshot(
   return {
     status: 'idle',
     mediaKind: 'video',
+    source: null,
     item: null,
     currentSeconds: 0,
     durationSeconds: null,
@@ -1395,6 +1399,14 @@ function shellRailTargets(): readonly (readonly [string, AppRoute])[] {
   ]);
 }
 
+function buildPackageMountedHref(route: AppRoute): string {
+  const options = { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' } as const;
+
+  return route.kind === 'primary'
+    ? buildKodiPackageSafePrimaryAppRoute(route.route, options)
+    : buildAppRoute(route, options);
+}
+
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -1491,16 +1503,10 @@ describe('App shell', () => {
     });
     requirePrimaryShellStage(target);
     expect(requireRailLink(target, 'Music').getAttribute('href')).toBe(
-      buildAppRoute(
-        { kind: 'primary', route: { kind: 'music' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
-      )
+      buildPackageMountedHref({ kind: 'primary', route: { kind: 'music' } })
     );
     expect(requireRailLink(target, 'Movies').getAttribute('href')).toBe(
-      buildAppRoute(
-        { kind: 'primary', route: { kind: 'moviesRecent' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
-      )
+      buildPackageMountedHref({ kind: 'primary', route: { kind: 'moviesRecent' } })
     );
     expect(target.textContent).not.toContain('Multi-host console');
     expect(target.textContent).not.toContain('Save trusted Kodi endpoints');
@@ -1922,7 +1928,7 @@ describe('App shell', () => {
     expect(logo?.getAttribute('href')).toBe(
       buildAppRoute(
         { kind: 'primary', route: { kind: 'home' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' }
       )
     );
 
@@ -1932,14 +1938,11 @@ describe('App shell', () => {
 
     for (const [title, route] of shellRailTargets()) {
       const href = requireRailLink(target, title).getAttribute('href');
-      const expectedHref = buildAppRoute(route, {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
-        routeMode: 'hash'
-      });
+      const expectedHref = buildPackageMountedHref(route);
 
       expect(href, `${title} href`).toBe(expectedHref);
-      expect(href, `${title} hash target`).toMatch(
-        /^\/addons\/webinterface\.chorus3#[a-z0-9/.-]+$/u
+      expect(href, `${title} package target`).toMatch(
+        /^\/addons\/webinterface\.chorus3(?:\/[a-z0-9/.-]+)?$/u
       );
     }
 
@@ -1989,13 +1992,10 @@ describe('App shell', () => {
         packageMountedHost: createPackageMountedHost()
       });
       const href = requireSubmenuLink(target, railTitle, submenuLabel).getAttribute('href');
-      const expectedHref = buildAppRoute(route, {
-        packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
-        routeMode: 'hash'
-      });
+      const expectedHref = buildPackageMountedHref(route);
       expect(href, `${railTitle} / ${submenuLabel} package href`).toBe(expectedHref);
       expect(href, `${railTitle} / ${submenuLabel} package prefix`).toMatch(
-        /^\/addons\/webinterface\.chorus3#/u
+        /^\/addons\/webinterface\.chorus3(?:\/|$)/u
       );
       expect(href, `${railTitle} / ${submenuLabel} avoids doubled slashes`).not.toMatch(
         /webinterface\.chorus3\/\//u
@@ -2209,6 +2209,79 @@ describe('App shell', () => {
     expect(queueDispatch.clear).not.toHaveBeenCalled();
   });
 
+  it('routes Kodi drawer Clear to the Kodi queue dispatch', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
+    const queueDispatch = createQueuePanelDispatch();
+    const localPlaylistDispatch = createLocalPlaylistDispatch();
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch,
+      queueDispatch,
+      localPlaylistDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const clearButton = requirePackageShellButtonByText(target, 'Clear playlist');
+    expect(clearButton.disabled).toBe(false);
+
+    clearButton.click();
+    await tick();
+
+    expect(queueDispatch.clear).toHaveBeenCalledOnce();
+    expect(localPlaylistDispatch.clearPlaylist).not.toHaveBeenCalled();
+  });
+
+  it('routes Kodi drawer Refresh to player and queue refreshes', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const refreshPlayer = vi.spyOn(playerStore, 'refresh').mockResolvedValue();
+    const refreshQueue = vi.spyOn(queueStore, 'refresh').mockResolvedValue();
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const refreshButton = requirePackageShellButtonByText(target, 'Refresh playlist');
+    expect(refreshButton.disabled).toBe(false);
+
+    refreshButton.click();
+    await tick();
+    await tick();
+
+    expect(refreshPlayer).toHaveBeenCalledWith('manual');
+    expect(refreshQueue).toHaveBeenCalledWith('manual');
+  });
+
+  it('routes Kodi drawer Party mode to the Kodi player dispatch', async () => {
+    vi.stubGlobal('fetch', createKodiFetchMock());
+    const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'kodi' }));
+
+    const target = renderApp({
+      route: { kind: 'dashboard' },
+      packageMountedHost: createPackageMountedHost(),
+      playerSnapshot: activeVideoSnapshot(),
+      playerDispatch
+    });
+
+    requirePackageShellButtonByAria(target, 'Playlist menu').click();
+    await tick();
+    const partyModeButton = requirePackageShellButtonByText(target, 'Party mode');
+    expect(partyModeButton.disabled).toBe(false);
+
+    partyModeButton.click();
+    await tick();
+
+    expect(playerDispatch.setPartyMode).toHaveBeenCalledWith('toggle');
+  });
+
   it('disables local drawer Clear and Save with safe truthful copy when no local playlist is selected', async () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
     const playerDispatch = createPlayerDispatch(createDispatchSnapshot({ mode: 'local' }));
@@ -2420,22 +2493,13 @@ describe('App shell', () => {
     });
 
     expect(requireRailLink(railTarget, 'Browser').getAttribute('href')).toBe(
-      buildAppRoute(
-        { kind: 'primary', route: { kind: 'browser' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
-      )
+      buildPackageMountedHref({ kind: 'primary', route: { kind: 'browser' } })
     );
     expect(requireRailLink(railTarget, 'Playlists').getAttribute('href')).toBe(
-      buildAppRoute(
-        { kind: 'primary', route: { kind: 'playlists' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
-      )
+      buildPackageMountedHref({ kind: 'primary', route: { kind: 'playlists' } })
     );
     expect(requireRailLink(railTarget, 'Help').getAttribute('href')).toBe(
-      buildAppRoute(
-        { kind: 'primary', route: { kind: 'help' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
-      )
+      buildPackageMountedHref({ kind: 'primary', route: { kind: 'help' } })
     );
 
     unmountCurrentApp();
@@ -2749,9 +2813,10 @@ describe('App shell', () => {
 
     expect(addonsText).toContain('Kodi Add-ons');
     expect(addonsText).toContain('Add-ons loaded.');
-    expect(addonsText).toContain('2 of 3 add-ons');
+    expect(addonsText).toContain('3 of 3 add-ons');
     expect(addonsText).toContain('Safe Video Demo');
     expect(addonsText).toContain('Safe Radio');
+    expect(addonsText).toContain('Safe Helper Module');
     expect(addonsText).toContain('Broken: Safe fixture dependency missing');
     expect(target.textContent).not.toContain('Kodi Settings');
     expect(target.textContent).not.toContain('Kodi host settings');
@@ -2817,7 +2882,7 @@ describe('App shell', () => {
     expect(addonsText).toContain('Safe Video Demo');
     expect(addonsText).not.toContain('Safe Radio');
     expect(addonsText).not.toContain('Safe Runner');
-    expect(addonsText).toContain('1 of 3 add-ons');
+    expect(addonsText).toContain('1 of 1 add-ons');
     expect(addonsDispatch.setSearchQuery).not.toHaveBeenCalled();
   });
 
@@ -2833,7 +2898,7 @@ describe('App shell', () => {
     });
 
     expect(getVideoLink(target, 'Details').getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#addons/plugin.video.safe-demo'
+      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
     );
   });
 
@@ -2902,7 +2967,7 @@ describe('App shell', () => {
     expect(target.querySelector('#addons-page-title')?.textContent).toBe('Add-on catalog');
   });
 
-  it('replaces standalone add-on execute routes with the executable add-ons path after dispatch', async () => {
+  it('renders standalone add-on execute routes as real status surfaces after dispatch', async () => {
     const executeAddon = vi.fn();
     const replaceState = vi
       .spyOn(window.history, 'replaceState')
@@ -2920,8 +2985,13 @@ describe('App shell', () => {
     await Promise.resolve();
 
     expect(executeAddon).toHaveBeenCalledWith('script.safe-runner');
-    expect(replaceState).toHaveBeenCalledWith({}, '', '/addons/executable');
-    expect(popstate).toHaveBeenCalledTimes(1);
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(popstate).not.toHaveBeenCalled();
+    expect(
+      document.querySelector('[data-app-page-surface]')?.getAttribute('data-app-page-route')
+    ).toBe('addonExecute');
+    expect(document.querySelector('#addons-page-title')?.textContent).toBe('Execute add-on');
+    expect(document.body.textContent).not.toContain('Detailed parity for this route is deferred');
 
     window.removeEventListener('popstate', popstate);
   });

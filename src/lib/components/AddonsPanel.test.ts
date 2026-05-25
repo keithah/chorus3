@@ -372,6 +372,32 @@ describe('AddonsPanel', () => {
     expect(dispatch.executeAddon).toHaveBeenCalledWith('script.audio.alpha');
   });
 
+  it('shows the full installed add-on catalog when no type filter is active', () => {
+    const mixedAddons = Array.from({ length: 31 }, (_, index) => ({
+      ...BETA_ADDON,
+      addonid: `service.catalog.${index}`,
+      name: `Catalog Service ${index + 1}`,
+      provides: [],
+      providesDefault: null,
+      browseMedia: null,
+      browsePath: null,
+      type: 'xbmc.service'
+    }));
+
+    renderPanel({
+      snapshot: createSnapshot({
+        addons: mixedAddons,
+        visibleAddons: mixedAddons,
+        groups: [],
+        groupBy: 'none'
+      })
+    });
+
+    expect(screenText()).toContain('31 of 31 add-ons');
+    expect(screenText()).toContain('Catalog Service 1');
+    expect(screenText()).toContain('Catalog Service 31');
+  });
+
   it('distinguishes no installed add-ons from search results with no matches', () => {
     renderPanel({
       snapshot: createSnapshot({ addons: [], visibleAddons: [], groups: [], searchQuery: '' })
@@ -388,6 +414,22 @@ describe('AddonsPanel', () => {
       })
     });
     expect(screenText()).toContain('No add-ons match “missing”.');
+  });
+
+  it('uses category-specific empty copy when an add-on route has no matching add-ons', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        addons: [BETA_ADDON],
+        visibleAddons: [BETA_ADDON],
+        groups: [],
+        searchQuery: ''
+      }),
+      typeFilter: 'video'
+    });
+
+    expect(screenText()).toContain('0 of 0 add-ons');
+    expect(screenText()).toContain('No video add-ons are available.');
+    expect(screenText()).not.toContain('No installed add-ons are available.');
   });
 
   it('renders malformed or missing add-on metadata with bounded accessible fallbacks', () => {
@@ -542,7 +584,7 @@ describe('AddonsPanel', () => {
     expect(screenText()).not.toContain('Runner');
     expect(screenText()).not.toContain('Unknown Script');
     expect(screenText()).not.toContain('Missing Type');
-    expect(screenText()).toContain('1 of 5 add-ons');
+    expect(screenText()).toContain('1 of 1 add-ons');
     expect(dispatch.setSearchQuery).not.toHaveBeenCalled();
     expect(dispatch.setGroupBy).not.toHaveBeenCalled();
   });

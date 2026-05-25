@@ -19,8 +19,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createSnapshot(): PvrStoreSnapshot {
-  return {
+function createSnapshot(overrides: Partial<PvrStoreSnapshot> = {}): PvrStoreSnapshot {
+  const snapshot: PvrStoreSnapshot = {
     tvStatus: 'ready',
     radioStatus: 'ready',
     recordingsStatus: 'ready',
@@ -46,6 +46,7 @@ function createSnapshot(): PvrStoreSnapshot {
     broadcastsByChannelId: {},
     lastError: null
   };
+  return { ...snapshot, ...overrides };
 }
 
 function createDispatch(): PvrPageDispatch {
@@ -88,12 +89,12 @@ function createPlayerDispatch(): PlayerControlsDispatch {
   };
 }
 
-function renderPage(route: PrimaryRoute): void {
+function renderPage(route: PrimaryRoute, snapshot: PvrStoreSnapshot = createSnapshot()): void {
   mounted = mount(PvrPage, {
     target: document.body,
     props: {
       route,
-      snapshot: createSnapshot(),
+      snapshot,
       dispatch: createDispatch(),
       playerDispatch: createPlayerDispatch()
     }
@@ -141,5 +142,153 @@ describe('PvrPage', () => {
     expect(recordingsLink?.getAttribute('href')).toBe(
       '/addons/webinterface.chorus3#pvr/recordings'
     );
+
+    const epgLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a')).find(
+      (link) => link.textContent?.trim() === 'Guide'
+    );
+
+    expect(epgLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3#pvr/epg');
+  });
+
+  it('renders the global Chorus2 EPG route across TV channels', async () => {
+    const dispatch = createDispatch();
+    const playerDispatch = createPlayerDispatch();
+    const playChannelItem = vi.fn();
+    Object.assign(playerDispatch, { playChannelItem });
+    const snapshot = createSnapshot({
+      tvChannels: [
+        {
+          channelid: 101,
+          label: 'KTV',
+          channel: '10.1',
+          channeltype: 'tv',
+          broadcastTitle: 'News'
+        },
+        {
+          channelid: 102,
+          label: 'Cinema',
+          channel: '10.2',
+          channeltype: 'tv',
+          broadcastTitle: 'Feature'
+        }
+      ],
+      broadcastsByChannelId: {
+        101: [
+          {
+            broadcastid: 501,
+            label: 'Evening News',
+            title: 'Evening News',
+            starttime: '2026-05-24 18:00:00',
+            endtime: '2026-05-24 18:30:00',
+            plot: 'Local headlines.',
+            isactive: true,
+            hastimer: false
+          }
+        ],
+        102: [
+          {
+            broadcastid: 601,
+            label: 'Feature',
+            title: 'Feature',
+            starttime: '2026-05-24 18:30:00',
+            endtime: '2026-05-24 20:00:00',
+            plot: 'A movie.',
+            isactive: false,
+            hastimer: true
+          }
+        ]
+      }
+    });
+
+    mounted = mount(PvrPage, {
+      target: document.body,
+      props: {
+        route: { kind: 'pvrEpg' },
+        snapshot,
+        dispatch,
+        playerDispatch
+      }
+    });
+    await tick();
+
+    expect(document.querySelector('#pvr-page-title')?.textContent).toBe('TV Guide');
+    expect(document.body.textContent).toContain('KTV');
+    expect(document.body.textContent).toContain('Cinema');
+    expect(document.body.textContent).toContain('Evening News');
+    expect(document.body.textContent).toContain('Feature');
+    expect(document.body.textContent).not.toContain('Radio One');
+    expect(dispatch.refreshChannels).toHaveBeenCalledWith('alltv');
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(101);
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(102);
+
+    const refreshButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Refresh EPG'
+    );
+    refreshButton?.click();
+    await tick();
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(101);
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(102);
+
+    const playButtons = Array.from(document.querySelectorAll('button')).filter(
+      (button) => button.textContent?.trim() === 'Play'
+    );
+    playButtons.at(0)?.click();
+    await tick();
+    expect(playChannelItem).toHaveBeenCalledWith({ channelid: 101 });
+  });
+
+  it('renders channel routes as focused Chorus2 EPG pages with programme actions', async () => {
+    const dispatch = createDispatch();
+    const playerDispatch = createPlayerDispatch();
+    const playChannelItem = vi.fn();
+    Object.assign(playerDispatch, { playChannelItem });
+    const snapshot = createSnapshot({
+      broadcastsByChannelId: {
+        101: [
+          {
+            broadcastid: 501,
+            label: 'Evening News',
+            title: 'Evening News',
+            starttime: '2026-05-24 18:00:00',
+            endtime: '2026-05-24 18:30:00',
+            plot: 'Local headlines.',
+            isactive: true,
+            hastimer: false
+          }
+        ]
+      }
+    });
+
+    mounted = mount(PvrPage, {
+      target: document.body,
+      props: {
+        route: { kind: 'pvrTvChannel', channelid: '101' },
+        snapshot,
+        dispatch,
+        playerDispatch
+      }
+    });
+    await tick();
+
+    expect(document.querySelector('#pvr-page-title')?.textContent).toBe('KTV');
+    expect(document.body.textContent).toContain('Evening News');
+    expect(document.body.textContent).toContain('Local headlines.');
+    expect(document.body.textContent).not.toContain('Radio One');
+    expect(dispatch.loadChannelDetail).toHaveBeenCalledWith(101);
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(101);
+
+    const refreshButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Refresh EPG'
+    );
+    refreshButton?.click();
+    await tick();
+    expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(101);
+
+    const playButtons = Array.from(document.querySelectorAll('button')).filter(
+      (button) => button.textContent?.trim() === 'Play'
+    );
+    playButtons.at(0)?.click();
+    await tick();
+    expect(playChannelItem).toHaveBeenCalledWith({ channelid: 101 });
   });
 });

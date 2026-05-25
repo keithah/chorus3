@@ -268,6 +268,7 @@ function createLocalSnapshot(
   return {
     status: 'idle',
     mediaKind: 'unknown',
+    source: null,
     item: null,
     currentSeconds: 0,
     durationSeconds: null,

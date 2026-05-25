@@ -13,7 +13,14 @@
 </script>
 
 <script lang="ts">
+  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
   import type { TranslationContext } from '$lib/i18n';
+  import {
+    METADATA_EDITOR_DEFINITIONS,
+    displayTitleForMetadataEditor,
+    type MetadataEditorPayload
+  } from '$lib/metadata/metadataEditor';
+  import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
   import type {
     VideoEpisodeDetailSnapshot,
     VideoEpisodeSnapshot,
@@ -26,9 +33,17 @@
     route: VideoRoute;
     actionDispatch?: VideoEpisodeActionDispatch;
     i18n?: TranslationContext;
+    metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void;
   }
 
-  type ActionKind = 'play' | 'resume' | 'queue' | 'stream' | 'mark-watched' | 'mark-unwatched';
+  type ActionKind =
+    | 'play'
+    | 'resume'
+    | 'queue'
+    | 'stream'
+    | 'edit'
+    | 'mark-watched'
+    | 'mark-unwatched';
   type ActionStatus =
     | { kind: 'idle'; message: string }
     | { kind: 'pending'; action: ActionKind; message: string }
@@ -43,8 +58,16 @@
     markEpisodeWatched: async () => undefined
   };
 
-  let { snapshot, route, actionDispatch = noopActionDispatch }: Props = $props();
+  let {
+    snapshot,
+    route,
+    actionDispatch = noopActionDispatch,
+    metadataSave = defaultMetadataSave
+  }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
+  let editOpen = $state(false);
+  let editPending = $state(false);
+  let editError = $state<string | null>(null);
 
   const routeTvShowId = $derived(
     route.kind === 'videoEpisodeDetail' ? safePositiveId(route.tvshowid) : null
@@ -170,9 +193,59 @@
     return `Could not ${actionLabel(action).verb} ${label}`;
   }
 
+  async function defaultMetadataSave(
+    method: string,
+    params: Record<string, unknown>
+  ): Promise<void> {
+    const client = createActiveKodiJsonRpcHttpClient();
+    if (!client) {
+      throw new Error('Choose an active Kodi host before editing media.');
+    }
+    await client.call(method, params);
+  }
+
+  async function saveMetadata(payload: MetadataEditorPayload): Promise<void> {
+    if (!episode || routeEpisodeId === null) return;
+    const definition = METADATA_EDITOR_DEFINITIONS.episode;
+    const source = episodeEditSource(episode);
+    const currentTitle = displayTitleForMetadataEditor(definition, source, 'Episode');
+    editPending = true;
+    editError = null;
+    actionStatus = { kind: 'pending', action: 'edit', message: `Saving ${currentTitle}...` };
+
+    try {
+      await metadataSave(definition.method, {
+        [definition.idParam]: routeEpisodeId,
+        ...payload
+      });
+      const nextTitle = displayTitleForMetadataEditor(definition, payload, currentTitle);
+      editOpen = false;
+      actionStatus = {
+        kind: 'success',
+        action: 'edit',
+        message: `Saved metadata for ${nextTitle}.`
+      };
+    } catch (error) {
+      const message = sanitizeUiText(errorMessage(error));
+      editError = message;
+      actionStatus = {
+        kind: 'error',
+        action: 'edit',
+        message: `Could not save ${currentTitle}. ${message}`
+      };
+    } finally {
+      editPending = false;
+    }
+  }
+
   function fallbackTitle(value: VideoRoute): string {
     if (value.kind !== 'videoEpisodeDetail') return 'Episode route unavailable';
     return routeEpisodeId === null ? 'Episode route unavailable' : 'Episode not found';
+  }
+  function episodeEditSource(
+    value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot
+  ): Record<string, unknown> {
+    return { ...value };
   }
   function notFoundCopy(): string {
     if (route.kind !== 'videoEpisodeDetail' || routeEpisodeId === null)
@@ -362,6 +435,12 @@
         onclick={() => void runAction(isWatched(episode) ? 'mark-unwatched' : 'mark-watched')}
         >{isWatched(episode) ? 'Mark unwatched' : 'Mark watched'}</button
       >
+      <button
+        type="button"
+        aria-label={`Edit episode ${title}`}
+        disabled={actionDisabled}
+        onclick={() => (editOpen = true)}>Edit</button
+      >
     </div>
     <dl class="detail-list">
       {#if routeIdentity()}<div>
@@ -392,6 +471,19 @@
             <dd>{field.value}</dd>
           </div>{/each}
       </dl>
+    {/if}
+    {#if editOpen}
+      <MetadataEditDialog
+        definition={METADATA_EDITOR_DEFINITIONS.episode}
+        source={episodeEditSource(episode)}
+        pending={editPending}
+        error={editError}
+        onSave={saveMetadata}
+        onCancel={() => {
+          editOpen = false;
+          editError = null;
+        }}
+      />
     {/if}
   {:else}
     <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">

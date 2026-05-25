@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { buildAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildKodiPackageSafePrimaryAppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
   import type { RemoteInputAction } from '$lib/kodi';
   import type { RemoteInputPanelRemoteDispatch } from './RemoteInputPanel.svelte';
 
@@ -32,7 +35,7 @@
 
     if (typeof window !== 'undefined') {
       window.queueMicrotask(() => {
-        navigateToHref(buildAppRoute({ kind: 'primary', route: { kind: 'lab' } }, buildOptions));
+        navigateToHref(buildKodiPackageSafePrimaryAppRoute({ kind: 'lab' }, buildOptions));
       });
     }
   });

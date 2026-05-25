@@ -234,4 +234,67 @@ describe('PvrStore', () => {
       message: 'Choose a valid PVR recording.'
     });
   });
+
+  it('loads broadcasts with Chorus2 EPG timer and airing state semantics', async () => {
+    const { client, setNow, store } = createHarness();
+    client.enqueue('PVR.GetBroadcasts', {
+      broadcasts: [
+        {
+          broadcastid: 501,
+          label: 'Evening News',
+          title: 'Evening News',
+          starttime: '2026-05-24 18:00:00',
+          endtime: '2026-05-24 18:30:00',
+          plot: 'Local headlines.',
+          isactive: true,
+          wasactive: false,
+          hastimer: true,
+          hastimerrule: false,
+          hasrecording: false
+        },
+        {
+          broadcastid: 500,
+          label: 'Earlier News',
+          wasactive: true
+        },
+        { broadcastid: 0, label: 'Invalid' }
+      ]
+    });
+    setNow(4_000);
+
+    await store.refreshBroadcasts(101);
+
+    expect(client.calls[0]).toMatchObject({
+      method: 'PVR.GetBroadcasts',
+      params: {
+        channelid: 101,
+        properties: expect.arrayContaining(['hastimer', 'isactive', 'wasactive'])
+      }
+    });
+    expect(store.snapshot.broadcastsByChannelId[101]).toEqual([
+      {
+        broadcastid: 501,
+        label: 'Evening News',
+        title: 'Evening News',
+        plot: 'Local headlines.',
+        starttime: '2026-05-24 18:00:00',
+        endtime: '2026-05-24 18:30:00',
+        hastimer: true,
+        hastimerrule: false,
+        hasrecording: false,
+        isactive: true,
+        wasactive: false
+      },
+      {
+        broadcastid: 500,
+        label: 'Earlier News',
+        wasactive: true
+      }
+    ]);
+    expect(store.snapshot.lastUpdatedAt).toBe(new Date(4_000).toISOString());
+
+    const leaked = store.snapshot;
+    leaked.broadcastsByChannelId[101][0].title = 'Mutated outside';
+    expect(store.snapshot.broadcastsByChannelId[101][0].title).toBe('Evening News');
+  });
 });

@@ -1,4 +1,8 @@
-import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+import {
+  buildKodiPackageSafePrimaryAppRoute,
+  buildPrimaryAppRoute,
+  type BuildAppRouteOptions
+} from '$lib/app/appRouter';
 import { parsePrimaryRoutePath, type PrimaryRoute } from '$lib/app/primaryRoutes';
 import type {
   AppShellNavigationItem,
@@ -80,6 +84,7 @@ const BROWSER_ROUTE_KINDS = [
 
 const PVR_ROUTE_KINDS = [
   'pvrTv',
+  'pvrEpg',
   'pvrTvChannel',
   'pvrRadio',
   'pvrRadioChannel',
@@ -272,6 +277,7 @@ export const PRIMARY_APP_NAVIGATION_TARGETS = [
         label: 'PVR',
         items: [
           { id: 'tv', title: 'TV Channels', label: 'TV Channels', route: { kind: 'pvrTv' } },
+          { id: 'guide', title: 'Guide', label: 'Guide', route: { kind: 'pvrEpg' } },
           {
             id: 'radio',
             title: 'Radio Stations',
@@ -518,7 +524,7 @@ export function createAppNavigationItems(
     label: safeNavigationText(target.label, target.title),
     icon: target.icon,
     route: target.route,
-    href: buildPrimaryAppRoute(target.route, buildOptions),
+    href: buildNavigationRouteHref(target.route, buildOptions),
     isActive: isActiveNavigationTarget(target, activeRoute),
     submenuGroups: createSubmenuGroups(target.submenuGroups ?? [], activeRoute, buildOptions)
   }));
@@ -579,11 +585,15 @@ function createSubmenuItem(
     title: safeNavigationText(item.title, item.id),
     label: safeNavigationText(item.label, item.title),
     route: item.route,
-    href: buildPrimaryAppRoute(item.route, buildOptions),
+    href: buildNavigationRouteHref(item.route, buildOptions),
     isActive: item.activeRouteKinds
       ? isActiveRouteKind(item.activeRouteKinds, activeRoute)
       : isSamePrimaryRoute(item.route, activeRoute)
   };
+}
+
+function buildNavigationRouteHref(route: PrimaryRoute, options: BuildAppRouteOptions): string {
+  return buildKodiPackageSafePrimaryAppRoute(route, options);
 }
 
 function isActiveNavigationTarget(

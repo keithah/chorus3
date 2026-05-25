@@ -22,6 +22,7 @@
   const DEFAULT_LOCAL_SNAPSHOT: LocalPlayerStoreSnapshot = {
     status: 'idle',
     mediaKind: 'unknown',
+    source: null,
     item: null,
     currentSeconds: 0,
     durationSeconds: null,

@@ -128,6 +128,7 @@ describe('local player store', () => {
     expect(store.snapshot).toMatchObject({
       status: 'idle',
       mediaKind: 'unknown',
+      source: null,
       item: null,
       currentSeconds: 0,
       durationSeconds: null,
@@ -163,12 +164,33 @@ describe('local player store', () => {
     expect(store.snapshot).toMatchObject({
       status: 'playing',
       mediaKind: 'audio',
+      source: 'http://example.test/stream',
       durationSeconds: 120,
       volume: 50,
       muted: true,
       kodiPausedForLocal: true,
       resumeAvailable: true
     });
+  });
+
+  it('exposes the sanitized active stream source and clears it on stop', async () => {
+    const adapter = new FakeMediaAdapter();
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    store.attach(adapter);
+
+    await store.loadAndPlay({
+      source: 'http://kodi:kodi@example.test/stream/movie.mkv',
+      item: { id: 7, label: 'Movie', type: 'movie' },
+      mediaKind: 'video',
+      kodiWasPaused: false
+    });
+
+    expect(store.snapshot.source).toBe('http://example.test/stream/movie.mkv');
+    expect(adapter.src).toBe('http://example.test/stream/movie.mkv');
+
+    store.stop();
+
+    expect(store.snapshot.source).toBeNull();
   });
 
   it('tracks time updates and duration updates', () => {

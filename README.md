@@ -24,7 +24,7 @@ the browser tooling of its time. Chorus 3 keeps the Chorus2 user experience and 
 
 ## Current state
 
-Chorus 3 is at `3.0.9`. The main Chorus2 surfaces have been ported and packaged as
+Chorus 3 is at `3.0.12`. The main Chorus2 surfaces have been ported and packaged as
 `webinterface.chorus3`, with the latest patch release focused on deeper Chorus2 UI parity for
 filters, Lab, media search, add-ons, TV details, and package-mounted routes.
 
@@ -47,7 +47,7 @@ For security reasons, do not expose Kodi's HTTP server to the public internet.
 
 ### Install from zip
 
-Build or download `webinterface.chorus3-3.0.9.zip`, then install it through Kodi:
+Build or download `webinterface.chorus3-3.0.12.zip`, then install it through Kodi:
 
 - Add-ons > Install from zip file.
 - Select the Chorus 3 zip.
@@ -61,7 +61,7 @@ The repository add-on is generated in the Kodi repository layout that Kodi expec
 - `addons.xml`
 - `addons.xml.md5`
 - `repository.keithah.kodi/repository.keithah.kodi-0.1.0.zip`
-- `webinterface.chorus3/webinterface.chorus3-3.0.9.zip`
+- `webinterface.chorus3/webinterface.chorus3-3.0.12.zip`
 
 The intended public repository is:
 
@@ -82,15 +82,17 @@ http://localhost:8080
 Replace `localhost` with your Kodi host or IP address, and replace `8080` if you changed Kodi's
 HTTP port.
 
-Chorus 3 supports package-mounted Kodi URLs and standalone development URLs. Package routes use the
-classic hash style, such as:
+Chorus 3 supports package-mounted Kodi URLs and standalone development URLs. Package navigation uses
+Kodi-safe page URLs, such as:
 
 ```text
-http://localhost:8080/#music
-http://localhost:8080/#music/genres
-http://localhost:8080/#movies/recent
-http://localhost:8080/#browser
+http://localhost:8080/addons/webinterface.chorus3/music
+http://localhost:8080/addons/webinterface.chorus3/music/genres
+http://localhost:8080/addons/webinterface.chorus3/movies/recent
+http://localhost:8080/addons/webinterface.chorus3/browser
 ```
+
+Legacy hash routes such as `#music` and `#movies/recent` still resolve for compatibility.
 
 ## Streaming
 

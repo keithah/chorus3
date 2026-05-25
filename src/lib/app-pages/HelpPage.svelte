@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildKodiPackageSafePrimaryAppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import { HELP_TOPIC_NAV, normalizeHelpTopicId, resolveHelpTopic } from './helpTopics';
 
@@ -38,7 +41,7 @@
   }
 
   function hrefFor(value: PrimaryRoute): string {
-    return buildPrimaryAppRoute(value, buildOptions);
+    return buildKodiPackageSafePrimaryAppRoute(value, buildOptions);
   }
 
   function rewriteHelpRouteLinks(html: string): string {
@@ -131,7 +134,7 @@
           <tbody>
             <tr>
               <th scope="row">Kodi - Chorus</th>
-              <td>Kodi 21.3 - Chorus 3.0.0</td>
+              <td>Kodi 21.3 - Chorus 3.0.12</td>
             </tr>
             <tr>
               <th scope="row">Remote control</th>

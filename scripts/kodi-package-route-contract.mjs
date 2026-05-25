@@ -2,6 +2,7 @@ export const KODI_PACKAGE_BASE_PATH = '/addons/webinterface.chorus3';
 
 export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   { name: 'music', routePath: '/music', stagedIndexPath: 'music/index.html' },
+  { name: 'music-home', routePath: '/music/home', stagedIndexPath: 'music/home/index.html' },
   { name: 'music-top', routePath: '/music/top', stagedIndexPath: 'music/top/index.html' },
   { name: 'artists-alias', routePath: '/artists', stagedIndexPath: 'artists/index.html' },
   {
@@ -15,6 +16,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   { name: 'music-genres', routePath: '/music/genres', stagedIndexPath: 'music/genres/index.html' },
   { name: 'music-videos', routePath: '/music/videos', stagedIndexPath: 'music/videos/index.html' },
   { name: 'movies', routePath: '/movies', stagedIndexPath: 'movies/index.html' },
+  { name: 'movies-all', routePath: '/movies/all', stagedIndexPath: 'movies/all/index.html' },
   {
     name: 'movies-recent',
     routePath: '/movies/recent',
@@ -26,6 +28,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     stagedIndexPath: 'video/movies/index.html'
   },
   { name: 'tvshows', routePath: '/tvshows', stagedIndexPath: 'tvshows/index.html' },
+  { name: 'tvshows-all', routePath: '/tvshows/all', stagedIndexPath: 'tvshows/all/index.html' },
   {
     name: 'tvshows-recent',
     routePath: '/tvshows/recent',
@@ -66,6 +69,11 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     name: 'settings-kodi',
     routePath: '/settings/kodi',
     stagedIndexPath: 'settings/kodi/index.html'
+  },
+  {
+    name: 'settings-kodi-home',
+    routePath: '/settings/kodi/home',
+    stagedIndexPath: 'settings/kodi/home/index.html'
   },
   {
     name: 'settings-games',
@@ -120,6 +128,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     stagedIndexPath: 'settings/kodi/interface/index.html'
   },
   { name: 'help', routePath: '/help', stagedIndexPath: 'help/index.html' },
+  { name: 'help-about', routePath: '/help/about', stagedIndexPath: 'help/about/index.html' },
   {
     name: 'help-overview',
     routePath: '/help/overview',
@@ -132,19 +141,46 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   },
   { name: 'help-readme', routePath: '/help/readme', stagedIndexPath: 'help/readme/index.html' },
   {
+    name: 'help-app-readme',
+    routePath: '/help/app-readme',
+    stagedIndexPath: 'help/app-readme/index.html'
+  },
+  {
     name: 'help-changelog',
     routePath: '/help/changelog',
     stagedIndexPath: 'help/changelog/index.html'
+  },
+  {
+    name: 'help-app-changelog',
+    routePath: '/help/app-changelog',
+    stagedIndexPath: 'help/app-changelog/index.html'
+  },
+  {
+    name: 'help-keybind-readme',
+    routePath: '/help/keybind-readme',
+    stagedIndexPath: 'help/keybind-readme/index.html'
+  },
+  { name: 'help-addons', routePath: '/help/addons', stagedIndexPath: 'help/addons/index.html' },
+  {
+    name: 'help-developers',
+    routePath: '/help/developers',
+    stagedIndexPath: 'help/developers/index.html'
   },
   {
     name: 'help-translations',
     routePath: '/help/translations',
     stagedIndexPath: 'help/translations/index.html'
   },
+  {
+    name: 'help-lang-readme',
+    routePath: '/help/lang-readme',
+    stagedIndexPath: 'help/lang-readme/index.html'
+  },
   { name: 'help-license', routePath: '/help/license', stagedIndexPath: 'help/license/index.html' },
   { name: 'search', routePath: '/search', stagedIndexPath: 'search/index.html' },
   { name: 'thumbsup', routePath: '/thumbsup', stagedIndexPath: 'thumbsup/index.html' },
   { name: 'lab', routePath: '/lab', stagedIndexPath: 'lab/index.html' },
+  { name: 'lab-home', routePath: '/lab/home', stagedIndexPath: 'lab/home/index.html' },
   {
     name: 'lab-api-browser',
     routePath: '/lab/api-browser',
@@ -162,6 +198,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   },
   { name: 'pvr', routePath: '/pvr', stagedIndexPath: 'pvr/index.html' },
   { name: 'pvr-tv', routePath: '/pvr/tv', stagedIndexPath: 'pvr/tv/index.html' },
+  { name: 'pvr-epg', routePath: '/pvr/epg', stagedIndexPath: 'pvr/epg/index.html' },
   { name: 'pvr-radio', routePath: '/pvr/radio', stagedIndexPath: 'pvr/radio/index.html' },
   {
     name: 'pvr-recordings',
@@ -173,5 +210,16 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
 ]);
 
 export function getKodiPackageRouteFallbacks() {
-  return KODI_PACKAGE_ROUTE_FALLBACKS.map((fallback) => ({ ...fallback }));
+  return KODI_PACKAGE_ROUTE_FALLBACKS.map((fallback) => ({
+    ...fallback,
+    stagedIndexPath: routeHasChildren(fallback.routePath)
+      ? fallback.stagedIndexPath
+      : fallback.routePath.replace(/^\//u, '')
+  }));
+}
+
+function routeHasChildren(routePath) {
+  return KODI_PACKAGE_ROUTE_FALLBACKS.some(
+    (fallback) => fallback.routePath !== routePath && fallback.routePath.startsWith(`${routePath}/`)
+  );
 }

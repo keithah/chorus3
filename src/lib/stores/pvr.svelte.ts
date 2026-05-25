@@ -70,6 +70,7 @@ export interface PvrBroadcastSnapshot {
   hastimerrule?: boolean;
   hasrecording?: boolean;
   isactive?: boolean;
+  wasactive?: boolean;
 }
 
 export interface PvrStoreSnapshot {
@@ -559,7 +560,8 @@ function normalizePvrBroadcasts(items: unknown): PvrBroadcastSnapshot[] {
         ...booleanField('hastimer', broadcast.hastimer),
         ...booleanField('hastimerrule', broadcast.hastimerrule),
         ...booleanField('hasrecording', broadcast.hasrecording),
-        ...booleanField('isactive', broadcast.isactive)
+        ...booleanField('isactive', broadcast.isactive),
+        ...booleanField('wasactive', broadcast.wasactive)
       }
     ];
   });

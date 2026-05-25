@@ -1,5 +1,12 @@
 <script lang="ts">
+  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
   import type { TranslationContext } from '$lib/i18n';
+  import {
+    METADATA_EDITOR_DEFINITIONS,
+    displayTitleForMetadataEditor,
+    type MetadataEditorPayload
+  } from '$lib/metadata/metadataEditor';
+  import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
   import type {
     VideoSeasonSnapshot,
     VideoTvShowDetailSnapshot,
@@ -11,9 +18,14 @@
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     i18n?: TranslationContext;
+    metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void;
   }
 
-  let { snapshot, route }: Props = $props();
+  let { snapshot, route, metadataSave = defaultMetadataSave }: Props = $props();
+  let editOpen = $state(false);
+  let editPending = $state(false);
+  let editError = $state<string | null>(null);
+  let editStatus = $state('');
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvShowDetail' ? safePositiveId(route.tvshowid) : null
@@ -131,6 +143,50 @@
     }`;
   }
 
+  async function defaultMetadataSave(
+    method: string,
+    params: Record<string, unknown>
+  ): Promise<void> {
+    const client = createActiveKodiJsonRpcHttpClient();
+    if (!client) {
+      throw new Error('Choose an active Kodi host before editing media.');
+    }
+    await client.call(method, params);
+  }
+
+  async function saveMetadata(payload: MetadataEditorPayload): Promise<void> {
+    if (!tvShow || routeTvShowId === null) return;
+    const definition = METADATA_EDITOR_DEFINITIONS.tvshow;
+    const source = tvShowEditSource(tvShow);
+    const currentTitle = displayTitleForMetadataEditor(definition, source, 'TV Show');
+    editPending = true;
+    editError = null;
+    editStatus = `Saving ${currentTitle}...`;
+
+    try {
+      await metadataSave(definition.method, {
+        [definition.idParam]: routeTvShowId,
+        ...payload
+      });
+      const nextTitle = displayTitleForMetadataEditor(definition, payload, currentTitle);
+      editOpen = false;
+      editStatus = `Saved metadata for ${nextTitle}.`;
+    } catch (error) {
+      editError = sanitizeUiText(errorMessage(error));
+      editStatus = `Could not save ${currentTitle}. ${sanitizeUiText(errorMessage(error))}`;
+    } finally {
+      editPending = false;
+    }
+  }
+
+  function tvShowEditSource(value: VideoTvShowDetailSnapshot): Record<string, unknown> {
+    return {
+      ...value,
+      thumbnail: value.thumbnail ?? value.art?.poster,
+      fanart: value.fanart ?? value.art?.fanart
+    };
+  }
+
   function formatYear(value: unknown): string | null {
     const year = numberOrNull(value);
     return year === null ? null : String(Math.trunc(year));
@@ -199,6 +255,10 @@
       .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
   }
 
+  function errorMessage(error: unknown): string {
+    return error instanceof Error && error.message.trim() ? error.message : 'Metadata save failed.';
+  }
+
   function looksLikePathOrUrl(value: string): boolean {
     return (
       /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
@@ -226,6 +286,13 @@
   <div class="status-line" role="status" aria-live="polite" aria-atomic="true">{statusCopy}</div>
 
   {#if tvShow}
+    {#if editStatus}
+      <div class="edit-status" role="status" aria-live="polite">{editStatus}</div>
+    {/if}
+    <div class="tv-show-actions" aria-label="TV show actions">
+      <button type="button" onclick={() => (editOpen = true)}>Edit</button>
+    </div>
+
     <dl class="detail-list">
       <div>
         <dt>Route identity</dt>
@@ -281,6 +348,19 @@
           </li>
         {/each}
       </ul>
+    {/if}
+    {#if editOpen}
+      <MetadataEditDialog
+        definition={METADATA_EDITOR_DEFINITIONS.tvshow}
+        source={tvShowEditSource(tvShow)}
+        pending={editPending}
+        error={editError}
+        onSave={saveMetadata}
+        onCancel={() => {
+          editOpen = false;
+          editError = null;
+        }}
+      />
     {/if}
   {:else}
     <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">
@@ -411,9 +491,30 @@
     overflow-wrap: anywhere;
   }
   .back-link:focus-visible,
-  .season-link:focus-visible {
+  .season-link:focus-visible,
+  button:focus-visible {
     outline: none;
     box-shadow: var(--shadow-ring);
+  }
+  .tv-show-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  button {
+    min-height: 2.5rem;
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+    font: inherit;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
   .detail-list {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
@@ -422,6 +523,7 @@
   .detail-list div,
   .empty-state,
   .status-line,
+  .edit-status,
   .season-card {
     padding: var(--space-md);
     background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);

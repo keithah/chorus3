@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute } from '$lib/app/appRouter';
+import {
+  KODI_WEBINTERFACE_BASE_PATH,
+  buildKodiPackageSafePrimaryAppRoute,
+  parseAppRoute
+} from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
 import { createAppNavigationItems } from './appNavigation';
 
@@ -105,6 +109,50 @@ describe('createAppNavigationItems', () => {
     expect(items.find((item) => item.id === 'browser')?.href).toBe('#browser');
   });
 
+  test('uses leaf package paths for parent routes that also have fallback children', () => {
+    const items = createAppNavigationItems({
+      packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+      routeMode: 'path',
+      activeRoute: { kind: 'music' }
+    });
+
+    expect(items.find((item) => item.id === 'music')?.href).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/music/home`
+    );
+    expect(
+      items
+        .find((item) => item.id === 'music')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'home')?.href
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/music/home`);
+    expect(
+      items
+        .find((item) => item.id === 'movies')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'all')?.href
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/movies/all`);
+    expect(
+      items
+        .find((item) => item.id === 'tvshows')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'all')?.href
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/tvshows/all`);
+    expect(
+      items
+        .find((item) => item.id === 'help')
+        ?.submenuGroups?.flatMap((group) => group.items)
+        .find((item) => item.id === 'home')?.href
+    ).toBe(
+      buildKodiPackageSafePrimaryAppRoute(
+        { kind: 'help' },
+        {
+          packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+          routeMode: 'path'
+        }
+      )
+    );
+  });
+
   test('uses classic-compatible custom main nav rows when provided', () => {
     const items = createAppNavigationItems({
       routeMode: 'hash',
@@ -167,6 +215,7 @@ describe('createAppNavigationItems', () => {
       [{ kind: 'playlistDetail', playlistid: 'local' }, 'playlists'],
       [{ kind: 'thumbsup' }, 'thumbsup'],
       [{ kind: 'browserItem', media: 'music', itemid: 'root' }, 'browser'],
+      [{ kind: 'pvrEpg' }, 'pvr'],
       [{ kind: 'pvrTvChannel', channelid: '42' }, 'pvr'],
       [{ kind: 'pvrRadioChannel', channelid: '99' }, 'pvr'],
       [primaryRouteFromPath('/files'), 'browser']
@@ -207,7 +256,7 @@ describe('createAppNavigationItems', () => {
     const pvr = byId('pvr');
     expect(
       pvr.submenuGroups?.flatMap((group) => [group.label, ...group.items.map((item) => item.label)])
-    ).toEqual(['PVR', 'TV Channels', 'Radio Stations', 'Recordings']);
+    ).toEqual(['PVR', 'TV Channels', 'Guide', 'Radio Stations', 'Recordings']);
 
     const settings = byId('settings');
     expect(

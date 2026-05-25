@@ -35,10 +35,10 @@
 
   const DEFAULT_MENU_DISABLED_REASONS = {
     currentPlaylist: 'Current playlist is already selected.',
-    clear: 'Clear playlist is deferred until a playlist action callback is supplied.',
-    refresh: 'Refresh playlist is deferred to playlist persistence work.',
-    partyMode: 'Party mode is deferred to Kodi playlist controls.',
-    saveKodiPlaylist: 'Saving Kodi playlists is deferred to durable playlist persistence.'
+    clear: 'Clear playlist needs a playlist action callback.',
+    refresh: 'Refresh playlist needs a playlist action callback.',
+    partyMode: 'Party mode needs a playlist action callback.',
+    saveKodiPlaylist: 'Save Kodi playlist needs a playlist action callback.'
   } satisfies Record<AppShellPlaylistMenuAction, string>;
 
   let localMenuOpen = $state(false);

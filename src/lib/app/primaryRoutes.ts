@@ -48,6 +48,7 @@ export type PrimaryRoute =
   | { kind: 'labIconBrowser' }
   | { kind: 'thumbsup' }
   | { kind: 'pvrTv' }
+  | { kind: 'pvrEpg' }
   | { kind: 'pvrTvChannel'; channelid: string }
   | { kind: 'pvrRadio' }
   | { kind: 'pvrRadioChannel'; channelid: string }
@@ -61,6 +62,7 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/', { kind: 'home' }],
   ['/home', { kind: 'home' }],
   ['/music', { kind: 'music' }],
+  ['/music/home', { kind: 'music' }],
   ['/music/top', { kind: 'musicTop' }],
   ['/artists', { kind: 'musicArtists' }],
   ['/music/artists', { kind: 'musicArtists' }],
@@ -70,9 +72,11 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/music/genres', { kind: 'musicGenres' }],
   ['/music/videos', { kind: 'musicVideos' }],
   ['/movies', { kind: 'movies' }],
+  ['/movies/all', { kind: 'movies' }],
   ['/movies/recent', { kind: 'moviesRecent' }],
   ['/video/movies', { kind: 'movies' }],
   ['/tvshows', { kind: 'tvshows' }],
+  ['/tvshows/all', { kind: 'tvshows' }],
   ['/tvshows/recent', { kind: 'tvshowsRecent' }],
   ['/video/tv', { kind: 'tvshows' }],
   ['/browser', { kind: 'browser' }],
@@ -89,6 +93,7 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/settings/web', { kind: 'settingsWeb' }],
   ['/settings/web-interface', { kind: 'settingsWeb' }],
   ['/settings/kodi', { kind: 'settingsKodi' }],
+  ['/settings/kodi/home', { kind: 'settingsKodi' }],
   ['/settings/games', { kind: 'settingsKodiSection', section: 'games' }],
   ['/settings/interface', { kind: 'settingsKodiSection', section: 'interface' }],
   ['/settings/media', { kind: 'settingsKodiSection', section: 'media' }],
@@ -101,16 +106,19 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/settings/main-menu', { kind: 'settingsNav' }],
   ['/settings/search', { kind: 'settingsSearch' }],
   ['/help', { kind: 'help' }],
+  ['/help/about', { kind: 'help' }],
   ['/help/overview', { kind: 'helpOverview' }],
   ['/remote', { kind: 'remote' }],
   ['/search', { kind: 'search' }],
   ['/lab', { kind: 'lab' }],
+  ['/lab/home', { kind: 'lab' }],
   ['/lab/api-browser', { kind: 'labApiBrowser' }],
   ['/lab/screenshot', { kind: 'labScreenshot' }],
   ['/lab/icon-browser', { kind: 'labIconBrowser' }],
   ['/thumbsup', { kind: 'thumbsup' }],
   ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
+  ['/pvr/epg', { kind: 'pvrEpg' }],
   ['/pvr/radio', { kind: 'pvrRadio' }],
   ['/pvr/recordings', { kind: 'pvrRecordings' }]
 ]);
@@ -366,6 +374,8 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
       return '/thumbsup';
     case 'pvrTv':
       return '/pvr/tv';
+    case 'pvrEpg':
+      return '/pvr/epg';
     case 'pvrTvChannel':
       return buildDynamicPath('/pvr/tv', route.channelid);
     case 'pvrRadio':

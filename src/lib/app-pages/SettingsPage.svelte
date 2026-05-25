@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildKodiPackageSafePrimaryAppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
   import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
@@ -66,6 +69,85 @@
     hint: string;
   }
 
+  const CHORUS2_LANGUAGE_OPTIONS = [
+    { value: 'af', label: 'Afrikaans (South Africa)' },
+    { value: 'am', label: 'Amharic (Ethiopia)' },
+    { value: 'ar', label: 'Arabic (Saudi Arabia)' },
+    { value: 'ast', label: 'Asturian (Spain)' },
+    { value: 'az', label: 'Azerbaijani' },
+    { value: 'be', label: 'Belarusian' },
+    { value: 'bg', label: 'Bulgarian' },
+    { value: 'bs', label: 'Bosnian' },
+    { value: 'ca', label: 'Catalan (Spain)' },
+    { value: 'cs', label: 'Czech' },
+    { value: 'cy', label: 'Welsh (United Kingdom)' },
+    { value: 'da', label: 'Danish' },
+    { value: 'de', label: 'German' },
+    { value: 'el', label: 'Greek' },
+    { value: 'en', label: 'English (United Kingdom)' },
+    { value: 'en_au', label: 'English (Australia)' },
+    { value: 'en_nz', label: 'English (New Zealand)' },
+    { value: 'en_us', label: 'English (United States)' },
+    { value: 'eo', label: 'Esperanto' },
+    { value: 'es', label: 'Spanish (Spain)' },
+    { value: 'es_ar', label: 'Spanish (Argentina)' },
+    { value: 'es_mx', label: 'Spanish (Mexico)' },
+    { value: 'et', label: 'Estonian' },
+    { value: 'eu', label: 'Basque (Spain)' },
+    { value: 'fa', label: 'Persian (Afghanistan)' },
+    { value: 'fa_ir', label: 'Persian (Iran)' },
+    { value: 'fi', label: 'Finnish' },
+    { value: 'fo', label: 'Faroese' },
+    { value: 'fr', label: 'French (France)' },
+    { value: 'fr_ca', label: 'French (Canada)' },
+    { value: 'gl', label: 'Galician (Spain)' },
+    { value: 'he', label: 'Hebrew (Israel)' },
+    { value: 'hi', label: 'Hindi (India)' },
+    { value: 'hr', label: 'Croatian' },
+    { value: 'hu', label: 'Hungarian' },
+    { value: 'hy', label: 'Armenian' },
+    { value: 'id', label: 'Indonesian' },
+    { value: 'is', label: 'Icelandic' },
+    { value: 'it', label: 'Italian' },
+    { value: 'ja', label: 'Japanese' },
+    { value: 'kn', label: 'Kannada (India)' },
+    { value: 'ko', label: 'Korean' },
+    { value: 'lt', label: 'Lithuanian' },
+    { value: 'lv', label: 'Latvian' },
+    { value: 'mi', label: 'Maori' },
+    { value: 'mk', label: 'Macedonian' },
+    { value: 'ml', label: 'Malayalam (India)' },
+    { value: 'mn', label: 'Mongolian' },
+    { value: 'ms', label: 'Malay' },
+    { value: 'mt', label: 'Maltese' },
+    { value: 'my', label: 'Burmese' },
+    { value: 'nb', label: 'Norwegian' },
+    { value: 'nl', label: 'Dutch' },
+    { value: 'pl', label: 'Polish' },
+    { value: 'pt', label: 'Portuguese (Portugal)' },
+    { value: 'pt_br', label: 'Portuguese (Brazil)' },
+    { value: 'ro', label: 'Romanian' },
+    { value: 'ru', label: 'Russian' },
+    { value: 'si', label: 'Sinhala (Sri Lanka)' },
+    { value: 'sk', label: 'Slovak' },
+    { value: 'sl', label: 'Slovenian' },
+    { value: 'sq', label: 'Albanian' },
+    { value: 'sr', label: 'Serbian' },
+    { value: 'sr_rs@latin', label: 'Serbian (latin)' },
+    { value: 'sv', label: 'Swedish' },
+    { value: 'szl', label: 'Silesian' },
+    { value: 'ta', label: 'Tamil (India)' },
+    { value: 'te', label: 'Telugu (India)' },
+    { value: 'tg', label: 'Tajik' },
+    { value: 'th', label: 'Thai' },
+    { value: 'tr', label: 'Turkish' },
+    { value: 'uk', label: 'Ukrainian' },
+    { value: 'uz', label: 'Uzbek' },
+    { value: 'vi', label: 'Vietnamese' },
+    { value: 'zh_cn', label: 'Chinese (Simplified)' },
+    { value: 'zh_tw', label: 'Chinese (Traditional)' }
+  ] as const;
+
   let {
     route,
     snapshot,
@@ -128,7 +210,7 @@
       key: 'lang',
       label: 'Language',
       hint: 'Preferred language, need to refresh browser to take effect',
-      options: [{ value: 'en', label: 'English (United Kingdom)' }]
+      options: CHORUS2_LANGUAGE_OPTIONS
     },
     {
       key: 'defaultPlayer',
@@ -297,7 +379,7 @@
   }
 
   function hrefFor(value: PrimaryRoute): string {
-    return buildPrimaryAppRoute(value, buildOptions);
+    return buildKodiPackageSafePrimaryAppRoute(value, buildOptions);
   }
 
   function webValue(key: WebSettingKey): string {
@@ -717,6 +799,10 @@
                         onchange={(event) => toggleAddon(addon, event.currentTarget.checked)}
                       />
                       <span>{addonName(addon)}</span>
+                      <a
+                        class="addon-settings-link"
+                        href={hrefFor({ kind: 'addonDetail', addonid: addon.addonid })}>Settings</a
+                      >
                     </label>
                   {/each}
                 </div>

@@ -5,6 +5,9 @@
   import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
+  import LocalBrowserPlayerRoute, {
+    type LocalBrowserPlayerDispatch
+  } from '$components/LocalBrowserPlayerRoute.svelte';
   import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
   import MediaFilesPanel, {
     type MediaFilesActionDispatch,
@@ -230,6 +233,7 @@
     nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
     nowPlayingHostSummary?: ActiveHostSummary | null;
     nowPlayingRefreshDispatch?: () => Promise<void> | void;
+    localBrowserPlayerActionDispatch?: LocalBrowserPlayerDispatch;
     packageMountedHost?: SavedKodiHost | null;
     packageBasePath?: string;
     videoMovieActionDispatch?: VideoMovieActionDispatch;
@@ -387,6 +391,14 @@
     resumeOnKodi: () => defaultPlayerDispatch.resumeOnKodi()
   };
 
+  const defaultLocalBrowserPlayerActionDispatch: LocalBrowserPlayerDispatch = {
+    setMode: (mode) => defaultPlayerDispatch.setMode(mode),
+    playMusicItem: (item) => defaultPlayerDispatch.playMusicItem(item),
+    streamMovieItem: (item) => defaultPlayerDispatch.streamMovieItem(item),
+    streamEpisodeItem: (item) => defaultPlayerDispatch.streamEpisodeItem(item),
+    streamMusicVideoItem: (item) => defaultPlayerDispatch.streamMusicVideoItem(item)
+  };
+
   const defaultVideoEpisodeActionDispatch: VideoEpisodeActionDispatch = {
     playEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.playEpisodeItem({ episodeid }),
     resumeEpisodeItem: ({ episodeid }) =>
@@ -494,6 +506,7 @@
     nowPlayingEmbedQuery,
     nowPlayingHostSummary,
     nowPlayingRefreshDispatch,
+    localBrowserPlayerActionDispatch = defaultLocalBrowserPlayerActionDispatch,
     packageMountedHost = null,
     packageBasePath = '',
     videoMovieActionDispatch = defaultVideoMovieActionDispatch,
@@ -564,7 +577,7 @@
   );
   const currentRouteBuildOptions = $derived(
     isPackageMounted
-      ? ({ packageBasePath: currentPackageBasePath, routeMode: 'hash' } as const)
+      ? ({ packageBasePath: currentPackageBasePath, routeMode: 'path' } as const)
       : ({ packageBasePath: '' } as const)
   );
   const isPrimaryShellRoute = $derived(currentPrimaryShellRoute !== null);
@@ -690,6 +703,7 @@
   );
   const isLabUnknownRoute = $derived(currentRoute.kind === 'labUnknown');
   const isNowPlayingRoute = $derived(currentRoute.kind === 'nowPlaying');
+  const isLocalPlayerRoute = $derived(currentRoute.kind === 'localPlayer');
   const isVideoMoviesRoute = $derived(currentVideoRoute?.kind === 'videoMovies');
   const isVideoMovieDetailRoute = $derived(currentVideoRoute?.kind === 'videoMovieDetail');
   const isVideoMovieStreamRoute = $derived(currentVideoRoute?.kind === 'videoMovieStream');
@@ -731,6 +745,7 @@
       input.kind === 'addonsUnknown' ||
       input.kind === 'labUnknown' ||
       input.kind === 'nowPlaying' ||
+      input.kind === 'localPlayer' ||
       input.kind === 'primary' ||
       input.kind === 'parityPlaceholder'
     ) {
@@ -1926,6 +1941,13 @@
     query={nowPlayingEmbedQuery}
     i18n={currentI18n}
     onRefresh={refreshNowPlayingEmbed}
+  />
+{:else if isLocalPlayerRoute && currentRoute.kind === 'localPlayer'}
+  <LocalBrowserPlayerRoute
+    route={currentRoute}
+    localPlayerSnapshot={currentLocalSnapshot}
+    dispatchSnapshot={playerDispatch.snapshot}
+    actionDispatch={localBrowserPlayerActionDispatch}
   />
 {:else if isPrimaryShellRoute}
   <PrimaryAppShell

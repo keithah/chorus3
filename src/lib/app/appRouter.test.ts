@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
+  buildKodiPackageSafePrimaryAppRoute,
   buildPrimaryAppRoute,
   getParityPlaceholderMetadata,
   getParityPlaceholderMetadataTable,
@@ -49,6 +50,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/', { kind: 'home' }],
   ['/home', { kind: 'home' }],
   ['/music', { kind: 'music' }],
+  ['/music/home', { kind: 'music' }],
   ['/music/top', { kind: 'musicTop' }],
   ['/artists', { kind: 'musicArtists' }],
   ['/music/artists', { kind: 'musicArtists' }],
@@ -62,9 +64,11 @@ const PRIMARY_ROUTE_CASES = [
   ['/music/genre/recent', { kind: 'musicGenreDetail', genreid: 'recent' }],
   ['/movies/recent', { kind: 'moviesRecent' }],
   ['/movies', { kind: 'movies' }],
+  ['/movies/all', { kind: 'movies' }],
   ['/movie/abc', { kind: 'movieDetail', movieid: 'abc' }],
   ['/tvshows/recent', { kind: 'tvshowsRecent' }],
   ['/tvshows', { kind: 'tvshows' }],
+  ['/tvshows/all', { kind: 'tvshows' }],
   ['/tvshow/series', { kind: 'tvshowDetail', tvshowid: 'series' }],
   ['/tvshow/series/1', { kind: 'tvshowSeasonDetail', tvshowid: 'series', season: '1' }],
   [
@@ -91,12 +95,14 @@ const PRIMARY_ROUTE_CASES = [
   ['/settings/web', { kind: 'settingsWeb' }],
   ['/settings/web-interface', { kind: 'settingsWeb' }],
   ['/settings/kodi', { kind: 'settingsKodi' }],
+  ['/settings/kodi/home', { kind: 'settingsKodi' }],
   ['/settings/kodi/library', { kind: 'settingsKodiSection', section: 'library' }],
   ['/settings/addons', { kind: 'settingsAddons' }],
   ['/settings/nav', { kind: 'settingsNav' }],
   ['/settings/main-menu', { kind: 'settingsNav' }],
   ['/settings/search', { kind: 'settingsSearch' }],
   ['/help', { kind: 'help' }],
+  ['/help/about', { kind: 'help' }],
   ['/help/overview', { kind: 'helpOverview' }],
   ['/help/keyboard', { kind: 'helpPage', pageid: 'keyboard' }],
   ['/remote', { kind: 'remote' }],
@@ -104,6 +110,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/search/music/query', { kind: 'searchMedia', media: 'music', query: 'query' }],
   ['/search/all/blue%20scholars', { kind: 'searchMedia', media: 'all', query: 'blue scholars' }],
   ['/lab', { kind: 'lab' }],
+  ['/lab/home', { kind: 'lab' }],
   ['/lab/api-browser', { kind: 'labApiBrowser' }],
   ['/lab/api-browser/JSONRPC.Ping', { kind: 'labApiBrowserMethod', method: 'JSONRPC.Ping' }],
   ['/lab/screenshot', { kind: 'labScreenshot' }],
@@ -111,6 +118,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/thumbsup', { kind: 'thumbsup' }],
   ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
+  ['/pvr/epg', { kind: 'pvrEpg' }],
   ['/pvr/tv/42', { kind: 'pvrTvChannel', channelid: '42' }],
   ['/pvr/radio', { kind: 'pvrRadio' }],
   ['/pvr/radio/99', { kind: 'pvrRadioChannel', channelid: '99' }],
@@ -118,14 +126,21 @@ const PRIMARY_ROUTE_CASES = [
 ] as const;
 
 const PRIMARY_ROUTE_CANONICAL_PATHS = new Map<PrimaryRoute['kind'], string>([
+  ['music', '/music'],
   ['musicArtists', '/music/artists'],
   ['musicAlbums', '/music/albums'],
   ['musicGenres', '/music/genres'],
+  ['movies', '/movies'],
+  ['tvshows', '/tvshows'],
   ['browser', '/browser'],
   ['addonsAll', '/addons/all'],
   ['settingsWeb', '/settings/web'],
+  ['settingsKodi', '/settings/kodi'],
   ['settingsNav', '/settings/nav'],
-  ['pvrTv', '/pvr/tv']
+  ['help', '/help'],
+  ['lab', '/lab'],
+  ['pvrTv', '/pvr/tv'],
+  ['pvrEpg', '/pvr/epg']
 ]);
 
 function expectedPrimaryCanonicalPath(
@@ -180,6 +195,12 @@ describe('parseAppRoute', () => {
     expect(buildPrimaryAppRoute({ kind: 'browser' }, { routeMode: 'hash' })).toBe('#browser');
     expect(buildPrimaryAppRoute({ kind: 'home' }, { routeMode: 'hash' })).toBe('#home');
     expect(
+      buildAppRoute(
+        { kind: 'localPlayer', media: 'movie', id: 88 },
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}#local-player/movie/88`);
+    expect(
       buildPrimaryAppRoute(
         { kind: 'music' },
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
@@ -199,6 +220,32 @@ describe('parseAppRoute', () => {
     ).toBe('#search/all/blue%20scholars');
     expect(buildAppRoute({ kind: 'primary', route: { kind: 'home' } }, { routeMode: 'hash' })).toBe(
       '#home'
+    );
+  });
+
+  test('builds Kodi package-safe leaf hrefs for parent routes with static child fallbacks', () => {
+    const options = { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' } as const;
+
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'music' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/music/home`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'movies' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/movies/all`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'tvshows' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/tvshows/all`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'settingsKodi' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/settings/kodi/home`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'help' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/help/about`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'lab' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/lab/home`
+    );
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'music' }, { routeMode: 'hash' })).toBe(
+      '#music'
     );
   });
 
@@ -366,6 +413,17 @@ describe('parseAppRoute', () => {
     expect(parseAppRoute('/now-playing')).toEqual({ kind: 'nowPlaying' });
     expect(parseAppRoute('/now-playing', '?theme=light&username=admin')).toEqual({
       kind: 'nowPlaying'
+    });
+    expect(parseAppRoute('/local-player/movie/88')).toEqual({
+      kind: 'localPlayer',
+      media: 'movie',
+      id: 88
+    });
+    expect(parseAppRoute('/local-player/music/song/55')).toEqual({
+      kind: 'localPlayer',
+      media: 'music',
+      musicKind: 'song',
+      id: 55
     });
   });
 
@@ -749,6 +807,11 @@ describe('buildAppRoute', () => {
     [{ kind: 'settings' }, '/settings'],
     [{ kind: 'remote' }, '/remote'],
     [{ kind: 'nowPlaying' }, '/now-playing'],
+    [{ kind: 'localPlayer', media: 'movie', id: 4401 }, '/local-player/movie/4401'],
+    [
+      { kind: 'localPlayer', media: 'music', musicKind: 'song', id: 55 },
+      '/local-player/music/song/55'
+    ],
     [{ kind: 'labUnknown', pathLabel: '/lab/Authorization/Basic' }, '/lab/[redacted]/[redacted]'],
     [{ kind: 'addons' }, '/addons'],
     [

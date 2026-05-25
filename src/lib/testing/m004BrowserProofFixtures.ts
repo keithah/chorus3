@@ -423,6 +423,7 @@ function createLocalPlayerSnapshot(route: VideoRoute): LocalPlayerStoreSnapshot 
   return {
     status: movieid === 4401 ? 'paused' : 'idle',
     mediaKind: 'video',
+    source: null,
     item:
       movieid === 4401
         ? { movieid: 4401, label: 'Neon Harbor', title: 'Neon Harbor', type: 'movie' }

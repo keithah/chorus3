@@ -35,9 +35,15 @@
   const videoAddonsHref = $derived(hrefFor({ kind: 'addonsVideo' }));
   const audioAddonsHref = $derived(hrefFor({ kind: 'addonsAudio' }));
   const executableAddonsHref = $derived(hrefFor({ kind: 'addonsExecutable' }));
+  const executingAddon = $derived(
+    route.kind === 'addonExecute'
+      ? (snapshot.addons.find((addon) => addon.addonid === route.addonid) ?? snapshot.detail)
+      : null
+  );
 
   function addonsTitle(value: PrimaryRoute): string {
     if (value.kind === 'addonDetail') return 'Add-on details';
+    if (value.kind === 'addonExecute') return 'Execute add-on';
     if (value.kind === 'addonsVideo') return 'Video add-ons';
     if (value.kind === 'addonsAudio') return 'Audio add-ons';
     if (value.kind === 'addonsExecutable') return 'Executable add-ons';
@@ -61,7 +67,7 @@
   ): BuildAppRouteOptions {
     return options.packageBasePath || options.routeMode
       ? options
-      : { packageBasePath: basePath, routeMode: basePath ? 'hash' : 'path' };
+      : { packageBasePath: basePath, routeMode: 'path' };
   }
 
   function navigateToHref(href: string): void {
@@ -77,6 +83,13 @@
   function handleRouteLink(event: MouseEvent, href: string): void {
     event.preventDefault();
     navigateToHref(href);
+  }
+
+  function executeStatusCopy(): string {
+    if (snapshot.writeStatus === 'pending') return 'Starting add-on.';
+    if (snapshot.writeStatus === 'success') return 'Add-on started.';
+    if (snapshot.writeStatus === 'error') return 'Add-on could not be started.';
+    return 'Ready to start add-on.';
   }
 </script>
 
@@ -109,6 +122,20 @@
     <h2 id="addons-page-title">{addonsTitle(route)}</h2>
     {#if route.kind === 'addonDetail'}
       <AddonDetailShell {snapshot} dispatch={addonDetailDispatch} {i18n} />
+    {:else if route.kind === 'addonExecute'}
+      <section class="addon-execute-status" aria-labelledby="addon-execute-title">
+        <p class="subnav-kicker">Executable add-on</p>
+        <h3 id="addon-execute-title">{executingAddon?.name ?? route.addonid}</h3>
+        <p>{executeStatusCopy()}</p>
+        {#if snapshot.lastError}
+          <p class="addon-execute-error" role="status">{snapshot.lastError.message}</p>
+        {/if}
+        <button
+          type="button"
+          class="addon-secondary-action"
+          onclick={() => navigateToHref(executableAddonsHref)}>Open executable add-ons</button
+        >
+      </section>
     {:else}
       <AddonsPanel
         {snapshot}
@@ -168,6 +195,33 @@
     color: #555;
     font-size: 1.35rem;
     font-weight: 400;
+  }
+
+  .addon-execute-status {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 36rem;
+    padding: 1rem;
+    background: #f8f8f8;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+  }
+
+  .addon-execute-status h3,
+  .addon-execute-status p {
+    margin: 0;
+  }
+
+  .addon-execute-error {
+    color: #8a2b2b;
+  }
+
+  .addon-secondary-action {
+    justify-self: start;
+    border: 0;
+    background: #777;
+    color: white;
+    font: inherit;
+    padding: 0.45rem 0.7rem;
   }
 
   @media (max-width: 760px) {

@@ -74,6 +74,22 @@ describe('PlaylistDrawer', () => {
     expect(target.querySelector('.classic-playlist-menu')).toBeNull();
   });
 
+  it('uses truthful disabled menu copy without deferred parity language', () => {
+    const target = renderDrawer();
+
+    click(getButtonByAria(target, 'Playlist menu'));
+
+    for (const label of [
+      'Clear playlist',
+      'Refresh playlist',
+      'Party mode',
+      'Save Kodi playlist'
+    ]) {
+      const title = getButtonByText(target, label).title;
+      expect(title).not.toMatch(/deferred|future|not yet|persistence work/i);
+    }
+  });
+
   it('falls back to Current playlist for an empty drawer label and tolerates absent snippets', () => {
     const target = renderDrawer({ drawer: { label: '', mediaMode: 'video', collapsed: true } });
 

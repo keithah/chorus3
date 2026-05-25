@@ -427,6 +427,9 @@ function validateRouteFallback(fallback) {
 
   const normalizedPath = toPosixPath(stagedIndexPath);
   const segments = normalizedPath.split('/');
+  const normalizedRouteFile = fallback.routePath.replace(/^\//u, '');
+  const isNestedIndex = normalizedPath.endsWith('/index.html');
+  const isExtensionlessRouteFile = normalizedPath === normalizedRouteFile;
   if (
     normalizedPath !== stagedIndexPath ||
     normalizedPath.startsWith('/') ||
@@ -434,10 +437,10 @@ function validateRouteFallback(fallback) {
     segments.includes('..') ||
     segments.includes('.') ||
     normalizedPath === 'index.html' ||
-    !normalizedPath.endsWith('/index.html')
+    (!isNestedIndex && !isExtensionlessRouteFile)
   ) {
     throw new Error(
-      `[fallback] ${fallback.name} stagedIndexPath ${stagedIndexPath} must be a nested safe index.html path.`
+      `[fallback] ${fallback.name} stagedIndexPath ${stagedIndexPath} must be a nested safe index.html path or extensionless route file.`
     );
   }
 }

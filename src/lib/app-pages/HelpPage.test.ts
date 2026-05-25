@@ -34,8 +34,8 @@ const HELP_TOPIC_CASES = [
   ],
   [
     { kind: 'helpPage', pageid: 'app-changelog' },
-    'Version 3.0.0',
-    'Initial Chorus 3 release',
+    'Version 3.0.12',
+    'multi-section metadata editor',
     'Added support for music videos',
     undefined
   ],
@@ -78,7 +78,7 @@ const HELP_TOPIC_CASES = [
 
 const HELP_ALIAS_CASES = [
   [{ kind: 'helpPage', pageid: 'readme' }, 'Kodi Web Interface - Chorus 3'],
-  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 3.0.0'],
+  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 3.0.12'],
   [{ kind: 'helpPage', pageid: 'keyboard' }, 'Key Binds'],
   [{ kind: 'helpPage', pageid: 'translations' }, 'Translations']
 ] as const satisfies readonly [PrimaryRoute, string][];
@@ -150,6 +150,15 @@ describe('HelpPage', () => {
       { text: 'Translations', href: '#help/lang-readme' },
       { text: 'License', href: '#help/license' }
     ]);
+  });
+
+  it('keeps the About status report aligned with the HTML5-only local player decision', () => {
+    renderPage({ kind: 'help' });
+
+    const content = text();
+    expect(content).toContain('Kodi 21.3 - Chorus 3.0.12');
+    expect(content).toContain('HTML 5');
+    expect(content).not.toMatch(/\bVLC\b|DivX/i);
   });
 
   it('rewrites imported help body links through standalone path-mode routes', () => {

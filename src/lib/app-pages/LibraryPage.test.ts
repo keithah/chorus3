@@ -79,11 +79,14 @@ vi.mock('$lib/stores/localPlayer.svelte', () => ({
 type MountedComponent = ReturnType<typeof mount>;
 
 let mounted: MountedComponent | null = null;
-let anchorClickSpy: ReturnType<typeof vi.spyOn> | null = null;
+let anchorClickSpy: { mockRestore: () => void } | null = null;
+let windowOpenSpy: { mockRestore: () => void } | null = null;
 
 afterEach(() => {
   anchorClickSpy?.mockRestore();
   anchorClickSpy = null;
+  windowOpenSpy?.mockRestore();
+  windowOpenSpy = null;
   localStorage.clear();
   if (mounted) {
     unmount(mounted);
@@ -163,6 +166,7 @@ describe('LibraryPage', () => {
       setMode: vi.fn(),
       playMusicItem: vi.fn()
     };
+    windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     mounted = mount(LibraryPage, {
       target: target as HTMLElement,
@@ -194,9 +198,14 @@ describe('LibraryPage', () => {
     buttons.find((button) => button.textContent?.trim() === 'Play in browser')?.click();
     await settle();
 
-    expect(playerDispatch.setMode).toHaveBeenCalledWith('local');
-    expect(playerDispatch.playMusicItem).toHaveBeenCalledWith({ kind: 'song', songid: 55 });
-    expect(target!.textContent).toContain('Started browser playback for Sinnerman.');
+    expect(playerDispatch.setMode).not.toHaveBeenCalled();
+    expect(playerDispatch.playMusicItem).not.toHaveBeenCalled();
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      '/addons/webinterface.chorus3#local-player/music/song/55',
+      '_blank',
+      'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
+    );
+    expect(target!.textContent).toContain('Opened browser playback for Sinnerman.');
   });
 
   it('routes classic movie localplay actions through browser video streaming', async () => {
@@ -206,6 +215,7 @@ describe('LibraryPage', () => {
     const playerDispatch = {
       streamMovieItem: vi.fn()
     };
+    windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     mounted = mount(LibraryPage, {
       target: target as HTMLElement,
@@ -242,8 +252,13 @@ describe('LibraryPage', () => {
     buttons.find((button) => button.textContent?.trim() === 'Play in browser')?.click();
     await settle();
 
-    expect(playerDispatch.streamMovieItem).toHaveBeenCalledWith({ movieid: 88 });
-    expect(target!.textContent).toContain('Started browser playback for Big Buck Bunny.');
+    expect(playerDispatch.streamMovieItem).not.toHaveBeenCalled();
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      '/addons/webinterface.chorus3#local-player/movie/88',
+      '_blank',
+      'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
+    );
+    expect(target!.textContent).toContain('Opened browser playback for Big Buck Bunny.');
   });
 
   it('renders movie detail metadata from the Kodi detail snapshot when the movie is outside the loaded list', async () => {
@@ -482,11 +497,10 @@ describe('LibraryPage', () => {
     expect(target!.textContent).toContain('Added 2 selected items to playlist.');
   });
 
-  it('edits classic card titles through the matching Kodi SetDetails method', async () => {
+  it('edits classic cards through the full Chorus2 song metadata editor', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const target = document.getElementById('target');
     expect(target).toBeInstanceOf(HTMLElement);
-    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('New Sinnerman');
 
     mounted = mount(LibraryPage, {
       target: target as HTMLElement,
@@ -512,13 +526,59 @@ describe('LibraryPage', () => {
       ?.click();
     await settle();
 
-    expect(promptSpy).toHaveBeenCalledWith('Edit title', 'Sinnerman');
+    expect(target!.textContent).toContain('Edit Song');
+    expect(target!.textContent).toContain('Information');
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.metadata-edit-tabs button'))
+      .find((button) => button.textContent?.trim() === 'Information')
+      ?.click();
+    await settle();
+    expect(target!.querySelector<HTMLTextAreaElement>('textarea[name="file"]')?.disabled).toBe(
+      true
+    );
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.metadata-edit-tabs button'))
+      .find((button) => button.textContent?.trim() === 'General')
+      ?.click();
+    await settle();
+    const titleInput = target!.querySelector<HTMLInputElement>('input[name="title"]');
+    const artistInput = target!.querySelector<HTMLInputElement>('input[name="artist"]');
+    const ratingInput = target!.querySelector<HTMLInputElement>('input[name="rating"]');
+    expect(titleInput).toBeInstanceOf(HTMLInputElement);
+    expect(artistInput).toBeInstanceOf(HTMLInputElement);
+    expect(ratingInput).toBeInstanceOf(HTMLInputElement);
+
+    titleInput!.value = 'New Sinnerman';
+    titleInput!.dispatchEvent(new Event('input', { bubbles: true }));
+    artistInput!.value = 'Nina Simone, Live Band';
+    artistInput!.dispatchEvent(new Event('input', { bubbles: true }));
+    ratingInput!.value = '9.5';
+    ratingInput!.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.metadata-edit-tabs button'))
+      .find((button) => button.textContent?.trim() === 'Tags')
+      ?.click();
+    await settle();
+    const genreInput = target!.querySelector<HTMLInputElement>('input[name="genre"]');
+    expect(genreInput).toBeInstanceOf(HTMLInputElement);
+    genreInput!.value = 'Soul, Jazz';
+    genreInput!.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+
+    target!.querySelector<HTMLButtonElement>('.metadata-edit-save')?.click();
+    await settle();
+
     expect(fakeClient.calls.at(-1)).toEqual({
       method: 'AudioLibrary.SetSongDetails',
-      params: { songid: 55, title: 'New Sinnerman' }
+      params: expect.objectContaining({
+        songid: 55,
+        title: 'New Sinnerman',
+        artist: ['Nina Simone', 'Live Band'],
+        genre: ['Soul', 'Jazz'],
+        rating: 9.5
+      })
     });
-    expect(target!.textContent).toContain('Saved title for New Sinnerman.');
-    promptSpy.mockRestore();
+    expect(fakeClient.calls.at(-1)?.params).not.toHaveProperty('file');
+    expect(target!.textContent).toContain('Saved metadata for New Sinnerman.');
   });
 
   it('hydrates classic music video detail routes from Kodi and keeps actions playable', async () => {
@@ -533,6 +593,7 @@ describe('LibraryPage', () => {
       queueMusicVideoItem: vi.fn()
     };
     anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     mounted = mount(LibraryPage, {
       target: target as HTMLElement,
@@ -595,7 +656,7 @@ describe('LibraryPage', () => {
     buttons.find((button) => button.textContent === 'Download')?.click();
     await settle();
     expect(playerDispatch.playMusicVideoItem).toHaveBeenCalledWith({ musicvideoid: 77 });
-    expect(playerDispatch.streamMusicVideoItem).toHaveBeenCalledWith({ musicvideoid: 77 });
+    expect(playerDispatch.streamMusicVideoItem).not.toHaveBeenCalled();
     expect(queueDispatch.queueMusicVideoItem).toHaveBeenCalledWith({ musicvideoid: 77 });
     expect(fakeClient.calls).toEqual([
       {

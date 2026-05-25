@@ -1,5 +1,5 @@
-import { mount, unmount } from 'svelte';
-import { afterEach, describe, expect, it } from 'vitest';
+import { mount, tick, unmount } from 'svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import VideoTvShowDetailShell from './VideoTvShowDetailShell.svelte';
 import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
@@ -97,10 +97,14 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
   });
 }
 
-function renderShell(snapshot: VideoTvStoreSnapshot, route: VideoRoute): void {
+function renderShell(
+  snapshot: VideoTvStoreSnapshot,
+  route: VideoRoute,
+  metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void
+): void {
   mounted = mount(VideoTvShowDetailShell, {
     target: document.body,
-    props: { snapshot, route }
+    props: { snapshot, route, metadataSave }
   });
 }
 
@@ -137,6 +141,7 @@ describe('VideoTvShowDetailShell', () => {
     expect(document.querySelector('.show-poster-frame[aria-hidden="true"]')).not.toBeNull();
     expect(document.querySelector('.show-fanart-wash[aria-hidden="true"]')).not.toBeNull();
     expect(text).toContain('Poster-led TV show surface');
+    expect(getTextButton('Edit')).not.toBeNull();
     expect(document.querySelector('a[href="/video/tv"]')?.textContent).toContain(
       'Back to TV shows'
     );
@@ -155,6 +160,49 @@ describe('VideoTvShowDetailShell', () => {
       buildVideoRoute({ kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 })
     ]);
     expectSecretSafe(text);
+  });
+
+  it('edits TV show detail routes through the full Chorus2 metadata editor', async () => {
+    const metadataSave = vi.fn(async () => undefined);
+    renderShell(populatedSnapshot(), { kind: 'videoTvShowDetail', tvshowid: 11 }, metadataSave);
+
+    getTextButton('Edit').click();
+    await tick();
+
+    expect(screenText()).toContain('Edit TV Show: Severance');
+    expect(screenText()).toContain('General');
+    expect(screenText()).toContain('Poster');
+    expect(screenText()).toContain('Background');
+
+    const title = document.querySelector<HTMLInputElement>('input[name="title"]');
+    const studio = document.querySelector<HTMLInputElement>('input[name="studio"]');
+    const rating = document.querySelector<HTMLInputElement>('input[name="rating"]');
+    expect(title).toBeInstanceOf(HTMLInputElement);
+    expect(studio).toBeInstanceOf(HTMLInputElement);
+    expect(rating).toBeInstanceOf(HTMLInputElement);
+
+    title!.value = 'New Severance';
+    title!.dispatchEvent(new Event('input', { bubbles: true }));
+    studio!.value = 'Lumon, Macrodata';
+    studio!.dispatchEvent(new Event('input', { bubbles: true }));
+    rating!.value = '9.1';
+    rating!.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick();
+
+    document.querySelector<HTMLButtonElement>('.metadata-edit-save')?.click();
+    await tick();
+    await tick();
+
+    expect(metadataSave).toHaveBeenCalledWith(
+      'VideoLibrary.SetTVShowDetails',
+      expect.objectContaining({
+        tvshowid: 11,
+        title: 'New Severance',
+        studio: ['Lumon', 'Macrodata'],
+        rating: 9.1
+      })
+    );
+    expect(screenText()).toContain('Saved metadata for New Severance.');
   });
 
   it('renders watched and unwatched season boundary states', () => {
@@ -267,3 +315,11 @@ describe('VideoTvShowDetailShell', () => {
     expectSecretSafe(text);
   });
 });
+
+function getTextButton(text: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+    (candidate) => candidate.textContent?.trim() === text
+  );
+  expect(button).toBeInstanceOf(HTMLButtonElement);
+  return button as HTMLButtonElement;
+}
