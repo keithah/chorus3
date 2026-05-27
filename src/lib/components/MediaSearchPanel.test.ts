@@ -262,6 +262,7 @@ describe('MediaSearchPanel', () => {
     expect(document.querySelector('label[for="media-search-query"]')?.textContent).toContain(
       'Search music'
     );
+    expect(document.querySelector('select[name="scope"]')).not.toBeNull();
     expect(searchInput().value).toBe('nina');
     expect(document.querySelector('[aria-live="polite"]')?.getAttribute('role')).toBe('status');
 
@@ -290,6 +291,68 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Nina TV');
     expect(text).toContain('Nina Live');
     expect(text).toContain('7 results');
+  });
+
+  it('keeps movie and TV search routes scoped instead of relabeling them as music', async () => {
+    const { dispatch } = renderPanel({
+      snapshot: createSnapshot({
+        scope: 'movie',
+        query: 'bunny',
+        results: {
+          artists: [],
+          albums: [],
+          songs: [],
+          genres: [],
+          movies: [
+            { kind: 'movie', movieid: 40, label: 'Big Buck Bunny', title: 'Big Buck Bunny' }
+          ],
+          tvShows: [],
+          musicVideos: []
+        },
+        limits: {
+          artists: { start: 0, end: 0, total: 0 },
+          albums: { start: 0, end: 0, total: 0 },
+          songs: { start: 0, end: 0, total: 0 },
+          genres: { start: 0, end: 0, total: 0 },
+          movies: { start: 0, end: 1, total: 1 },
+          tvShows: { start: 0, end: 0, total: 0 },
+          musicVideos: { start: 0, end: 0, total: 0 }
+        },
+        resultCounts: {
+          artists: 0,
+          albums: 0,
+          songs: 0,
+          genres: 0,
+          movies: 1,
+          tvShows: 0,
+          musicVideos: 0,
+          total: 1
+        },
+        isEmpty: false
+      })
+    });
+    await tick();
+
+    const scope = document.querySelector<HTMLSelectElement>('select[name="scope"]');
+    expect(document.querySelector('label[for="media-search-query"]')?.textContent).toContain(
+      'Search movies'
+    );
+    expect(searchInput().placeholder).toBe('Movie title');
+    expect(scope?.value).toBe('movie');
+    expect(statusText()).toContain('Movie results for bunny. 1 result.');
+    expect(screenText()).toContain('Movie results');
+    expect(screenText()).toContain('Big Buck Bunny');
+    expect(screenText()).not.toContain('Music results for bunny');
+    expect(screenText()).not.toContain('music results');
+
+    scope!.value = 'tvshow';
+    scope!.dispatchEvent(new Event('change', { bubbles: true }));
+    searchInput().value = 'lost';
+    searchInput().dispatchEvent(new Event('input', { bubbles: true }));
+    submitSearch();
+    await tick();
+
+    expect(dispatch.search).toHaveBeenCalledWith({ query: 'lost', scope: 'tvshow' });
   });
 
   it('renders Chorus2 external and custom add-on search links for the current query', () => {
@@ -471,6 +534,10 @@ describe('MediaSearchPanel', () => {
   it('submits a trimmed query and clears through injected dispatch only', async () => {
     const { dispatch } = renderPanel({ snapshot: createEmptySnapshot() });
     const input = searchInput();
+    const scope = document.querySelector<HTMLSelectElement>('select[name="scope"]');
+    expect(scope).not.toBeNull();
+    scope!.value = 'video';
+    scope!.dispatchEvent(new Event('change', { bubbles: true }));
     input.value = '  pastel blues  ';
     input.dispatchEvent(new Event('input', { bubbles: true }));
 
@@ -478,7 +545,7 @@ describe('MediaSearchPanel', () => {
     await tick();
 
     expect(dispatch.search).toHaveBeenCalledTimes(1);
-    expect(dispatch.search).toHaveBeenCalledWith({ query: 'pastel blues', scope: 'all' });
+    expect(dispatch.search).toHaveBeenCalledWith({ query: 'pastel blues', scope: 'video' });
 
     button('Clear media search').click();
     await tick();

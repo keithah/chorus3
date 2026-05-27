@@ -165,8 +165,23 @@ const PRIMARY_ROUTE_CHECKS = [
     expected: { kind: 'primary', routeKind: 'search' }
   },
   {
+    name: 'primary-search-movie-direct-root',
+    path: '/search/movie/bunny',
+    expected: { kind: 'primary', routeKind: 'searchMedia' }
+  },
+  {
+    name: 'primary-tvshow-detail-direct-root',
+    path: '/tvshow/1',
+    expected: { kind: 'primary', routeKind: 'tvshowDetail' }
+  },
+  {
     name: 'primary-thumbs-root',
     path: '/thumbsup',
+    expected: { kind: 'primary', routeKind: 'thumbsup' }
+  },
+  {
+    name: 'primary-thumbs-song-legacy-root',
+    path: '/thumbs-song',
     expected: { kind: 'primary', routeKind: 'thumbsup' }
   },
   {
@@ -946,6 +961,8 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/tvshows/recent':
       return { kind: 'primary', route: { kind: 'tvshowsRecent' } };
+    case '/tvshow/1':
+      return { kind: 'primary', route: { kind: 'tvshowDetail', tvshowid: '1' } };
     case '/video/tv':
       return { kind: 'primary', route: { kind: 'tvshows' } };
     case '/browser':
@@ -975,19 +992,25 @@ function defaultPackageRouteParser(path, packageBasePath) {
     case '/settings/kodi/home':
       return { kind: 'primary', route: { kind: 'settingsKodi' } };
     case '/settings/games':
+    case '/settings/kodi/games':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'games' } };
     case '/settings/interface':
     case '/settings/kodi/interface':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'interface' } };
     case '/settings/media':
+    case '/settings/kodi/media':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'media' } };
     case '/settings/player':
+    case '/settings/kodi/player':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'player' } };
     case '/settings/pvr':
+    case '/settings/kodi/pvr':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'pvr' } };
     case '/settings/services':
+    case '/settings/kodi/services':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'services' } };
     case '/settings/system':
+    case '/settings/kodi/system':
       return { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'system' } };
     case '/settings/addons':
       return { kind: 'primary', route: { kind: 'settingsAddons' } };
@@ -1025,7 +1048,10 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'helpPage', pageid: 'license' } };
     case '/search':
       return { kind: 'primary', route: { kind: 'search' } };
+    case '/search/movie/bunny':
+      return { kind: 'primary', route: { kind: 'searchMedia', media: 'movie', query: 'bunny' } };
     case '/thumbsup':
+    case '/thumbs-song':
       return { kind: 'primary', route: { kind: 'thumbsup' } };
     case '/lab':
     case '/lab/home':

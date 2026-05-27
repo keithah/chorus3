@@ -45,7 +45,7 @@ export interface VideoTvStoreOptions {
 }
 
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIST_LIMIT = { start: 0, end: 25 } as const;
+const DEFAULT_LIST_LIMIT = { start: 0, end: 5000 } as const;
 const DEFAULT_TV_SHOW_PROPERTIES = [
   'title',
   'year',

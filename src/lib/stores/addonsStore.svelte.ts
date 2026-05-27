@@ -352,12 +352,12 @@ export class AddonsStore {
 
     try {
       const detail = normalizeAddonDetail(
-        (
+        getAddonDetailPayload(
           await this.#methods.getAddonDetails(client, {
             addonid,
             properties: ADDON_PROPERTIES
           })
-        ).addondetails
+        )
       );
       this.#commitDetailLoad(requestId, detail);
     } catch (error) {
@@ -487,8 +487,9 @@ export class AddonsStore {
   ): Promise<AddonsSafeErrorSnapshot | null> {
     try {
       const detail = normalizeAddonDetail(
-        (await this.#methods.getAddonDetails(client, { addonid, properties: ADDON_PROPERTIES }))
-          .addondetails
+        getAddonDetailPayload(
+          await this.#methods.getAddonDetails(client, { addonid, properties: ADDON_PROPERTIES })
+        )
       );
       let addons = this.#snapshot.addons;
       try {
@@ -618,12 +619,16 @@ export class AddonsStore {
 }
 
 function createGetAddonsParams(): AddonsGetAddonsParams {
-  return { type: 'unknown', content: 'unknown', enabled: 'all', properties: ADDON_PROPERTIES };
+  return { enabled: 'all', properties: ADDON_PROPERTIES };
 }
 
 function normalizeAddons(raw: unknown): AddonSnapshot[] {
   if (!Array.isArray(raw)) throw new AddonsMalformedResponseError();
   return raw.map(normalizeAddonDetail);
+}
+
+function getAddonDetailPayload(result: AddonsGetAddonDetailsResult): unknown {
+  return result.addondetails ?? result.addon;
 }
 
 function normalizeAddonDetail(raw: unknown): AddonSnapshot {

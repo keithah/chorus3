@@ -6,7 +6,9 @@ import VideoSeasonDetailShell, {
   type VideoSeasonWriteDispatch,
   type VideoSeasonWriteSummary
 } from './VideoSeasonDetailShell.svelte';
+import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+import type { EpisodeCollectionActionDispatch } from '$lib/stores/episodeCollectionActions';
 import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
 
 let mounted: ReturnType<typeof mount> | null = null;
@@ -112,6 +114,8 @@ function renderShell(
   props: {
     artworkDispatch?: VideoSeasonArtworkDispatch;
     writeDispatch?: VideoSeasonWriteDispatch;
+    actionDispatch?: EpisodeCollectionActionDispatch;
+    buildOptions?: BuildAppRouteOptions;
   } = {}
 ): void {
   mounted = mount(VideoSeasonDetailShell, {
@@ -145,6 +149,13 @@ function getButton(label: string): HTMLButtonElement {
   );
   expect(button, `button ${label}`).toBeInstanceOf(HTMLButtonElement);
   return button!;
+}
+
+async function settle(): Promise<void> {
+  await Promise.resolve();
+  await tick();
+  await Promise.resolve();
+  await tick();
 }
 
 function createSeasonWriteDispatch(
@@ -215,6 +226,29 @@ describe('VideoSeasonDetailShell', () => {
       buildVideoRoute({ kind: 'videoEpisodeDetail', tvshowid: 11, season: 2, episodeid: 300 })
     ]);
     expectSecretSafe(text);
+  });
+
+  it('uses hash links for episode drill-in when mounted from the Kodi package', () => {
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      {
+        buildOptions: { packageBasePath: '/addons/webinterface.chorus3/', routeMode: 'path' }
+      }
+    );
+
+    expect(
+      document.querySelector('a[href="/addons/webinterface.chorus3/#video/tv/11"]')
+    ).not.toBeNull();
+    expect(
+      Array.from(document.querySelectorAll<HTMLAnchorElement>('a.episode-link')).map((link) =>
+        link.getAttribute('href')
+      )
+    ).toEqual([
+      '/addons/webinterface.chorus3/#video/tv/11/seasons/2/episodes/100',
+      '/addons/webinterface.chorus3/#video/tv/11/seasons/2/episodes/200',
+      '/addons/webinterface.chorus3/#video/tv/11/seasons/2/episodes/300'
+    ]);
   });
 
   it('renders supported unsupported unavailable and error artwork refresh status honestly', () => {
@@ -402,6 +436,38 @@ describe('VideoSeasonDetailShell', () => {
     expect(writeDispatch.markEpisodesWatched).toHaveBeenLastCalledWith(expectedItems, false);
     expect(screenText()).toContain('103 of 103 updated; 0 failed');
     expectSecretSafe(screenText());
+  });
+
+  it('exposes Chorus2 play and queue actions for the season collection', async () => {
+    const actionDispatch = {
+      playEpisodeCollection: vi.fn(async () => ({ count: 3 })),
+      queueEpisodeCollection: vi.fn(async () => ({ count: 3 }))
+    };
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvSeasonDetail', tvshowid: 11, season: 2 },
+      {
+        actionDispatch
+      }
+    );
+
+    getButton('Play season').click();
+    await settle();
+    expect(actionDispatch.playEpisodeCollection).toHaveBeenCalledWith({
+      tvshowid: 11,
+      season: 2,
+      label: 'Severance season 2'
+    });
+    expect(screenText()).toContain('Played 3 episodes from Severance season 2.');
+
+    getButton('Queue season').click();
+    await settle();
+    expect(actionDispatch.queueEpisodeCollection).toHaveBeenCalledWith({
+      tvshowid: 11,
+      season: 2,
+      label: 'Severance season 2'
+    });
+    expect(screenText()).toContain('Queued 3 episodes from Severance season 2.');
   });
 
   it('disables season write controls during pending batch writes', async () => {

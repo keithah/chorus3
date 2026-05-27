@@ -2,6 +2,25 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.13 - 2026-05-27
+
+Patch release for Kodi v22 compatibility and the remaining live Chorus2 parity fixes found during
+installed-package verification.
+
+### Fixed
+
+- Loaded add-on details correctly on Kodi v21 and v22 by accepting both JSON-RPC detail response
+  shapes.
+- Preserved safe package cache-busting query strings when navigating hash-only package routes, so
+  TV show season and episode drill-in remains usable after reinstalling Chorus 3.
+- Kept package add-on detail links under the Kodi webinterface mount path and auto-loaded the
+  routed add-on detail snapshot.
+- Expanded media search routing and UI copy so Movies and TV Shows searches no longer fall back to
+  Music search behavior.
+- Added clearer PVR Play and Record action feedback, including a friendly backend rejection message
+  when Kodi refuses a recording command.
+- Added direct package route coverage for movie search and TV show detail fallbacks.
+
 ## 3.0.9 - 2026-05-23
 
 Patch release for deeper Chorus2 UI parity across filters, Lab, search, add-ons, TV details, and

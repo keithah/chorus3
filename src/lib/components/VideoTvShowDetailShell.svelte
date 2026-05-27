@@ -1,31 +1,46 @@
 <script lang="ts">
   import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
   import type { TranslationContext } from '$lib/i18n';
+  import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import {
     METADATA_EDITOR_DEFINITIONS,
     displayTitleForMetadataEditor,
     type MetadataEditorPayload
   } from '$lib/metadata/metadataEditor';
   import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
+  import {
+    defaultEpisodeCollectionActionDispatch,
+    type EpisodeCollectionActionDispatch
+  } from '$lib/stores/episodeCollectionActions';
   import type {
     VideoSeasonSnapshot,
     VideoTvShowDetailSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
-  import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+  import type { VideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     i18n?: TranslationContext;
+    buildOptions?: BuildAppRouteOptions;
     metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void;
+    actionDispatch?: EpisodeCollectionActionDispatch;
   }
 
-  let { snapshot, route, metadataSave = defaultMetadataSave }: Props = $props();
+  let {
+    snapshot,
+    route,
+    buildOptions = {},
+    metadataSave = defaultMetadataSave,
+    actionDispatch = defaultEpisodeCollectionActionDispatch
+  }: Props = $props();
   let editOpen = $state(false);
   let editPending = $state(false);
   let editError = $state<string | null>(null);
   let editStatus = $state('');
+  let collectionActionStatus = $state('');
+  let pendingCollectionAction = $state<'play' | 'queue' | null>(null);
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvShowDetail' ? safePositiveId(route.tvshowid) : null
@@ -115,7 +130,14 @@
     const seasonNumber = safeSeason(season.season);
     return tvshowid === null || seasonNumber === null
       ? null
-      : buildVideoRoute({ kind: 'videoTvSeasonDetail', tvshowid, season: seasonNumber });
+      : buildKodiPackageSafeVideoAppRoute(
+          { kind: 'videoTvSeasonDetail', tvshowid, season: seasonNumber },
+          buildOptions
+        );
+  }
+
+  function videoHref(target: VideoRoute): string {
+    return buildKodiPackageSafeVideoAppRoute(target, buildOptions);
   }
 
   function metadata(value: VideoTvShowDetailSnapshot): string {
@@ -179,6 +201,31 @@
     }
   }
 
+  async function runCollectionAction(action: 'play' | 'queue'): Promise<void> {
+    if (routeTvShowId === null || !tvShow) {
+      collectionActionStatus = 'Choose a valid TV show before playing episodes.';
+      return;
+    }
+
+    pendingCollectionAction = action;
+    collectionActionStatus = `${action === 'play' ? 'Playing' : 'Queueing'} ${title}...`;
+
+    try {
+      const result =
+        action === 'play'
+          ? await actionDispatch.playEpisodeCollection({ tvshowid: routeTvShowId, label: title })
+          : await actionDispatch.queueEpisodeCollection({ tvshowid: routeTvShowId, label: title });
+      collectionActionStatus =
+        result.count === 0
+          ? `No episodes found for ${title}.`
+          : `${action === 'play' ? 'Played' : 'Queued'} ${result.count} ${episodeWord(result.count)} from ${title}.`;
+    } catch (error) {
+      collectionActionStatus = `Could not ${action} ${title}. ${sanitizeUiText(errorMessage(error))}`;
+    } finally {
+      pendingCollectionAction = null;
+    }
+  }
+
   function tvShowEditSource(value: VideoTvShowDetailSnapshot): Record<string, unknown> {
     return {
       ...value,
@@ -197,6 +244,10 @@
     if (count === null) return null;
     const rounded = Math.trunc(Math.max(0, count));
     return rounded === 1 ? '1 episode' : `${rounded} episodes`;
+  }
+
+  function episodeWord(count: number): string {
+    return count === 1 ? 'episode' : 'episodes';
   }
 
   function unwatchedText(value: Pick<VideoSeasonSnapshot, 'unwatchedEpisodes'>): string {
@@ -269,7 +320,7 @@
 </script>
 
 <section class="video-tv-show-detail-shell surface" aria-labelledby="video-tv-show-title">
-  <a class="back-link" href={buildVideoRoute({ kind: 'videoTvShows' })}>Back to TV shows</a>
+  <a class="back-link" href={videoHref({ kind: 'videoTvShows' })}>Back to TV shows</a>
 
   <div class="panel-heading tv-show-hero" aria-label="Safe TV show artwork summary">
     <div class="show-fanart-wash" aria-hidden="true"></div>
@@ -290,8 +341,23 @@
       <div class="edit-status" role="status" aria-live="polite">{editStatus}</div>
     {/if}
     <div class="tv-show-actions" aria-label="TV show actions">
+      <button
+        type="button"
+        disabled={pendingCollectionAction !== null}
+        onclick={() => void runCollectionAction('play')}>Play</button
+      >
+      <button
+        type="button"
+        disabled={pendingCollectionAction !== null}
+        onclick={() => void runCollectionAction('queue')}>Queue</button
+      >
       <button type="button" onclick={() => (editOpen = true)}>Edit</button>
     </div>
+    {#if collectionActionStatus}
+      <div class="collection-action-status" role="status" aria-live="polite">
+        {collectionActionStatus}
+      </div>
+    {/if}
 
     <dl class="detail-list">
       <div>

@@ -134,7 +134,7 @@
           <tbody>
             <tr>
               <th scope="row">Kodi - Chorus</th>
-              <td>Kodi 21.3 - Chorus 3.0.12</td>
+              <td>Connected Kodi version is shown on the Home connection card - Chorus 3.0.12</td>
             </tr>
             <tr>
               <th scope="row">Remote control</th>

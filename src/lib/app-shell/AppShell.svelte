@@ -487,7 +487,13 @@
     content: '\e667';
   }
   .mdi-action-thumb-up::before {
-    content: '\e6a4';
+    content: '\1F44D';
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
   }
   .mdi-av-my-library-music::before {
     content: '\e6b3';

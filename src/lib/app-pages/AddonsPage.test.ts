@@ -231,7 +231,7 @@ describe('AddonsPage', () => {
     expect(text()).toContain('1 of 1 add-ons');
   });
 
-  it('builds package-mounted detail links as non-hash paths under the Kodi webinterface base', () => {
+  it('builds package-mounted dynamic detail links as hash paths under the Kodi webinterface base', () => {
     renderPage(
       { kind: 'addonsVideo' },
       {
@@ -240,7 +240,7 @@ describe('AddonsPage', () => {
     );
 
     expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
+      '/addons/webinterface.chorus3/#addons/plugin.video.safe-demo'
     );
   });
 
@@ -314,7 +314,7 @@ describe('AddonsPage', () => {
       (link) => link.textContent?.trim() === 'Audio add-ons'
     );
 
-    expect(audioLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3#addons/audio');
+    expect(audioLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3/#addons/audio');
   });
 
   it('renders primary add-on detail through AddonDetailShell with existing write diagnostics', async () => {

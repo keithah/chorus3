@@ -218,13 +218,13 @@ describe('music library store', () => {
     expect(client.calls).toEqual([
       {
         method: 'AudioLibrary.GetArtists',
-        params: { properties: ['thumbnail', 'genre'], limits: { start: 0, end: 25 } }
+        params: { properties: ['thumbnail', 'genre'], limits: { start: 0 } }
       },
       {
         method: 'AudioLibrary.GetAlbums',
         params: {
           properties: ['title', 'artist', 'year', 'thumbnail'],
-          limits: { start: 0, end: 25 }
+          limits: { start: 0 }
         }
       },
       {
@@ -241,7 +241,7 @@ describe('music library store', () => {
             'lastplayed',
             'dateadded'
           ],
-          limits: { start: 0, end: 25 }
+          limits: { start: 0 }
         }
       },
       {
@@ -300,7 +300,7 @@ describe('music library store', () => {
       },
       {
         method: 'AudioLibrary.GetGenres',
-        params: { properties: ['title', 'thumbnail'], limits: { start: 0, end: 25 } }
+        params: { properties: ['title', 'thumbnail'], limits: { start: 0 } }
       }
     ]);
     expect(JSON.stringify(client.calls)).not.toContain('file');

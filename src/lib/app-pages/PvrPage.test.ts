@@ -131,7 +131,7 @@ describe('PvrPage', () => {
         snapshot: createSnapshot(),
         dispatch: createDispatch(),
         playerDispatch: createPlayerDispatch(),
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
 
@@ -140,14 +140,14 @@ describe('PvrPage', () => {
     );
 
     expect(recordingsLink?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#pvr/recordings'
+      '/addons/webinterface.chorus3/#pvr/recordings'
     );
 
     const epgLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a')).find(
       (link) => link.textContent?.trim() === 'Guide'
     );
 
-    expect(epgLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3#pvr/epg');
+    expect(epgLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3/#pvr/epg');
   });
 
   it('renders the global Chorus2 EPG route across TV channels', async () => {
@@ -290,5 +290,36 @@ describe('PvrPage', () => {
     playButtons.at(0)?.click();
     await tick();
     expect(playChannelItem).toHaveBeenCalledWith({ channelid: 101 });
+  });
+
+  it('keeps channel action feedback readable when Kodi rejects recording', async () => {
+    const dispatch = createDispatch();
+    dispatch.toggleChannelRecording = vi.fn(async () => {
+      throw new Error(
+        'Kodi JSON-RPC error -32100 while calling PVR.Record: Failed to execute method.'
+      );
+    });
+
+    mounted = mount(PvrPage, {
+      target: document.body,
+      props: {
+        route: { kind: 'pvrTv' },
+        snapshot: createSnapshot(),
+        dispatch,
+        playerDispatch: createPlayerDispatch()
+      }
+    });
+
+    const recordButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Record'
+    );
+    recordButton?.click();
+    await tick();
+    await tick();
+
+    const status = document.querySelector('.pvr-status')?.textContent ?? '';
+    expect(status).toContain('Could not record KTV.');
+    expect(status).toContain('Kodi rejected the recording command');
+    expect(status).not.toContain('JSON-RPC');
   });
 });

@@ -34,6 +34,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     routePath: '/tvshows/recent',
     stagedIndexPath: 'tvshows/recent/index.html'
   },
+  { name: 'tvshow-detail-sample', routePath: '/tvshow/1', stagedIndexPath: 'tvshow/1/index.html' },
   { name: 'legacy-video-tv', routePath: '/video/tv', stagedIndexPath: 'video/tv/index.html' },
   { name: 'browser', routePath: '/browser', stagedIndexPath: 'browser/index.html' },
   { name: 'files', routePath: '/files', stagedIndexPath: 'files/index.html' },
@@ -127,6 +128,36 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     routePath: '/settings/kodi/interface',
     stagedIndexPath: 'settings/kodi/interface/index.html'
   },
+  {
+    name: 'settings-kodi-games',
+    routePath: '/settings/kodi/games',
+    stagedIndexPath: 'settings/kodi/games/index.html'
+  },
+  {
+    name: 'settings-kodi-media',
+    routePath: '/settings/kodi/media',
+    stagedIndexPath: 'settings/kodi/media/index.html'
+  },
+  {
+    name: 'settings-kodi-player',
+    routePath: '/settings/kodi/player',
+    stagedIndexPath: 'settings/kodi/player/index.html'
+  },
+  {
+    name: 'settings-kodi-pvr',
+    routePath: '/settings/kodi/pvr',
+    stagedIndexPath: 'settings/kodi/pvr/index.html'
+  },
+  {
+    name: 'settings-kodi-services',
+    routePath: '/settings/kodi/services',
+    stagedIndexPath: 'settings/kodi/services/index.html'
+  },
+  {
+    name: 'settings-kodi-system',
+    routePath: '/settings/kodi/system',
+    stagedIndexPath: 'settings/kodi/system/index.html'
+  },
   { name: 'help', routePath: '/help', stagedIndexPath: 'help/index.html' },
   { name: 'help-about', routePath: '/help/about', stagedIndexPath: 'help/about/index.html' },
   {
@@ -178,7 +209,17 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   },
   { name: 'help-license', routePath: '/help/license', stagedIndexPath: 'help/license/index.html' },
   { name: 'search', routePath: '/search', stagedIndexPath: 'search/index.html' },
+  {
+    name: 'search-movie-bunny-sample',
+    routePath: '/search/movie/bunny',
+    stagedIndexPath: 'search/movie/bunny/index.html'
+  },
   { name: 'thumbsup', routePath: '/thumbsup', stagedIndexPath: 'thumbsup/index.html' },
+  {
+    name: 'thumbs-song-legacy',
+    routePath: '/thumbs-song',
+    stagedIndexPath: 'thumbs-song/index.html'
+  },
   { name: 'lab', routePath: '/lab', stagedIndexPath: 'lab/index.html' },
   { name: 'lab-home', routePath: '/lab/home', stagedIndexPath: 'lab/home/index.html' },
   {

@@ -275,6 +275,7 @@ export type AddonsGetAddonDetailsParams = Record<string, unknown> & {
 
 export interface AddonsGetAddonDetailsResult {
   addondetails?: AddonDetail;
+  addon?: AddonDetail;
   [key: string]: unknown;
 }
 

@@ -2,7 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AddonsPanel, { type AddonsPanelDispatch } from './AddonsPanel.svelte';
-import type { BuildAppRouteOptions } from '$lib/app/appRouter';
+import { KODI_WEBINTERFACE_BASE_PATH, type BuildAppRouteOptions } from '$lib/app/appRouter';
 import { createTranslationContext, type Locale } from '$lib/i18n';
 import type {
   AddonSnapshot,
@@ -726,7 +726,23 @@ describe('AddonsPanel', () => {
     });
 
     expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#addons/plugin.video.alpha'
+      '/addons/webinterface.chorus3/#addons/plugin.video.alpha'
+    );
+  });
+
+  it('keeps dynamic add-on detail links package-safe when Kodi is mounted in path mode', () => {
+    renderPanel({
+      packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+      buildOptions: { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' },
+      snapshot: createSnapshot({
+        addons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
+        visibleAddons: [{ ...ALPHA_ADDON, type: 'xbmc.addon.video' }],
+        groups: []
+      })
+    });
+
+    expect(document.querySelector('.addons-card-detail')?.getAttribute('href')).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/#addons/plugin.video.alpha`
     );
   });
 

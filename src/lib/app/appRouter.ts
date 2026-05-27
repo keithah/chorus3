@@ -74,6 +74,7 @@ export interface ParseAppRouteOptions {
 
 export interface BuildAppRouteOptions {
   packageBasePath?: unknown;
+  packageSearch?: unknown;
   routeMode?: 'path' | 'hash';
 }
 
@@ -222,7 +223,7 @@ export function buildAppRoute(route: AppRoute, options: BuildAppRouteOptions = {
   const path = buildAppRoutePath(route);
   const packageBasePath = normalizePackageBasePath(options.packageBasePath);
   if (options.routeMode === 'hash') {
-    return `${packageBasePath}${toHashRoute(path)}`;
+    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
   }
 
   return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
@@ -240,16 +241,36 @@ export function buildKodiPackageSafePrimaryAppRoute(
   route: PrimaryRoute,
   options: BuildAppRouteOptions = {}
 ): string {
+  if (isKodiPackagePathMode(options) && !isKodiPackageStaticPrimaryRoute(route)) {
+    const packageBasePath = normalizePackageBasePath(options.packageBasePath);
+    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(
+      buildPrimaryRoutePath(route)
+    )}`;
+  }
+
   const path = isKodiPackagePathMode(options)
     ? buildKodiPackageSafePrimaryRoutePath(route)
     : buildPrimaryRoutePath(route);
   return buildPathWithOptions(path, options);
 }
 
+export function buildKodiPackageSafeVideoAppRoute(
+  route: VideoRoute,
+  options: BuildAppRouteOptions = {}
+): string {
+  const path = buildVideoRoute(route);
+  if (isKodiPackagePathMode(options)) {
+    const packageBasePath = normalizePackageBasePath(options.packageBasePath);
+    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
+  }
+
+  return buildPathWithOptions(path, options);
+}
+
 function buildPathWithOptions(path: string, options: BuildAppRouteOptions): string {
   const packageBasePath = normalizePackageBasePath(options.packageBasePath);
   if (options.routeMode === 'hash') {
-    return `${packageBasePath}${toHashRoute(path)}`;
+    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
   }
 
   return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
@@ -257,6 +278,53 @@ function buildPathWithOptions(path: string, options: BuildAppRouteOptions): stri
 
 function isKodiPackagePathMode(options: BuildAppRouteOptions): boolean {
   return options.routeMode === 'path' && normalizePackageBasePath(options.packageBasePath) !== '';
+}
+
+function isKodiPackageStaticPrimaryRoute(route: PrimaryRoute): boolean {
+  switch (route.kind) {
+    case 'home':
+    case 'music':
+    case 'musicTop':
+    case 'musicArtists':
+    case 'musicAlbums':
+    case 'musicGenres':
+    case 'musicVideos':
+    case 'movies':
+    case 'moviesRecent':
+    case 'tvshows':
+    case 'tvshowsRecent':
+    case 'browser':
+    case 'addonsAll':
+    case 'addonsVideo':
+    case 'addonsAudio':
+    case 'addonsExecutable':
+    case 'currentPlaylist':
+    case 'playlists':
+    case 'settingsWeb':
+    case 'settingsKodi':
+      return true;
+    case 'settingsKodiSection':
+      return isKodiPackageStaticSettingsSection(route.section);
+    case 'settingsAddons':
+    case 'settingsNav':
+    case 'settingsSearch':
+    case 'help':
+    case 'helpOverview':
+    case 'remote':
+    case 'search':
+    case 'lab':
+    case 'labApiBrowser':
+    case 'labScreenshot':
+    case 'labIconBrowser':
+    case 'thumbsup':
+    case 'pvrTv':
+    case 'pvrEpg':
+    case 'pvrRadio':
+    case 'pvrRecordings':
+      return true;
+    default:
+      return false;
+  }
 }
 
 function buildKodiPackageSafePrimaryRoutePath(route: PrimaryRoute): string {
@@ -269,6 +337,10 @@ function buildKodiPackageSafePrimaryRoutePath(route: PrimaryRoute): string {
       return '/tvshows/all';
     case 'settingsKodi':
       return '/settings/kodi/home';
+    case 'settingsKodiSection':
+      return isKodiPackageStaticSettingsSection(route.section)
+        ? `/settings/kodi/${route.section}`
+        : buildPrimaryRoutePath(route);
     case 'help':
       return '/help/about';
     case 'lab':
@@ -276,6 +348,10 @@ function buildKodiPackageSafePrimaryRoutePath(route: PrimaryRoute): string {
     default:
       return buildPrimaryRoutePath(route);
   }
+}
+
+function isKodiPackageStaticSettingsSection(section: string): boolean {
+  return ['games', 'interface', 'media', 'player', 'pvr', 'services', 'system'].includes(section);
 }
 
 function buildAppRoutePath(route: AppRoute): string {
@@ -534,9 +610,34 @@ function prefixPackageBasePath(pathname: string, packageBasePath: string): strin
   return path === ROOT_PATH ? packageBasePath : `${packageBasePath}${path}`;
 }
 
+function packageHashBasePath(packageBasePath: string, packageSearch?: unknown): string {
+  if (!packageBasePath) {
+    return '';
+  }
+
+  return `${packageBasePath}/${normalizePackageSearch(packageSearch ?? globalThis.location?.search)}`;
+}
+
 function toHashRoute(pathname: string): string {
   const path = normalizePathnameInput(pathname);
   return path === ROOT_PATH ? '#home' : `#${path.slice(1)}`;
+}
+
+function normalizePackageSearch(search: unknown): string {
+  if (typeof search !== 'string') {
+    return '';
+  }
+
+  const trimmed = search.trim();
+  if (!trimmed || trimmed === '?' || !trimmed.startsWith('?') || trimmed.length > 128) {
+    return '';
+  }
+
+  if (FORBIDDEN_SEGMENT_PATTERN.test(trimmed)) {
+    return '';
+  }
+
+  return trimmed.replace(/#/gu, '');
 }
 
 function normalizePathnameInput(pathname: unknown): string {

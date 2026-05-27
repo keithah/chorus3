@@ -4,7 +4,10 @@
     type AddonsPanelDispatch,
     type AddonsTypeFilter
   } from '$components/AddonsPanel.svelte';
-  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildKodiPackageSafePrimaryAppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import type { AddonsStoreSnapshot } from '$lib/stores';
@@ -58,7 +61,7 @@
   }
 
   function hrefFor(target: PrimaryRoute): string {
-    return buildPrimaryAppRoute(target, routeBuildOptions);
+    return buildKodiPackageSafePrimaryAppRoute(target, routeBuildOptions);
   }
 
   function resolveBuildOptions(

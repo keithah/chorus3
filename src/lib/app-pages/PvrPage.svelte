@@ -38,6 +38,8 @@
 
   let lastRefreshKey = $state('');
   let lastGlobalEpgKey = $state('');
+  let pendingAction = $state<string | null>(null);
+  let localStatusText = $state<string | null>(null);
   const mode = $derived(resolveMode(route));
   const channels = $derived(mode === 'radio' ? snapshot.radioChannels : snapshot.tvChannels);
   const channelStatus = $derived(mode === 'radio' ? snapshot.radioStatus : snapshot.tvStatus);
@@ -200,7 +202,12 @@
   }
 
   async function playChannel(channel: PvrChannelSnapshot): Promise<void> {
-    await playerDispatch.playChannelItem?.({ channelid: channel.channelid });
+    await runAction(
+      `play:channel:${channel.channelid}`,
+      `Playing ${channel.label}.`,
+      `Could not play ${channel.label}.`,
+      () => playerDispatch.playChannelItem?.({ channelid: channel.channelid })
+    );
   }
 
   async function refreshGlobalEpg(): Promise<void> {
@@ -215,14 +222,26 @@
   }
 
   async function toggleRecording(channel: PvrChannelSnapshot): Promise<void> {
-    await dispatch.toggleChannelRecording?.(channel.channelid);
+    await runAction(
+      `record:channel:${channel.channelid}`,
+      `${channel.isrecording ? 'Stopping recording for' : 'Recording'} ${channel.label}.`,
+      `${channel.isrecording ? 'Could not stop recording for' : 'Could not record'} ${channel.label}.`,
+      () => dispatch.toggleChannelRecording?.(channel.channelid)
+    );
   }
 
   async function toggleTimer(broadcast: PvrBroadcastSnapshot): Promise<void> {
-    await dispatch.toggleBroadcastTimer?.(broadcast.broadcastid, false);
-    if (selectedChannel) {
-      await dispatch.refreshBroadcasts?.(selectedChannel.channelid);
-    }
+    await runAction(
+      `timer:broadcast:${broadcast.broadcastid}`,
+      `${broadcast.hastimer || broadcast.hastimerrule ? 'Updating timer for' : 'Adding timer for'} ${broadcast.title ?? broadcast.label ?? 'broadcast'}.`,
+      `Could not update timer for ${broadcast.title ?? broadcast.label ?? 'broadcast'}.`,
+      async () => {
+        await dispatch.toggleBroadcastTimer?.(broadcast.broadcastid, false);
+        if (selectedChannel) {
+          await dispatch.refreshBroadcasts?.(selectedChannel.channelid);
+        }
+      }
+    );
   }
 
   async function playSelectedBroadcast(): Promise<void> {
@@ -242,10 +261,47 @@
       return;
     }
 
-    await playerDispatch.playFileItem?.({
-      file: recording.file,
-      mediaKind: recording.radio ? 'audio' : 'video'
-    });
+    await runAction(
+      `play:recording:${recording.recordingid}`,
+      `Playing ${recording.title ?? recording.label ?? 'recording'}.`,
+      `Could not play ${recording.title ?? recording.label ?? 'recording'}.`,
+      () =>
+        playerDispatch.playFileItem?.({
+          file: recording.file!,
+          mediaKind: recording.radio ? 'audio' : 'video'
+        })
+    );
+  }
+
+  async function runAction(
+    key: string,
+    successCopy: string,
+    failureCopy: string,
+    action: () => Promise<void> | void
+  ): Promise<void> {
+    if (pendingAction) {
+      return;
+    }
+
+    pendingAction = key;
+    localStatusText = successCopy.replace(/\.$/, '...');
+    try {
+      await action();
+      localStatusText = successCopy;
+    } catch (error) {
+      localStatusText = `${failureCopy} ${pvrActionErrorCopy(error)}`;
+    } finally {
+      pendingAction = null;
+    }
+  }
+
+  function pvrActionErrorCopy(error: unknown): string {
+    const message = error instanceof Error ? error.message : '';
+    if (/PVR\.Record|JSON-RPC error -32100|Failed to execute method/i.test(message)) {
+      return 'Kodi rejected the recording command. Check that the PVR backend allows recording on this channel.';
+    }
+
+    return message.trim() || 'PVR action failed.';
   }
 
   function formatClock(value: string | undefined): string {
@@ -314,6 +370,9 @@
 
     {#if snapshot.lastError}
       <p class="pvr-error" role="status">{snapshot.lastError.message}</p>
+    {/if}
+    {#if localStatusText}
+      <p class="pvr-status" role="status" aria-live="polite">{localStatusText}</p>
     {/if}
 
     {#if isGlobalEpgPage}
@@ -614,9 +673,26 @@
     color: white;
     font: inherit;
     padding: 0.45rem 0.7rem;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      outline-color 120ms ease,
+      transform 120ms ease;
+  }
+
+  button:not(:disabled):hover,
+  button:not(:disabled):focus-visible {
+    background: #777;
+    outline: 2px solid #4db3e6;
+    outline-offset: -2px;
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(1px);
   }
 
   button:disabled {
+    cursor: not-allowed;
     opacity: 0.45;
   }
 
@@ -783,7 +859,8 @@
   }
 
   .empty-state,
-  .pvr-error {
+  .pvr-error,
+  .pvr-status {
     margin: 0;
     padding: 1rem;
     background: #eee;
@@ -793,6 +870,11 @@
   .pvr-error {
     margin-bottom: 1rem;
     color: #8a2b2b;
+  }
+
+  .pvr-status {
+    margin-bottom: 1rem;
+    color: #555;
   }
 
   @media (max-width: 760px) {

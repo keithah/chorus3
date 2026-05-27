@@ -14,6 +14,7 @@
     MediaPlaylistsActionDispatch,
     MediaPlaylistsPanelDispatch
   } from '$components/MediaPlaylistsPanel.svelte';
+  import MediaPlaylistsPanel from '$components/MediaPlaylistsPanel.svelte';
 
   export interface LocalPlaylistPageActions {
     playInKodi: (
@@ -44,9 +45,13 @@
   }
 
   let {
+    snapshot,
+    dispatch,
+    actionDispatch,
     localPlaylistSnapshot,
     localPlaylistDispatch,
     localPlaylistActions,
+    i18n,
     route = { kind: 'playlists' },
     buildOptions = {}
   }: Props = $props();
@@ -360,11 +365,20 @@
   </div>
 </section>
 
+<section class="kodi-playlists" aria-label="Kodi playlists">
+  <MediaPlaylistsPanel {snapshot} {dispatch} {actionDispatch} {i18n} />
+</section>
+
 <style>
   .classic-local-playlists {
     display: grid;
     grid-template-columns: 255px minmax(0, 1fr);
     min-height: calc(100vh - 109px);
+    background: #fff;
+    color: #333;
+  }
+
+  .kodi-playlists {
     background: #fff;
     color: #333;
   }

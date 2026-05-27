@@ -20,7 +20,11 @@
 </script>
 
 <script lang="ts">
-  import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import {
+    buildKodiPackageSafePrimaryAppRoute,
+    buildPrimaryAppRoute,
+    type BuildAppRouteOptions
+  } from '$lib/app/appRouter';
 
   interface Props {
     snapshot: AddonsStoreSnapshot;
@@ -215,7 +219,10 @@
   }
 
   function addonDetailHref(addon: AddonSnapshot): string {
-    return buildPrimaryAppRoute({ kind: 'addonDetail', addonid: addon.addonid }, routeBuildOptions);
+    return buildKodiPackageSafePrimaryAppRoute(
+      { kind: 'addonDetail', addonid: addon.addonid },
+      routeBuildOptions
+    );
   }
 
   function addonPrimaryHref(addon: AddonSnapshot): string {
@@ -603,7 +610,7 @@
   }
 
   .addons-card-grid {
-    grid-template-columns: repeat(auto-fill, 160px);
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     align-items: start;
   }
 
@@ -615,6 +622,10 @@
     overflow: hidden;
     background: white;
     box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+  }
+
+  .addons-card-heading {
+    display: block;
   }
 
   .addons-card.broken {
@@ -642,7 +653,7 @@
 
   .addons-card-primary {
     display: grid;
-    grid-template-rows: 132px 58px;
+    grid-template-rows: 132px auto;
     min-width: 0;
   }
 
@@ -655,9 +666,8 @@
 
   .addons-card-primary strong,
   .addons-card-primary small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .addons-card-primary small {

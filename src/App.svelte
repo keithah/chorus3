@@ -257,7 +257,7 @@
   };
 
   const defaultMediaSearchDispatch: MediaSearchPanelDispatch = {
-    search: ({ query }) => mediaSearchStore.search(query),
+    search: ({ query, scope }) => mediaSearchStore.search({ text: query, scope }),
     clear: () => mediaSearchStore.clear(),
     searchAddon: async ({ row, query, pluginUrl }) => searchAddonInline(row, query, pluginUrl)
   };
@@ -518,19 +518,22 @@
   }: Props = $props();
   let localRoute = $state<AppRoute | VideoRoute | null>(null);
   let lastVideoDetailRefreshKey = $state('');
+  let lastAddonDetailAutoloadKey = $state('');
+  let currentPackageSearch = $state('');
   const currentRoute = $derived(toAppRoute(localRoute ?? route ?? { kind: 'dashboard' }));
   const currentPrimaryRoute = $derived(currentRoute.kind === 'primary' ? currentRoute.route : null);
   const currentPrimaryShellRoute = $derived<PrimaryRoute | null>(
     currentPrimaryRoute ?? (currentRoute.kind === 'dashboard' ? { kind: 'home' } : null)
-  );
-  const currentAppPageMetadata = $derived(
-    getAppPageMetadata(currentPrimaryShellRoute ?? { kind: 'home' })
   );
   const currentVideoRoute = $derived(
     currentRoute.kind === 'video'
       ? currentRoute.route
       : primaryRouteToVideoRoute(currentPrimaryRoute)
   );
+  const currentMetadataPrimaryRoute = $derived<PrimaryRoute>(
+    currentPrimaryShellRoute ?? videoRouteToPrimaryRoute(currentVideoRoute) ?? { kind: 'home' }
+  );
+  const currentAppPageMetadata = $derived(getAppPageMetadata(currentMetadataPrimaryRoute));
   const currentRenderableVideoRoute = $derived(currentVideoRoute ?? dashboardVideoRoute);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentRemoteSnapshot = $derived(remoteSnapshot ?? remoteInputDispatch.snapshot);
@@ -577,7 +580,11 @@
   );
   const currentRouteBuildOptions = $derived(
     isPackageMounted
-      ? ({ packageBasePath: currentPackageBasePath, routeMode: 'path' } as const)
+      ? ({
+          packageBasePath: currentPackageBasePath,
+          packageSearch: currentPackageSearch || globalThis.location?.search || '',
+          routeMode: 'path'
+        } as const)
       : ({ packageBasePath: '' } as const)
   );
   const isPrimaryShellRoute = $derived(currentPrimaryShellRoute !== null);
@@ -734,6 +741,36 @@
     void refreshCurrentVideoDetailRoute(videoRoute, refreshKey);
   });
 
+  $effect(() => {
+    const addonid = currentAddonId();
+
+    if (!addonid || addonsSnapshot !== undefined) {
+      lastAddonDetailAutoloadKey = '';
+      return;
+    }
+
+    const activeHostId = currentActiveKodiHost?.id ?? '';
+    if (!activeHostId) {
+      return;
+    }
+
+    const detailLoadKey = `${activeHostId}:${addonid}`;
+    if (
+      currentAddonsSnapshot.detailStatus === 'success' &&
+      currentAddonsSnapshot.detail?.addonid === addonid
+    ) {
+      lastAddonDetailAutoloadKey = detailLoadKey;
+      return;
+    }
+
+    if (detailLoadKey === lastAddonDetailAutoloadKey) {
+      return;
+    }
+
+    lastAddonDetailAutoloadKey = detailLoadKey;
+    void addonsStore.loadAddonDetail(addonid);
+  });
+
   function toAppRoute(input: AppRoute | VideoRoute): AppRoute {
     if (
       input.kind === 'dashboard' ||
@@ -867,6 +904,38 @@
     return null;
   }
 
+  function videoRouteToPrimaryRoute(videoRoute: VideoRoute | null): PrimaryRoute | null {
+    if (!videoRoute) {
+      return null;
+    }
+
+    switch (videoRoute.kind) {
+      case 'videoMovies':
+        return { kind: 'movies' };
+      case 'videoMovieDetail':
+        return { kind: 'movieDetail', movieid: String(videoRoute.movieid) };
+      case 'videoTvShows':
+        return { kind: 'tvshows' };
+      case 'videoTvShowDetail':
+        return { kind: 'tvshowDetail', tvshowid: String(videoRoute.tvshowid) };
+      case 'videoTvSeasonDetail':
+        return {
+          kind: 'tvshowSeasonDetail',
+          tvshowid: String(videoRoute.tvshowid),
+          season: String(videoRoute.season)
+        };
+      case 'videoEpisodeDetail':
+        return {
+          kind: 'tvshowEpisodeDetail',
+          tvshowid: String(videoRoute.tvshowid),
+          season: String(videoRoute.season),
+          episodeid: String(videoRoute.episodeid)
+        };
+      default:
+        return null;
+    }
+  }
+
   function primaryRouteToPlaceholder(primaryRoute: PrimaryAppRoute['route'] | null) {
     if (!primaryRoute) {
       return null;
@@ -889,6 +958,7 @@
       return;
     }
 
+    updateCurrentPackageSearch();
     const hashRoute = parseCurrentHashRoute();
     if (!hashRoute) {
       return;
@@ -898,6 +968,8 @@
   }
 
   function updateLocalRouteFromLocation(): void {
+    updateCurrentPackageSearch();
+
     if (isPackageMounted) {
       updateLocalRouteFromHash();
       return;
@@ -911,6 +983,10 @@
     } catch {
       localRoute = { kind: 'dashboard' };
     }
+  }
+
+  function updateCurrentPackageSearch(): void {
+    currentPackageSearch = isPackageMounted ? (globalThis.location?.search ?? '') : '';
   }
 
   function parseCurrentHashRoute(): AppRoute | null {
@@ -939,6 +1015,8 @@
   }
 
   onMount(() => {
+    updateCurrentPackageSearch();
+
     if (route === undefined) {
       updateLocalRouteFromLocation();
     }
@@ -2454,6 +2532,7 @@
           snapshot={currentVideoTvSnapshot}
           route={currentRenderableVideoRoute}
           i18n={currentI18n}
+          buildOptions={currentRouteBuildOptions}
         />
       </main>
     {:else if isVideoTvSeasonDetailRoute}
@@ -2464,6 +2543,7 @@
           artworkDispatch={videoSeasonArtworkDispatch}
           writeDispatch={videoSeasonWriteDispatch}
           i18n={currentI18n}
+          buildOptions={currentRouteBuildOptions}
         />
       </main>
     {:else if isVideoEpisodeDetailRoute}
@@ -2473,6 +2553,7 @@
           route={currentRenderableVideoRoute}
           actionDispatch={videoEpisodeActionDispatch}
           i18n={currentI18n}
+          buildOptions={currentRouteBuildOptions}
         />
       </main>
     {:else if isVideoUnknownRoute}

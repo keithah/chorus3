@@ -2,6 +2,7 @@ import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import LibraryPage from './LibraryPage.svelte';
+import { libraryFilterStore } from '$lib/stores/libraryFilter';
 
 const fakeClient = {
   calls: [] as Array<{ method: string; params?: unknown }>,
@@ -60,6 +61,19 @@ const fakeClient = {
       } as TResult;
     }
 
+    if (method === 'VideoLibrary.GetEpisodes') {
+      return {
+        episodes: [
+          { episodeid: 501, label: 'Pilot', title: 'Pilot' },
+          { episodeid: 502, label: 'Second', title: 'Second' }
+        ]
+      } as TResult;
+    }
+
+    if (method === 'Playlist.Clear' || method === 'Playlist.Add' || method === 'Player.Open') {
+      return 'OK' as TResult;
+    }
+
     if (method.endsWith('.SetSongDetails') || method.includes('Library.Set')) {
       return 'OK' as TResult;
     }
@@ -94,6 +108,8 @@ afterEach(() => {
   }
   document.body.innerHTML = '';
   fakeClient.calls = [];
+  libraryFilterStore.setStoreFilters('tvshows', {});
+  window.history.replaceState({}, '', '/');
 });
 
 function emptyMusicSnapshot() {
@@ -158,6 +174,47 @@ async function settle(): Promise<void> {
 }
 
 describe('LibraryPage', () => {
+  it('sizes music artwork as square Chorus2-style cards instead of poster boxes', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicAlbums' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          albums: [
+            {
+              albumid: 7,
+              label: 'Pastel Blues',
+              title: 'Pastel Blues',
+              artist: ['Nina Simone'],
+              thumbnail: 'image://album-thumb.jpg/'
+            }
+          ]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
+      }
+    });
+    await settle();
+
+    const card = target!.querySelector<HTMLElement>('.classic-card');
+    const artwork = target!.querySelector<HTMLElement>('.classic-card-art');
+    expect(card?.dataset.artworkShape).toBe('square');
+    expect(card?.classList.contains('art-square')).toBe(true);
+    expect(card?.classList.contains('art-poster')).toBe(false);
+    expect(artwork?.dataset.artworkShape).toBe('square');
+    expect(artwork?.querySelector('img')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Falbum-thumb.jpg%2F'
+    );
+  });
+
   it('routes classic music localplay actions through local browser playback mode', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const target = document.getElementById('target');
@@ -187,7 +244,7 @@ describe('LibraryPage', () => {
         videoLibrarySnapshot: emptyVideoSnapshot() as never,
         playerDispatch: playerDispatch as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -201,7 +258,7 @@ describe('LibraryPage', () => {
     expect(playerDispatch.setMode).not.toHaveBeenCalled();
     expect(playerDispatch.playMusicItem).not.toHaveBeenCalled();
     expect(windowOpenSpy).toHaveBeenCalledWith(
-      '/addons/webinterface.chorus3#local-player/music/song/55',
+      '/addons/webinterface.chorus3/#local-player/music/song/55',
       '_blank',
       'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
     );
@@ -237,7 +294,7 @@ describe('LibraryPage', () => {
         } as never,
         playerDispatch: playerDispatch as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -245,6 +302,12 @@ describe('LibraryPage', () => {
     expect(target!.querySelector('.classic-card-art img')?.getAttribute('src')).toContain(
       '/image/image%3A%2F%2Fmovie-poster.jpg%2F'
     );
+    expect(target!.querySelector<HTMLElement>('.classic-card')?.dataset.artworkShape).toBe(
+      'poster'
+    );
+    expect(
+      target!.querySelector<HTMLElement>('.classic-card')?.classList.contains('art-poster')
+    ).toBe(true);
 
     const buttons = Array.from(
       target!.querySelectorAll<HTMLButtonElement>('.classic-card-actions button')
@@ -254,7 +317,7 @@ describe('LibraryPage', () => {
 
     expect(playerDispatch.streamMovieItem).not.toHaveBeenCalled();
     expect(windowOpenSpy).toHaveBeenCalledWith(
-      '/addons/webinterface.chorus3#local-player/movie/88',
+      '/addons/webinterface.chorus3/#local-player/movie/88',
       '_blank',
       'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
     );
@@ -315,7 +378,7 @@ describe('LibraryPage', () => {
         } as never,
         playerDispatch: {} as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -374,7 +437,7 @@ describe('LibraryPage', () => {
         localPlaylistDispatch: localPlaylistDispatch as never,
         playerDispatch: { playMusicItem: vi.fn() } as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -437,7 +500,7 @@ describe('LibraryPage', () => {
         localPlaylistDispatch: localPlaylistDispatch as never,
         playerDispatch: { playMusicItem: vi.fn() } as never,
         queueDispatch: queueDispatch as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -516,7 +579,7 @@ describe('LibraryPage', () => {
         videoLibrarySnapshot: emptyVideoSnapshot() as never,
         playerDispatch: { playMusicItem: vi.fn() } as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -603,7 +666,7 @@ describe('LibraryPage', () => {
         videoLibrarySnapshot: emptyVideoSnapshot() as never,
         playerDispatch: playerDispatch as never,
         queueDispatch: queueDispatch as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -703,7 +766,7 @@ describe('LibraryPage', () => {
         videoLibrarySnapshot: emptyVideoSnapshot() as never,
         playerDispatch: {} as never,
         queueDispatch: {} as never,
-        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
       }
     });
     await settle();
@@ -873,5 +936,70 @@ describe('LibraryPage', () => {
       'Thumbs up',
       'tag'
     ]);
+  });
+
+  it('exposes Chorus2 play and queue actions for TV show collection cards', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'tvshows' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: {
+          ...emptyVideoSnapshot(),
+          isEmpty: false,
+          tvShows: [{ tvshowid: 11, label: 'Severance', title: 'Severance', year: 2022 }]
+        } as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    const cardButtons = Array.from(
+      target!.querySelectorAll<HTMLButtonElement>('.classic-card-actions button')
+    );
+    expect(cardButtons.map((button) => button.textContent?.trim())).toContain('Play');
+    cardButtons.find((button) => button.textContent?.trim() === 'Play')?.click();
+    await settle();
+
+    expect(fakeClient.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetEpisodes',
+        params: {
+          tvshowid: 11,
+          properties: ['title'],
+          limits: { start: 0 },
+          sort: { method: 'episode', order: 'ascending' }
+        }
+      },
+      { method: 'Playlist.Clear', params: { playlistid: 1 } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 501 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 502 } } },
+      { method: 'Player.Open', params: { item: { playlistid: 1, position: 0 } } }
+    ]);
+    expect(target!.textContent).toContain('Played 2 episodes from Severance.');
+
+    fakeClient.calls = [];
+    cardButtons.find((button) => button.textContent?.trim() === 'Queue')?.click();
+    await settle();
+
+    expect(fakeClient.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetEpisodes',
+        params: {
+          tvshowid: 11,
+          properties: ['title'],
+          limits: { start: 0 },
+          sort: { method: 'episode', order: 'ascending' }
+        }
+      },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 501 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 502 } } }
+    ]);
+    expect(target!.textContent).toContain('Queued 2 episodes from Severance.');
   });
 });

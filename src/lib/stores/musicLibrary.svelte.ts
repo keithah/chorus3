@@ -44,7 +44,8 @@ export interface MusicLibraryStoreOptions {
 }
 
 const DEFAULT_LIMITS: MusicLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIST_LIMIT = { start: 0, end: 25 } as const;
+const DEFAULT_LIBRARY_LIMIT = { start: 0 } as const;
+const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
 
 const DEFAULT_ARTIST_PROPERTIES = [
   'thumbnail',
@@ -138,34 +139,34 @@ export class MusicLibraryStore {
       ] = await Promise.all([
         getAudioLibraryArtists(client, {
           properties: DEFAULT_ARTIST_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         }),
         getAudioLibraryAlbums(client, {
           properties: DEFAULT_ALBUM_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         }),
         getAudioLibrarySongs(client, {
           properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         }),
         getAudioLibrarySongs(client, {
           properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'dateadded', order: 'descending' }
         }),
         getAudioLibrarySongs(client, {
           properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'lastplayed', order: 'descending' }
         }),
         getAudioLibrarySongs(client, {
           properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT,
+          limits: DEFAULT_RECENT_LIMIT,
           sort: { method: 'playcount', order: 'descending' }
         }),
         getAudioLibraryGenres(client, {
           properties: DEFAULT_GENRE_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
+          limits: DEFAULT_LIBRARY_LIMIT
         })
       ]);
 

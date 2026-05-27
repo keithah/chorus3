@@ -23,6 +23,7 @@
     type MediaSearchActionDispatch,
     type MediaSearchPanelDispatch
   } from '$components/MediaSearchPanel.svelte';
+  import type { MediaSearchScope } from '$lib/stores/mediaSearch.svelte';
   import MusicBrowsePanel, {
     type MusicBrowseActionDispatch,
     type MusicBrowsePanelDispatch
@@ -299,9 +300,26 @@
     lastRouteSearchKey = key;
     void mediaSearchDispatch.search({
       query,
-      scope: route.media === 'video' ? 'video' : route.media === 'music' ? 'music' : 'all'
+      scope: mediaSearchScopeForRoute(route.media)
     });
   });
+
+  function mediaSearchScopeForRoute(media: string): MediaSearchScope {
+    return [
+      'all',
+      'music',
+      'video',
+      'artist',
+      'album',
+      'song',
+      'genre',
+      'movie',
+      'tvshow',
+      'musicvideo'
+    ].includes(media)
+      ? (media as MediaSearchScope)
+      : 'all';
+  }
 
   $effect(() => {
     if (route.kind !== 'addonExecute') {
@@ -327,7 +345,12 @@
   {#if isChorus2LibraryRoute}
     {#if isChorus2TvDetailRoute}
       {#if route.kind === 'tvshowDetail'}
-        <VideoTvShowDetailShell snapshot={videoTvSnapshot} route={renderableVideoRoute} {i18n} />
+        <VideoTvShowDetailShell
+          snapshot={videoTvSnapshot}
+          route={renderableVideoRoute}
+          {i18n}
+          buildOptions={routeBuildOptions}
+        />
       {:else if route.kind === 'tvshowSeasonDetail'}
         <VideoSeasonDetailShell
           snapshot={videoTvSnapshot}
@@ -335,6 +358,7 @@
           artworkDispatch={videoSeasonArtworkDispatch}
           writeDispatch={videoSeasonWriteDispatch}
           {i18n}
+          buildOptions={routeBuildOptions}
         />
       {:else}
         <VideoEpisodeDetailShell
@@ -342,6 +366,7 @@
           route={renderableVideoRoute}
           actionDispatch={videoEpisodeActionDispatch}
           {i18n}
+          buildOptions={routeBuildOptions}
         />
       {/if}
     {:else}

@@ -2,7 +2,9 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import VideoTvShowDetailShell from './VideoTvShowDetailShell.svelte';
+import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+import type { EpisodeCollectionActionDispatch } from '$lib/stores/episodeCollectionActions';
 import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
 
 let mounted: ReturnType<typeof mount> | null = null;
@@ -100,11 +102,13 @@ function populatedSnapshot(overrides: TvSnapshotOverrides = {}): VideoTvStoreSna
 function renderShell(
   snapshot: VideoTvStoreSnapshot,
   route: VideoRoute,
-  metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void
+  metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void,
+  buildOptions?: BuildAppRouteOptions,
+  actionDispatch?: EpisodeCollectionActionDispatch
 ): void {
   mounted = mount(VideoTvShowDetailShell, {
     target: document.body,
-    props: { snapshot, route, metadataSave }
+    props: { snapshot, route, metadataSave, buildOptions, actionDispatch }
   });
 }
 
@@ -162,6 +166,25 @@ describe('VideoTvShowDetailShell', () => {
     expectSecretSafe(text);
   });
 
+  it('uses hash links for season drill-in when mounted from the Kodi package', () => {
+    renderShell(populatedSnapshot(), { kind: 'videoTvShowDetail', tvshowid: 11 }, undefined, {
+      packageBasePath: '/addons/webinterface.chorus3/',
+      routeMode: 'path'
+    });
+
+    expect(
+      document.querySelector('a[href="/addons/webinterface.chorus3/#video/tv"]')
+    ).not.toBeNull();
+    expect(
+      Array.from(document.querySelectorAll<HTMLAnchorElement>('a.season-link')).map((link) =>
+        link.getAttribute('href')
+      )
+    ).toEqual([
+      '/addons/webinterface.chorus3/#video/tv/11/seasons/1',
+      '/addons/webinterface.chorus3/#video/tv/11/seasons/2'
+    ]);
+  });
+
   it('edits TV show detail routes through the full Chorus2 metadata editor', async () => {
     const metadataSave = vi.fn(async () => undefined);
     renderShell(populatedSnapshot(), { kind: 'videoTvShowDetail', tvshowid: 11 }, metadataSave);
@@ -214,6 +237,36 @@ describe('VideoTvShowDetailShell', () => {
     expect(text).toContain('0 unwatched episodes');
     expect(text).toContain('Season 2');
     expect(text).toContain('10 unwatched episodes');
+  });
+
+  it('exposes Chorus2 play and queue actions for the whole TV show collection', async () => {
+    const actionDispatch = {
+      playEpisodeCollection: vi.fn(async () => ({ count: 19 })),
+      queueEpisodeCollection: vi.fn(async () => ({ count: 19 }))
+    };
+    renderShell(
+      populatedSnapshot(),
+      { kind: 'videoTvShowDetail', tvshowid: 11 },
+      undefined,
+      undefined,
+      actionDispatch
+    );
+
+    getTextButton('Play').click();
+    await settle();
+    expect(actionDispatch.playEpisodeCollection).toHaveBeenCalledWith({
+      tvshowid: 11,
+      label: 'Severance'
+    });
+    expect(screenText()).toContain('Played 19 episodes from Severance.');
+
+    getTextButton('Queue').click();
+    await settle();
+    expect(actionDispatch.queueEpisodeCollection).toHaveBeenCalledWith({
+      tvshowid: 11,
+      label: 'Severance'
+    });
+    expect(screenText()).toContain('Queued 19 episodes from Severance.');
   });
 
   it('renders loading error empty and not-found states without throwing', () => {
@@ -322,4 +375,11 @@ function getTextButton(text: string): HTMLButtonElement {
   );
   expect(button).toBeInstanceOf(HTMLButtonElement);
   return button as HTMLButtonElement;
+}
+
+async function settle(): Promise<void> {
+  await Promise.resolve();
+  await tick();
+  await Promise.resolve();
+  await tick();
 }

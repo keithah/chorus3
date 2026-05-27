@@ -14,6 +14,7 @@
 
 <script lang="ts">
   import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
+  import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { TranslationContext } from '$lib/i18n';
   import {
     METADATA_EDITOR_DEFINITIONS,
@@ -26,13 +27,14 @@
     VideoEpisodeSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
-  import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+  import type { VideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     actionDispatch?: VideoEpisodeActionDispatch;
     i18n?: TranslationContext;
+    buildOptions?: BuildAppRouteOptions;
     metadataSave?: (method: string, params: Record<string, unknown>) => Promise<void> | void;
   }
 
@@ -62,6 +64,7 @@
     snapshot,
     route,
     actionDispatch = noopActionDispatch,
+    buildOptions = {},
     metadataSave = defaultMetadataSave
   }: Props = $props();
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
@@ -310,6 +313,9 @@
   function isWatched(value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot): boolean {
     return value.watched === true || (numberOrNull(value.playcount) ?? 0) > 0;
   }
+  function videoHref(target: VideoRoute): string {
+    return buildKodiPackageSafeVideoAppRoute(target, buildOptions);
+  }
   function hasResume(value: VideoEpisodeSnapshot | VideoEpisodeDetailSnapshot): boolean {
     const position = numberOrNull(value.resume?.position);
     const total = numberOrNull(value.resume?.total);
@@ -370,17 +376,17 @@
   <nav class="back-links" aria-label="Episode navigation">
     <a
       href={routeTvShowId && routeSeason !== null
-        ? buildVideoRoute({
+        ? videoHref({
             kind: 'videoTvSeasonDetail',
             tvshowid: routeTvShowId,
             season: routeSeason
           })
-        : buildVideoRoute({ kind: 'videoTvShows' })}>Back to Season {routeSeason}</a
+        : videoHref({ kind: 'videoTvShows' })}>Back to Season {routeSeason}</a
     >
     <a
       href={routeTvShowId
-        ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
-        : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
+        ? videoHref({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
+        : videoHref({ kind: 'videoTvShows' })}>Back to {showTitle}</a
     >
   </nav>
   <div class="panel-heading episode-hero" aria-label="Safe episode artwork summary">

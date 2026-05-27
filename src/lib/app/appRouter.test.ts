@@ -4,6 +4,7 @@ import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildAppRoute,
   buildKodiPackageSafePrimaryAppRoute,
+  buildKodiPackageSafeVideoAppRoute,
   buildPrimaryAppRoute,
   getParityPlaceholderMetadata,
   getParityPlaceholderMetadataTable,
@@ -88,7 +89,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/addons/executable', { kind: 'addonsExecutable' }],
   ['/addons/plugin.video.safe-demo', { kind: 'addonDetail', addonid: 'plugin.video.safe-demo' }],
   ['/addon/execute/plugin.video.demo', { kind: 'addonExecute', addonid: 'plugin.video.demo' }],
-  ['/playlist', { kind: 'currentPlaylist' }],
+  ['/playlist', { kind: 'playlists' }],
   ['/playlists', { kind: 'playlists' }],
   ['/playlist/local', { kind: 'playlistDetail', playlistid: 'local' }],
   ['/settings', { kind: 'settingsWeb' }],
@@ -134,6 +135,7 @@ const PRIMARY_ROUTE_CANONICAL_PATHS = new Map<PrimaryRoute['kind'], string>([
   ['tvshows', '/tvshows'],
   ['browser', '/browser'],
   ['addonsAll', '/addons/all'],
+  ['playlists', '/playlists'],
   ['settingsWeb', '/settings/web'],
   ['settingsKodi', '/settings/kodi'],
   ['settingsNav', '/settings/nav'],
@@ -171,6 +173,11 @@ describe('parseAppRoute', () => {
     }
   );
 
+  test('accepts the classic thumbs-song hash alias as thumbs up', () => {
+    expect(parseAppRoute('/thumbs-song')).toEqual({ kind: 'primary', route: { kind: 'thumbsup' } });
+    expect(buildPrimaryAppRoute({ kind: 'thumbsup' })).toBe('/thumbsup');
+  });
+
   test.each(PRIMARY_ROUTE_CASES)(
     'builds canonical primary route for parsed route %s with and without package base',
     (path, route) => {
@@ -199,19 +206,19 @@ describe('parseAppRoute', () => {
         { kind: 'localPlayer', media: 'movie', id: 88 },
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
       )
-    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}#local-player/movie/88`);
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#local-player/movie/88`);
     expect(
       buildPrimaryAppRoute(
         { kind: 'music' },
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
       )
-    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}#music`);
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#music`);
     expect(
       buildAppRoute(
         { kind: 'primary', route: { kind: 'musicGenres' } },
         { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
       )
-    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}#music/genres`);
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#music/genres`);
     expect(
       buildPrimaryAppRoute(
         { kind: 'searchMedia', media: 'all', query: 'blue scholars' },
@@ -244,9 +251,65 @@ describe('parseAppRoute', () => {
     expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'lab' }, options)).toBe(
       `${KODI_WEBINTERFACE_BASE_PATH}/lab/home`
     );
+    expect(
+      buildKodiPackageSafePrimaryAppRoute({ kind: 'tvshowDetail', tvshowid: '1' }, options)
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#tvshow/1`);
+    expect(
+      buildKodiPackageSafePrimaryAppRoute(
+        { kind: 'addonDetail', addonid: 'audioencoder.kodi.builtin.aac' },
+        options
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#addons/audioencoder.kodi.builtin.aac`);
+    expect(
+      buildKodiPackageSafePrimaryAppRoute(
+        { kind: 'searchMedia', media: 'all', query: 'blue scholars' },
+        options
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#search/all/blue%20scholars`);
+    expect(
+      buildKodiPackageSafePrimaryAppRoute(
+        { kind: 'settingsKodiSection', section: 'services' },
+        options
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/settings/kodi/services`);
     expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'music' }, { routeMode: 'hash' })).toBe(
       '#music'
     );
+  });
+
+  test('builds Kodi package-safe delegated video hrefs as hash routes', () => {
+    const options = { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' } as const;
+
+    expect(
+      buildKodiPackageSafeVideoAppRoute({ kind: 'videoTvShowDetail', tvshowid: 1 }, options)
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#video/tv/1`);
+    expect(
+      buildKodiPackageSafeVideoAppRoute(
+        { kind: 'videoTvSeasonDetail', tvshowid: 1, season: 5 },
+        options
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#video/tv/1/seasons/5`);
+  });
+
+  test('preserves safe package search strings before hash routes', () => {
+    const options = {
+      packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+      packageSearch: '?cb=live-tv-1',
+      routeMode: 'path'
+    } as const;
+
+    expect(
+      buildKodiPackageSafeVideoAppRoute(
+        { kind: 'videoTvSeasonDetail', tvshowid: 1, season: 5 },
+        options
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/?cb=live-tv-1#video/tv/1/seasons/5`);
+    expect(
+      buildKodiPackageSafePrimaryAppRoute(
+        { kind: 'addonDetail', addonid: 'audioencoder.kodi.builtin.aac' },
+        { ...options, packageSearch: '?token=CHORUS3_SENTINEL_SECRET' }
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#addons/audioencoder.kodi.builtin.aac`);
   });
 
   test('resolves Kodi package bases from canonical and filesystem-mounted paths', () => {

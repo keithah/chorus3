@@ -116,13 +116,13 @@ describe('BrowserFilesPage', () => {
   it('keeps browser navigation hash-only in package mode', async () => {
     const pushState = vi.spyOn(window.history, 'pushState').mockImplementation(() => undefined);
     renderPage({
-      buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3' }
+      buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
     });
     const sourceLink = document.querySelector<HTMLAnchorElement>(
       'nav[aria-label="Music browser sources"] a'
     );
     expect(sourceLink?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#browser/music/source%3A1'
+      '/addons/webinterface.chorus3/#browser/music/source%3A1'
     );
 
     sourceLink?.click();
@@ -132,7 +132,7 @@ describe('BrowserFilesPage', () => {
     expect(pushState).toHaveBeenCalledWith(
       {},
       '',
-      '/addons/webinterface.chorus3#browser/music/source%3A1'
+      '/addons/webinterface.chorus3/#browser/music/source%3A1'
     );
   });
 });

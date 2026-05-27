@@ -59,6 +59,7 @@ import {
   hostConnectionStore,
   localPlayerStore,
   localPlaylistStore,
+  mediaSearchStore,
   mediaPlaylistsStore,
   playerStore,
   queueStore,
@@ -1737,7 +1738,7 @@ describe('App shell', () => {
     }
   });
 
-  it('wires local playlists into /playlists while keeping Kodi media playlists separate', () => {
+  it('wires local and Kodi media playlists into /playlists without mixing their panels', () => {
     vi.stubGlobal('fetch', createKodiFetchMock());
     const target = renderApp({
       route: { kind: 'primary', route: { kind: 'playlists' } },
@@ -1767,7 +1768,10 @@ describe('App shell', () => {
     expect(localText).toContain('Browser Jazz');
     expect(localText).toContain('Blue in Green');
     expect(localText).not.toContain('creation remains guarded');
-    expect(target.querySelector('.media-playlists-panel')).toBeNull();
+    const mediaPanel = target.querySelector('.media-playlists-panel');
+    expect(mediaPanel).not.toBeNull();
+    expect(mediaPanel?.textContent).toContain('Late Night Jazz.xsp');
+    expect(mediaPanel?.textContent).not.toContain('Browser Jazz');
   });
 
   it('renders local playlist detail through the real local playlist surface without leaking unmatched route ids', () => {
@@ -1852,6 +1856,8 @@ describe('App shell', () => {
     expect(appSource).toContain(
       'videoDetailRefreshKey(currentVideoRoute, currentActiveKodiHost) !== expectedRefreshKey'
     );
+    expect(appSource).toContain('function videoRouteToPrimaryRoute(');
+    expect(appSource).toContain('const currentMetadataPrimaryRoute');
   });
 
   it('keeps the extracted primary shell safe with empty nav, enabled drawer defaults, and trailing package base', () => {
@@ -2886,7 +2892,18 @@ describe('App shell', () => {
     expect(addonsDispatch.setSearchQuery).not.toHaveBeenCalled();
   });
 
-  it('keeps primary add-ons category detail links under the package mount path', () => {
+  it('preserves routed media search scopes when using the default search dispatch', async () => {
+    const search = vi.spyOn(mediaSearchStore, 'search').mockResolvedValue(undefined);
+
+    renderApp({
+      route: { kind: 'primary', route: { kind: 'searchMedia', media: 'movie', query: 'bunny' } }
+    });
+    await tick();
+
+    expect(search).toHaveBeenCalledWith({ text: 'bunny', scope: 'movie' });
+  });
+
+  it('keeps primary add-ons category detail links package-safe under the package mount path', () => {
     const target = renderApp({
       route: { kind: 'primary', route: { kind: 'addonsVideo' } },
       packageMountedHost: createPackageMountedHost(),
@@ -2898,7 +2915,7 @@ describe('App shell', () => {
     });
 
     expect(getVideoLink(target, 'Details').getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3/addons/plugin.video.safe-demo'
+      '/addons/webinterface.chorus3/#addons/plugin.video.safe-demo'
     );
   });
 
@@ -3031,6 +3048,25 @@ describe('App shell', () => {
 
     expect(loadAddonDetail).toHaveBeenCalledWith('plugin.video.safe-demo');
     expect(setAddonEnabled).toHaveBeenCalledWith('plugin.video.safe-demo', true);
+  });
+
+  it('automatically loads production add-on details for primary detail routes', async () => {
+    const { addonsStore } = await import('./lib/stores/addonsStore.svelte');
+    const host = createPackageMountedHost();
+    const loadAddonDetail = vi.spyOn(addonsStore, 'loadAddonDetail').mockResolvedValue();
+
+    configStore.addHost(host);
+    configStore.setActiveHost(host.id);
+
+    renderApp({
+      route: {
+        kind: 'primary',
+        route: { kind: 'addonDetail', addonid: 'audioencoder.kodi.builtin.aac' }
+      }
+    });
+    await tick();
+
+    expect(loadAddonDetail).toHaveBeenCalledWith('audioencoder.kodi.builtin.aac');
   });
 
   it('renders safe add-ons unknown routes without injected fixture data or raw unsafe path text', () => {

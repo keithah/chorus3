@@ -128,11 +128,11 @@ describe('video TV store', () => {
     } satisfies VideoTvStoreSnapshot);
   });
 
-  it('requests bounded TV show reads without Kodi file properties', async () => {
+  it('requests full TV show reads without Kodi file properties', async () => {
     const { client, store } = createHarness();
     client.enqueue('VideoLibrary.GetTVShows', {
       tvshows: [{ tvshowid: 7, label: 'Severance', episode: 9, watchedepisodes: 3 }],
-      limits: { start: 0, end: 25, total: 1 }
+      limits: { start: 0, end: 5000, total: 1 }
     });
 
     await store.refreshTvShows('manual');
@@ -153,7 +153,7 @@ describe('video TV store', () => {
             'lastplayed',
             'dateadded'
           ],
-          limits: { start: 0, end: 25 }
+          limits: { start: 0, end: 5000 }
         }
       }
     ]);
@@ -183,7 +183,7 @@ describe('video TV store', () => {
         { tvshowid: 7, season: 2, label: 'Season 2', episode: 3, watchedepisodes: 1 },
         { tvshowid: 7, season: -1, label: 'Dropped specials' }
       ],
-      limits: { start: 0, end: 25, total: 1 }
+      limits: { start: 0, end: 5000, total: 1 }
     });
     setNow(2_000);
 
@@ -211,7 +211,7 @@ describe('video TV store', () => {
           hasUnwatched: true
         }
       ],
-      limits: { seasons: { start: 0, end: 25, total: 1 } },
+      limits: { seasons: { start: 0, end: 5000, total: 1 } },
       lastError: null
     });
     expectSecretSafe(store.snapshot);
@@ -241,7 +241,7 @@ describe('video TV store', () => {
           file: 'http://admin:p@ssword@kodi.local/episode.mkv'
         }
       ],
-      limits: { start: 0, end: 25, total: 2 }
+      limits: { start: 0, end: 5000, total: 2 }
     });
     client.enqueue('VideoLibrary.GetEpisodeDetails', {
       episodedetails: {

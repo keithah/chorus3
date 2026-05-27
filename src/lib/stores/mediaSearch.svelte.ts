@@ -53,7 +53,17 @@ import {
 } from './videoLibraryNormalization';
 
 export type MediaSearchStatus = MusicLibraryRefreshStatus;
-export type MediaSearchScope = 'all' | 'music' | 'video';
+export type MediaSearchScope =
+  | 'all'
+  | 'music'
+  | 'video'
+  | 'artist'
+  | 'album'
+  | 'song'
+  | 'genre'
+  | 'movie'
+  | 'tvshow'
+  | 'musicvideo';
 
 export interface MediaSearchQuery {
   scope?: MediaSearchScope;
@@ -189,7 +199,7 @@ const EMPTY_RESULT_COUNTS: MediaSearchResultCounts = {
 
 const DEFAULT_SNAPSHOT: MediaSearchStoreSnapshot = {
   searchStatus: 'idle',
-  scope: 'music',
+  scope: 'all',
   query: '',
   lastUpdatedAt: null,
   results: EMPTY_RESULT_GROUPS,
@@ -245,8 +255,34 @@ export class MediaSearchStore {
 
     try {
       const client = this.#resolveClient();
-      const includeMusic = normalizedQuery.scope === 'all' || normalizedQuery.scope === 'music';
-      const includeVideo = normalizedQuery.scope === 'all' || normalizedQuery.scope === 'video';
+      const includeArtists =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'music' ||
+        normalizedQuery.scope === 'artist';
+      const includeAlbums =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'music' ||
+        normalizedQuery.scope === 'album';
+      const includeSongs =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'music' ||
+        normalizedQuery.scope === 'song';
+      const includeGenres =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'music' ||
+        normalizedQuery.scope === 'genre';
+      const includeMovies =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'video' ||
+        normalizedQuery.scope === 'movie';
+      const includeTvShows =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'video' ||
+        normalizedQuery.scope === 'tvshow';
+      const includeMusicVideos =
+        normalizedQuery.scope === 'all' ||
+        normalizedQuery.scope === 'video' ||
+        normalizedQuery.scope === 'musicvideo';
       const [
         artistsResult,
         albumsResult,
@@ -256,7 +292,7 @@ export class MediaSearchStore {
         tvShowsResult,
         musicVideosResult
       ] = await Promise.all([
-        includeMusic
+        includeArtists
           ? getAudioLibraryArtists(client, {
               properties: DEFAULT_ARTIST_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -264,7 +300,7 @@ export class MediaSearchStore {
               sort: LABEL_SORT
             })
           : Promise.resolve({ artists: [], limits: EMPTY_LIMITS }),
-        includeMusic
+        includeAlbums
           ? getAudioLibraryAlbums(client, {
               properties: DEFAULT_ALBUM_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -272,7 +308,7 @@ export class MediaSearchStore {
               sort: LABEL_SORT
             })
           : Promise.resolve({ albums: [], limits: EMPTY_LIMITS }),
-        includeMusic
+        includeSongs
           ? getAudioLibrarySongs(client, {
               properties: DEFAULT_SONG_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -280,14 +316,14 @@ export class MediaSearchStore {
               sort: TITLE_SORT
             })
           : Promise.resolve({ songs: [], limits: EMPTY_LIMITS }),
-        includeMusic
+        includeGenres
           ? getAudioLibraryGenres(client, {
               properties: DEFAULT_GENRE_PROPERTIES,
               limits: GENRE_SEARCH_LIMIT,
               sort: TITLE_SORT
             })
           : Promise.resolve({ genres: [], limits: EMPTY_LIMITS }),
-        includeVideo
+        includeMovies
           ? getVideoLibraryMovies(client, {
               properties: DEFAULT_VIDEO_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -295,7 +331,7 @@ export class MediaSearchStore {
               sort: TITLE_SORT
             })
           : Promise.resolve({ movies: [], limits: EMPTY_LIMITS }),
-        includeVideo
+        includeTvShows
           ? getVideoLibraryTvShows(client, {
               properties: DEFAULT_VIDEO_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -303,7 +339,7 @@ export class MediaSearchStore {
               sort: TITLE_SORT
             })
           : Promise.resolve({ tvshows: [], limits: EMPTY_LIMITS }),
-        includeVideo
+        includeMusicVideos
           ? getVideoLibraryMusicVideos(client, {
               properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
               limits: SEARCH_LIMIT,
@@ -417,13 +453,31 @@ export const mediaSearchStore = createMediaSearchStore({
 
 function normalizeSearchQuery(query: string | MediaSearchQuery): Required<MediaSearchQuery> {
   if (typeof query === 'string') {
-    return { scope: 'music', text: query.trim() };
+    return { scope: 'all', text: query.trim() };
   }
 
   return {
-    scope: query.scope ?? 'all',
+    scope: normalizeMediaSearchScope(query.scope),
     text: query.text.trim()
   };
+}
+
+function normalizeMediaSearchScope(scope: unknown): MediaSearchScope {
+  return typeof scope === 'string' &&
+    [
+      'all',
+      'music',
+      'video',
+      'artist',
+      'album',
+      'song',
+      'genre',
+      'movie',
+      'tvshow',
+      'musicvideo'
+    ].includes(scope)
+    ? (scope as MediaSearchScope)
+    : 'all';
 }
 
 function containsFilter(

@@ -1,5 +1,6 @@
 <script lang="ts" module>
   import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
+  import type { MediaSearchScope } from '$lib/stores/mediaSearch.svelte';
 
   export type MediaSearchActionItem =
     | { kind: 'artist'; id: number }
@@ -26,7 +27,7 @@
   }
 
   export interface MediaSearchPanelDispatch {
-    search: (request: { query: string; scope?: 'all' | 'music' | 'video' }) => Promise<void> | void;
+    search: (request: { query: string; scope?: MediaSearchScope }) => Promise<void> | void;
     clear: () => Promise<void> | void;
     searchAddon?: (request: {
       row: SearchAddonSetting;
@@ -78,6 +79,19 @@
   type PendingOperation = 'search' | 'clear' | null;
   type ExternalSearchProviderId = 'google' | 'imdb' | 'tmdb' | 'tvdb' | 'soundcloud' | 'youtube';
 
+  const SEARCH_SCOPE_OPTIONS = [
+    ['all', 'All'],
+    ['music', 'Music'],
+    ['video', 'Video'],
+    ['artist', 'Artists'],
+    ['album', 'Albums'],
+    ['song', 'Songs'],
+    ['genre', 'Genres'],
+    ['movie', 'Movies'],
+    ['tvshow', 'TV Shows'],
+    ['musicvideo', 'Music Videos']
+  ] as const satisfies readonly [MediaSearchScope, string][];
+
   interface ExternalSearchProvider {
     id: ExternalSearchProviderId;
     label: string;
@@ -106,6 +120,7 @@
   let addonSearchResults = $state<MediaSearchAddonResultGroup[]>([]);
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
+  let selectedScope = $state<MediaSearchScope>(untrack(() => snapshot.scope));
 
   const EXTERNAL_SEARCH_PROVIDERS: readonly ExternalSearchProvider[] = [
     {
@@ -151,6 +166,12 @@
     }
   });
 
+  $effect(() => {
+    if (snapshot.scope !== selectedScope && pendingOperation !== 'search') {
+      selectedScope = snapshot.scope;
+    }
+  });
+
   async function handleSearch(event: SubmitEvent): Promise<void> {
     event.preventDefault();
 
@@ -159,20 +180,26 @@
     }
 
     const query = inputValue.trim();
-    localStatusText = i18n.t('media.search.status.searchingQuery', {
-      query: query || i18n.t('media.search.currentQuery')
-    });
+    localStatusText =
+      selectedScope === 'music'
+        ? i18n.t('media.search.status.searchingQuery', {
+            query: query || i18n.t('media.search.currentQuery')
+          })
+        : `Searching ${searchScopeNoun(selectedScope)} for ${query || 'the current query'}...`;
     localErrorText = null;
     pendingOperation = 'search';
 
     try {
-      await dispatch.search({ query, scope: 'all' });
+      await dispatch.search({ query, scope: selectedScope });
       localStatusText = null;
     } catch (error) {
       const message = sanitizeUiText(
         error instanceof Error ? error.message : i18n.t('media.search.error.searchFailed')
       );
-      localErrorText = i18n.t('media.search.error.couldNotSearch', { message });
+      localErrorText =
+        selectedScope === 'music'
+          ? i18n.t('media.search.error.couldNotSearch', { message })
+          : `Could not search ${searchScopeNoun(selectedScope)}. ${message}`;
       localStatusText = localErrorText;
     } finally {
       pendingOperation = null;
@@ -201,6 +228,21 @@
     } finally {
       pendingOperation = null;
     }
+  }
+
+  function handleScopeChange(event: Event): void {
+    const select = event.currentTarget;
+    if (!(select instanceof HTMLSelectElement)) {
+      return;
+    }
+
+    if (isMediaSearchScope(select.value)) {
+      selectedScope = select.value;
+    }
+  }
+
+  function isMediaSearchScope(value: string): value is MediaSearchScope {
+    return SEARCH_SCOPE_OPTIONS.some(([scope]) => scope === value);
   }
 
   async function handleMusicAction(
@@ -277,9 +319,14 @@
     const query = displayText(value.query, '');
 
     if (value.searchStatus === 'loading') {
+      if (value.scope === 'music') {
+        return query
+          ? i18n.t('media.search.status.searchingQuery', { query })
+          : i18n.t('media.search.status.searching');
+      }
       return query
-        ? i18n.t('media.search.status.searchingQuery', { query })
-        : i18n.t('media.search.status.searching');
+        ? `Searching ${searchScopeNoun(value.scope)} for ${query}...`
+        : `Searching ${searchScopeNoun(value.scope)}...`;
     }
 
     if (value.searchStatus === 'error' && value.lastError) {
@@ -288,26 +335,122 @@
 
     if (value.searchStatus === 'ready') {
       if (value.isEmpty || value.resultCounts.total === 0) {
+        if (value.scope === 'music') {
+          return query
+            ? i18n.t('media.search.status.noResultsFor', { query })
+            : i18n.t('media.search.status.noResults');
+        }
         return query
-          ? i18n.t('media.search.status.noResultsFor', { query })
-          : i18n.t('media.search.status.noResults');
+          ? `No ${searchScopeNoun(value.scope)} results found for ${query}.`
+          : `No ${searchScopeNoun(value.scope)} results found.`;
       }
 
       const updated = textOrNull(value.lastUpdatedAt);
       const suffix = updated ? i18n.t('media.status.lastUpdated', { updated }) : '';
+      if (value.scope === 'music') {
+        return query
+          ? i18n.t('media.search.status.resultsFor', {
+              query,
+              count: resultCountCopy(value.resultCounts.total),
+              suffix
+            })
+          : i18n.t('media.search.status.ready', {
+              count: resultCountCopy(value.resultCounts.total),
+              suffix
+            });
+      }
       return query
-        ? i18n.t('media.search.status.resultsFor', {
-            query,
-            count: resultCountCopy(value.resultCounts.total),
-            suffix
-          })
-        : i18n.t('media.search.status.ready', {
-            count: resultCountCopy(value.resultCounts.total),
-            suffix
-          });
+        ? `${searchResultsTitle(value.scope)} for ${query}. ${resultCountCopy(value.resultCounts.total)}.${suffix}`
+        : `${searchResultsTitle(value.scope)} ready. ${resultCountCopy(value.resultCounts.total)}.${suffix}`;
     }
 
-    return i18n.t('media.search.status.idle');
+    return value.scope === 'music' ? i18n.t('media.search.status.idle') : 'Search Kodi media.';
+  }
+
+  function searchLabel(): string {
+    return selectedScope === 'music'
+      ? i18n.t('media.search.label')
+      : `Search ${searchScopeNoun(selectedScope)}`;
+  }
+
+  function searchPlaceholder(): string {
+    switch (selectedScope) {
+      case 'music':
+        return i18n.t('media.search.placeholder');
+      case 'all':
+        return 'Artist, album, song, movie, or TV show';
+      case 'video':
+        return 'Movie, TV show, or music video';
+      case 'artist':
+        return 'Artist name';
+      case 'album':
+        return 'Album title';
+      case 'song':
+        return 'Song title';
+      case 'genre':
+        return 'Genre';
+      case 'movie':
+        return 'Movie title';
+      case 'tvshow':
+        return 'TV show title';
+      case 'musicvideo':
+        return 'Music video title';
+    }
+  }
+
+  function searchDescription(): string {
+    return selectedScope === 'music'
+      ? i18n.t('media.search.description')
+      : `Search ${searchScopeNoun(selectedScope)} through Kodi.`;
+  }
+
+  function searchResultsKicker(): string {
+    return snapshot.scope === 'music'
+      ? i18n.t('media.search.resultsKicker')
+      : searchResultsTitle(snapshot.scope);
+  }
+
+  function searchResultsHeading(): string {
+    return snapshot.scope === 'music'
+      ? i18n.t('media.search.resultsTitle')
+      : searchResultsTitle(snapshot.scope);
+  }
+
+  function searchResultsTitle(scope: MediaSearchScope): string {
+    if (scope === 'all') return 'All media results';
+    if (scope === 'movie') return 'Movie results';
+    if (scope === 'tvshow') return 'TV show results';
+    if (scope === 'musicvideo') return 'Music video results';
+    return `${titleCase(searchScopeNoun(scope))} results`;
+  }
+
+  function searchScopeNoun(scope: MediaSearchScope): string {
+    switch (scope) {
+      case 'all':
+        return 'all media';
+      case 'music':
+        return 'music';
+      case 'video':
+        return 'video';
+      case 'artist':
+        return 'artists';
+      case 'album':
+        return 'albums';
+      case 'song':
+        return 'songs';
+      case 'genre':
+        return 'genres';
+      case 'movie':
+        return 'movies';
+      case 'tvshow':
+        return 'TV shows';
+      case 'musicvideo':
+        return 'music videos';
+    }
+  }
+
+  function titleCase(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   function groupCountSummary(kind: ResultGroupKey): string {
@@ -322,6 +465,25 @@
   }
 
   function sectionEmptyCopy(kind: ResultGroupKey): string {
+    if (snapshot.scope !== 'music') {
+      switch (kind) {
+        case 'artists':
+          return 'No matching artists.';
+        case 'albums':
+          return 'No matching albums.';
+        case 'songs':
+          return 'No matching songs.';
+        case 'genres':
+          return 'No matching genres.';
+        case 'movies':
+          return 'No matching movies.';
+        case 'tvShows':
+          return 'No matching TV shows.';
+        case 'musicVideos':
+          return 'No matching music videos.';
+      }
+    }
+
     switch (kind) {
       case 'artists':
         return i18n.t('media.search.empty.artists');
@@ -620,7 +782,7 @@
     <p class="section-kicker">{i18n.t('media.search.kicker')}</p>
     <h2 id="media-search-title">{i18n.t('media.search.title')}</h2>
     <p class="summary-line">
-      {i18n.t('media.search.description')}
+      {searchDescription()}
     </p>
   </div>
 
@@ -631,15 +793,36 @@
     onsubmit={handleSearch}
   >
     <div class="search-field">
-      <label for="media-search-query">{i18n.t('media.search.label')}</label>
+      <label for="media-search-query">{searchLabel()}</label>
       <input
         id="media-search-query"
         name="query"
         type="search"
         autocomplete="off"
         bind:value={inputValue}
-        placeholder={i18n.t('media.search.placeholder')}
+        placeholder={searchPlaceholder()}
       />
+    </div>
+    <div class="scope-field">
+      <label for="media-search-scope">Type</label>
+      <select
+        id="media-search-scope"
+        name="scope"
+        bind:value={selectedScope}
+        onchange={handleScopeChange}
+        disabled={searchDisabled}
+      >
+        <option value="all">All</option>
+        <option value="music">Music</option>
+        <option value="video">Video</option>
+        <option value="artist">Artists</option>
+        <option value="album">Albums</option>
+        <option value="song">Songs</option>
+        <option value="genre">Genres</option>
+        <option value="movie">Movies</option>
+        <option value="tvshow">TV Shows</option>
+        <option value="musicvideo">Music Videos</option>
+      </select>
     </div>
     <div class="search-actions">
       <button
@@ -754,8 +937,8 @@
   <section class="results-shell" aria-labelledby="media-search-results-title">
     <div class="results-heading">
       <div>
-        <p class="breadcrumb">{i18n.t('media.search.resultsKicker')}</p>
-        <h3 id="media-search-results-title">{i18n.t('media.search.resultsTitle')}</h3>
+        <p class="breadcrumb">{searchResultsKicker()}</p>
+        <h3 id="media-search-results-title">{searchResultsHeading()}</h3>
       </div>
       <p class="count-chip">{resultCountCopy(snapshot.resultCounts.total)}</p>
     </div>
@@ -1113,12 +1296,14 @@
     box-shadow: inset 0 0 0 1px var(--color-border);
   }
 
-  .search-field label {
+  .search-field label,
+  .scope-field label {
     color: var(--color-text);
     font-weight: 800;
   }
 
-  input[type='search'] {
+  input[type='search'],
+  select[name='scope'] {
     min-height: 2.75rem;
     width: 100%;
     padding: var(--space-xs) var(--space-sm);
@@ -1130,6 +1315,7 @@
   }
 
   input[type='search']:focus-visible,
+  select[name='scope']:focus-visible,
   button:focus-visible {
     outline: none;
     box-shadow: var(--shadow-ring);

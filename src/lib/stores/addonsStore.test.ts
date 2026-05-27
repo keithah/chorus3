@@ -153,8 +153,6 @@ describe('AddonsStore', () => {
         method: 'getAddons',
         args: [
           {
-            type: 'unknown',
-            content: 'unknown',
             enabled: 'all',
             properties: [
               'name',
@@ -272,7 +270,7 @@ describe('AddonsStore', () => {
           };
         }
         return {
-          addondetails: {
+          addon: {
             addonid: 'service.beta',
             name: 'Beta Service',
             enabled: false,

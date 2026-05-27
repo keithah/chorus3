@@ -26,6 +26,7 @@
   import { prepareLocalStreamUrl } from '$lib/stores/localPlayer.svelte';
   import { normalizeMusicSongs } from '$lib/stores/musicLibraryNormalization';
   import { normalizeVideoMusicVideos } from '$lib/stores/videoLibraryNormalization';
+  import { defaultEpisodeCollectionActionDispatch } from '$lib/stores/episodeCollectionActions';
   import type {
     LocalPlaylistDispatch,
     LocalPlaylistItemInput,
@@ -122,6 +123,7 @@
     title: string;
     subtitle?: string;
     thumbnail?: string;
+    artworkShape?: 'square' | 'poster';
     poster?: boolean;
     route?: PrimaryRoute;
     action?: MetadataEditableAction;
@@ -675,6 +677,7 @@
       key: `artist:${item.artistid}`,
       title: safe(item.label, 'Unknown artist'),
       thumbnail: kodiImageUrl(item.thumbnail),
+      artworkShape: 'square',
       route: { kind: 'musicArtistDetail', artistid: String(item.artistid) },
       action: { media: 'music', kind: 'artist', artistid: item.artistid },
       source: item as unknown as Record<string, unknown>
@@ -687,6 +690,7 @@
       title: safe(item.title ?? item.label, 'Unknown album'),
       subtitle: join(item.artist),
       thumbnail: kodiImageUrl(item.thumbnail),
+      artworkShape: 'square',
       route: { kind: 'musicAlbumDetail', albumid: String(item.albumid) },
       action: { media: 'music', kind: 'album', albumid: item.albumid },
       source: item as unknown as Record<string, unknown>
@@ -708,6 +712,7 @@
       title: safe(item.title ?? item.label, 'Unknown song'),
       subtitle: join(item.artist) ?? safe(item.album, ''),
       thumbnail: kodiImageUrl(item.thumbnail),
+      artworkShape: 'square',
       action: { media: 'music', kind: 'song', songid: item.songid },
       source: item as unknown as Record<string, unknown>
     }));
@@ -725,6 +730,7 @@
           title,
           subtitle: join(item.artist),
           thumbnail: kodiImageUrl(item.thumbnail),
+          artworkShape: 'square',
           action: { media: 'music', kind: 'song', songid: item.songid },
           source: item as unknown as Record<string, unknown>
         }
@@ -1005,6 +1011,7 @@
       title: safe(item.title ?? item.label, 'Unknown music video'),
       subtitle: join(item.artist) ?? safe(item.album, ''),
       thumbnail: kodiImageUrl(item.thumbnail),
+      artworkShape: 'square',
       route: { kind: 'musicVideoDetail', musicvideoid: String(item.musicvideoid) },
       action: { media: 'musicvideo', musicvideoid: item.musicvideoid },
       source: item as unknown as Record<string, unknown>
@@ -1305,6 +1312,11 @@
       return;
     }
 
+    if (action.media === 'tvshow') {
+      await playTvShowCollection(card, action.tvshowid);
+      return;
+    }
+
     if (action.media === 'musicvideo') {
       await playerDispatch.playMusicVideoItem?.({ musicvideoid: action.musicvideoid });
     }
@@ -1329,9 +1341,50 @@
       return;
     }
 
+    if (action.media === 'tvshow') {
+      await queueTvShowCollection(card, action.tvshowid);
+      return;
+    }
+
     if (action.media === 'musicvideo') {
       await queueDispatch.queueMusicVideoItem?.({ musicvideoid: action.musicvideoid });
     }
+  }
+
+  async function playTvShowCollection(card: Card, tvshowid: number): Promise<void> {
+    actionStatus = `Playing ${card.title}...`;
+    try {
+      const result = await defaultEpisodeCollectionActionDispatch.playEpisodeCollection({
+        tvshowid,
+        label: card.title
+      });
+      actionStatus =
+        result.count === 0
+          ? `No episodes found for ${card.title}.`
+          : `Played ${result.count} ${episodeWord(result.count)} from ${card.title}.`;
+    } catch (error) {
+      actionStatus = `Could not play ${card.title}. ${safeErrorMessage(error)}`;
+    }
+  }
+
+  async function queueTvShowCollection(card: Card, tvshowid: number): Promise<void> {
+    actionStatus = `Queueing ${card.title}...`;
+    try {
+      const result = await defaultEpisodeCollectionActionDispatch.queueEpisodeCollection({
+        tvshowid,
+        label: card.title
+      });
+      actionStatus =
+        result.count === 0
+          ? `No episodes found for ${card.title}.`
+          : `Queued ${result.count} ${episodeWord(result.count)} from ${card.title}.`;
+    } catch (error) {
+      actionStatus = `Could not queue ${card.title}. ${safeErrorMessage(error)}`;
+    }
+  }
+
+  function episodeWord(count: number): string {
+    return count === 1 ? 'episode' : 'episodes';
   }
 
   async function downloadCard(card: Card): Promise<void> {
@@ -2309,7 +2362,14 @@
           {/if}
           <div class="classic-card-grid">
             {#each section.cards as card}
-              <article class="classic-card" class:poster={card.poster}>
+              {@const artworkShape = card.artworkShape ?? (card.poster ? 'poster' : 'square')}
+              <article
+                class="classic-card"
+                class:poster={artworkShape === 'poster'}
+                class:art-square={artworkShape === 'square'}
+                class:art-poster={artworkShape === 'poster'}
+                data-artwork-shape={artworkShape}
+              >
                 <label class="classic-card-select">
                   <input
                     type="checkbox"
@@ -2324,6 +2384,7 @@
                     <div
                       class="classic-card-art"
                       class:has-artwork={Boolean(card.thumbnail)}
+                      data-artwork-shape={artworkShape}
                       aria-hidden="true"
                     >
                       {#if card.thumbnail}
@@ -2342,6 +2403,7 @@
                     <div
                       class="classic-card-art"
                       class:has-artwork={Boolean(card.thumbnail)}
+                      data-artwork-shape={artworkShape}
                       aria-hidden="true"
                     >
                       {#if card.thumbnail}
@@ -2362,10 +2424,8 @@
                   {@const browserAction = browserPlayableAction(card.action)}
                   {@const playlistAction = localPlaylistAction(card.action)}
                   <div class="classic-card-actions">
-                    {#if card.action.media !== 'tvshow'}
-                      <button type="button" onclick={() => void playCard(card)}>Play</button>
-                      <button type="button" onclick={() => void queueCard(card)}>Queue</button>
-                    {/if}
+                    <button type="button" onclick={() => void playCard(card)}>Play</button>
+                    <button type="button" onclick={() => void queueCard(card)}>Queue</button>
                     <button
                       type="button"
                       disabled={pendingEditKey === card.key}
@@ -2977,7 +3037,7 @@
     text-decoration: none;
   }
 
-  .classic-card.poster {
+  .classic-card.art-poster {
     min-height: 300px;
   }
 
@@ -3012,12 +3072,19 @@
     object-fit: cover;
   }
 
-  .poster .classic-card-art {
+  .art-square .classic-card-art,
+  .art-square .classic-card-art img {
+    aspect-ratio: 1 / 1;
+    height: 159px;
+    min-height: 159px;
+  }
+
+  .art-poster .classic-card-art {
     height: 235px;
     min-height: 235px;
   }
 
-  .poster .classic-card-art img {
+  .art-poster .classic-card-art img {
     height: 235px;
     object-fit: cover;
   }

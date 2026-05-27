@@ -178,7 +178,7 @@ describe('media search store', () => {
 
     expect(store.snapshot).toEqual({
       searchStatus: 'idle',
-      scope: 'music',
+      scope: 'all',
       query: '',
       lastUpdatedAt: null,
       results: {
@@ -230,6 +230,48 @@ describe('media search store', () => {
       isEmpty: true,
       lastError: null
     });
+  });
+
+  it('defaults plain text searches to all media', async () => {
+    const { client, store } = createHarness();
+    enqueueMusicResults(client);
+    enqueueVideoResults(client);
+
+    await store.search('ae');
+
+    expect(store.snapshot.scope).toBe('all');
+    expect(client.calls.map((call) => call.method)).toEqual([
+      'AudioLibrary.GetArtists',
+      'AudioLibrary.GetAlbums',
+      'AudioLibrary.GetSongs',
+      'AudioLibrary.GetGenres',
+      'VideoLibrary.GetMovies',
+      'VideoLibrary.GetTVShows',
+      'VideoLibrary.GetMusicVideos'
+    ]);
+  });
+
+  it('supports Chorus2 entity-specific media scopes from routed searches', async () => {
+    const { client, store } = createHarness();
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [{ movieid: 21, label: 'Aeon Flux', title: 'Aeon Flux', year: 2005 }],
+      limits: { start: 0, end: 25, total: 1 }
+    });
+
+    await store.search({ scope: 'movie', text: 'ae' });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'VideoLibrary.GetMovies',
+        params: {
+          properties: ['title', 'thumbnail', 'year'],
+          limits: { start: 0, end: 25 },
+          filter: { field: 'title', operator: 'contains', value: 'ae' },
+          sort: { method: 'title', order: 'ascending' }
+        }
+      }
+    ]);
+    expect(store.snapshot.resultCounts).toMatchObject({ movies: 1, tvShows: 0, total: 1 });
   });
 
   it('searches music with exact bounded Kodi filters and safe properties', async () => {
@@ -292,7 +334,7 @@ describe('media search store', () => {
     enqueueMusicResults(client);
     setNow(2_000);
 
-    await store.search('ae');
+    await store.search({ scope: 'music', text: 'ae' });
 
     expect(store.snapshot).toMatchObject({
       searchStatus: 'ready',
@@ -410,7 +452,7 @@ describe('media search store', () => {
     client.enqueue('AudioLibrary.GetSongs', { songs: ['bad', null] });
     client.enqueue('AudioLibrary.GetGenres', { genres: undefined });
 
-    await store.search('ae');
+    await store.search({ scope: 'music', text: 'ae' });
 
     expect(store.snapshot).toMatchObject({
       searchStatus: 'ready',
@@ -442,7 +484,7 @@ describe('media search store', () => {
     );
     setNow(3_000);
 
-    await store.search('bad');
+    await store.search({ scope: 'music', text: 'bad' });
 
     expect(store.snapshot).toMatchObject({
       searchStatus: 'error',
@@ -463,7 +505,7 @@ describe('media search store', () => {
       now: () => '2026-01-01T00:00:00.000Z'
     });
 
-    await store.search('ae');
+    await store.search({ scope: 'music', text: 'ae' });
 
     expect(store.snapshot).toMatchObject({
       searchStatus: 'error',
@@ -522,11 +564,11 @@ describe('media search store', () => {
     client.enqueue('AudioLibrary.GetSongs', slowSongs);
     client.enqueue('AudioLibrary.GetGenres', slowGenres);
 
-    const slowSearch = store.search('old');
+    const slowSearch = store.search({ scope: 'music', text: 'old' });
     await flushPromises();
 
     enqueueMusicResults(client);
-    await store.search('new');
+    await store.search({ scope: 'music', text: 'new' });
 
     slowArtists.resolve({ artists: [{ artistid: 1, label: 'Old artist' }] });
     slowAlbums.resolve({ albums: [{ albumid: 1, label: 'Old album' }] });
@@ -550,7 +592,7 @@ describe('media search store', () => {
   it('returns cloned snapshots so callers cannot mutate search internals', async () => {
     const { client, store } = createHarness();
     enqueueMusicResults(client);
-    await store.search('ae');
+    await store.search({ scope: 'music', text: 'ae' });
 
     const snapshot = store.snapshot;
     snapshot.results.artists[0].label = 'Mutated artist';
@@ -584,7 +626,7 @@ describe('media search store', () => {
     client.enqueue('AudioLibrary.GetSongs', slowSongs);
     client.enqueue('AudioLibrary.GetGenres', slowGenres);
 
-    const search = store.search('old');
+    const search = store.search({ scope: 'music', text: 'old' });
     await flushPromises();
 
     store.clear();

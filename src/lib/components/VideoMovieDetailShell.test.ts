@@ -325,12 +325,12 @@ describe('VideoMovieDetailShell', () => {
       populatedSnapshot(),
       { kind: 'videoMovieDetail', movieid: 42 },
       {
-        backHref: '/addons/webinterface.chorus3#movies'
+        backHref: '/addons/webinterface.chorus3/#movies'
       }
     );
 
     expect(document.querySelector<HTMLAnchorElement>('a')?.getAttribute('href')).toBe(
-      '/addons/webinterface.chorus3#movies'
+      '/addons/webinterface.chorus3/#movies'
     );
   });
 

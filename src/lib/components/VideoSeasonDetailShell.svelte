@@ -33,6 +33,7 @@
 </script>
 
 <script lang="ts">
+  import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     VideoEpisodeSnapshot,
@@ -40,14 +41,20 @@
     VideoSeasonSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
-  import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+  import {
+    defaultEpisodeCollectionActionDispatch,
+    type EpisodeCollectionActionDispatch
+  } from '$lib/stores/episodeCollectionActions';
+  import type { VideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
     snapshot: VideoTvStoreSnapshot;
     route: VideoRoute;
     artworkDispatch?: VideoSeasonArtworkDispatch;
     writeDispatch?: VideoSeasonWriteDispatch;
+    actionDispatch?: EpisodeCollectionActionDispatch;
     i18n?: TranslationContext;
+    buildOptions?: BuildAppRouteOptions;
   }
 
   type ArtworkStatus =
@@ -86,7 +93,9 @@
     snapshot,
     route,
     artworkDispatch = noopArtworkDispatch,
-    writeDispatch = noopWriteDispatch
+    writeDispatch = noopWriteDispatch,
+    actionDispatch = defaultEpisodeCollectionActionDispatch,
+    buildOptions = {}
   }: Props = $props();
   let artworkStatusOverride = $state<ArtworkStatus | null>(null);
   let writeStatus = $state<WriteStatus>({
@@ -94,6 +103,8 @@
     message: 'Season write actions are ready.'
   });
   let retryItems = $state<VideoSeasonWriteItem[]>([]);
+  let collectionActionStatus = $state('');
+  let pendingCollectionAction = $state<'play' | 'queue' | null>(null);
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvSeasonDetail' ? safePositiveId(route.tvshowid) : null
@@ -324,7 +335,11 @@
     const episodeid = safePositiveId(episode.episodeid);
     return tvshowid === null || seasonNumber === null || episodeid === null
       ? null
-      : buildVideoRoute({ kind: 'videoEpisodeDetail', tvshowid, season: seasonNumber, episodeid });
+      : videoHref({ kind: 'videoEpisodeDetail', tvshowid, season: seasonNumber, episodeid });
+  }
+
+  function videoHref(target: VideoRoute): string {
+    return buildKodiPackageSafeVideoAppRoute(target, buildOptions);
   }
 
   async function refreshArtwork(): Promise<void> {
@@ -348,6 +363,40 @@
         kind: 'error',
         message: `Could not refresh artwork for ${label}. ${sanitizeUiText(errorMessage(error))}`
       };
+    }
+  }
+
+  async function runCollectionAction(action: 'play' | 'queue'): Promise<void> {
+    if (routeTvShowId === null || routeSeason === null || !season) {
+      collectionActionStatus = 'Choose a valid season before playing episodes.';
+      return;
+    }
+
+    const label = `${showTitle} season ${routeSeason}`;
+    pendingCollectionAction = action;
+    collectionActionStatus = `${action === 'play' ? 'Playing' : 'Queueing'} ${label}...`;
+
+    try {
+      const result =
+        action === 'play'
+          ? await actionDispatch.playEpisodeCollection({
+              tvshowid: routeTvShowId,
+              season: routeSeason,
+              label
+            })
+          : await actionDispatch.queueEpisodeCollection({
+              tvshowid: routeTvShowId,
+              season: routeSeason,
+              label
+            });
+      collectionActionStatus =
+        result.count === 0
+          ? `No episodes found for ${label}.`
+          : `${action === 'play' ? 'Played' : 'Queued'} ${result.count} ${episodeWord(result.count)} from ${label}.`;
+    } catch (error) {
+      collectionActionStatus = `Could not ${action} ${label}. ${sanitizeUiText(errorMessage(error))}`;
+    } finally {
+      pendingCollectionAction = null;
     }
   }
 
@@ -414,6 +463,9 @@
         : episodes.length;
     return `${episodes.length} of ${total} episodes`;
   }
+  function episodeWord(count: number): string {
+    return count === 1 ? 'episode' : 'episodes';
+  }
   function isWatched(value: VideoEpisodeSnapshot): boolean {
     return value.watched === true || (numberOrNull(value.playcount) ?? 0) > 0;
   }
@@ -465,8 +517,8 @@
   <a
     class="back-link"
     href={routeTvShowId
-      ? buildVideoRoute({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
-      : buildVideoRoute({ kind: 'videoTvShows' })}>Back to {showTitle}</a
+      ? videoHref({ kind: 'videoTvShowDetail', tvshowid: routeTvShowId })
+      : videoHref({ kind: 'videoTvShows' })}>Back to {showTitle}</a
   >
   <div class="panel-heading season-hero" aria-label="Safe season artwork summary">
     <div class="season-poster-frame" aria-hidden="true"><span>Season poster</span></div>
@@ -484,6 +536,16 @@
     <div class="artwork-actions">
       <button
         type="button"
+        disabled={pendingCollectionAction !== null}
+        onclick={() => void runCollectionAction('play')}>Play season</button
+      >
+      <button
+        type="button"
+        disabled={pendingCollectionAction !== null}
+        onclick={() => void runCollectionAction('queue')}>Queue season</button
+      >
+      <button
+        type="button"
         aria-label={`Refresh artwork for ${showTitle} season ${routeSeason}`}
         disabled={pending}
         onclick={() => void refreshArtwork()}>Refresh artwork</button
@@ -492,6 +554,11 @@
         {statusMessage}
       </div>
     </div>
+    {#if collectionActionStatus}
+      <div class="action-status" role="status" aria-live="polite" aria-atomic="true">
+        {collectionActionStatus}
+      </div>
+    {/if}
     <div class="season-write-actions" aria-label="Season watched actions">
       <button
         type="button"
