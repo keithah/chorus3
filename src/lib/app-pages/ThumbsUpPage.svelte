@@ -8,6 +8,7 @@
   } from '$lib/stores';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
+  import { resolveKodiImageUrl } from '$lib/media/kodiImageUrl';
 
   type ThumbsPlayerDispatch = PlayerControlsDispatch & {
     playMusicItem?: (
@@ -79,8 +80,8 @@
       await queueDispatch.queueMusicVideoItem?.({ musicvideoid: item.id });
   }
 
-  function imageUrl(rawPath: string): string {
-    return rawPath.startsWith('/image/') ? rawPath : `/image/${encodeURIComponent(rawPath)}`;
+  function scrollToSection(media: ThumbsUpMedia): void {
+    document.getElementById(`thumbs-${media}`)?.scrollIntoView({ block: 'start' });
   }
 </script>
 
@@ -88,7 +89,7 @@
   <aside class="thumbs-sidebar" aria-label="Thumbs up sections">
     <p class="subnav-kicker">Thumbs up</p>
     {#each sections as section}
-      <a href={`#thumbs-${section.media}`}>{section.title}</a>
+      <button type="button" onclick={() => scrollToSection(section.media)}>{section.title}</button>
     {/each}
   </aside>
 
@@ -103,7 +104,14 @@
     {/if}
 
     {#if snapshot.total === 0}
-      <p class="empty-state">No thumbs up items saved in this browser.</p>
+      <p class="empty-state">
+        {#if snapshot.storageWarning}
+          No thumbs-up items are available until stored data can be loaded in this browser.
+        {:else}
+          No items have been thumbed up yet. Use the thumbs-up control on music, movies, or TV
+          shows to save favorites here.
+        {/if}
+      </p>
     {/if}
 
     {#each sections as section}
@@ -113,14 +121,15 @@
           <h3>{section.title}</h3>
           <div class="thumbs-grid">
             {#each items as item (`${item.media}:${item.id}`)}
+              {@const thumbUrl = item.thumbnail ? resolveKodiImageUrl(item.thumbnail) : undefined}
               <article class="thumb-card">
                 <div
                   class="thumb-card__art"
                   class:has-art={Boolean(item.thumbnail)}
                   aria-hidden="true"
                 >
-                  {#if item.thumbnail}
-                    <img src={imageUrl(item.thumbnail)} alt="" loading="lazy" decoding="async" />
+                  {#if thumbUrl}
+                    <img src={thumbUrl} alt="" loading="lazy" decoding="async" />
                   {/if}
                 </div>
                 <div class="thumb-card__copy">
@@ -170,9 +179,22 @@
     text-transform: uppercase;
   }
 
-  .thumbs-sidebar a {
+  .thumbs-sidebar button {
+    display: block;
+    width: fit-content;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: #333;
+    font: inherit;
     text-decoration: none;
+    cursor: pointer;
+  }
+
+  .thumbs-sidebar button:hover,
+  .thumbs-sidebar button:focus-visible {
+    color: #111;
+    text-decoration: underline;
   }
 
   .thumbs-content {

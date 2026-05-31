@@ -4,11 +4,15 @@
     type BuildAppRouteOptions
   } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
+  import type { ConnectionStoreSnapshot } from '$lib/stores/connection.svelte';
+  import packageJson from '../../../package.json';
   import { HELP_TOPIC_NAV, normalizeHelpTopicId, resolveHelpTopic } from './helpTopics';
 
   interface Props {
     route: PrimaryRoute;
     buildOptions?: BuildAppRouteOptions;
+    connectionSnapshot?: ConnectionStoreSnapshot | null;
+    chorusVersion?: string;
   }
 
   interface HelpLink {
@@ -17,9 +21,15 @@
     match: (route: PrimaryRoute) => boolean;
   }
 
-  let { route, buildOptions = {} }: Props = $props();
+  let {
+    route,
+    buildOptions = {},
+    connectionSnapshot = null,
+    chorusVersion = packageJson.version
+  }: Props = $props();
   let topic = $derived(resolveHelpTopic(route));
   let routedTopicHtml = $derived(sanitizeHelpVisibleText(rewriteHelpRouteLinks(topic.html)));
+  let kodiVersionText = $derived(formatKodiVersion(connectionSnapshot?.kodiVersion ?? null));
 
   const helpLinks: HelpLink[] = [
     {
@@ -112,6 +122,22 @@
       .replace(/\bpassword\b/giu, 'credentials')
       .replace(/\btoken\b/giu, 'placeholder');
   }
+
+  function formatKodiVersion(version: ConnectionStoreSnapshot['kodiVersion']): string {
+    if (!version) {
+      return 'Kodi version unavailable';
+    }
+
+    if (typeof version === 'string') {
+      return version ? `Kodi ${version}` : 'Kodi version unavailable';
+    }
+
+    const parts = [version.major, version.minor, version.patch].filter(
+      (part) => typeof part === 'number'
+    );
+
+    return parts.length > 0 ? `Kodi ${parts.join('.')}` : 'Kodi version unavailable';
+  }
 </script>
 
 <section class="classic-help" aria-labelledby="help-title">
@@ -133,8 +159,12 @@
         <table>
           <tbody>
             <tr>
-              <th scope="row">Kodi - Chorus</th>
-              <td>Connected Kodi version is shown on the Home connection card - Chorus 3.0.12</td>
+              <th scope="row">Kodi</th>
+              <td>{kodiVersionText}</td>
+            </tr>
+            <tr>
+              <th scope="row">Chorus</th>
+              <td>Chorus {chorusVersion}</td>
             </tr>
             <tr>
               <th scope="row">Remote control</th>

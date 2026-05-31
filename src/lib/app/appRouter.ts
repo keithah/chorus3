@@ -6,6 +6,7 @@ import {
 } from '../video/videoRouter';
 import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
 import { buildPrimaryRoutePath, parsePrimaryRoutePath, type PrimaryRoute } from './primaryRoutes';
+import { isThumbsUpRoutePath, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
 
 export type AppDashboardRoute = DashboardRoute;
 export type PrimaryAppRoute = { kind: 'primary'; route: PrimaryRoute };
@@ -198,6 +199,10 @@ export function parseAppRoute(
       : { kind: 'video', route: videoRoute };
   }
 
+  if (isThumbsUpRoutePath(path)) {
+    return { kind: 'primary', route: THUMBS_UP_PRIMARY_ROUTE };
+  }
+
   return { kind: 'settingsUnknown', pathLabel: normalizePathLabel(path, '/[redacted]') };
 }
 
@@ -273,7 +278,12 @@ function buildPathWithOptions(path: string, options: BuildAppRouteOptions): stri
     return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
   }
 
-  return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+  if (!packageBasePath) {
+    return path;
+  }
+
+  const safePackageSearch = normalizePackageSearch(options.packageSearch);
+  return `${prefixPackageBasePath(path, packageBasePath)}${safePackageSearch}`;
 }
 
 function isKodiPackagePathMode(options: BuildAppRouteOptions): boolean {

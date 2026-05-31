@@ -6,6 +6,12 @@ import { packageKodiWebinterface } from './package-kodi-webinterface.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
+import {
+  isThumbsUpRoutePath,
+  THUMBS_UP_CANONICAL_PATH,
+  THUMBS_UP_LEGACY_PATHS,
+  THUMBS_UP_PRIMARY_ROUTE
+} from './thumbs-up-legacy-routes.mjs';
 
 export const DEFAULT_PACKAGE_ROOT = 'webinterface.chorus3';
 export const PACKAGE_ROOT = 'dist/kodi';
@@ -176,14 +182,14 @@ const PRIMARY_ROUTE_CHECKS = [
   },
   {
     name: 'primary-thumbs-root',
-    path: '/thumbsup',
+    path: THUMBS_UP_CANONICAL_PATH,
     expected: { kind: 'primary', routeKind: 'thumbsup' }
   },
-  {
-    name: 'primary-thumbs-song-legacy-root',
-    path: '/thumbs-song',
+  ...THUMBS_UP_LEGACY_PATHS.map((path) => ({
+    name: `primary-${path.slice(1)}-legacy-root`,
+    path,
     expected: { kind: 'primary', routeKind: 'thumbsup' }
-  },
+  })),
   {
     name: 'primary-pvr-root',
     path: '/pvr',
@@ -929,6 +935,10 @@ function defaultPackageRouteParser(path, packageBasePath) {
         ? normalizedPath.slice(normalizedBase.length)
         : normalizedPath;
 
+  if (isThumbsUpRoutePath(stripped)) {
+    return { kind: 'primary', route: THUMBS_UP_PRIMARY_ROUTE };
+  }
+
   switch (stripped) {
     case '/':
     case '/home':
@@ -1050,9 +1060,6 @@ function defaultPackageRouteParser(path, packageBasePath) {
       return { kind: 'primary', route: { kind: 'search' } };
     case '/search/movie/bunny':
       return { kind: 'primary', route: { kind: 'searchMedia', media: 'movie', query: 'bunny' } };
-    case '/thumbsup':
-    case '/thumbs-song':
-      return { kind: 'primary', route: { kind: 'thumbsup' } };
     case '/lab':
     case '/lab/home':
       return { kind: 'primary', route: { kind: 'lab' } };

@@ -55,6 +55,12 @@ const DEFAULT_TV_SHOW_PROPERTIES = [
   'episode',
   'watchedepisodes',
   'playcount',
+  'plot',
+  'genre',
+  'studio',
+  'rating',
+  'userrating',
+  'premiered',
   'lastplayed',
   'dateadded'
 ] as const satisfies readonly VideoLibraryTvShowPropertyName[];

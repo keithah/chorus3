@@ -1,3 +1,5 @@
+import { buildThumbsUpLegacyPackageFallbacks } from './thumbs-up-legacy-routes.mjs';
+
 export const KODI_PACKAGE_BASE_PATH = '/addons/webinterface.chorus3';
 
 export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
@@ -215,11 +217,7 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
     stagedIndexPath: 'search/movie/bunny/index.html'
   },
   { name: 'thumbsup', routePath: '/thumbsup', stagedIndexPath: 'thumbsup/index.html' },
-  {
-    name: 'thumbs-song-legacy',
-    routePath: '/thumbs-song',
-    stagedIndexPath: 'thumbs-song/index.html'
-  },
+  ...buildThumbsUpLegacyPackageFallbacks(),
   { name: 'lab', routePath: '/lab', stagedIndexPath: 'lab/index.html' },
   { name: 'lab-home', routePath: '/lab/home', stagedIndexPath: 'lab/home/index.html' },
   {

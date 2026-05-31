@@ -69,6 +69,7 @@ import {
   type VideoLibrarySetTvShowDetailsParams
 } from '$lib/kodi';
 import type { KodiKnownNotificationMethod } from '$lib/kodi/notifications';
+import { kodiImagePath } from '$lib/media/kodiImageUrl';
 import {
   DEFAULT_MAIN_NAV_ROWS,
   type MainNavRow,
@@ -1274,10 +1275,7 @@ export async function playerSnapshot(
 }
 
 export function imagePath(value?: unknown): string {
-  if (typeof value === 'string' && value.trim()) {
-    return `/image/${encodeURIComponent(value.trim())}`;
-  }
-  return '/addons/webinterface.chorus3/assets/classic/thumbnail_default.png';
+  return kodiImagePath(value);
 }
 
 export function imageEntity<T extends Record<string, unknown>>(

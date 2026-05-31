@@ -19,6 +19,7 @@
     type MediaPlaylistsActionItem,
     type MediaPlaylistsPanelDispatch
   } from '$components/MediaPlaylistsPanel.svelte';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import MediaSearchPanel, {
     type MediaSearchAddonResultGroup,
     type MediaSearchActionDispatch,
@@ -613,7 +614,7 @@
       ? toAppShellLocalPlayerSnapshot(currentLocalSnapshot)
       : toAppShellPlayerSnapshot(currentPlayerSnapshot)
   );
-  const currentKodiStageArtUrl = $derived(kodiImageUrl(currentPlayerSnapshot.item?.fanart));
+  const currentKodiStageArtUrl = $derived(optionalKodiImageUrl(currentPlayerSnapshot.item?.fanart));
   const currentShellStageArtUrl = $derived(
     currentDrawerDestinationMode === 'kodi'
       ? (currentKodiStageArtUrl ?? lastKnownKodiStageArtUrl)
@@ -1912,7 +1913,7 @@
       progressPercent: dashboardProgress(value),
       isPlaying: (value.properties?.speed ?? 0) > 0,
       isShuffled: value.properties?.shuffled === true,
-      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
+      thumbnailUrl: optionalKodiImageUrl(value.item?.thumbnail)
     };
   }
 
@@ -1936,7 +1937,7 @@
       progressPercent,
       isPlaying: value.status === 'playing',
       isShuffled: localShuffleEnabled,
-      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
+      thumbnailUrl: optionalKodiImageUrl(value.item?.thumbnail)
     };
   }
 
@@ -1956,14 +1957,6 @@
     }
 
     await playerDispatch.next();
-  }
-
-  function kodiImageUrl(value: unknown): string | undefined {
-    if (typeof value !== 'string' || !value.trim()) {
-      return undefined;
-    }
-
-    return `/image/${encodeURIComponent(value.trim())}`;
   }
 
   function toggleRemoteOverlayFromPlayer(): void {
@@ -2066,6 +2059,7 @@
       metadata={currentAppPageMetadata}
       i18n={currentI18n}
       packageBasePath={currentPackageBasePath}
+      packageSearch={currentPackageSearch || globalThis.location?.search || ''}
       parityPlaceholder={currentParityPlaceholder}
       homeContext={{
         hostLabel:
@@ -2088,6 +2082,7 @@
           description: currentI18n.t('app.themeContract.description')
         }
       }}
+      connectionSnapshot={connectionStore.snapshot}
       localeSnapshot={currentLocaleSnapshot}
       {localeDispatch}
       playerSnapshot={currentPlayerSnapshot}
@@ -2449,32 +2444,49 @@
         />
       </main>
     {:else if isSettingsUnknownRoute}
-      <main class="settings-route" aria-label={currentI18n.t('app.route.settingsUnknown.aria')}>
+      {@const unknownPathLabel =
+        currentRoute.kind === 'settingsUnknown' ? currentRoute.pathLabel : '/[redacted]'}
+      {@const isSettingsPath = unknownPathLabel.startsWith('/settings')}
+      <main
+        class="settings-route"
+        aria-label={currentI18n.t('app.route.settingsUnknown.aria')}
+      >
         <section
           class="settings-route-not-found surface"
           aria-labelledby="settings-route-not-found-title"
         >
-          <p class="section-kicker">{currentI18n.t('app.route.settings.kicker')}</p>
+          <p class="section-kicker">
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.kicker')
+              : currentI18n.t('app.route.unknown.recoveryAria')}
+          </p>
           <h2 id="settings-route-not-found-title">
-            {currentI18n.t('app.route.settings.notFoundTitle')}
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.notFoundTitle')
+              : currentI18n.t('app.route.unknown.notFoundTitle')}
           </h2>
           <p>
-            {currentI18n.t('app.route.settings.notFoundDescription', {
-              path:
-                currentRoute.kind === 'settingsUnknown'
-                  ? currentRoute.pathLabel
-                  : '/settings/unknown'
-            })}
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.notFoundDescription', {
+                  path: unknownPathLabel
+                })
+              : currentI18n.t('app.route.unknown.notFoundDescription', {
+                  path: unknownPathLabel
+                })}
           </p>
           <nav
             class="settings-route-recovery"
-            aria-label={currentI18n.t('app.route.settings.recoveryAria')}
+            aria-label={isSettingsPath
+              ? currentI18n.t('app.route.settings.recoveryAria')
+              : currentI18n.t('app.route.unknown.recoveryAria')}
           >
             <a
               href={buildAppRoute(
-                { kind: 'primary', route: { kind: 'settingsWeb' } },
+                isSettingsPath
+                  ? { kind: 'primary', route: { kind: 'settingsWeb' } }
+                  : { kind: 'primary', route: { kind: 'home' } },
                 currentRouteBuildOptions
-              )}>Settings</a
+              )}>{isSettingsPath ? 'Settings' : 'Home'}</a
             >
           </nav>
         </section>

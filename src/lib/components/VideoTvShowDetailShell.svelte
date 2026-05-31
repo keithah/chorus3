@@ -17,6 +17,7 @@
     VideoTvShowDetailSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
+  import { firstOptionalKodiImageUrl, optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import type { VideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
@@ -47,6 +48,10 @@
   );
   const tvShow = $derived(findTvShow(snapshot, routeTvShowId));
   const title = $derived(tvShow ? safeTvShowLabel(tvShow) : fallbackTitle(routeTvShowId, route));
+  const posterUrl = $derived(tvShow ? preferredPosterUrl(tvShow) : undefined);
+  const fanartUrl = $derived(
+    tvShow ? optionalKodiImageUrl(tvShow.fanart ?? tvShow.art?.fanart) : undefined
+  );
   const seasons = $derived(tvShow ? safeSeasons(snapshot.seasons, routeTvShowId) : []);
   const statusCopy = $derived(formatStatus(snapshot));
 
@@ -54,9 +59,14 @@
     value: VideoTvStoreSnapshot,
     tvshowid: number | null
   ): VideoTvShowDetailSnapshot | null {
-    if (tvshowid === null || value.selectedTvShowId !== tvshowid) {
+    if (tvshowid === null) {
       return null;
     }
+
+    if (value.selectedTvShowId !== tvshowid) {
+      return null;
+    }
+
     return safePositiveId(value.tvShowDetail?.tvshowid) === tvshowid ? value.tvShowDetail : null;
   }
 
@@ -158,8 +168,9 @@
   }
 
   function artworkText(value: VideoTvShowDetailSnapshot): string {
-    const poster = value.thumbnailAvailable || value.artwork.poster;
-    const fanart = value.fanartAvailable || value.artwork.fanart;
+    const artwork = value.artwork ?? {};
+    const poster = value.thumbnailAvailable || artwork.poster;
+    const fanart = value.fanartAvailable || artwork.fanart;
     return `${poster ? 'Poster artwork available' : 'Poster artwork unavailable'} · ${
       fanart ? 'Fanart artwork available' : 'Fanart artwork unavailable'
     }`;
@@ -232,6 +243,10 @@
       thumbnail: value.thumbnail ?? value.art?.poster,
       fanart: value.fanart ?? value.art?.fanart
     };
+  }
+
+  function preferredPosterUrl(value: VideoTvShowDetailSnapshot): string | undefined {
+    return firstOptionalKodiImageUrl(value.art?.poster, value.art?.thumb, value.thumbnail);
   }
 
   function formatYear(value: unknown): string | null {
@@ -322,9 +337,20 @@
 <section class="video-tv-show-detail-shell surface" aria-labelledby="video-tv-show-title">
   <a class="back-link" href={videoHref({ kind: 'videoTvShows' })}>Back to TV shows</a>
 
-  <div class="panel-heading tv-show-hero" aria-label="Safe TV show artwork summary">
+  <div
+    class="panel-heading tv-show-hero"
+    class:has-fanart={Boolean(fanartUrl)}
+    aria-label="Safe TV show artwork summary"
+    style={fanartUrl ? `--tvshow-fanart-url: url('${fanartUrl}')` : undefined}
+  >
     <div class="show-fanart-wash" aria-hidden="true"></div>
-    <div class="show-poster-frame" aria-hidden="true"><span>Poster</span></div>
+    <div class="show-poster-frame" class:has-poster={Boolean(posterUrl)} aria-hidden="true">
+      {#if posterUrl}
+        <img src={posterUrl} alt="" loading="lazy" decoding="async" />
+      {:else}
+        <span>Poster</span>
+      {/if}
+    </div>
     <div class="hero-copy">
       <p class="section-kicker">TV show detail</p>
       <h2 id="video-tv-show-title">{title}</h2>
@@ -445,6 +471,8 @@
     display: grid;
     gap: var(--space-lg);
     padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+    color: var(--color-text);
+    background: var(--color-background);
   }
   .panel-heading,
   .hero-copy,
@@ -460,29 +488,22 @@
     align-items: end;
     overflow: hidden;
     padding: clamp(var(--space-md), 3vw, var(--space-lg));
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  }
+  .tv-show-hero.has-fanart {
     background:
-      radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--color-accent) 22%, transparent),
-        transparent 22rem
-      ),
-      color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
-    border-radius: calc(var(--radius-lg) + var(--space-xs));
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
-      0 1.2rem 3rem color-mix(in srgb, black 16%, transparent);
+      linear-gradient(90deg, rgb(243 243 243 / 0.96), rgb(243 243 243 / 0.78)),
+      var(--tvshow-fanart-url) center / cover,
+      var(--color-surface-raised);
   }
   .show-fanart-wash {
     position: absolute;
     inset: 0;
-    background:
-      linear-gradient(110deg, color-mix(in srgb, black 36%, transparent), transparent 62%),
-      repeating-linear-gradient(
-        35deg,
-        color-mix(in srgb, var(--color-accent) 8%, transparent) 0 1px,
-        transparent 1px 13px
-      );
-    opacity: 0.75;
+    background: transparent;
+    opacity: 0;
   }
   .show-poster-frame {
     position: relative;
@@ -492,23 +513,27 @@
     display: grid;
     place-items: end start;
     padding: var(--space-sm);
-    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    color: var(--color-text-muted);
     font-family: var(--font-mono);
     font-size: 0.72rem;
     font-weight: 850;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    background:
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-accent) 30%, transparent),
-        transparent
-      ),
-      color-mix(in srgb, var(--color-surface) 88%, black);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
-      0 1rem 2rem color-mix(in srgb, black 24%, transparent);
+    background: #d7d7d7;
+    border: 1px solid #bdbdbd;
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.24);
+  }
+  .show-poster-frame.has-poster {
+    place-items: stretch;
+    padding: 0;
+    background: #d7d7d7;
+  }
+  .show-poster-frame img {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    object-fit: cover;
   }
   .hero-copy {
     position: relative;
@@ -533,6 +558,8 @@
     text-transform: uppercase;
   }
   h2 {
+    color: var(--color-text);
+    font-weight: 300;
     overflow-wrap: anywhere;
     font-size: clamp(1.4rem, 3vw, 2.1rem);
     line-height: 1.08;
@@ -570,10 +597,10 @@
   button {
     min-height: 2.5rem;
     padding: 0.65rem 1rem;
-    border: 0;
-    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
     color: var(--color-text);
-    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+    background: var(--color-surface-raised);
     font: inherit;
     font-weight: 850;
     cursor: pointer;
@@ -590,11 +617,13 @@
   .empty-state,
   .status-line,
   .edit-status,
+  .collection-action-status,
   .season-card {
     padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    box-shadow: none;
   }
   .season-list {
     display: grid;
@@ -608,17 +637,10 @@
   }
   .season-card-art {
     aspect-ratio: 2 / 3;
-    border-radius: var(--radius-md);
-    background:
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-accent) 28%, transparent),
-        transparent
-      ),
-      color-mix(in srgb, var(--color-surface) 86%, black);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, white 12%, transparent),
-      0 0.7rem 1.4rem color-mix(in srgb, black 18%, transparent);
+    border-radius: 0;
+    background: #d7d7d7;
+    border: 1px solid #bdbdbd;
+    box-shadow: none;
   }
   .season-card-copy {
     display: grid;
@@ -636,12 +658,13 @@
     font-variant-numeric: tabular-nums;
     font-weight: 800;
     line-height: 1.4;
-    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
-    border-radius: var(--radius-pill);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
+    background: #eaf6fa;
+    border: 1px solid #c5dfe8;
+    border-radius: 2px;
+    box-shadow: none;
   }
   .badge.subtle {
     color: var(--color-text-muted);
-    background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+    background: var(--color-surface);
   }
 </style>

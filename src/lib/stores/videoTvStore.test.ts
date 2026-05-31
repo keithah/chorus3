@@ -150,6 +150,12 @@ describe('video TV store', () => {
             'episode',
             'watchedepisodes',
             'playcount',
+            'plot',
+            'genre',
+            'studio',
+            'rating',
+            'userrating',
+            'premiered',
             'lastplayed',
             'dateadded'
           ],
@@ -189,6 +195,13 @@ describe('video TV store', () => {
 
     await store.refreshTvShow(7, 'manual');
 
+    expect(client.calls[0]).toMatchObject({
+      method: 'VideoLibrary.GetTVShowDetails',
+      params: {
+        tvshowid: 7,
+        properties: expect.arrayContaining(['plot', 'genre', 'studio', 'rating', 'premiered'])
+      }
+    });
     expect(store.snapshot).toMatchObject({
       refreshStatus: 'ready',
       lastRefreshReason: 'manual',

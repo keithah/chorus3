@@ -18,6 +18,7 @@ import {
 import { getChorus2ParityRowById } from './chorus2ParityLedger';
 import { buildVideoRoute, type VideoRoute } from '../video/videoRouter';
 import type { PrimaryRoute } from './primaryRoutes';
+import { THUMBS_UP_LEGACY_PATHS } from './thumbsUpLegacyRoutes';
 
 const EXPECTED_PLACEHOLDER_IDS = [] as const;
 
@@ -173,9 +174,19 @@ describe('parseAppRoute', () => {
     }
   );
 
-  test('accepts the classic thumbs-song hash alias as thumbs up', () => {
-    expect(parseAppRoute('/thumbs-song')).toEqual({ kind: 'primary', route: { kind: 'thumbsup' } });
-    expect(buildPrimaryAppRoute({ kind: 'thumbsup' })).toBe('/thumbsup');
+  test.each([...THUMBS_UP_LEGACY_PATHS])(
+    'accepts the classic %s hash alias as thumbs up',
+    (path: string) => {
+      expect(parseAppRoute(path)).toEqual({ kind: 'primary', route: { kind: 'thumbsup' } });
+      expect(buildPrimaryAppRoute({ kind: 'thumbsup' })).toBe('/thumbsup');
+    }
+  );
+
+  test('maps legacy thumbs paths to thumbs up even if static route registration regresses', () => {
+    expect(parseAppRoute('/thumbs-movie')).toEqual({
+      kind: 'primary',
+      route: { kind: 'thumbsup' }
+    });
   });
 
   test.each(PRIMARY_ROUTE_CASES)(
@@ -291,13 +302,16 @@ describe('parseAppRoute', () => {
     ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/#video/tv/1/seasons/5`);
   });
 
-  test('preserves safe package search strings before hash routes', () => {
+  test('preserves safe package search strings for Kodi package routes', () => {
     const options = {
       packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
       packageSearch: '?cb=live-tv-1',
       routeMode: 'path'
     } as const;
 
+    expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'thumbsup' }, options)).toBe(
+      `${KODI_WEBINTERFACE_BASE_PATH}/thumbsup?cb=live-tv-1`
+    );
     expect(
       buildKodiPackageSafeVideoAppRoute(
         { kind: 'videoTvSeasonDetail', tvshowid: 1, season: 5 },

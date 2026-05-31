@@ -26,6 +26,7 @@
     VideoMovieVersionsSnapshot
   } from '$lib/stores/videoMovieDetailStore.svelte';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import { firstOptionalKodiImageUrl, optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
@@ -83,7 +84,9 @@
   );
   const moviesHref = $derived(backHref ?? buildVideoRoute({ kind: 'videoMovies' }));
   const posterUrl = $derived(movie ? preferredPosterUrl(movie) : undefined);
-  const fanartUrl = $derived(movie ? kodiImageUrl(movie.fanart ?? movie.art?.fanart) : undefined);
+  const fanartUrl = $derived(
+    movie ? optionalKodiImageUrl(movie.fanart ?? movie.art?.fanart) : undefined
+  );
   const versionItems = $derived(
     detailMovie?.versions.status === 'ready' ? safeVersionItems(detailMovie.versions) : []
   );
@@ -222,17 +225,7 @@
   function preferredPosterUrl(
     value: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot
   ): string | undefined {
-    return (
-      kodiImageUrl(value.art?.poster) ??
-      kodiImageUrl(value.art?.thumb) ??
-      kodiImageUrl(value.thumbnail)
-    );
-  }
-
-  function kodiImageUrl(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim()
-      ? `/image/${encodeURIComponent(value.trim())}`
-      : undefined;
+    return firstOptionalKodiImageUrl(value.art?.poster, value.art?.thumb, value.thumbnail);
   }
 
   function versionText(value: VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot): string {
@@ -629,6 +622,8 @@
     display: grid;
     gap: var(--space-lg);
     padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+    color: var(--color-text);
+    background: var(--color-background);
   }
 
   .panel-heading,
@@ -646,41 +641,24 @@
     align-items: end;
     overflow: hidden;
     padding: clamp(var(--space-md), 3vw, var(--space-lg));
-    background:
-      radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--color-accent) 24%, transparent),
-        transparent 22rem
-      ),
-      color-mix(in srgb, var(--color-surface-raised) 76%, transparent);
-    border-radius: calc(var(--radius-lg) + var(--space-xs));
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
-      0 1.2rem 3rem color-mix(in srgb, black 16%, transparent);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
   }
 
   .movie-detail-hero.has-fanart {
     background:
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--color-surface) 92%, transparent),
-        color-mix(in srgb, var(--color-surface) 44%, transparent)
-      ),
+      linear-gradient(90deg, rgb(243 243 243 / 0.96), rgb(243 243 243 / 0.78)),
       var(--movie-fanart-url) center / cover,
-      color-mix(in srgb, var(--color-surface-raised) 76%, transparent);
+      var(--color-surface-raised);
   }
 
   .fanart-wash {
     position: absolute;
     inset: 0;
-    background:
-      linear-gradient(110deg, color-mix(in srgb, black 34%, transparent), transparent 62%),
-      repeating-linear-gradient(
-        -35deg,
-        color-mix(in srgb, var(--color-accent) 9%, transparent) 0 1px,
-        transparent 1px 14px
-      );
-    opacity: 0.75;
+    background: transparent;
+    opacity: 0;
   }
 
   .poster-frame {
@@ -691,29 +669,22 @@
     display: grid;
     place-items: end start;
     padding: var(--space-sm);
-    color: color-mix(in srgb, var(--color-text) 82%, transparent);
+    color: var(--color-text-muted);
     font-family: var(--font-mono);
     font-size: 0.72rem;
     font-weight: 850;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    background:
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-accent) 34%, transparent),
-        transparent
-      ),
-      color-mix(in srgb, var(--color-surface) 88%, black);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
-      0 1rem 2rem color-mix(in srgb, black 24%, transparent);
+    background: #d7d7d7;
+    border: 1px solid #bdbdbd;
+    border-radius: 0;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.24);
   }
 
   .poster-frame.has-poster {
     place-items: stretch;
     padding: 0;
-    background: color-mix(in srgb, var(--color-surface) 88%, black);
+    background: #d7d7d7;
   }
 
   .poster-frame img {
@@ -749,6 +720,8 @@
   }
 
   h2 {
+    color: var(--color-text);
+    font-weight: 300;
     font-size: clamp(1.4rem, 3vw, 2.1rem);
     line-height: 1.08;
     overflow-wrap: anywhere;
@@ -790,8 +763,8 @@
   button,
   .stream-link,
   select {
-    border: 0;
-    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
     color: var(--color-text);
     font: inherit;
   }
@@ -801,7 +774,7 @@
     min-height: 2.5rem;
     min-width: 2.5rem;
     padding: 0.65rem 1rem;
-    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+    background: var(--color-surface-raised);
     font-weight: 850;
     transition-property: scale, background-color, opacity;
     transition-duration: 160ms;
@@ -843,8 +816,8 @@
   select {
     width: min(100%, 24rem);
     padding: 0.65rem 0.75rem;
-    background: var(--color-surface-raised);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    background: var(--color-surface);
+    box-shadow: none;
   }
 
   .detail-list {
@@ -857,9 +830,10 @@
   .action-status,
   .version-control {
     padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .action-status.success {

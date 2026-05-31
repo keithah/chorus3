@@ -1,3 +1,5 @@
+import { registerThumbsUpLegacyPrimaryRoutes, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
+
 export type PrimaryRoute =
   | { kind: 'home' }
   | { kind: 'music' }
@@ -115,14 +117,15 @@ const STATIC_PRIMARY_ROUTES = new Map<string, PrimaryRoute>([
   ['/lab/api-browser', { kind: 'labApiBrowser' }],
   ['/lab/screenshot', { kind: 'labScreenshot' }],
   ['/lab/icon-browser', { kind: 'labIconBrowser' }],
-  ['/thumbsup', { kind: 'thumbsup' }],
-  ['/thumbs-song', { kind: 'thumbsup' }],
+  ['/thumbsup', THUMBS_UP_PRIMARY_ROUTE],
   ['/pvr', { kind: 'pvrTv' }],
   ['/pvr/tv', { kind: 'pvrTv' }],
   ['/pvr/epg', { kind: 'pvrEpg' }],
   ['/pvr/radio', { kind: 'pvrRadio' }],
   ['/pvr/recordings', { kind: 'pvrRecordings' }]
 ]);
+
+registerThumbsUpLegacyPrimaryRoutes(STATIC_PRIMARY_ROUTES);
 
 export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
   const direct = STATIC_PRIMARY_ROUTES.get(path);

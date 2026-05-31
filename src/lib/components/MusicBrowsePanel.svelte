@@ -559,8 +559,8 @@
                 disabled={isLoading}
                 onclick={() => handleBrowseGenre(genre)}
               >
-                <span class="button-kicker">Browse genre</span>
                 <span class="item-title">{label}</span>
+                <span class="button-kicker">Browse genre</span>
               </button>
             </li>
           {/each}

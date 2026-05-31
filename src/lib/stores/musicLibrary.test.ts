@@ -146,9 +146,10 @@ function enqueueSuccessfulLibrary(client: FakeKodiClient): void {
   client.enqueue('AudioLibrary.GetGenres', {
     genres: [
       { genreid: 200, label: 'Electronic', title: 'Electronic', thumbnail: 'genre.jpg' },
-      { genreid: 201, label: '' }
+      { genreid: 201, label: '' },
+      { genreid: 202, genre: 'Rock' }
     ],
-    limits: { start: 0, end: 25, total: 2 }
+    limits: { start: 0, end: 25, total: 3 }
   });
 }
 
@@ -359,7 +360,8 @@ describe('music library store', () => {
       mostPlayedSongs: [{ songid: 112, label: 'Most Played', playcount: 99 }],
       genres: [
         { genreid: 200, label: 'Electronic', title: 'Electronic', thumbnail: 'genre.jpg' },
-        { genreid: 201, label: 'Unknown genre' }
+        { genreid: 201, label: 'Unknown genre' },
+        { genreid: 202, label: 'Rock' }
       ]
     });
     expect(store.snapshot.limits).toEqual({
@@ -369,7 +371,7 @@ describe('music library store', () => {
       recentlyAddedSongs: { start: 0, end: 25, total: 1 },
       recentlyPlayedSongs: { start: 0, end: 25, total: 1 },
       mostPlayedSongs: { start: 0, end: 25, total: 1 },
-      genres: { start: 0, end: 25, total: 2 }
+      genres: { start: 0, end: 25, total: 3 }
     });
     expectSecretSafe(store.snapshot);
   });

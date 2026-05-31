@@ -23,6 +23,10 @@
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
   import { configStore } from '$lib/stores/config.svelte';
+  import {
+    firstOptionalKodiImageUrl,
+    optionalKodiImageUrl
+  } from '$lib/media/kodiImageUrl';
   import { prepareLocalStreamUrl } from '$lib/stores/localPlayer.svelte';
   import { normalizeMusicSongs } from '$lib/stores/musicLibraryNormalization';
   import { normalizeVideoMusicVideos } from '$lib/stores/videoLibraryNormalization';
@@ -676,7 +680,7 @@
     return items.map((item) => ({
       key: `artist:${item.artistid}`,
       title: safe(item.label, 'Unknown artist'),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       artworkShape: 'square',
       route: { kind: 'musicArtistDetail', artistid: String(item.artistid) },
       action: { media: 'music', kind: 'artist', artistid: item.artistid },
@@ -689,7 +693,7 @@
       key: `album:${item.albumid}`,
       title: safe(item.title ?? item.label, 'Unknown album'),
       subtitle: join(item.artist),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       artworkShape: 'square',
       route: { kind: 'musicAlbumDetail', albumid: String(item.albumid) },
       action: { media: 'music', kind: 'album', albumid: item.albumid },
@@ -701,7 +705,7 @@
     return items.map((item) => ({
       key: `genre:${item.genreid}`,
       title: safe(item.title ?? item.label, 'Unknown genre'),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       route: { kind: 'musicGenreDetail', genreid: String(item.genreid) }
     }));
   }
@@ -711,7 +715,7 @@
       key: `song:${item.songid}`,
       title: safe(item.title ?? item.label, 'Unknown song'),
       subtitle: join(item.artist) ?? safe(item.album, ''),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       artworkShape: 'square',
       action: { media: 'music', kind: 'song', songid: item.songid },
       source: item as unknown as Record<string, unknown>
@@ -729,7 +733,7 @@
           key: `song-album:${item.songid}`,
           title,
           subtitle: join(item.artist),
-          thumbnail: kodiImageUrl(item.thumbnail),
+          thumbnail: optionalKodiImageUrl(item.thumbnail),
           artworkShape: 'square',
           action: { media: 'music', kind: 'song', songid: item.songid },
           source: item as unknown as Record<string, unknown>
@@ -814,10 +818,10 @@
 
   function movieFanartUrl(item: MovieDetailSource): string | undefined {
     return (
-      kodiImageUrl(item.art?.['fanart']) ??
-      kodiImageUrl(item.fanart) ??
-      kodiImageUrl(item.art?.['thumb']) ??
-      kodiImageUrl(item.thumbnail)
+      optionalKodiImageUrl(item.art?.['fanart']) ??
+      optionalKodiImageUrl(item.fanart) ??
+      optionalKodiImageUrl(item.art?.['thumb']) ??
+      optionalKodiImageUrl(item.thumbnail)
     );
   }
 
@@ -999,7 +1003,7 @@
       key: `episode:${item.episodeid}`,
       title: safe(item.title ?? item.label, 'Unknown episode'),
       subtitle: safe(item.showtitle, ''),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       action: { media: 'episode', episodeid: item.episodeid },
       source: item as unknown as Record<string, unknown>
     }));
@@ -1010,7 +1014,7 @@
       key: `musicvideo:${item.musicvideoid}`,
       title: safe(item.title ?? item.label, 'Unknown music video'),
       subtitle: join(item.artist) ?? safe(item.album, ''),
-      thumbnail: kodiImageUrl(item.thumbnail),
+      thumbnail: optionalKodiImageUrl(item.thumbnail),
       artworkShape: 'square',
       route: { kind: 'musicVideoDetail', musicvideoid: String(item.musicvideoid) },
       action: { media: 'musicvideo', musicvideoid: item.musicvideoid },
@@ -1261,23 +1265,11 @@
     return card.route ? hrefFor(card.route) : null;
   }
 
-  function kodiImageUrl(rawPath: unknown): string | undefined {
-    if (typeof rawPath !== 'string' || rawPath.trim() === '') {
-      return undefined;
-    }
-
-    return `/image/${encodeURIComponent(rawPath.trim())}`;
-  }
-
   function preferredVideoPosterUrl(item: {
     thumbnail?: string;
     art?: Record<string, string> | undefined;
   }): string | undefined {
-    return (
-      kodiImageUrl(item.art?.poster) ??
-      kodiImageUrl(item.art?.['thumb']) ??
-      kodiImageUrl(item.thumbnail)
-    );
+    return firstOptionalKodiImageUrl(item.art?.poster, item.art?.['thumb'], item.thumbnail);
   }
 
   function optionalCardText<Key extends string>(
@@ -1536,13 +1528,28 @@
       key: card.key,
       action,
       definition,
-      source: {
-        ...(card.source ?? {}),
-        label: card.source?.label ?? card.title,
-        [definition.displayKey]: card.source?.[definition.displayKey] ?? card.title
-      }
+      source: enrichMetadataEditSource(card, definition, action)
     };
     metadataEditError = null;
+  }
+
+  function enrichMetadataEditSource(
+    card: Card,
+    definition: MetadataEditorDefinition,
+    action: MetadataEditableAction
+  ): Record<string, unknown> {
+    const base = {
+      ...(card.source ?? {}),
+      label: card.source?.label ?? card.title,
+      [definition.displayKey]: card.source?.[definition.displayKey] ?? card.title
+    };
+    const detail = videoMovieDetailSnapshot?.detail;
+
+    if (action.media === 'movie' && action.movieid && detail?.movieid === action.movieid) {
+      return { ...base, ...detail };
+    }
+
+    return base;
   }
 
   async function saveMetadataEdit(payload: MetadataEditorPayload): Promise<void> {
@@ -2377,7 +2384,7 @@
                     checked={selectedCardKeys.has(card.key)}
                     onchange={() => toggleCardSelection(card)}
                   />
-                  <span>Select</span>
+                  <span class={section.compact ? 'sr-only' : undefined}>Select</span>
                 </label>
                 {#if cardHref(card)}
                   <a class="classic-card-main" href={cardHref(card) ?? ''} aria-label={card.title}>
@@ -3091,6 +3098,22 @@
 
   .compact .classic-card-art {
     display: none;
+  }
+
+  .compact .classic-card-copy {
+    padding-top: 2.4rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
   }
 
   .classic-card-copy {

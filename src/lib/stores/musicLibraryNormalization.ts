@@ -172,7 +172,11 @@ export function normalizeMusicGenres(items: unknown): MusicLibraryGenreSnapshot[
     return [
       {
         genreid,
-        label: stringValue(item.label) ?? stringValue(item.title) ?? 'Unknown genre',
+        label:
+          stringValue(item.label) ??
+          stringValue(item.title) ??
+          stringValue(item.genre) ??
+          'Unknown genre',
         ...stringField('title', item.title),
         ...stringField('thumbnail', item.thumbnail)
       }
