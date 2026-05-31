@@ -1132,7 +1132,7 @@
     overflow: hidden;
   }
 
-  .result-section--rows .result-card {
+  .result-section--rows :global(.result-card) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.2rem 0.8rem;
