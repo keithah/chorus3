@@ -3,6 +3,7 @@
     VideoLibraryMovieSnapshot,
     VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute } from '$lib/video/videoRouter';
 
   interface Props {
@@ -152,11 +153,8 @@
     key: Key,
     value: unknown
   ): Partial<Record<Key, string>> {
-    if (typeof value !== 'string' || value.trim() === '') {
-      return {};
-    }
-
-    return { [key]: `/image/${encodeURIComponent(value.trim())}` } as Partial<Record<Key, string>>;
+    const url = optionalKodiImageUrl(value);
+    return url ? ({ [key]: url } as Partial<Record<Key, string>>) : {};
   }
 
   function artworkKeys(movie: VideoLibraryMovieSnapshot): Set<string> {

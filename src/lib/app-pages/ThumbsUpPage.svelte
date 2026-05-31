@@ -8,7 +8,7 @@
   } from '$lib/stores';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
-  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
+  import { resolveKodiImageUrl } from '$lib/media/kodiImageUrl';
 
   type ThumbsPlayerDispatch = PlayerControlsDispatch & {
     playMusicItem?: (
@@ -80,14 +80,6 @@
       await queueDispatch.queueMusicVideoItem?.({ musicvideoid: item.id });
   }
 
-  function imageUrl(rawPath: string): string {
-    if (rawPath.startsWith('/image/')) {
-      return rawPath;
-    }
-
-    return optionalKodiImageUrl(rawPath) ?? `/image/${encodeURIComponent(rawPath)}`;
-  }
-
   function scrollToSection(media: ThumbsUpMedia): void {
     document.getElementById(`thumbs-${media}`)?.scrollIntoView({ block: 'start' });
   }
@@ -122,14 +114,15 @@
           <h3>{section.title}</h3>
           <div class="thumbs-grid">
             {#each items as item (`${item.media}:${item.id}`)}
+              {@const thumbUrl = item.thumbnail ? resolveKodiImageUrl(item.thumbnail) : undefined}
               <article class="thumb-card">
                 <div
                   class="thumb-card__art"
                   class:has-art={Boolean(item.thumbnail)}
                   aria-hidden="true"
                 >
-                  {#if item.thumbnail}
-                    <img src={imageUrl(item.thumbnail)} alt="" loading="lazy" decoding="async" />
+                  {#if thumbUrl}
+                    <img src={thumbUrl} alt="" loading="lazy" decoding="async" />
                   {/if}
                 </div>
                 <div class="thumb-card__copy">

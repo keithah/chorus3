@@ -9,6 +9,7 @@
     PvrStoreSnapshot
   } from '$lib/stores';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 
   export interface PvrPageDispatch {
     refreshChannels(group: PvrChannelGroup): Promise<void> | void;
@@ -169,12 +170,6 @@
   function handleRouteLink(event: MouseEvent, href: string): void {
     event.preventDefault();
     navigateToHref(href);
-  }
-
-  function imageUrl(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim()
-      ? `/image/${encodeURIComponent(value.trim())}`
-      : undefined;
   }
 
   async function refreshCurrent(): Promise<void> {
@@ -484,6 +479,7 @@
       {:else}
         <div class="pvr-grid" aria-label={heading}>
           {#each channels as channel (channel.channelid)}
+            {@const channelThumb = optionalKodiImageUrl(channel.thumbnail)}
             <article
               class:active={selectedChannel?.channelid === channel.channelid}
               class="pvr-card"
@@ -494,8 +490,8 @@
                 onclick={(event) => handleRouteLink(event, channelHref(channel))}
               >
                 <span class="thumb" aria-hidden="true">
-                  {#if imageUrl(channel.thumbnail)}
-                    <img src={imageUrl(channel.thumbnail)} alt="" />
+                  {#if channelThumb}
+                    <img src={channelThumb} alt="" />
                   {:else}
                     <span class="thumb-placeholder">K</span>
                   {/if}

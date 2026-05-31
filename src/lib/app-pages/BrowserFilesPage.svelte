@@ -11,6 +11,7 @@
     MediaFilesStoreSnapshot,
     MediaFilesMedia
   } from '$lib/stores';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 
   interface Props {
     route?: PrimaryRoute;
@@ -375,11 +376,6 @@
     });
   }
 
-  function imageUrl(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim()
-      ? `/image/${encodeURIComponent(value.trim())}`
-      : undefined;
-  }
 </script>
 
 <section class="classic-browser-page" aria-labelledby="browser-files-title">
@@ -459,6 +455,7 @@
       <div class="classic-browser-list classic-browser-files" aria-label="Files">
         {#if sortedFileItems.length}
           {#each sortedFileItems as entry}
+            {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="file-row">
               <button
                 class="classic-browser-thumb"
@@ -467,8 +464,8 @@
                 title={`Play ${entry.label}`}
                 onclick={() => void playEntry(entry)}
               >
-                {#if imageUrl(entry.thumbnail)}
-                  <img src={imageUrl(entry.thumbnail)} alt="" />
+                {#if entryThumb}
+                  <img src={entryThumb} alt="" />
                 {:else}
                   <span aria-hidden="true">▶</span>
                 {/if}
@@ -533,6 +530,7 @@
         {/if}
         {#if sortedFolderItems.length}
           {#each sortedFolderItems as entry}
+            {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="folder-row">
               <button
                 class="classic-browser-thumb"
@@ -540,8 +538,8 @@
                 title={`Open ${entry.label}`}
                 onclick={(event) => void openEntry(event, entry)}
               >
-                {#if imageUrl(entry.thumbnail)}
-                  <img src={imageUrl(entry.thumbnail)} alt="" />
+                {#if entryThumb}
+                  <img src={entryThumb} alt="" />
                 {:else}
                   <span aria-hidden="true">▱</span>
                 {/if}
