@@ -182,6 +182,13 @@ describe('parseAppRoute', () => {
     }
   );
 
+  test('maps legacy thumbs paths to thumbs up even if static route registration regresses', () => {
+    expect(parseAppRoute('/thumbs-movie')).toEqual({
+      kind: 'primary',
+      route: { kind: 'thumbsup' }
+    });
+  });
+
   test.each(PRIMARY_ROUTE_CASES)(
     'builds canonical primary route for parsed route %s with and without package base',
     (path, route) => {

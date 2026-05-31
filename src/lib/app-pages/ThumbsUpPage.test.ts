@@ -42,6 +42,22 @@ describe('ThumbsUpPage', () => {
     expect(controls).toContain('Movies');
     expect(document.querySelector('.thumbs-sidebar a')).toBeNull();
   });
+
+  it('explains when no thumbs-up items are saved', () => {
+    mounted = mount(ThumbsUpPage, {
+      target: document.body,
+      props: {
+        snapshot: createSnapshot(),
+        dispatch: createDispatch(),
+        playerDispatch: createPlayerDispatch(),
+        queueDispatch: createQueueDispatch()
+      }
+    });
+
+    expect(document.querySelector('.empty-state')?.textContent).toContain(
+      'No items have been thumbed up yet'
+    );
+  });
 });
 
 function createSnapshot(): ThumbsUpStoreSnapshot {

@@ -94,6 +94,14 @@ describe('LibraryFilterStore', () => {
 
     store.setStoreFilters('movies', { thumbsUp: ['Thumbs up'] });
     expect(store.applyFilters('movies', movies).map((item) => item.title)).toEqual(['Alpha']);
+
+    store.setStoreFilters('movies', { watched: ['watched'] });
+    expect(
+      store.applyFilters('movies', [
+        ...movies,
+        { title: 'Charlie', playcount: 0, watched: true, resume: { position: 0 }, thumbsUp: false }
+      ]).map((item) => item.title)
+    ).toEqual(['Alpha', 'Charlie']);
   });
 
   it('builds active option lists and initializes sort/filter values from URL params', () => {

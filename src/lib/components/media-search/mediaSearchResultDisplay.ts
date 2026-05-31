@@ -1,4 +1,4 @@
-import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+import { buildKodiPackageSafePrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
 import type { TranslationContext } from '$lib/i18n';
 import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 import type {
@@ -163,42 +163,42 @@ export function resultHref(
   switch (result.kind) {
     case 'movie':
       return isPositiveInteger(result.movieid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'movieDetail', movieid: String(result.movieid) },
             buildOptions
           )
         : null;
     case 'tvshow':
       return isPositiveInteger(result.tvshowid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'tvshowDetail', tvshowid: String(result.tvshowid) },
             buildOptions
           )
         : null;
     case 'musicvideo':
       return isPositiveInteger(result.musicvideoid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'musicVideoDetail', musicvideoid: String(result.musicvideoid) },
             buildOptions
           )
         : null;
     case 'artist':
       return isPositiveInteger(result.artistid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'musicArtistDetail', artistid: String(result.artistid) },
             buildOptions
           )
         : null;
     case 'album':
       return isPositiveInteger(result.albumid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'musicAlbumDetail', albumid: String(result.albumid) },
             buildOptions
           )
         : null;
     case 'genre':
       return isPositiveInteger(result.genreid)
-        ? buildPrimaryAppRoute(
+        ? buildKodiPackageSafePrimaryAppRoute(
             { kind: 'musicGenreDetail', genreid: String(result.genreid) },
             buildOptions
           )

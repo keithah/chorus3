@@ -460,7 +460,10 @@
   {#if snapshot.refreshStatus === 'loading'}
     <p class="state-copy">Loading media playlist browser…</p>
   {:else if snapshot.refreshStatus === 'idle'}
-    <p class="state-copy">No {safeMediaLabel(snapshot.media)} playlists loaded yet.</p>
+    <p class="state-copy">
+      No {safeMediaLabel(snapshot.media)} playlists loaded yet. Choose Refresh to load playlists from
+      Kodi.
+    </p>
   {:else if snapshot.isEmpty && snapshot.playlists.length > 0}
     <p class="state-copy">This playlist is empty.</p>
   {:else if snapshot.isEmpty}

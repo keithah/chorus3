@@ -439,9 +439,9 @@ function applySingleFilter<T extends Record<string, unknown>>(
 ): T[] {
   switch (settings?.filterCallback) {
     case 'unwatched':
-      return items.filter((item) => numericValue(item.playcount) === 0);
+      return items.filter((item) => numericValue(item.playcount) === 0 && item.watched !== true);
     case 'watched':
-      return items.filter((item) => numericValue(item.playcount) > 0);
+      return items.filter((item) => numericValue(item.playcount) > 0 || item.watched === true);
     case 'inprogress':
       return items.filter((item) => {
         const resume = isRecord(item.resume) ? item.resume : {};

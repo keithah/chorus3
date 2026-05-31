@@ -2444,32 +2444,49 @@
         />
       </main>
     {:else if isSettingsUnknownRoute}
-      <main class="settings-route" aria-label={currentI18n.t('app.route.settingsUnknown.aria')}>
+      {@const unknownPathLabel =
+        currentRoute.kind === 'settingsUnknown' ? currentRoute.pathLabel : '/[redacted]'}
+      {@const isSettingsPath = unknownPathLabel.startsWith('/settings')}
+      <main
+        class="settings-route"
+        aria-label={currentI18n.t('app.route.settingsUnknown.aria')}
+      >
         <section
           class="settings-route-not-found surface"
           aria-labelledby="settings-route-not-found-title"
         >
-          <p class="section-kicker">{currentI18n.t('app.route.settings.kicker')}</p>
+          <p class="section-kicker">
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.kicker')
+              : currentI18n.t('app.route.unknown.recoveryAria')}
+          </p>
           <h2 id="settings-route-not-found-title">
-            {currentI18n.t('app.route.settings.notFoundTitle')}
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.notFoundTitle')
+              : currentI18n.t('app.route.unknown.notFoundTitle')}
           </h2>
           <p>
-            {currentI18n.t('app.route.settings.notFoundDescription', {
-              path:
-                currentRoute.kind === 'settingsUnknown'
-                  ? currentRoute.pathLabel
-                  : '/settings/unknown'
-            })}
+            {isSettingsPath
+              ? currentI18n.t('app.route.settings.notFoundDescription', {
+                  path: unknownPathLabel
+                })
+              : currentI18n.t('app.route.unknown.notFoundDescription', {
+                  path: unknownPathLabel
+                })}
           </p>
           <nav
             class="settings-route-recovery"
-            aria-label={currentI18n.t('app.route.settings.recoveryAria')}
+            aria-label={isSettingsPath
+              ? currentI18n.t('app.route.settings.recoveryAria')
+              : currentI18n.t('app.route.unknown.recoveryAria')}
           >
             <a
               href={buildAppRoute(
-                { kind: 'primary', route: { kind: 'settingsWeb' } },
+                isSettingsPath
+                  ? { kind: 'primary', route: { kind: 'settingsWeb' } }
+                  : { kind: 'primary', route: { kind: 'home' } },
                 currentRouteBuildOptions
-              )}>Settings</a
+              )}>{isSettingsPath ? 'Settings' : 'Home'}</a
             >
           </nav>
         </section>

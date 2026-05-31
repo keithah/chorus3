@@ -59,9 +59,14 @@
     value: VideoTvStoreSnapshot,
     tvshowid: number | null
   ): VideoTvShowDetailSnapshot | null {
-    if (tvshowid === null || value.selectedTvShowId !== tvshowid) {
+    if (tvshowid === null) {
       return null;
     }
+
+    if (value.selectedTvShowId !== tvshowid) {
+      return null;
+    }
+
     return safePositiveId(value.tvShowDetail?.tvshowid) === tvshowid ? value.tvShowDetail : null;
   }
 
@@ -163,8 +168,9 @@
   }
 
   function artworkText(value: VideoTvShowDetailSnapshot): string {
-    const poster = value.thumbnailAvailable || value.artwork.poster;
-    const fanart = value.fanartAvailable || value.artwork.fanart;
+    const artwork = value.artwork ?? {};
+    const poster = value.thumbnailAvailable || artwork.poster;
+    const fanart = value.fanartAvailable || artwork.fanart;
     return `${poster ? 'Poster artwork available' : 'Poster artwork unavailable'} · ${
       fanart ? 'Fanart artwork available' : 'Fanart artwork unavailable'
     }`;

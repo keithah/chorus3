@@ -104,7 +104,14 @@
     {/if}
 
     {#if snapshot.total === 0}
-      <p class="empty-state">No thumbs up items saved in this browser.</p>
+      <p class="empty-state">
+        {#if snapshot.storageWarning}
+          No thumbs-up items are available until stored data can be loaded in this browser.
+        {:else}
+          No items have been thumbed up yet. Use the thumbs-up control on music, movies, or TV
+          shows to save favorites here.
+        {/if}
+      </p>
     {/if}
 
     {#each sections as section}

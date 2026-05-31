@@ -6,6 +6,7 @@ import {
 } from '../video/videoRouter';
 import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
 import { buildPrimaryRoutePath, parsePrimaryRoutePath, type PrimaryRoute } from './primaryRoutes';
+import { isThumbsUpRoutePath, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
 
 export type AppDashboardRoute = DashboardRoute;
 export type PrimaryAppRoute = { kind: 'primary'; route: PrimaryRoute };
@@ -196,6 +197,10 @@ export function parseAppRoute(
     return videoRoute.kind === 'dashboard'
       ? { kind: 'dashboard' }
       : { kind: 'video', route: videoRoute };
+  }
+
+  if (isThumbsUpRoutePath(path)) {
+    return { kind: 'primary', route: THUMBS_UP_PRIMARY_ROUTE };
   }
 
   return { kind: 'settingsUnknown', pathLabel: normalizePathLabel(path, '/[redacted]') };

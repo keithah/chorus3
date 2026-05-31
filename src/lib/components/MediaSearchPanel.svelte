@@ -663,8 +663,7 @@
     border-bottom: 1px solid var(--color-border);
   }
 
-  .search-form,
-  .status-line {
+  .search-form {
     position: absolute;
     width: 1px;
     height: 1px;

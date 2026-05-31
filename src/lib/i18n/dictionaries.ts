@@ -70,6 +70,9 @@ export const DICTIONARIES = {
     'app.route.settings.notFoundTitle': 'Settings route not found',
     'app.route.settings.notFoundDescription':
       'The settings route {path} is not available in Chorus.',
+    'app.route.unknown.notFoundTitle': 'Route not found',
+    'app.route.unknown.notFoundDescription': 'The route {path} is not available in Chorus.',
+    'app.route.unknown.recoveryAria': 'Route recovery',
     'app.route.settings.recoveryAria': 'Settings route recovery',
     'app.route.videoMovies.aria': 'Video movies route',
     'app.route.videoMovieDetail.aria': 'Video movie detail route',
@@ -969,6 +972,9 @@ export const DICTIONARIES = {
     'app.route.settings.aria': 'Kodi-Einstellungen',
     'app.route.settingsUnknown.aria': 'Unbekannte Einstellungsroute',
     'app.route.settings.kicker': 'Kodi-Einstellungen',
+    'app.route.unknown.notFoundTitle': 'Route nicht gefunden',
+    'app.route.unknown.notFoundDescription': 'Die Route {path} ist in Chorus nicht verfügbar.',
+    'app.route.unknown.recoveryAria': 'Routenwiederherstellung',
     'app.route.settings.notFoundTitle': 'Einstellungsroute nicht gefunden',
     'app.route.settings.notFoundDescription':
       'Die Einstellungsroute {path} ist in Chorus nicht verfügbar.',

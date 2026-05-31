@@ -1528,13 +1528,28 @@
       key: card.key,
       action,
       definition,
-      source: {
-        ...(card.source ?? {}),
-        label: card.source?.label ?? card.title,
-        [definition.displayKey]: card.source?.[definition.displayKey] ?? card.title
-      }
+      source: enrichMetadataEditSource(card, definition, action)
     };
     metadataEditError = null;
+  }
+
+  function enrichMetadataEditSource(
+    card: Card,
+    definition: MetadataEditorDefinition,
+    action: MetadataEditableAction
+  ): Record<string, unknown> {
+    const base = {
+      ...(card.source ?? {}),
+      label: card.source?.label ?? card.title,
+      [definition.displayKey]: card.source?.[definition.displayKey] ?? card.title
+    };
+    const detail = videoMovieDetailSnapshot?.detail;
+
+    if (action.media === 'movie' && action.movieid && detail?.movieid === action.movieid) {
+      return { ...base, ...detail };
+    }
+
+    return base;
   }
 
   async function saveMetadataEdit(payload: MetadataEditorPayload): Promise<void> {
@@ -2369,7 +2384,7 @@
                     checked={selectedCardKeys.has(card.key)}
                     onchange={() => toggleCardSelection(card)}
                   />
-                  <span>Select</span>
+                  <span class={section.compact ? 'sr-only' : undefined}>Select</span>
                 </label>
                 {#if cardHref(card)}
                   <a class="classic-card-main" href={cardHref(card) ?? ''} aria-label={card.title}>
@@ -3083,6 +3098,22 @@
 
   .compact .classic-card-art {
     display: none;
+  }
+
+  .compact .classic-card-copy {
+    padding-top: 2.4rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
   }
 
   .classic-card-copy {
