@@ -115,3 +115,7 @@
     </li>
   {/each}
 </ul>
+
+<style>
+  @import './media-search-results.css';
+</style>

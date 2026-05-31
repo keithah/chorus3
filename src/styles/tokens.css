@@ -16,6 +16,10 @@
   --color-success: #2f7d42;
   --color-warning: #9f6a14;
   --color-focus-ring: #169ac4;
+  --color-link: var(--color-accent);
+  --color-disabled-text: #8c8c8c;
+  --color-placeholder: #bcbcbc;
+  --color-border-strong: #d2d2d2;
 
   --radius-sm: 0.375rem;
   --radius-md: 0.75rem;

@@ -19,6 +19,7 @@
     type MediaPlaylistsActionItem,
     type MediaPlaylistsPanelDispatch
   } from '$components/MediaPlaylistsPanel.svelte';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import MediaSearchPanel, {
     type MediaSearchAddonResultGroup,
     type MediaSearchActionDispatch,
@@ -613,7 +614,7 @@
       ? toAppShellLocalPlayerSnapshot(currentLocalSnapshot)
       : toAppShellPlayerSnapshot(currentPlayerSnapshot)
   );
-  const currentKodiStageArtUrl = $derived(kodiImageUrl(currentPlayerSnapshot.item?.fanart));
+  const currentKodiStageArtUrl = $derived(optionalKodiImageUrl(currentPlayerSnapshot.item?.fanart));
   const currentShellStageArtUrl = $derived(
     currentDrawerDestinationMode === 'kodi'
       ? (currentKodiStageArtUrl ?? lastKnownKodiStageArtUrl)
@@ -1912,7 +1913,7 @@
       progressPercent: dashboardProgress(value),
       isPlaying: (value.properties?.speed ?? 0) > 0,
       isShuffled: value.properties?.shuffled === true,
-      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
+      thumbnailUrl: optionalKodiImageUrl(value.item?.thumbnail)
     };
   }
 
@@ -1936,7 +1937,7 @@
       progressPercent,
       isPlaying: value.status === 'playing',
       isShuffled: localShuffleEnabled,
-      thumbnailUrl: kodiImageUrl(value.item?.thumbnail)
+      thumbnailUrl: optionalKodiImageUrl(value.item?.thumbnail)
     };
   }
 
@@ -1956,14 +1957,6 @@
     }
 
     await playerDispatch.next();
-  }
-
-  function kodiImageUrl(value: unknown): string | undefined {
-    if (typeof value !== 'string' || !value.trim()) {
-      return undefined;
-    }
-
-    return `/image/${encodeURIComponent(value.trim())}`;
   }
 
   function toggleRemoteOverlayFromPlayer(): void {
