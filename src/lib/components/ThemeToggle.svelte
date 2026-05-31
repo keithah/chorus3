@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
 
   import { createTranslationContext, DEFAULT_LOCALE, type TranslationContext } from '$lib/i18n';
-  import { DEFAULT_THEME, isThemeName, toggleTheme, type ThemeName } from '$lib/theme/theme';
+  import { DEFAULT_THEME, isThemeName, toggleTheme } from '$lib/theme/theme';
 
   interface Props {
     i18n?: TranslationContext;
@@ -10,30 +10,25 @@
 
   let { i18n = createTranslationContext(DEFAULT_LOCALE) }: Props = $props();
 
-  let currentTheme: ThemeName = $state(DEFAULT_THEME);
-
   onMount(() => {
     const rootTheme = document.documentElement.dataset.theme;
 
-    currentTheme = isThemeName(rootTheme) ? rootTheme : DEFAULT_THEME;
+    document.documentElement.dataset.theme = isThemeName(rootTheme) ? rootTheme : DEFAULT_THEME;
   });
 
   function handleToggle(): void {
-    currentTheme = toggleTheme({
+    toggleTheme({
       document,
       storage: window.localStorage
     });
   }
 
-  const nextThemeLabel = $derived(currentTheme === 'dark' ? 'light' : 'dark');
-  const nextThemeText = $derived(
-    i18n.t(nextThemeLabel === 'light' ? 'app.theme.light' : 'app.theme.dark')
-  );
+  const nextThemeText = $derived(i18n.t('app.theme.light'));
   const toggleLabel = $derived(i18n.t('app.theme.toggle', { theme: nextThemeText }));
 </script>
 
 <button class="theme-toggle" type="button" aria-label={toggleLabel} onclick={handleToggle}>
-  <span class="toggle-orb" aria-hidden="true">{currentTheme === 'dark' ? '☾' : '☼'}</span>
+  <span class="toggle-orb" aria-hidden="true">☼</span>
   <span>{toggleLabel}</span>
 </button>
 

@@ -41,7 +41,6 @@
   import SettingsPage from './SettingsPage.svelte';
   import type { SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
-  import ThemeToggle from '$components/ThemeToggle.svelte';
   import ThumbsUpPage from './ThumbsUpPage.svelte';
   import VideoEpisodeDetailShell, {
     type VideoEpisodeActionDispatch
@@ -75,7 +74,8 @@
     SettingsStoreSnapshot,
     ThumbsUpDispatch,
     ThumbsUpStoreSnapshot,
-    LocaleStoreSnapshot
+    LocaleStoreSnapshot,
+    ConnectionStoreSnapshot
   } from '$lib/stores';
   import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
   import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
@@ -104,8 +104,10 @@
     metadata: AppPageMetadata;
     i18n: TranslationContext;
     packageBasePath?: string;
+    packageSearch?: string;
     parityPlaceholder?: ParityRoutePlaceholder | null;
     homeContext: HomeSurfaceContext;
+    connectionSnapshot: ConnectionStoreSnapshot;
     localeSnapshot: LocaleStoreSnapshot;
     localeDispatch: LocaleToggleDispatch;
     playerSnapshot: PlayerStoreSnapshot;
@@ -161,8 +163,10 @@
     metadata,
     i18n,
     packageBasePath = '',
+    packageSearch = '',
     parityPlaceholder = null,
     homeContext,
+    connectionSnapshot,
     localeSnapshot,
     localeDispatch,
     playerSnapshot,
@@ -211,6 +215,7 @@
 
   const routeBuildOptions = $derived({
     packageBasePath,
+    packageSearch,
     routeMode: 'path'
   } as const);
   const isChorus2LibraryRoute = $derived(
@@ -437,7 +442,7 @@
       buildOptions={routeBuildOptions}
     />
   {:else if isChorus2HelpRoute}
-    <HelpPage {route} buildOptions={routeBuildOptions} />
+    <HelpPage {route} buildOptions={routeBuildOptions} {connectionSnapshot} />
   {:else if isChorus2SearchRoute}
     <MediaSearchPanel
       snapshot={mediaSearchSnapshot}
@@ -485,13 +490,11 @@
       {#if route.kind !== 'home'}
         <div class="page-actions">
           <LocaleToggle locale={localeSnapshot.locale} {i18n} dispatch={localeDispatch} />
-          <ThemeToggle {i18n} />
         </div>
       {/if}
       {#if route.kind === 'home'}
         <div class="page-actions">
           <LocaleToggle locale={localeSnapshot.locale} {i18n} dispatch={localeDispatch} />
-          <ThemeToggle {i18n} />
         </div>
         <section class="mission surface" aria-labelledby="primary-home-status-title">
           <p class="section-kicker">Runtime surface</p>
@@ -608,7 +611,7 @@
           buildOptions={routeBuildOptions}
         />
       {:else if route.kind === 'help' || route.kind === 'helpOverview' || route.kind === 'helpPage'}
-        <HelpPage {route} buildOptions={routeBuildOptions} />
+        <HelpPage {route} buildOptions={routeBuildOptions} {connectionSnapshot} />
       {:else if route.kind === 'remote'}
         <section class="remote-app-page" aria-labelledby="remote-app-page-title">
           <div class="remote-app-page__header">

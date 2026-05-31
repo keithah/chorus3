@@ -1,0 +1,12 @@
+{
+  "canonicalPath": "/thumbsup",
+  "legacyPaths": [
+    "/thumbs-song",
+    "/thumbs-artist",
+    "/thumbs-album",
+    "/thumbs-tvshow",
+    "/thumbs-movie",
+    "/thumbs-episode",
+    "/thumbs-musicvideo"
+  ]
+}

@@ -45,17 +45,15 @@
     searchAddonsStore as defaultSearchAddonsStore,
     type SearchAddonsStore
   } from '$lib/stores/searchAddons.svelte';
-  import type {
-    MediaSearchAlbumResult,
-    MediaSearchArtistResult,
-    MediaSearchGenreResult,
-    MediaSearchMovieResult,
-    MediaSearchMusicVideoResult,
-    MediaSearchResult,
-    MediaSearchStoreSnapshot,
-    MediaSearchSongResult,
-    MediaSearchTvShowResult
-  } from '$lib/stores/mediaSearch.svelte';
+  import type { MediaSearchStoreSnapshot } from '$lib/stores/mediaSearch.svelte';
+  import MediaSearchResultList from './media-search/MediaSearchResultList.svelte';
+  import {
+    resultSectionClass,
+    resultSectionHeading,
+    shouldShowResultSection,
+    VISIBLE_RESULT_ORDER,
+    type ResultGroupKey
+  } from './media-search/mediaSearchResultDisplay';
   import type { MusicLibraryLimitsSnapshot } from '$lib/stores/musicLibraryNormalization';
 
   interface Props {
@@ -67,14 +65,6 @@
     buildOptions?: BuildAppRouteOptions;
   }
 
-  type ResultGroupKey =
-    | 'artists'
-    | 'albums'
-    | 'songs'
-    | 'genres'
-    | 'movies'
-    | 'tvShows'
-    | 'musicVideos';
   type MusicActionVerb = 'play' | 'queue';
   type PendingOperation = 'search' | 'clear' | null;
   type ExternalSearchProviderId = 'google' | 'imdb' | 'tmdb' | 'tvdb' | 'soundcloud' | 'youtube';
@@ -90,6 +80,15 @@
     ['movie', 'Movies'],
     ['tvshow', 'TV Shows'],
     ['musicvideo', 'Music Videos']
+  ] as const satisfies readonly [MediaSearchScope, string][];
+
+  const LOCAL_SEARCH_LINKS = [
+    ['all', 'All Media'],
+    ['movie', 'Movies'],
+    ['tvshow', 'TV Shows'],
+    ['artist', 'Artists'],
+    ['album', 'Albums'],
+    ['song', 'Songs']
   ] as const satisfies readonly [MediaSearchScope, string][];
 
   interface ExternalSearchProvider {
@@ -398,18 +397,6 @@
     }
   }
 
-  function searchDescription(): string {
-    return selectedScope === 'music'
-      ? i18n.t('media.search.description')
-      : `Search ${searchScopeNoun(selectedScope)} through Kodi.`;
-  }
-
-  function searchResultsKicker(): string {
-    return snapshot.scope === 'music'
-      ? i18n.t('media.search.resultsKicker')
-      : searchResultsTitle(snapshot.scope);
-  }
-
   function searchResultsHeading(): string {
     return snapshot.scope === 'music'
       ? i18n.t('media.search.resultsTitle')
@@ -502,22 +489,6 @@
     }
   }
 
-  function searchActionFor(result: MediaSearchResult): MediaSearchActionItem | null {
-    if (result.kind === 'artist') {
-      return isPositiveInteger(result.artistid) ? { kind: 'artist', id: result.artistid } : null;
-    }
-
-    if (result.kind === 'album') {
-      return isPositiveInteger(result.albumid) ? { kind: 'album', id: result.albumid } : null;
-    }
-
-    if (result.kind === 'song') {
-      return isPositiveInteger(result.songid) ? { kind: 'song', id: result.songid } : null;
-    }
-
-    return null;
-  }
-
   function isActionDisabled(item: MediaSearchActionItem): boolean {
     if (isSearchLoading || pendingOperation) {
       return true;
@@ -532,72 +503,6 @@
 
   function actionTargetKey(item: MediaSearchActionItem): string {
     return `${item.kind}:${item.id}`;
-  }
-
-  function safeEachKey(prefix: string, id: unknown, index: number): string {
-    return isPositiveInteger(id) ? `${prefix}:${id}` : `${prefix}:invalid:${index}`;
-  }
-
-  function safeArtistLabel(artist: MediaSearchArtistResult): string {
-    return displayText(artist.label, i18n.t('media.unknown.artist'));
-  }
-
-  function safeAlbumLabel(album: MediaSearchAlbumResult): string {
-    return displayText(album.title ?? album.label, i18n.t('media.unknown.album'));
-  }
-
-  function safeSongLabel(song: MediaSearchSongResult): string {
-    return displayText(song.title ?? song.label, i18n.t('media.unknown.song'));
-  }
-
-  function safeGenreLabel(genre: MediaSearchGenreResult): string {
-    return displayText(genre.title ?? genre.label, i18n.t('media.unknown.genre'));
-  }
-
-  function safeMovieLabel(movie: MediaSearchMovieResult): string {
-    return displayText(movie.title ?? movie.label, 'Unknown movie');
-  }
-
-  function safeTvShowLabel(tvShow: MediaSearchTvShowResult): string {
-    return displayText(tvShow.title ?? tvShow.label, 'Unknown TV show');
-  }
-
-  function safeMusicVideoLabel(musicVideo: MediaSearchMusicVideoResult): string {
-    return displayText(musicVideo.title ?? musicVideo.label, 'Unknown music video');
-  }
-
-  function artistMeta(artist: MediaSearchArtistResult): string | null {
-    return joinText(artist.genre);
-  }
-
-  function albumMeta(album: MediaSearchAlbumResult): string {
-    return [joinText(album.artist), formatYear(album.year)].filter(Boolean).join(' · ');
-  }
-
-  function songMeta(song: MediaSearchSongResult): string {
-    return [
-      joinText(song.artist),
-      textOrNull(song.album),
-      formatDuration(song.duration),
-      formatTrack(song.track),
-      formatPlaycount(song.playcount)
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  }
-
-  function movieMeta(movie: MediaSearchMovieResult): string {
-    return formatYear(movie.year) ?? '';
-  }
-
-  function tvShowMeta(tvShow: MediaSearchTvShowResult): string {
-    return formatYear(tvShow.year) ?? '';
-  }
-
-  function musicVideoMeta(musicVideo: MediaSearchMusicVideoResult): string {
-    return [joinText(musicVideo.artist), musicVideo.album, formatYear(musicVideo.year)]
-      .filter(Boolean)
-      .join(' · ');
   }
 
   function displayText(value: unknown, fallback: string): string {
@@ -627,54 +532,6 @@
     }
 
     return textOrNull(values);
-  }
-
-  function numberOrNull(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  }
-
-  function isPositiveInteger(value: unknown): value is number {
-    return typeof value === 'number' && Number.isInteger(value) && value > 0;
-  }
-
-  function formatDuration(seconds: unknown): string | null {
-    const value = numberOrNull(seconds);
-    if (value === null) {
-      return null;
-    }
-
-    const safeSeconds = Math.max(0, Math.floor(value));
-    const hours = Math.floor(safeSeconds / 3600);
-    const minutes = Math.floor((safeSeconds % 3600) / 60);
-    const remainingSeconds = safeSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${pad2(minutes)}:${pad2(remainingSeconds)}`;
-    }
-
-    return `${minutes}:${pad2(remainingSeconds)}`;
-  }
-
-  function formatYear(value: unknown): string | null {
-    const year = numberOrNull(value);
-    return year === null ? null : String(Math.trunc(year));
-  }
-
-  function formatTrack(value: unknown): string | null {
-    const track = numberOrNull(value);
-    return track === null ? null : i18n.t('media.meta.track', { track: Math.trunc(track) });
-  }
-
-  function formatPlaycount(value: unknown): string | null {
-    const playcount = numberOrNull(value);
-    if (playcount === null) {
-      return null;
-    }
-
-    const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1
-      ? i18n.t('media.meta.playedOnce')
-      : i18n.t('media.meta.playedTimes', { count: rounded });
   }
 
   function resultCountCopy(count: number): string {
@@ -719,6 +576,17 @@
       { kind: 'browserItem', media: row.media, itemid: pluginUrl },
       buildOptions
     );
+  }
+
+  function localSearchHref(scope: MediaSearchScope): string {
+    const query = providerQuery();
+    return query
+      ? buildPrimaryAppRoute({ kind: 'searchMedia', media: scope, query }, buildOptions)
+      : buildPrimaryAppRoute({ kind: 'search' }, buildOptions);
+  }
+
+  function isLocalSearchActive(scope: MediaSearchScope): boolean {
+    return selectedScope === scope || snapshot.scope === scope;
   }
 
   function addonItemHref(
@@ -771,466 +639,236 @@
       /\\/.test(value)
     );
   }
-
-  function pad2(value: number): string {
-    return value.toString().padStart(2, '0');
-  }
 </script>
 
-<section class="media-search-panel surface" aria-labelledby="media-search-title">
-  <div class="panel-heading">
-    <p class="section-kicker">{i18n.t('media.search.kicker')}</p>
-    <h2 id="media-search-title">{i18n.t('media.search.title')}</h2>
-    <p class="summary-line">
-      {searchDescription()}
-    </p>
-  </div>
+<section class="media-search-page" aria-labelledby="media-search-title">
+  <h2 id="media-search-title" class="sr-only">{i18n.t('media.search.title')}</h2>
 
-  <form
-    class="search-form"
-    role="search"
-    aria-label={i18n.t('media.search.formAria')}
-    onsubmit={handleSearch}
-  >
-    <div class="search-field">
-      <label for="media-search-query">{searchLabel()}</label>
-      <input
-        id="media-search-query"
-        name="query"
-        type="search"
-        autocomplete="off"
-        bind:value={inputValue}
-        placeholder={searchPlaceholder()}
-      />
-    </div>
-    <div class="scope-field">
-      <label for="media-search-scope">Type</label>
-      <select
-        id="media-search-scope"
-        name="scope"
-        bind:value={selectedScope}
-        onchange={handleScopeChange}
-        disabled={searchDisabled}
+  <aside class="search-sidebar" aria-label="Search navigation">
+    <section class="sidebar-section">
+      <h3>Local media</h3>
+      <ul class="search-media-links">
+        {#each LOCAL_SEARCH_LINKS as [scope, label] (scope)}
+          <li>
+            <a class:active={isLocalSearchActive(scope)} href={localSearchHref(scope)}>{label}</a>
+          </li>
+        {/each}
+      </ul>
+    </section>
+
+    <section class="sidebar-section">
+      <h3 id="media-search-providers-title">Addons</h3>
+      <ul
+        class="provider-search__links search-addon-links"
+        aria-labelledby="media-search-providers-title"
       >
-        <option value="all">All</option>
-        <option value="music">Music</option>
-        <option value="video">Video</option>
-        <option value="artist">Artists</option>
-        <option value="album">Albums</option>
-        <option value="song">Songs</option>
-        <option value="genre">Genres</option>
-        <option value="movie">Movies</option>
-        <option value="tvshow">TV Shows</option>
-        <option value="musicvideo">Music Videos</option>
-      </select>
-    </div>
-    <div class="search-actions">
-      <button
-        type="submit"
-        class="primary-button"
-        aria-label={i18n.t('media.search.action.search')}
-        disabled={searchDisabled}
+        {#each EXTERNAL_SEARCH_PROVIDERS as provider (provider.id)}
+          <li>
+            {#if hasProviderLinks}
+              <a href={externalSearchUrl(provider)} target="_blank" rel="noreferrer">
+                {provider.label}
+              </a>
+            {:else}
+              <span class="disabled" aria-disabled="true">{provider.label}</span>
+            {/if}
+          </li>
+        {/each}
+        {#each customAddonSearchRows as row (row.id)}
+          <li>
+            {#if dispatch.searchAddon}
+              <button
+                type="button"
+                class="provider-search__addon-button"
+                aria-label={addonButtonLabel(row)}
+                disabled={!canSearchAddon(row)}
+                onclick={() => void handleAddonSearch(row)}
+                data-custom-addon-search-button={row.id}
+              >
+                {displayText(row.title, 'Add-on search')}
+              </button>
+            {:else if hasProviderLinks}
+              <a href={customAddonSearchHref(row)} data-custom-addon-search={row.id}>
+                {displayText(row.title, 'Add-on search')}
+              </a>
+            {:else}
+              <span class="disabled" aria-disabled="true"
+                >{displayText(row.title, 'Add-on search')}</span
+              >
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      <a
+        class="configure-addons-link"
+        href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}>Configure add-ons</a
       >
-        {i18n.t('media.search.action.search')}
-      </button>
-      <button
-        type="button"
-        class="secondary-button"
-        aria-label={i18n.t('media.search.action.clear')}
-        disabled={clearDisabled}
-        onclick={handleClear}
-      >
-        {i18n.t('app.action.clear')}
-      </button>
-    </div>
-  </form>
+    </section>
+  </aside>
 
-  <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
-  {#if localErrorText}
-    <p class="error-copy" role="alert">{localErrorText}</p>
-  {/if}
-
-  <section class="provider-search" aria-labelledby="media-search-providers-title">
-    <div class="provider-search__heading">
-      <h3 id="media-search-providers-title">Search providers</h3>
-      <a href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}>Configure add-ons</a>
-    </div>
-    <div class="provider-search__links">
-      {#each EXTERNAL_SEARCH_PROVIDERS as provider (provider.id)}
-        {#if hasProviderLinks}
-          <a href={externalSearchUrl(provider)} target="_blank" rel="noreferrer">
-            {provider.label}
-          </a>
-        {:else}
-          <span class="disabled" aria-disabled="true">{provider.label}</span>
-        {/if}
-      {/each}
-      {#each customAddonSearchRows as row (row.id)}
-        {#if dispatch.searchAddon}
-          <button
-            type="button"
-            class="provider-search__addon-button"
-            aria-label={addonButtonLabel(row)}
-            disabled={!canSearchAddon(row)}
-            onclick={() => void handleAddonSearch(row)}
-            data-custom-addon-search-button={row.id}
-          >
-            {displayText(row.title, 'Add-on search')}
-          </button>
-        {:else if hasProviderLinks}
-          <a href={customAddonSearchHref(row)} data-custom-addon-search={row.id}>
-            {displayText(row.title, 'Add-on search')}
-          </a>
-        {:else}
-          <span class="disabled" aria-disabled="true"
-            >{displayText(row.title, 'Add-on search')}</span
-          >
-        {/if}
-      {/each}
-    </div>
-  </section>
-
-  {#if addonSearchResults.length > 0}
-    <section class="addon-results-shell" aria-labelledby="media-search-addon-results-title">
-      <div class="results-heading">
-        <div>
-          <p class="breadcrumb">Add-on search</p>
-          <h3 id="media-search-addon-results-title">Add-on results</h3>
-        </div>
+  <div class="search-content">
+    <form
+      class="search-form"
+      role="search"
+      aria-label={i18n.t('media.search.formAria')}
+      onsubmit={handleSearch}
+    >
+      <div class="search-field">
+        <label for="media-search-query">{searchLabel()}</label>
+        <input
+          id="media-search-query"
+          name="query"
+          type="search"
+          autocomplete="off"
+          bind:value={inputValue}
+          placeholder={searchPlaceholder()}
+        />
       </div>
-      {#each addonSearchResults as group (group.row.id)}
-        <section
-          class="result-section"
-          aria-label={`${displayText(group.row.title, 'Add-on')} results`}
+      <div class="scope-field">
+        <label for="media-search-scope">Type</label>
+        <select
+          id="media-search-scope"
+          name="scope"
+          bind:value={selectedScope}
+          onchange={handleScopeChange}
+          disabled={searchDisabled}
         >
-          <div class="section-heading">
-            <h4>{displayText(group.row.title, 'Add-on')} results</h4>
-            <p>{group.items.length} result{group.items.length === 1 ? '' : 's'}</p>
-          </div>
-          {#if group.items.length === 0}
-            <p class="empty-copy">No matching add-on results.</p>
-          {:else}
-            <ul class="result-list">
-              {#each group.items as item, index (item.file)}
-                <li class="result-card">
-                  <span class="item-kicker">{addonResultMeta(item)}</span>
-                  <a class="item-title" href={addonItemHref(group, item)}>
-                    {addonResultLabel(item, index)}
-                  </a>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </section>
+          {#each SEARCH_SCOPE_OPTIONS as [scope, label] (scope)}
+            <option value={scope}>{label}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="search-actions">
+        <button
+          type="submit"
+          class="primary-button"
+          aria-label={i18n.t('media.search.action.search')}
+          disabled={searchDisabled}
+        >
+          {i18n.t('media.search.action.search')}
+        </button>
+        <button
+          type="button"
+          class="secondary-button"
+          aria-label={i18n.t('media.search.action.clear')}
+          disabled={clearDisabled}
+          onclick={handleClear}
+        >
+          {i18n.t('app.action.clear')}
+        </button>
+      </div>
+    </form>
+
+    <div class="status-line" aria-live="polite" aria-atomic="true" role="status">{statusText}</div>
+    {#if localErrorText}
+      <p class="error-copy" role="alert">{localErrorText}</p>
+    {/if}
+
+    {#if addonSearchResults.length > 0}
+      <section class="addon-results-shell" aria-labelledby="media-search-addon-results-title">
+        <h3 id="media-search-addon-results-title">Add-on results</h3>
+        {#each addonSearchResults as group (group.row.id)}
+          <section
+            class="result-section result-section--rows"
+            aria-label={`${displayText(group.row.title, 'Add-on')} results`}
+          >
+            <div class="section-heading">
+              <h4>{displayText(group.row.title, 'Add-on')} results</h4>
+              <p>{group.items.length} result{group.items.length === 1 ? '' : 's'}</p>
+            </div>
+            {#if group.items.length === 0}
+              <p class="empty-copy">No matching add-on results.</p>
+            {:else}
+              <ul class="result-list">
+                {#each group.items as item, index (item.file)}
+                  <li class="result-card">
+                    <span class="item-kicker">{addonResultMeta(item)}</span>
+                    <a class="item-title" href={addonItemHref(group, item)}>
+                      {addonResultLabel(item, index)}
+                    </a>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </section>
+        {/each}
+      </section>
+    {/if}
+
+    {#if snapshot.searchStatus === 'loading'}
+      <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
+    {:else if snapshot.searchStatus === 'idle'}
+      <p class="state-copy">{i18n.t('media.search.state.idle')}</p>
+    {:else if snapshot.isEmpty}
+      <p class="state-copy">{i18n.t('media.search.state.noMatch')}</p>
+    {/if}
+
+    <section class="results-shell" aria-labelledby="media-search-results-title">
+      <h3 id="media-search-results-title" class="sr-only">{searchResultsHeading()}</h3>
+
+      {#each VISIBLE_RESULT_ORDER as kind (kind)}
+        {#if shouldShowResultSection(snapshot, kind)}
+          <section class={resultSectionClass(kind)} aria-labelledby={`media-search-${kind}-title`}>
+            <div class="section-heading">
+              <h4 id={`media-search-${kind}-title`}>{resultSectionHeading(kind, i18n)}</h4>
+              <p>{groupCountSummary(kind)}</p>
+            </div>
+
+            {#if snapshot.results[kind].length === 0}
+              <p class="empty-copy">{sectionEmptyCopy(kind)}</p>
+            {:else}
+              <MediaSearchResultList
+                {kind}
+                results={snapshot.results[kind]}
+                {i18n}
+                buildOptions={buildOptions}
+                {isActionDisabled}
+                onMusicAction={handleMusicAction}
+                {actionLabel}
+                {actionTargetLabel}
+                {itemKindLabel}
+              />
+            {/if}
+          </section>
+        {/if}
       {/each}
     </section>
-  {/if}
-
-  {#if snapshot.searchStatus === 'loading'}
-    <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
-  {:else if snapshot.searchStatus === 'idle'}
-    <p class="state-copy">{i18n.t('media.search.state.idle')}</p>
-  {:else if snapshot.isEmpty}
-    <p class="state-copy">{i18n.t('media.search.state.noMatch')}</p>
-  {/if}
-
-  <section class="results-shell" aria-labelledby="media-search-results-title">
-    <div class="results-heading">
-      <div>
-        <p class="breadcrumb">{searchResultsKicker()}</p>
-        <h3 id="media-search-results-title">{searchResultsHeading()}</h3>
-      </div>
-      <p class="count-chip">{resultCountCopy(snapshot.resultCounts.total)}</p>
-    </div>
-
-    <div class="results-grid">
-      <section class="result-section" aria-labelledby="media-search-artists-title">
-        <div class="section-heading">
-          <h4 id="media-search-artists-title">{i18n.t('media.heading.artists')}</h4>
-          <p>{groupCountSummary('artists')}</p>
-        </div>
-        {#if snapshot.results.artists.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('artists')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.artists as artist, index (safeEachKey('artist', artist.artistid, index))}
-              {@const label = safeArtistLabel(artist)}
-              {@const actionItem = searchActionFor(artist)}
-              <li class="result-card">
-                <span class="item-kicker">{i18n.t('media.kind.artist')}</span>
-                <span class="item-title">{label}</span>
-                {#if artistMeta(artist)}
-                  <span class="item-meta">{artistMeta(artist)}</span>
-                {/if}
-                {#if actionItem}
-                  <div
-                    class="action-row"
-                    aria-label={i18n.t('media.action.actionsFor', {
-                      kind: itemKindLabel(actionItem.kind),
-                      label
-                    })}
-                  >
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('play', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
-                    >
-                      {i18n.t('media.action.play')}
-                    </button>
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('queue', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction(
-                          'queue',
-                          actionItem,
-                          actionTargetLabel(actionItem, label)
-                        )}
-                    >
-                      {i18n.t('media.action.queue')}
-                    </button>
-                  </div>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-albums-title">
-        <div class="section-heading">
-          <h4 id="media-search-albums-title">{i18n.t('media.heading.albums')}</h4>
-          <p>{groupCountSummary('albums')}</p>
-        </div>
-        {#if snapshot.results.albums.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('albums')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.albums as album, index (safeEachKey('album', album.albumid, index))}
-              {@const label = safeAlbumLabel(album)}
-              {@const actionItem = searchActionFor(album)}
-              <li class="result-card">
-                <span class="item-kicker">{i18n.t('media.kind.album')}</span>
-                <span class="item-title">{label}</span>
-                {#if albumMeta(album)}
-                  <span class="item-meta">{albumMeta(album)}</span>
-                {/if}
-                {#if actionItem}
-                  <div
-                    class="action-row"
-                    aria-label={i18n.t('media.action.actionsFor', {
-                      kind: itemKindLabel(actionItem.kind),
-                      label
-                    })}
-                  >
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('play', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
-                    >
-                      {i18n.t('media.action.play')}
-                    </button>
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('queue', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction(
-                          'queue',
-                          actionItem,
-                          actionTargetLabel(actionItem, label)
-                        )}
-                    >
-                      {i18n.t('media.action.queue')}
-                    </button>
-                  </div>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-songs-title">
-        <div class="section-heading">
-          <h4 id="media-search-songs-title">{i18n.t('media.heading.songs')}</h4>
-          <p>{groupCountSummary('songs')}</p>
-        </div>
-        {#if snapshot.results.songs.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('songs')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.songs as song, index (safeEachKey('song', song.songid, index))}
-              {@const label = safeSongLabel(song)}
-              {@const actionItem = searchActionFor(song)}
-              <li class="result-card" data-songid={song.songid}>
-                <span class="item-kicker">{i18n.t('media.kind.song')}</span>
-                <span class="item-title">{label}</span>
-                <span class="identity-chip">{i18n.t('media.songId', { songid: song.songid })}</span>
-                {#if songMeta(song)}
-                  <span class="item-meta">{songMeta(song)}</span>
-                {/if}
-                {#if actionItem}
-                  <div
-                    class="action-row"
-                    aria-label={i18n.t('media.action.actionsFor', {
-                      kind: itemKindLabel(actionItem.kind),
-                      label
-                    })}
-                  >
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('play', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
-                    >
-                      {i18n.t('media.action.play')}
-                    </button>
-                    <button
-                      type="button"
-                      class="action-button"
-                      aria-label={actionLabel('queue', actionItem, label)}
-                      disabled={isActionDisabled(actionItem)}
-                      onclick={() =>
-                        handleMusicAction(
-                          'queue',
-                          actionItem,
-                          actionTargetLabel(actionItem, label)
-                        )}
-                    >
-                      {i18n.t('media.action.queue')}
-                    </button>
-                  </div>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-movies-title">
-        <div class="section-heading">
-          <h4 id="media-search-movies-title">Movies</h4>
-          <p>{groupCountSummary('movies')}</p>
-        </div>
-        {#if snapshot.results.movies.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('movies')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.movies as movie, index (safeEachKey('movie', movie.movieid, index))}
-              {@const label = safeMovieLabel(movie)}
-              <li class="result-card">
-                <span class="item-kicker">Movie</span>
-                <span class="item-title">{label}</span>
-                {#if movieMeta(movie)}
-                  <span class="item-meta">{movieMeta(movie)}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-tvshows-title">
-        <div class="section-heading">
-          <h4 id="media-search-tvshows-title">TV Shows</h4>
-          <p>{groupCountSummary('tvShows')}</p>
-        </div>
-        {#if snapshot.results.tvShows.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('tvShows')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.tvShows as tvShow, index (safeEachKey('tvshow', tvShow.tvshowid, index))}
-              {@const label = safeTvShowLabel(tvShow)}
-              <li class="result-card">
-                <span class="item-kicker">TV show</span>
-                <span class="item-title">{label}</span>
-                {#if tvShowMeta(tvShow)}
-                  <span class="item-meta">{tvShowMeta(tvShow)}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-musicvideos-title">
-        <div class="section-heading">
-          <h4 id="media-search-musicvideos-title">Music Videos</h4>
-          <p>{groupCountSummary('musicVideos')}</p>
-        </div>
-        {#if snapshot.results.musicVideos.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('musicVideos')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.musicVideos as musicVideo, index (safeEachKey('musicvideo', musicVideo.musicvideoid, index))}
-              {@const label = safeMusicVideoLabel(musicVideo)}
-              <li class="result-card">
-                <span class="item-kicker">Music video</span>
-                <span class="item-title">{label}</span>
-                {#if musicVideoMeta(musicVideo)}
-                  <span class="item-meta">{musicVideoMeta(musicVideo)}</span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-
-      <section class="result-section" aria-labelledby="media-search-genres-title">
-        <div class="section-heading">
-          <h4 id="media-search-genres-title">{i18n.t('media.heading.genres')}</h4>
-          <p>{groupCountSummary('genres')}</p>
-        </div>
-        {#if snapshot.results.genres.length === 0}
-          <p class="empty-copy">{sectionEmptyCopy('genres')}</p>
-        {:else}
-          <ul class="result-list">
-            {#each snapshot.results.genres as genre, index (safeEachKey('genre', genre.genreid, index))}
-              {@const label = safeGenreLabel(genre)}
-              <li class="result-card">
-                <span class="item-kicker">{i18n.t('media.kind.genre')}</span>
-                <span class="item-title">{label}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
-    </div>
-  </section>
+  </div>
 </section>
 
 <style>
-  .media-search-panel {
-    display: grid;
-    gap: var(--space-lg);
-    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+  :global(.app-page-frame:has(.media-search-page)) {
+    padding: 0;
+    background: var(--color-background);
   }
 
-  .panel-heading,
-  .search-form,
-  .search-field,
-  .results-shell,
-  .result-section,
-  .section-heading,
-  .result-card {
-    display: grid;
-    gap: var(--space-xs);
+  :global(.app-page-frame:has(.media-search-page) > .app-page-frame__copy) {
+    display: none;
   }
 
-  .section-kicker,
-  h2,
+  :global(.app-page-frame:has(.media-search-page) > .app-page-frame__body) {
+    display: block;
+    min-height: 100%;
+  }
+
+  .media-search-page {
+    display: grid;
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+    min-height: calc(100vh - 6.5rem);
+    color: #303030;
+    background: var(--color-background);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
   h3,
   h4,
   p,
@@ -1238,130 +876,176 @@
     margin: 0;
   }
 
-  .section-kicker,
-  .breadcrumb,
-  .item-kicker,
-  .identity-chip,
-  .count-chip,
-  .section-heading p {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+  .search-sidebar {
+    display: grid;
+    align-content: start;
+    gap: 1.65rem;
+    padding: 1.45rem 1rem 2rem 1.35rem;
+    color: var(--color-text-muted);
+    background: var(--color-surface-raised);
+    border-right: 1px solid #d2d2d2;
+    box-shadow: 2px 0 4px rgb(0 0 0 / 0.08);
   }
 
-  .section-kicker,
-  .breadcrumb,
-  .item-kicker {
-    color: var(--color-accent);
+  .sidebar-section {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .sidebar-section h3 {
+    color: #777;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
     text-transform: uppercase;
   }
 
-  h2 {
-    font-size: clamp(1.4rem, 3vw, 2.1rem);
-    line-height: 1.08;
-    text-wrap: balance;
+  .search-media-links,
+  .search-addon-links {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0;
+    list-style: none;
   }
 
-  h3 {
-    font-size: 1.08rem;
-    line-height: 1.2;
-    text-wrap: balance;
-  }
-
-  h4 {
-    font-size: 0.98rem;
+  .search-media-links a,
+  .search-addon-links a,
+  .provider-search__addon-button,
+  .configure-addons-link {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0.12rem 0;
+    color: #3b3b3b;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 400;
     line-height: 1.25;
-    text-wrap: balance;
+    text-align: left;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
   }
 
-  .summary-line,
-  .state-copy,
-  .empty-copy,
-  .error-copy,
-  .item-meta,
-  .section-heading p {
-    color: var(--color-text-muted);
-    line-height: 1.55;
-    text-wrap: pretty;
+  .search-media-links a.active,
+  .search-media-links a:hover,
+  .search-addon-links a:hover,
+  .provider-search__addon-button:hover:not(:disabled),
+  .configure-addons-link:hover {
+    color: #0b8bb3;
+  }
+
+  .configure-addons-link {
+    color: #0b8bb3;
+    font-size: 0.86rem;
+  }
+
+  .disabled,
+  .provider-search__addon-button:disabled {
+    color: #8c8c8c;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .search-content {
+    min-width: 0;
+    padding: 1.45rem 1.7rem 6rem;
   }
 
   .search-form {
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) 11rem auto;
     align-items: end;
-    gap: var(--space-md);
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 70%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    gap: 0.6rem;
+    max-width: 54rem;
+    margin: 0 0 1.3rem;
+    padding: 0 0 1rem;
+    border-bottom: 1px solid #c8c8c8;
+  }
+
+  .search-form,
+  .status-line {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .search-form:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0 0 1rem;
+    overflow: visible;
+    white-space: normal;
+    clip: auto;
+    border-bottom: 1px solid #c8c8c8;
+  }
+
+  .search-field,
+  .scope-field {
+    display: grid;
+    gap: 0.25rem;
   }
 
   .search-field label,
   .scope-field label {
-    color: var(--color-text);
-    font-weight: 800;
+    color: #555;
+    font-size: 0.82rem;
   }
 
   input[type='search'],
   select[name='scope'] {
-    min-height: 2.75rem;
+    min-height: 2.25rem;
     width: 100%;
-    padding: var(--space-xs) var(--space-sm);
+    padding: 0.38rem 0.55rem;
+    color: #303030;
     font: inherit;
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    background: #fff;
+    border: 1px solid #bdbdbd;
+    border-radius: 2px;
   }
 
   input[type='search']:focus-visible,
   select[name='scope']:focus-visible,
-  button:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-ring);
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid #0b8bb3;
+    outline-offset: 2px;
   }
 
   .search-actions,
   .action-row {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-xs);
+    gap: 0.4rem;
   }
 
   .primary-button,
   .secondary-button,
   .action-button {
-    min-height: 2.5rem;
-    padding: var(--space-xs) var(--space-md);
+    min-height: 2.25rem;
+    padding: 0.35rem 0.8rem;
+    color: #333;
     font: inherit;
-    color: var(--color-text);
-    font-weight: 800;
+    background: #f7f7f7;
+    border: 1px solid #bcbcbc;
+    border-radius: 2px;
     cursor: pointer;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-pill);
-    transition:
-      transform 140ms ease,
-      box-shadow 140ms ease,
-      opacity 140ms ease,
-      background-color 140ms ease;
   }
 
-  .primary-button {
-    background: color-mix(in srgb, var(--color-accent) 20%, var(--color-surface-raised));
-  }
-
-  .secondary-button,
-  .action-button {
-    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
-  }
-
-  button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
-  }
-
-  button:active:not(:disabled) {
-    transform: scale(0.96);
+  .primary-button:hover:not(:disabled),
+  .secondary-button:hover:not(:disabled),
+  .action-button:hover:not(:disabled) {
+    background: #fff;
+    border-color: #8f8f8f;
   }
 
   button:disabled {
@@ -1370,163 +1054,209 @@
   }
 
   .status-line {
-    padding: var(--space-sm) var(--space-md);
-    color: var(--color-text);
+    color: #666;
+    font-size: 0.86rem;
     line-height: 1.5;
-    background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px var(--color-border);
   }
 
-  .provider-search {
-    display: grid;
-    gap: var(--space-sm);
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-  }
-
-  .provider-search__heading {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-md);
-  }
-
-  .provider-search__heading a,
-  .provider-search__links a,
-  .provider-search__addon-button {
-    color: var(--color-accent);
-    font-weight: 800;
-    text-decoration: none;
-  }
-
-  .provider-search__addon-button {
-    min-height: 0;
-    padding: 0;
-    font: inherit;
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    cursor: pointer;
-  }
-
-  .provider-search__links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs) var(--space-md);
-  }
-
-  .provider-search__links .disabled {
-    color: var(--color-text-muted);
-    opacity: 0.65;
-  }
-
-  .provider-search__addon-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.65;
+  .error-copy,
+  .state-copy,
+  .empty-copy {
+    color: #676767;
+    line-height: 1.5;
   }
 
   .error-copy {
-    padding: var(--space-sm) var(--space-md);
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-danger, #c2410c) 12%, var(--color-surface-raised));
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--color-danger, #c2410c) 36%, var(--color-border));
+    margin-top: 0.65rem;
+    color: #9f2d16;
   }
 
   .results-shell,
-  .addon-results-shell,
-  .result-section {
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-  }
-
-  .results-heading,
-  .section-heading {
+  .addon-results-shell {
     display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: baseline;
-    gap: var(--space-sm);
+    gap: 1.8rem;
+    margin-top: 1.35rem;
   }
 
-  .count-chip,
-  .identity-chip,
-  .section-heading p {
+  .result-section {
+    display: grid;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+  }
+
+  .section-heading h4,
+  .addon-results-shell > h3 {
+    color: #3f3f3f;
+    font-size: 1.45rem;
+    font-weight: 300;
+    line-height: 1.2;
+  }
+
+  .section-heading p,
+  .identity-chip {
+    color: #777;
+    font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
-  .count-chip,
-  .identity-chip {
-    width: max-content;
-    max-width: 100%;
-    padding: 0.12rem 0.45rem;
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-    border-radius: var(--radius-pill);
-  }
-
-  .results-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-md);
-  }
-
-  .result-section {
-    align-content: start;
-    min-width: 0;
-  }
-
   .result-list {
     display: grid;
-    gap: var(--space-xs);
+    gap: 0.8rem;
     padding: 0;
     list-style: none;
   }
 
+  .result-section--poster :global(.result-list),
+  .result-section--square :global(.result-list) {
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 9.5rem));
+  }
+
   .result-card {
     min-width: 0;
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-surface) 66%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
+    color: #333;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.24);
+  }
+
+  .result-section--poster :global(.result-card),
+  .result-section--square :global(.result-card) {
+    display: grid;
+    align-content: start;
+    overflow: hidden;
+  }
+
+  .result-section--rows .result-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.2rem 0.8rem;
+    padding: 0.55rem 0.7rem;
+    background: transparent;
+    border-bottom: 1px solid #c9c9c9;
+    box-shadow: none;
+  }
+
+  .result-art {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    color: #f5f5f5;
+    font-size: 2rem;
+    background: #bcbcbc;
+  }
+
+  .result-section--square :global(.result-art) {
+    aspect-ratio: 1;
+  }
+
+  :global(.result-art) img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .item-title {
-    overflow-wrap: anywhere;
-    font-weight: 800;
+    display: block;
+    min-width: 0;
+    padding: 0.55rem 0.6rem 0.1rem;
+    overflow: hidden;
+    color: #333;
+    font-weight: 500;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  a.item-title {
+    text-decoration: none;
+  }
+
+  a.item-title:hover,
+  a.item-title:focus-visible {
+    color: #0b8bb3;
+    text-decoration: underline;
+    text-underline-offset: 0.15rem;
+  }
+
+  .result-section--rows .item-title {
+    padding: 0;
+    white-space: normal;
+  }
+
+  .item-kicker {
+    color: #777;
+    font-size: 0.78rem;
+    text-transform: uppercase;
   }
 
   .item-meta {
-    overflow-wrap: anywhere;
-    font-size: 0.9rem;
+    display: block;
+    padding: 0 0.6rem 0.65rem;
+    overflow: hidden;
+    color: #777;
+    font-size: 0.86rem;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-section--rows :global(.item-meta) {
+    grid-column: 1 / -1;
+    padding: 0;
+    white-space: normal;
+  }
+
+  .action-row {
+    padding: 0 0.6rem 0.65rem;
+  }
+
+  .result-section--rows :global(.action-row) {
+    grid-column: 1 / -1;
+    padding: 0;
   }
 
   @media (max-width: 820px) {
-    .search-form,
-    .results-grid {
+    .media-search-page {
       grid-template-columns: 1fr;
     }
 
-    .search-actions {
-      align-items: stretch;
+    .search-sidebar {
+      border-right: 0;
+      border-bottom: 1px solid #d2d2d2;
+      box-shadow: 0 2px 4px rgb(0 0 0 / 0.08);
     }
 
-    .primary-button,
-    .secondary-button {
-      flex: 1 1 10rem;
-    }
-  }
-
-  @media (max-width: 560px) {
-    .results-heading,
-    .section-heading {
+    .search-form {
+      position: static;
       grid-template-columns: 1fr;
+      width: auto;
+      height: auto;
+      padding: 0 0 1rem;
+      overflow: visible;
+      white-space: normal;
+      clip: auto;
+      border-bottom: 1px solid #c8c8c8;
+    }
+
+    .status-line {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      white-space: normal;
+      clip: auto;
+    }
+
+    .result-section--poster :global(.result-list),
+    .result-section--square :global(.result-list) {
+      grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
     }
   }
 </style>

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import HelpPage from './HelpPage.svelte';
 import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
+import type { ConnectionStoreSnapshot } from '$lib/stores/connection.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
 
@@ -34,7 +35,7 @@ const HELP_TOPIC_CASES = [
   ],
   [
     { kind: 'helpPage', pageid: 'app-changelog' },
-    'Version 3.0.12',
+    'Version 3.0.13',
     'multi-section metadata editor',
     'Added support for music videos',
     undefined
@@ -78,7 +79,7 @@ const HELP_TOPIC_CASES = [
 
 const HELP_ALIAS_CASES = [
   [{ kind: 'helpPage', pageid: 'readme' }, 'Kodi Web Interface - Chorus 3'],
-  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 3.0.12'],
+  [{ kind: 'helpPage', pageid: 'changelog' }, 'Version 3.0.13'],
   [{ kind: 'helpPage', pageid: 'keyboard' }, 'Key Binds'],
   [{ kind: 'helpPage', pageid: 'translations' }, 'Translations']
 ] as const satisfies readonly [PrimaryRoute, string][];
@@ -96,11 +97,12 @@ afterEach(() => {
 
 function renderPage(
   route: PrimaryRoute,
-  buildOptions: BuildAppRouteOptions = { routeMode: 'hash' }
+  buildOptions: BuildAppRouteOptions = { routeMode: 'hash' },
+  connectionSnapshot: ConnectionStoreSnapshot | null = null
 ): void {
   mounted = mount(HelpPage, {
     target: document.body,
-    props: { route, buildOptions }
+    props: { route, buildOptions, connectionSnapshot }
   });
 }
 
@@ -153,10 +155,12 @@ describe('HelpPage', () => {
   });
 
   it('keeps the About status report aligned with the HTML5-only local player decision', () => {
-    renderPage({ kind: 'help' });
+    renderPage({ kind: 'help' }, { routeMode: 'hash' }, createConnectedSnapshot());
 
     const content = text();
-    expect(content).toContain('Connected Kodi version is shown on the Home connection card');
+    expect(content).toContain('Kodi 22.0.0');
+    expect(content).toContain('Chorus 3.0.13');
+    expect(content).not.toContain('Connected Kodi version is shown on the Home connection card');
     expect(content).toContain('HTML 5');
     expect(content).not.toMatch(/\bVLC\b|DivX/i);
   });
@@ -193,3 +197,24 @@ describe('HelpPage', () => {
     expect(text()).not.toMatch(FORBIDDEN_COPY);
   });
 });
+
+function createConnectedSnapshot(): ConnectionStoreSnapshot {
+  return {
+    status: 'connected',
+    lastError: null,
+    kodiVersion: { major: 22, minor: 0, patch: 0 },
+    applicationName: 'Kodi',
+    lastConnectedAt: '2026-05-26T00:00:00.000Z',
+    reconnectAttempt: 0,
+    webSocketDegraded: false,
+    endpoint: {
+      protocol: 'http:',
+      host: '127.0.0.1',
+      port: 8080,
+      path: '/jsonrpc',
+      hasCredentials: false,
+      timeoutMs: 5000
+    },
+    webSocketEndpoint: null
+  };
+}

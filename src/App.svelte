@@ -2066,6 +2066,7 @@
       metadata={currentAppPageMetadata}
       i18n={currentI18n}
       packageBasePath={currentPackageBasePath}
+      packageSearch={currentPackageSearch || globalThis.location?.search || ''}
       parityPlaceholder={currentParityPlaceholder}
       homeContext={{
         hostLabel:
@@ -2088,6 +2089,7 @@
           description: currentI18n.t('app.themeContract.description')
         }
       }}
+      connectionSnapshot={connectionStore.snapshot}
       localeSnapshot={currentLocaleSnapshot}
       {localeDispatch}
       playerSnapshot={currentPlayerSnapshot}

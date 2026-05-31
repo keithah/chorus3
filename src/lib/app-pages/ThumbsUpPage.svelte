@@ -8,6 +8,7 @@
   } from '$lib/stores';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
+  import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 
   type ThumbsPlayerDispatch = PlayerControlsDispatch & {
     playMusicItem?: (
@@ -80,7 +81,15 @@
   }
 
   function imageUrl(rawPath: string): string {
-    return rawPath.startsWith('/image/') ? rawPath : `/image/${encodeURIComponent(rawPath)}`;
+    if (rawPath.startsWith('/image/')) {
+      return rawPath;
+    }
+
+    return optionalKodiImageUrl(rawPath) ?? `/image/${encodeURIComponent(rawPath)}`;
+  }
+
+  function scrollToSection(media: ThumbsUpMedia): void {
+    document.getElementById(`thumbs-${media}`)?.scrollIntoView({ block: 'start' });
   }
 </script>
 
@@ -88,7 +97,7 @@
   <aside class="thumbs-sidebar" aria-label="Thumbs up sections">
     <p class="subnav-kicker">Thumbs up</p>
     {#each sections as section}
-      <a href={`#thumbs-${section.media}`}>{section.title}</a>
+      <button type="button" onclick={() => scrollToSection(section.media)}>{section.title}</button>
     {/each}
   </aside>
 
@@ -170,9 +179,22 @@
     text-transform: uppercase;
   }
 
-  .thumbs-sidebar a {
+  .thumbs-sidebar button {
+    display: block;
+    width: fit-content;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: #333;
+    font: inherit;
     text-decoration: none;
+    cursor: pointer;
+  }
+
+  .thumbs-sidebar button:hover,
+  .thumbs-sidebar button:focus-visible {
+    color: #111;
+    text-decoration: underline;
   }
 
   .thumbs-content {

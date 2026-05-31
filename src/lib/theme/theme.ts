@@ -1,6 +1,6 @@
-export type ThemeName = 'dark' | 'light';
+export type ThemeName = 'light';
 
-export const DEFAULT_THEME: ThemeName = 'dark';
+export const DEFAULT_THEME: ThemeName = 'light';
 export const THEME_STORAGE_KEY = 'chorus3.theme';
 
 export interface ThemeEnvironment {
@@ -9,7 +9,7 @@ export interface ThemeEnvironment {
 }
 
 export function isThemeName(value: unknown): value is ThemeName {
-  return value === 'dark' || value === 'light';
+  return value === 'light';
 }
 
 function readStoredTheme(storage?: Pick<Storage, 'getItem'> | null): ThemeName | null {
@@ -56,8 +56,5 @@ export function applyTheme(theme: unknown, environment: ThemeEnvironment = {}): 
 }
 
 export function toggleTheme(environment: ThemeEnvironment = {}): ThemeName {
-  const currentTheme = environment.document?.documentElement.dataset.theme;
-  const nextTheme: ThemeName = currentTheme === 'light' ? 'dark' : 'light';
-
-  return applyTheme(nextTheme, environment);
+  return applyTheme(DEFAULT_THEME, environment);
 }

@@ -273,7 +273,12 @@ function buildPathWithOptions(path: string, options: BuildAppRouteOptions): stri
     return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
   }
 
-  return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+  if (!packageBasePath) {
+    return path;
+  }
+
+  const safePackageSearch = normalizePackageSearch(options.packageSearch);
+  return `${prefixPackageBasePath(path, packageBasePath)}${safePackageSearch}`;
 }
 
 function isKodiPackagePathMode(options: BuildAppRouteOptions): boolean {

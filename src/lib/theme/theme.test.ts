@@ -54,7 +54,7 @@ function createThrowingStorage(): Storage {
 
 describe('theme contract', () => {
   it('accepts only supported theme names', () => {
-    expect(isThemeName('dark')).toBe(true);
+    expect(isThemeName('dark')).toBe(false);
     expect(isThemeName('light')).toBe(true);
     expect(isThemeName('system')).toBe(false);
     expect(isThemeName(null)).toBe(false);
@@ -104,9 +104,9 @@ describe('theme contract', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it.each<[ThemeName, ThemeName]>([
+  it.each<[string, ThemeName]>([
     ['dark', 'light'],
-    ['light', 'dark']
+    ['light', 'light']
   ])('toggles %s to %s and persists the next theme', (currentTheme, nextTheme) => {
     const storage = createStorage();
     document.documentElement.dataset.theme = currentTheme;

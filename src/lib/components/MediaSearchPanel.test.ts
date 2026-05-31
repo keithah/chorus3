@@ -277,7 +277,8 @@ describe('MediaSearchPanel', () => {
     expect(text).toContain('Movies');
     expect(text).toContain('TV Shows');
     expect(text).toContain('Music Videos');
-    expect(text).toContain('Search providers');
+    expect(text).toContain('Local media');
+    expect(text).toContain('Addons');
     expect(text).toContain('Google');
     expect(text).toContain('IMDb');
     expect(text).toContain('TVDb');
@@ -342,8 +343,10 @@ describe('MediaSearchPanel', () => {
     expect(statusText()).toContain('Movie results for bunny. 1 result.');
     expect(screenText()).toContain('Movie results');
     expect(screenText()).toContain('Big Buck Bunny');
+    expect(document.querySelector('a.item-title')?.getAttribute('href')).toBe('/movie/40');
     expect(screenText()).not.toContain('Music results for bunny');
     expect(screenText()).not.toContain('music results');
+    expect(screenText()).not.toContain('No matching artists.');
 
     scope!.value = 'tvshow';
     scope!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -524,7 +527,7 @@ describe('MediaSearchPanel', () => {
     expect(statusText()).toContain('Musikergebnisse für zzzz. 1 Ergebnis.');
     expect(text).toContain('Künstler');
     expect(text).toContain('Unbekannter Künstler');
-    expect(text).toContain('Keine Alben in diesen Musikergebnissen.');
+    expect(text).not.toContain('Keine Alben in diesen Musikergebnissen.');
     expect(text).toContain('1 Ergebnis');
     expect(button('Medien suchen')).not.toBeNull();
     expect(button('Mediensuche leeren')).not.toBeNull();
