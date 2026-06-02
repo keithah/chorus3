@@ -1399,7 +1399,7 @@ function shellRailTargets(): readonly (readonly [string, AppRoute])[] {
 }
 
 function buildPackageMountedHref(route: AppRoute): string {
-  const options = { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' } as const;
+  const options = { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' } as const;
 
   return route.kind === 'primary'
     ? buildKodiPackageSafePrimaryAppRoute(route.route, options)
@@ -1921,7 +1921,7 @@ describe('App shell', () => {
     expect(logo?.getAttribute('href')).toBe(
       buildAppRoute(
         { kind: 'primary', route: { kind: 'home' } },
-        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'path' }
+        { packageBasePath: KODI_WEBINTERFACE_BASE_PATH, routeMode: 'hash' }
       )
     );
 
@@ -1935,7 +1935,7 @@ describe('App shell', () => {
 
       expect(href, `${title} href`).toBe(expectedHref);
       expect(href, `${title} package target`).toMatch(
-        /^\/addons\/webinterface\.chorus3(?:\/[a-z0-9/.-]+)?$/u
+        /^\/addons\/webinterface\.chorus3(?:\/(?:[a-z0-9/.-]+)?|\/?#[a-z0-9/?=&%+_.:-]*)?$/iu
       );
     }
 

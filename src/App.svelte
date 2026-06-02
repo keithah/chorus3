@@ -79,6 +79,7 @@
   import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import {
     buildAppRoute,
+    createKodiPackageRouteBuildOptions,
     KODI_WEBINTERFACE_BASE_PATH,
     parseAppRoute,
     type AppRoute
@@ -227,11 +228,10 @@
   );
   const currentRouteBuildOptions = $derived(
     isPackageMounted
-      ? ({
+      ? createKodiPackageRouteBuildOptions({
           packageBasePath: currentPackageBasePath,
-          packageSearch: currentPackageSearch || globalThis.location?.search || '',
-          routeMode: 'path'
-        } as const)
+          packageSearch: currentPackageSearch || globalThis.location?.search || ''
+        })
       : ({ packageBasePath: '' } as const)
   );
   const currentShellNavigationItems = $derived(

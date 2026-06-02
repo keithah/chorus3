@@ -6,6 +6,7 @@ import {
   buildKodiPackageSafePrimaryAppRoute,
   buildKodiPackageSafeVideoAppRoute,
   buildPrimaryAppRoute,
+  createKodiPackageRouteBuildOptions,
   getParityPlaceholderMetadata,
   getParityPlaceholderMetadataTable,
   isDelegatedVideoRoute,
@@ -279,6 +280,19 @@ describe('parseAppRoute', () => {
     expect(buildKodiPackageSafePrimaryAppRoute({ kind: 'music' }, { routeMode: 'hash' })).toBe(
       '#music'
     );
+  });
+
+  test('creates Chorus2-style hash route build options for Kodi package navigation', () => {
+    expect(
+      buildAppRoute(
+        { kind: 'primary', route: { kind: 'settingsKodiSection', section: 'interface' } },
+        createKodiPackageRouteBuildOptions({
+          packageBasePath: KODI_WEBINTERFACE_BASE_PATH,
+          packageSearch: '?cb=proof'
+        })
+      )
+    ).toBe(`${KODI_WEBINTERFACE_BASE_PATH}/?cb=proof#settings/kodi/interface`);
+    expect(createKodiPackageRouteBuildOptions()).toEqual({ packageBasePath: '' });
   });
 
   test('builds Kodi package-safe delegated video hrefs as hash routes', () => {

@@ -56,7 +56,10 @@
   import RemoteInputPanel from '$components/RemoteInputPanel.svelte';
   import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
-  import type { ParityRoutePlaceholder } from '$lib/app/appRouter';
+  import {
+    createKodiPackageRouteBuildOptions,
+    type ParityRoutePlaceholder
+  } from '$lib/app/appRouter';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsStoreSnapshot,
@@ -239,11 +242,9 @@
     renderableVideoRoute
   }: Props = $props();
 
-  const routeBuildOptions = $derived({
-    packageBasePath,
-    packageSearch,
-    routeMode: 'path'
-  } as const);
+  const routeBuildOptions = $derived(
+    createKodiPackageRouteBuildOptions({ packageBasePath, packageSearch })
+  );
   const currentLibraryRoute = $derived(isLibraryRoute(route) ? route : null);
   const routeSurfaceGroup = $derived(resolveRouteSurfaceGroup(route));
   const isVideoBrowserRoute = $derived(route.kind === 'browserItem' && route.media === 'video');

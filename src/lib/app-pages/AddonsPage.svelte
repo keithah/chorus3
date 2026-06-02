@@ -6,6 +6,7 @@
   } from '$components/AddonsPanel.svelte';
   import {
     buildKodiPackageSafePrimaryAppRoute,
+    createKodiPackageRouteBuildOptions,
     type BuildAppRouteOptions
   } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
@@ -70,7 +71,7 @@
   ): BuildAppRouteOptions {
     return options.packageBasePath || options.routeMode
       ? options
-      : { packageBasePath: basePath, routeMode: 'path' };
+      : createKodiPackageRouteBuildOptions({ packageBasePath: basePath });
   }
 
   function navigateToHref(href: string): void {

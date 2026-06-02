@@ -23,6 +23,7 @@
   import {
     buildKodiPackageSafePrimaryAppRoute,
     buildPrimaryAppRoute,
+    createKodiPackageRouteBuildOptions,
     type BuildAppRouteOptions
   } from '$lib/app/appRouter';
 
@@ -49,7 +50,7 @@
     options: BuildAppRouteOptions | undefined,
     basePath: string
   ): BuildAppRouteOptions {
-    return options ?? { packageBasePath: basePath, routeMode: 'path' };
+    return options ?? createKodiPackageRouteBuildOptions({ packageBasePath: basePath });
   }
 
   const isLoading = $derived(snapshot.loadStatus === 'loading');

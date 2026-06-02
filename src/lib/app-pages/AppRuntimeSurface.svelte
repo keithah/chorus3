@@ -77,7 +77,7 @@
     currentPrimaryShellRoute: PrimaryRoute | null;
     currentShellNavigationItems: readonly AppShellNavigationItem[];
     currentAppPageMetadata: { stageLabel: string };
-    currentRouteBuildOptions: BuildAppRouteOptions & { routeMode?: 'path' };
+    currentRouteBuildOptions: BuildAppRouteOptions & { routeMode?: 'path' | 'hash' };
     currentShellPlayer: AppShellPlayerSnapshot;
     currentShellStageArtUrl?: string;
     currentDrawerDestinationMode: AppShellPlaylistDestinationMode;

@@ -77,6 +77,11 @@ export interface BuildAppRouteOptions {
   routeMode?: 'path' | 'hash';
 }
 
+export interface KodiPackageRouteBuildOptions {
+  packageBasePath?: unknown;
+  packageSearch?: unknown;
+}
+
 export const KODI_WEBINTERFACE_ADDON_ID = 'webinterface.chorus3';
 export const KODI_WEBINTERFACE_BASE_PATH = `/addons/${KODI_WEBINTERFACE_ADDON_ID}`;
 const KODI_WEBINTERFACE_ADDON_SEGMENT = `/addons/${KODI_WEBINTERFACE_ADDON_ID}`;
@@ -228,6 +233,20 @@ export function buildAppRoute(route: AppRoute, options: BuildAppRouteOptions = {
   }
 
   return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+}
+
+export function createKodiPackageRouteBuildOptions(
+  options: KodiPackageRouteBuildOptions = {}
+): BuildAppRouteOptions {
+  const packageBasePath = normalizePackageBasePath(options.packageBasePath);
+
+  return packageBasePath
+    ? {
+        packageBasePath,
+        packageSearch: options.packageSearch,
+        routeMode: 'hash'
+      }
+    : { packageBasePath: '' };
 }
 
 export function buildPrimaryAppRoute(
