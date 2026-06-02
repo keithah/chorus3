@@ -44,7 +44,35 @@ const fakeClient = {
     }
 
     if (method === 'AudioLibrary.GetSongs') {
-      const songid = (params as { filter?: { songid?: number } }).filter?.songid ?? 55;
+      const filter = (params as { filter?: { albumid?: number; songid?: number } }).filter;
+      if (filter?.albumid === 24) {
+        return {
+          songs: [
+            {
+              songid: 2401,
+              label: 'Sprawl II',
+              title: 'Sprawl II',
+              artist: ['Arcade Fire'],
+              album: 'The Suburbs',
+              duration: 325,
+              track: 16,
+              thumbnail: 'image://sprawl-thumb.jpg/'
+            },
+            {
+              songid: 2402,
+              label: 'Ready to Start',
+              title: 'Ready to Start',
+              artist: ['Arcade Fire'],
+              album: 'The Suburbs',
+              duration: 255,
+              track: 2,
+              thumbnail: 'image://ready-thumb.jpg/'
+            }
+          ]
+        } as TResult;
+      }
+
+      const songid = filter?.songid ?? 55;
       const title = songid === 56 ? 'Feeling Good' : 'Sinnerman';
       return {
         songs: [
@@ -56,6 +84,54 @@ const fakeClient = {
             duration: 320,
             thumbnail: 'image://song-thumb.jpg/',
             file: `smb://nas/private/${songid}.flac`
+          }
+        ]
+      } as TResult;
+    }
+
+    if (method === 'AudioLibrary.GetAlbums') {
+      return {
+        albums: [
+          {
+            albumid: 24,
+            label: 'The Suburbs',
+            title: 'The Suburbs',
+            artist: ['Arcade Fire'],
+            displayartist: 'Arcade Fire',
+            year: 2010,
+            genre: ['Indie Rock'],
+            style: ['Baroque Pop'],
+            mood: ['Reflective'],
+            albumlabel: 'Merge',
+            albumduration: 3840,
+            rating: 8.5,
+            userrating: 9,
+            votes: '42',
+            dateadded: '2026-05-30 12:00:00',
+            playcount: 3,
+            thumbnail: 'image://suburbs-cover.jpg/',
+            fanart: 'image://suburbs-fanart.jpg/',
+            description: 'A wide-screen album about memory and city edges.'
+          }
+        ]
+      } as TResult;
+    }
+
+    if (method === 'AudioLibrary.GetArtists') {
+      return {
+        artists: [
+          {
+            artistid: 35,
+            label: 'Arcade Fire',
+            genre: ['Indie Rock'],
+            style: ['Baroque Pop'],
+            mood: ['Anthemic'],
+            instrument: ['Vocals', 'Guitar'],
+            yearsactive: ['2001-present'],
+            formed: '2001',
+            thumbnail: 'image://arcade-thumb.jpg/',
+            fanart: 'image://arcade-fanart.jpg/',
+            description: 'A Canadian band with layered arrangements and large ensemble shows.'
           }
         ]
       } as TResult;
@@ -732,6 +808,217 @@ describe('LibraryPage', () => {
     expect(target!.innerHTML).not.toContain('live-cut.mkv');
   });
 
+  it('hydrates classic album detail routes from Kodi and keeps album actions playable', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+    const playerDispatch = {
+      playMusicItem: vi.fn()
+    };
+    const queueDispatch = {
+      queueMusicItem: vi.fn()
+    };
+    windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicAlbumDetail', albumid: '24' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: playerDispatch as never,
+        queueDispatch: queueDispatch as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
+      }
+    });
+    await settle();
+
+    expect(fakeClient.calls).toEqual([
+      {
+        method: 'AudioLibrary.GetAlbums',
+        params: {
+          filter: { albumid: 24 },
+          properties: [
+            'title',
+            'artist',
+            'displayartist',
+            'year',
+            'thumbnail',
+            'fanart',
+            'description',
+            'albumduration',
+            'genre',
+            'mood',
+            'style',
+            'albumlabel',
+            'rating',
+            'userrating',
+            'votes',
+            'dateadded',
+            'playcount'
+          ],
+          limits: { start: 0, end: 1 }
+        }
+      },
+      {
+        method: 'AudioLibrary.GetSongs',
+        params: {
+          filter: { albumid: 24 },
+          properties: [
+            'title',
+            'artist',
+            'album',
+            'duration',
+            'track',
+            'thumbnail',
+            'playcount',
+            'lastplayed',
+            'dateadded'
+          ],
+          limits: { start: 0, end: 1000 },
+          sort: { method: 'track', order: 'ascending' }
+        }
+      }
+    ]);
+
+    const text = target!.textContent ?? '';
+    expect(text).toContain('Album');
+    expect(text).toContain('The Suburbs');
+    expect(text).toContain('Arcade Fire');
+    expect(text).toContain('Indie Rock');
+    expect(text).toContain('Baroque Pop');
+    expect(text).toContain('1:04:00');
+    expect(text).toContain('A wide-screen album about memory and city edges.');
+    expect(text).toContain('Sprawl II');
+    expect(text).toContain('Ready to Start');
+    expect(target!.querySelector('.classic-music-cover img')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Fsuburbs-cover.jpg%2F'
+    );
+    expect(target!.querySelector('.classic-music-fanart')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Fsuburbs-fanart.jpg%2F'
+    );
+
+    const buttons = Array.from(
+      target!.querySelectorAll<HTMLButtonElement>('.classic-music-actions button')
+    );
+    buttons.find((button) => button.textContent?.includes('Play'))?.click();
+    buttons.find((button) => button.textContent?.includes('Queue'))?.click();
+    buttons.find((button) => button.textContent?.includes('Stream'))?.click();
+    await settle();
+
+    expect(playerDispatch.playMusicItem).toHaveBeenCalledWith({ kind: 'album', albumid: 24 });
+    expect(queueDispatch.queueMusicItem).toHaveBeenCalledWith({ kind: 'album', albumid: 24 });
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      '/addons/webinterface.chorus3/#local-player/music/album/24',
+      '_blank',
+      'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
+    );
+  });
+
+  it('hydrates classic artist detail routes from Kodi and keeps artist actions playable', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+    const playerDispatch = {
+      playMusicItem: vi.fn()
+    };
+    const queueDispatch = {
+      queueMusicItem: vi.fn()
+    };
+    windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicArtistDetail', artistid: '35' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          albums: [
+            {
+              albumid: 24,
+              label: 'The Suburbs',
+              title: 'The Suburbs',
+              artist: ['Arcade Fire'],
+              thumbnail: 'image://suburbs-cover.jpg/'
+            }
+          ],
+          songs: [
+            {
+              songid: 2401,
+              label: 'Sprawl II',
+              title: 'Sprawl II',
+              artist: ['Arcade Fire'],
+              album: 'The Suburbs',
+              duration: 325,
+              track: 16
+            }
+          ]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: playerDispatch as never,
+        queueDispatch: queueDispatch as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
+      }
+    });
+    await settle();
+
+    expect(fakeClient.calls).toEqual([
+      {
+        method: 'AudioLibrary.GetArtists',
+        params: {
+          filter: { artistid: 35 },
+          properties: [
+            'thumbnail',
+            'fanart',
+            'description',
+            'born',
+            'died',
+            'formed',
+            'yearsactive',
+            'instrument',
+            'genre',
+            'mood',
+            'style'
+          ],
+          limits: { start: 0, end: 1 }
+        }
+      }
+    ]);
+
+    const text = target!.textContent ?? '';
+    expect(text).toContain('Artist');
+    expect(text).toContain('Arcade Fire');
+    expect(text).toContain('Indie Rock');
+    expect(text).toContain('2001-present');
+    expect(text).toContain('Vocals, Guitar');
+    expect(text).toContain('A Canadian band with layered arrangements and large ensemble shows.');
+    expect(text).toContain('The Suburbs');
+    expect(text).toContain('Sprawl II');
+    expect(target!.querySelector('.classic-music-cover img')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Farcade-thumb.jpg%2F'
+    );
+    expect(target!.querySelector('.classic-music-fanart')?.getAttribute('src')).toContain(
+      '/image/image%3A%2F%2Farcade-fanart.jpg%2F'
+    );
+
+    const buttons = Array.from(
+      target!.querySelectorAll<HTMLButtonElement>('.classic-music-actions button')
+    );
+    buttons.find((button) => button.textContent?.includes('Play'))?.click();
+    buttons.find((button) => button.textContent?.includes('Queue'))?.click();
+    buttons.find((button) => button.textContent?.includes('Stream'))?.click();
+    await settle();
+
+    expect(playerDispatch.playMusicItem).toHaveBeenCalledWith({ kind: 'artist', artistid: 35 });
+    expect(queueDispatch.queueMusicItem).toHaveBeenCalledWith({ kind: 'artist', artistid: 35 });
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      '/addons/webinterface.chorus3/#local-player/music/artist/35',
+      '_blank',
+      'toolbar=no,scrollbars=no,resizable=yes,width=925,height=590,top=100,left=100'
+    );
+  });
+
   it('renders classic filter panes and applies option filters to library cards', async () => {
     document.body.innerHTML = '<div id="target"></div>';
     const target = document.getElementById('target');
@@ -859,7 +1146,7 @@ describe('LibraryPage', () => {
       ?.click();
     await settle();
 
-    expect(window.location.hash).toBe('#movies?year=2026&year=1987');
+    expect(window.location.hash).toBe('#movies?sort=title&order=asc&year=2026&year=1987');
     expect(target!.textContent).toContain('Future Movie');
     expect(target!.textContent).toContain('Past Movie');
   });
@@ -929,6 +1216,7 @@ describe('LibraryPage', () => {
       'year',
       'genre',
       'unwatched',
+      'watched',
       'in progress',
       'actor',
       'rated',
@@ -936,6 +1224,143 @@ describe('LibraryPage', () => {
       'Thumbs up',
       'tag'
     ]);
+
+    unmount(mounted!);
+    mounted = null;
+    document.body.innerHTML = '<div id="target"></div>';
+
+    mounted = mount(LibraryPage, {
+      target: document.getElementById('target') as HTMLElement,
+      props: {
+        route: { kind: 'tvshowsRecent' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    const recentTvFilters = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.filters-page button')
+    )
+      .map((button) => button.textContent?.replace(/\s+/g, ' ').trim())
+      .filter((text) => text && text !== '‹ Sections');
+
+    expect(recentTvFilters).toEqual(['unwatched', 'watched', 'in progress', 'Thumbs up']);
+  });
+
+  it('applies movie genre filters from library snapshot metadata', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'movies' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: {
+          ...emptyVideoSnapshot(),
+          isEmpty: false,
+          movies: [
+            {
+              movieid: 1,
+              label: 'Alpha',
+              title: 'Alpha',
+              year: 2020,
+              genre: ['Drama']
+            },
+            {
+              movieid: 2,
+              label: 'Beta',
+              title: 'Beta',
+              year: 2021,
+              genre: ['Comedy']
+            }
+          ]
+        } as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Filters'))
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.filters-page button'))
+      .find((button) => button.textContent?.trim() === 'genre')
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === 'Comedy')
+      ?.click();
+    await settle();
+
+    expect(target!.textContent).toContain('Beta');
+    expect(target!.textContent).not.toContain('Alpha');
+  });
+
+  it('applies TV show genre filters from library snapshot metadata', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'tvshows' },
+        musicLibrarySnapshot: emptyMusicSnapshot() as never,
+        videoLibrarySnapshot: {
+          ...emptyVideoSnapshot(),
+          isEmpty: false,
+          tvShows: [
+            {
+              tvshowid: 11,
+              label: 'Atlanta',
+              title: 'Atlanta',
+              year: 2016,
+              genre: ['Comedy', 'Drama']
+            },
+            {
+              tvshowid: 12,
+              label: 'Severance',
+              title: 'Severance',
+              year: 2022,
+              genre: ['Sci-Fi']
+            }
+          ]
+        } as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never
+      }
+    });
+    await settle();
+
+    expect(target!.textContent).toContain('Atlanta');
+    expect(target!.textContent).toContain('Severance');
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Filters'))
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('.filters-page button'))
+      .find((button) => button.textContent?.trim() === 'genre')
+      ?.click();
+    await settle();
+
+    Array.from(target!.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.trim() === 'Comedy')
+      ?.click();
+    await settle();
+
+    expect(target!.textContent).toContain('Atlanta');
+    expect(target!.textContent).not.toContain('Severance');
   });
 
   it('exposes Chorus2 play and queue actions for TV show collection cards', async () => {
@@ -972,7 +1397,7 @@ describe('LibraryPage', () => {
         params: {
           tvshowid: 11,
           properties: ['title'],
-          limits: { start: 0 },
+          limits: { start: 0, end: 1000 },
           sort: { method: 'episode', order: 'ascending' }
         }
       },
@@ -993,7 +1418,7 @@ describe('LibraryPage', () => {
         params: {
           tvshowid: 11,
           properties: ['title'],
-          limits: { start: 0 },
+          limits: { start: 0, end: 1000 },
           sort: { method: 'episode', order: 'ascending' }
         }
       },
@@ -1001,5 +1426,33 @@ describe('LibraryPage', () => {
       { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 502 } } }
     ]);
     expect(target!.textContent).toContain('Queued 2 episodes from Severance.');
+  });
+
+  it('resolves Chorus2-style music genre detail routes by genre label', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicGenreDetail', genreid: 'Hip-Hop' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          genres: [{ genreid: 1, label: 'Hip-Hop', title: 'Hip-Hop' }],
+          artists: [{ artistid: 35, label: 'Blue Scholars', genre: ['Hip-Hop'] }]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
+      }
+    });
+    await settle();
+
+    expect(target!.textContent).toContain('Hip-Hop');
+    expect(target!.textContent).toContain('Blue Scholars');
+    expect(target!.textContent).not.toContain('No artists found for this genre.');
   });
 });

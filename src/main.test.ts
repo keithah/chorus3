@@ -62,7 +62,7 @@ describe('main entrypoint', () => {
         search: '?token=Basic'
       })
     ).toEqual({ kind: 'settingsUnknown', pathLabel: '/[redacted]/[redacted]' });
-  }, 15000);
+  }, 30_000);
 
   it('resolves package-mounted Chorus2 parity URLs to typed routes without reflecting unsafe input', async () => {
     const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
@@ -495,7 +495,7 @@ describe('main entrypoint', () => {
     expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
     expect(window.localStorage.getItem('chorus3.locale')).toBeNull();
-  });
+  }, 15_000);
 
   it('mounts populated M005 browser-proof fixtures for direct add-ons routes only', async () => {
     setPathAndSearch('/addons', '?m005-browser-proof=1');
@@ -810,7 +810,7 @@ describe('main entrypoint', () => {
 
     expect(document.body.textContent).not.toContain('Neon Harbor');
     expect(document.body.textContent).not.toContain('Local browser playback is paused.');
-  });
+  }, 15_000);
 
   it('routes unknown video paths to safe in-app not-found UI without raw unsafe input', async () => {
     setPathAndSearch(

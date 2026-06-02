@@ -279,6 +279,7 @@ describe('media files store', () => {
       method: 'Files.GetDirectory',
       params: {
         directory: 'smb://secret/music/',
+        limits: { start: 0, end: 500 },
         media: 'music',
         properties: [
           'title',

@@ -11,155 +11,79 @@ import {
   isKodiHttpClientError,
   removePlaylistItem,
   swapPlaylistItems,
-  type KodiEndpointDescription,
   type KodiEpisodeLibraryItem,
+  type KodiJsonRpcBatchCall,
   type KodiJsonRpcHttpClient,
   type KodiMovieLibraryItem,
   type KodiMusicVideoLibraryItem,
   type KodiMusicLibraryItem,
-  type KodiNotification,
   type PlaylistItemPropertyName
 } from '$lib/kodi';
 import { isQueueRefreshNotification } from '$lib/kodi/notifications';
 import { connectionStore as defaultConnectionStore } from './connection.svelte.ts';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
-import { playerStore as defaultPlayerStore, type PlayerStoreSnapshot } from './player.svelte.ts';
+import { playerStore as defaultPlayerStore } from './player.svelte.ts';
+import {
+  QueueClientError,
+  cloneQueueStoreSnapshot,
+  createSafeError,
+  normalizeActiveQueue,
+  normalizeItems,
+  normalizeLimits,
+  normalizePlayableItems,
+  sanitizeErrorMessage
+} from './queueStoreSnapshots';
+import type {
+  EpisodeQueueItem,
+  FileQueueItem,
+  LibraryQueueItem,
+  MovieQueueItem,
+  MusicQueueItem,
+  MusicVideoQueueItem,
+  PlaylistQueueItem,
+  QueueCommandName,
+  QueueDispatchOptions,
+  QueueDispatchPlayerStore,
+  QueueDispatchQueueStore,
+  QueueDispatchSafeErrorSnapshot,
+  QueueDispatchSnapshot,
+  QueueLimitsSnapshot,
+  QueuePlayableItemSnapshot,
+  QueueRefreshReason,
+  QueueStoreNotificationSource,
+  QueueStoreOptions,
+  QueueStorePlayerStore,
+  QueueStoreSnapshot
+} from './queueTypes';
 
-export type QueueCommandStatus = 'idle' | 'running' | 'success' | 'error';
-export type QueueCommandName =
-  | 'removeAt'
-  | 'clear'
-  | 'swap'
-  | 'queueMusicItem'
-  | 'queueMovieItem'
-  | 'queueEpisodeItem'
-  | 'queueMusicVideoItem'
-  | 'queueFileItem'
-  | 'queuePlaylistItem';
-export type QueueDispatchErrorSource = 'config' | 'queue' | 'input' | 'http' | 'command';
-
-export type MusicQueueItem =
-  | { kind?: 'song'; songid: number; albumid?: never; artistid?: never; file?: never }
-  | { kind?: 'album'; albumid: number; songid?: never; artistid?: never; file?: never }
-  | { kind?: 'artist'; artistid: number; songid?: never; albumid?: never; file?: never };
-
-export type MovieQueueItem = { movieid: number };
-export type EpisodeQueueItem = { episodeid: number };
-export type MusicVideoQueueItem = { musicvideoid: number };
-export type FileQueueItem = {
-  file: string;
-  mediaKind: 'audio' | 'video';
-  itemType?: 'file' | 'directory';
-};
-export type PlaylistQueueItem = {
-  file: string;
-  mediaKind: 'music' | 'video';
-  playlistKind: 'smart' | 'basic';
-};
-
-export interface QueueDispatchSafeErrorSnapshot {
-  source: QueueDispatchErrorSource;
-  code: string;
-  message: string;
-  endpoint?: KodiEndpointDescription;
-}
-
-export interface QueueDispatchSnapshot {
-  commandStatus: QueueCommandStatus;
-  lastCommand: QueueCommandName | null;
-  lastError: QueueDispatchSafeErrorSnapshot | null;
-  lastCompletedAt: string | null;
-}
-
-export interface QueueDispatchQueueStore {
-  readonly snapshot: Pick<QueueStoreSnapshot, 'playlistid' | 'items'>;
-  refresh(reason: `command:${QueueCommandName}`): Promise<void> | void;
-}
-
-export interface QueueDispatchPlayerStore {
-  refresh(reason: `command:${QueueCommandName}`): Promise<void> | void;
-}
-
-export interface QueueDispatchOptions {
-  queueStore?: QueueDispatchQueueStore;
-  playerStore?: QueueDispatchPlayerStore;
-  client?: KodiJsonRpcHttpClient;
-  createClient?: () => KodiJsonRpcHttpClient | null;
-  now?: () => string;
-}
-
-export type QueueRefreshStatus = 'idle' | 'loading' | 'ready' | 'error';
-export type QueueRefreshReason =
-  | 'init'
-  | 'manual'
-  | 'poll'
-  | `notification:${string}`
-  | `command:${string}`;
-export type QueueErrorSource = 'http' | 'client' | 'unknown';
-
-export interface QueueSafeErrorSnapshot {
-  source: QueueErrorSource;
-  code: string;
-  message: string;
-  endpoint?: KodiEndpointDescription;
-}
-
-export interface QueueItemSnapshot {
-  position: number;
-  label: string;
-  title?: string;
-  artist?: string[];
-  album?: string;
-  duration?: number;
-  episode?: number;
-  season?: number;
-  showtitle?: string;
-  thumbnail?: string;
-  track?: number;
-  type?: string;
-}
-
-export interface QueuePlayableItemSnapshot {
-  position: number;
-  label: string;
-  file: string;
-  type?: string;
-  duration?: number;
-  thumbnail?: string;
-}
-
-export interface QueueLimitsSnapshot {
-  start: number;
-  end: number;
-  total: number;
-}
-
-export interface QueueStoreSnapshot {
-  refreshStatus: QueueRefreshStatus;
-  playlistid: number | null;
-  activePosition: number | null;
-  items: QueueItemSnapshot[];
-  limits: QueueLimitsSnapshot;
-  lastRefreshReason: QueueRefreshReason;
-  lastUpdatedAt: string | null;
-  lastError: QueueSafeErrorSnapshot | null;
-}
-
-export interface QueueStorePlayerStore {
-  readonly snapshot: Pick<PlayerStoreSnapshot, 'queue'>;
-}
-
-export interface QueueStoreNotificationSource {
-  subscribeToNotifications(listener: (notification: KodiNotification) => void): () => void;
-}
-
-export interface QueueStoreOptions {
-  client?: KodiJsonRpcHttpClient;
-  createClient?: () => KodiJsonRpcHttpClient | null;
-  playerStore?: QueueStorePlayerStore;
-  notificationSource?: QueueStoreNotificationSource | null;
-  now?: () => string;
-}
+export type {
+  EpisodeQueueItem,
+  FileQueueItem,
+  LibraryQueueItem,
+  MovieQueueItem,
+  MusicQueueItem,
+  MusicVideoQueueItem,
+  PlaylistQueueItem,
+  QueueCommandName,
+  QueueCommandStatus,
+  QueueDispatchErrorSource,
+  QueueDispatchOptions,
+  QueueDispatchPlayerStore,
+  QueueDispatchQueueStore,
+  QueueDispatchSafeErrorSnapshot,
+  QueueDispatchSnapshot,
+  QueueErrorSource,
+  QueueItemSnapshot,
+  QueueLimitsSnapshot,
+  QueuePlayableItemSnapshot,
+  QueueRefreshReason,
+  QueueRefreshStatus,
+  QueueSafeErrorSnapshot,
+  QueueStoreNotificationSource,
+  QueueStoreOptions,
+  QueueStorePlayerStore,
+  QueueStoreSnapshot
+} from './queueTypes';
 
 const DEFAULT_LIMITS: QueueLimitsSnapshot = { start: 0, end: 0, total: 0 };
 
@@ -195,7 +119,7 @@ const DEFAULT_PLAYLIST_PROPERTIES = [
 ] as const satisfies readonly PlaylistItemPropertyName[];
 
 export class QueueStore {
-  #snapshot = $state<QueueStoreSnapshot>(cloneSnapshot(DEFAULT_SNAPSHOT));
+  #snapshot = $state<QueueStoreSnapshot>(cloneQueueStoreSnapshot(DEFAULT_SNAPSHOT));
   #playableItems = $state<QueuePlayableItemSnapshot[]>([]);
 
   readonly #client: KodiJsonRpcHttpClient | null;
@@ -218,7 +142,7 @@ export class QueueStore {
   }
 
   get snapshot(): QueueStoreSnapshot {
-    return cloneSnapshot(this.#snapshot);
+    return cloneQueueStoreSnapshot(this.#snapshot);
   }
 
   getPlayableItems(): QueuePlayableItemSnapshot[] {
@@ -261,6 +185,7 @@ export class QueueStore {
       const client = this.#resolveClient();
       const result = await getPlaylistItems(client, {
         playlistid: activeQueue.playlistid,
+        limits: { start: 0, end: 1000 },
         properties: DEFAULT_PLAYLIST_PROPERTIES
       });
 
@@ -342,144 +267,6 @@ export class QueueStore {
   }
 }
 
-class QueueClientError extends Error {
-  readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = 'QueueClientError';
-    this.code = code;
-  }
-}
-
-function normalizeActiveQueue(queue: PlayerStoreSnapshot['queue']): {
-  playlistid: number | null;
-  activePosition: number | null;
-} {
-  return {
-    playlistid:
-      typeof queue.playlistid === 'number' && Number.isFinite(queue.playlistid)
-        ? queue.playlistid
-        : null,
-    activePosition:
-      typeof queue.position === 'number' && Number.isFinite(queue.position) ? queue.position : null
-  };
-}
-
-function normalizeItems(items: unknown): QueueItemSnapshot[] {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items.filter(isRecord).map((item, index) => normalizeItem(item, index));
-}
-
-function normalizeItem(item: Record<string, unknown>, index: number): QueueItemSnapshot {
-  const title = stringValue(item.title);
-  const label = stringValue(item.label) ?? title ?? `Queue item ${index + 1}`;
-
-  return {
-    position: index,
-    label,
-    ...(title === undefined ? {} : { title }),
-    ...stringArrayField('artist', item.artist),
-    ...stringField('album', item.album),
-    ...numberField('duration', item.duration),
-    ...numberField('episode', item.episode),
-    ...numberField('season', item.season),
-    ...stringField('showtitle', item.showtitle),
-    ...stringField('thumbnail', item.thumbnail),
-    ...numberField('track', item.track),
-    ...stringField('type', item.type)
-  };
-}
-
-function normalizePlayableItems(items: unknown): QueuePlayableItemSnapshot[] {
-  if (!Array.isArray(items)) {
-    return [];
-  }
-
-  return items.filter(isRecord).flatMap((item, index) => normalizePlayableItem(item, index));
-}
-
-function normalizePlayableItem(
-  item: Record<string, unknown>,
-  index: number
-): QueuePlayableItemSnapshot[] {
-  const file = stringValue(item.file);
-  if (!file) {
-    return [];
-  }
-
-  const title = stringValue(item.title);
-  const label = stringValue(item.label) ?? title ?? `Queue item ${index + 1}`;
-
-  return [
-    {
-      position: index,
-      label,
-      file,
-      ...stringField('type', item.type),
-      ...numberField('duration', item.duration),
-      ...stringField('thumbnail', item.thumbnail)
-    }
-  ];
-}
-
-function normalizeLimits(limits: unknown, items: unknown): QueueLimitsSnapshot {
-  const fallbackTotal = Array.isArray(items) ? items.filter(isRecord).length : 0;
-
-  if (!isRecord(limits)) {
-    return { start: 0, end: fallbackTotal, total: fallbackTotal };
-  }
-
-  const start = finiteNumberOr(limits.start, 0);
-  const end = finiteNumberOr(limits.end, fallbackTotal);
-  const total = finiteNumberOr(limits.total, fallbackTotal);
-
-  return { start, end, total };
-}
-
-function createSafeError(error: unknown): QueueSafeErrorSnapshot {
-  if (isKodiHttpClientError(error) || error instanceof KodiHttpClientError) {
-    return {
-      source: 'http',
-      code: error.code,
-      message: sanitizeErrorMessage(error.message),
-      endpoint: error.endpoint
-    };
-  }
-
-  if (error instanceof QueueClientError) {
-    return {
-      source: 'client',
-      code: error.code,
-      message: sanitizeErrorMessage(error.message)
-    };
-  }
-
-  return {
-    source: 'unknown',
-    code: 'refresh-failed',
-    message: sanitizeErrorMessage(
-      error instanceof Error ? error.message : 'Kodi queue refresh failed.'
-    )
-  };
-}
-
-function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/https?:\/\/[^\s/@:]+:[^\s/@]+@/gi, 'http://credentials@')
-    .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-    .replace(/localStorage/gi, 'browser storage')
-    .replace(/password/gi, 'credentials');
-}
-
 export class QueueDispatch {
   #snapshot = $state<QueueDispatchSnapshot>({ ...DEFAULT_DISPATCH_SNAPSHOT });
 
@@ -542,335 +329,67 @@ export class QueueDispatch {
   }
 
   queueMusicItem(item: MusicQueueItem): Promise<void> {
-    return this.#runMusicQueueCommand(item);
+    return this.#runPreparedCommand({
+      command: 'queueMusicItem',
+      prepare: () => normalizeMusicQueueItem(item),
+      execute: (client, prepared) => addMusicPlaylistItem(client, prepared)
+    });
   }
 
   queueMovieItem(item: MovieQueueItem): Promise<void> {
-    return this.#runMovieQueueCommand(item);
+    return this.#runPreparedCommand({
+      command: 'queueMovieItem',
+      prepare: () => normalizeMovieQueueItem(item),
+      execute: (client, prepared) => addMoviePlaylistItem(client, prepared)
+    });
   }
 
   queueEpisodeItem(item: EpisodeQueueItem): Promise<void> {
-    return this.#runEpisodeQueueCommand(item);
+    return this.#runPreparedCommand({
+      command: 'queueEpisodeItem',
+      prepare: () => normalizeEpisodeQueueItem(item),
+      execute: (client, prepared) => addEpisodePlaylistItem(client, prepared)
+    });
   }
 
   queueMusicVideoItem(item: MusicVideoQueueItem): Promise<void> {
-    return this.#runMusicVideoQueueCommand(item);
+    return this.#runPreparedCommand({
+      command: 'queueMusicVideoItem',
+      prepare: () => normalizeMusicVideoQueueItem(item),
+      execute: (client, prepared) => addMusicVideoPlaylistItem(client, prepared)
+    });
+  }
+
+  queueLibraryItems(items: readonly LibraryQueueItem[]): Promise<void> {
+    return this.#runPreparedCommand({
+      command: 'queueLibraryItems',
+      prepare: () => normalizeQueueItems(items, normalizeLibraryQueueItem),
+      execute: (client, prepared) => addNormalizedLibraryQueueItems(client, prepared)
+    });
   }
 
   queueFileItem(item: FileQueueItem): Promise<void> {
-    return this.#runFileQueueCommand(item);
+    return this.#runPreparedCommand({
+      command: 'queueFileItem',
+      prepare: () => normalizedResultValue(normalizeFileQueueItem(item)),
+      execute: (client, prepared) => addFilePlaylistItem(client, prepared.playlistid, prepared.item)
+    });
+  }
+
+  queueFileItems(items: readonly FileQueueItem[]): Promise<void> {
+    return this.#runPreparedCommand({
+      command: 'queueFileItems',
+      prepare: () => normalizeQueueItemValues(items, normalizeFileQueueItem),
+      execute: (client, prepared) => addNormalizedFileQueueItems(client, prepared)
+    });
   }
 
   queuePlaylistItem(item: PlaylistQueueItem): Promise<void> {
-    return this.#runPlaylistQueueCommand(item);
-  }
-
-  async #runMusicQueueCommand(item: MusicQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queueMusicItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queueMusicItem');
-
-    const musicItemResult = normalizeMusicQueueItem(item);
-    if (!musicItemResult.ok) {
-      this.#failCommand('queueMusicItem', musicItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queueMusicItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addMusicPlaylistItem(clientResult.client, musicItemResult.item);
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queueMusicItem');
-
-    if (commandError) {
-      this.#failCommand('queueMusicItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queueMusicItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
-  }
-
-  async #runMovieQueueCommand(item: MovieQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queueMovieItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queueMovieItem');
-
-    const movieItemResult = normalizeMovieQueueItem(item);
-    if (!movieItemResult.ok) {
-      this.#failCommand('queueMovieItem', movieItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queueMovieItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addMoviePlaylistItem(clientResult.client, movieItemResult.item);
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queueMovieItem');
-
-    if (commandError) {
-      this.#failCommand('queueMovieItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queueMovieItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
-  }
-
-  async #runEpisodeQueueCommand(item: EpisodeQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queueEpisodeItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queueEpisodeItem');
-
-    const episodeItemResult = normalizeEpisodeQueueItem(item);
-    if (!episodeItemResult.ok) {
-      this.#failCommand('queueEpisodeItem', episodeItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queueEpisodeItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addEpisodePlaylistItem(clientResult.client, episodeItemResult.item);
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queueEpisodeItem');
-
-    if (commandError) {
-      this.#failCommand('queueEpisodeItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queueEpisodeItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
-  }
-
-  async #runMusicVideoQueueCommand(item: MusicVideoQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queueMusicVideoItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queueMusicVideoItem');
-
-    const musicVideoItemResult = normalizeMusicVideoQueueItem(item);
-    if (!musicVideoItemResult.ok) {
-      this.#failCommand('queueMusicVideoItem', musicVideoItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queueMusicVideoItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addMusicVideoPlaylistItem(clientResult.client, musicVideoItemResult.item);
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queueMusicVideoItem');
-
-    if (commandError) {
-      this.#failCommand('queueMusicVideoItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queueMusicVideoItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
-  }
-
-  async #runFileQueueCommand(item: FileQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queueFileItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queueFileItem');
-
-    const fileItemResult = normalizeFileQueueItem(item);
-    if (!fileItemResult.ok) {
-      this.#failCommand('queueFileItem', fileItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queueFileItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addFilePlaylistItem(
-        clientResult.client,
-        fileItemResult.playlistid,
-        fileItemResult.item
-      );
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queueFileItem');
-
-    if (commandError) {
-      this.#failCommand('queueFileItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queueFileItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
-  }
-
-  async #runPlaylistQueueCommand(item: PlaylistQueueItem): Promise<void> {
-    if (this.#snapshot.commandStatus === 'running') {
-      this.#failCommand(
-        'queuePlaylistItem',
-        createQueueCommandError(
-          'command/already-running',
-          'Wait for the current queue command to finish before trying another action.'
-        )
-      );
-      return;
-    }
-
-    this.#startCommand('queuePlaylistItem');
-
-    const playlistItemResult = normalizePlaylistQueueItem(item);
-    if (!playlistItemResult.ok) {
-      this.#failCommand('queuePlaylistItem', playlistItemResult.error);
-      return;
-    }
-
-    const clientResult = this.#resolveClient();
-    if (!clientResult.ok) {
-      this.#failCommand('queuePlaylistItem', clientResult.error);
-      return;
-    }
-
-    let commandError: QueueDispatchSafeErrorSnapshot | null = null;
-
-    try {
-      await addPlaylistFileItem(
-        clientResult.client,
-        playlistItemResult.playlistid,
-        playlistItemResult.item
-      );
-    } catch (error) {
-      commandError = createDispatchSafeError(error);
-    }
-
-    await this.#refreshAfterCommand('queuePlaylistItem');
-
-    if (commandError) {
-      this.#failCommand('queuePlaylistItem', commandError);
-      return;
-    }
-
-    this.#snapshot = {
-      ...this.#snapshot,
-      commandStatus: 'success',
-      lastCommand: 'queuePlaylistItem',
-      lastError: null,
-      lastCompletedAt: this.#now()
-    };
+    return this.#runPreparedCommand({
+      command: 'queuePlaylistItem',
+      prepare: () => normalizedResultValue(normalizePlaylistQueueItem(item)),
+      execute: (client, prepared) => addPlaylistFileItem(client, prepared.playlistid, prepared.item)
+    });
   }
 
   async #runCommand(input: {
@@ -883,6 +402,29 @@ export class QueueDispatch {
       client: KodiJsonRpcHttpClient,
       state: { playlistid: number; itemCount: number }
     ) => Promise<unknown>;
+  }): Promise<void> {
+    return this.#runPreparedCommand({
+      command: input.command,
+      prepare: () => {
+        const state = this.#resolveQueueState();
+        if (!state.ok) {
+          return state;
+        }
+
+        const validationError = input.validate?.(state.value) ?? null;
+        return validationError ? { ok: false, error: validationError } : state;
+      },
+      execute: input.execute
+    });
+  }
+
+  async #runPreparedCommand<TPrepared>(input: {
+    command: QueueCommandName;
+    prepare: () =>
+      | { ok: true; item: TPrepared }
+      | { ok: true; value: TPrepared }
+      | { ok: false; error: QueueDispatchSafeErrorSnapshot };
+    execute: (client: KodiJsonRpcHttpClient, prepared: TPrepared) => Promise<unknown>;
   }): Promise<void> {
     if (this.#snapshot.commandStatus === 'running') {
       this.#failCommand(
@@ -897,17 +439,13 @@ export class QueueDispatch {
 
     this.#startCommand(input.command);
 
-    const state = this.#resolveQueueState();
-    if (!state.ok) {
-      this.#failCommand(input.command, state.error);
+    const prepared = input.prepare();
+    if (!prepared.ok) {
+      this.#failCommand(input.command, prepared.error);
       return;
     }
 
-    const validationError = input.validate?.(state.value) ?? null;
-    if (validationError) {
-      this.#failCommand(input.command, validationError);
-      return;
-    }
+    const preparedValue = 'item' in prepared ? prepared.item : prepared.value;
 
     const clientResult = this.#resolveClient();
     if (!clientResult.ok) {
@@ -918,7 +456,7 @@ export class QueueDispatch {
     let commandError: QueueDispatchSafeErrorSnapshot | null = null;
 
     try {
-      await input.execute(clientResult.client, state.value);
+      await input.execute(clientResult.client, preparedValue);
     } catch (error) {
       commandError = createDispatchSafeError(error);
     }
@@ -1116,6 +654,130 @@ function normalizeMusicVideoQueueItem(
   return { ok: false, error: createInvalidMusicVideoItemError() };
 }
 
+type NormalizedLibraryQueueItem =
+  | { media: 'music'; item: KodiMusicLibraryItem }
+  | { media: 'movie'; item: KodiMovieLibraryItem }
+  | { media: 'episode'; item: KodiEpisodeLibraryItem }
+  | { media: 'musicvideo'; item: KodiMusicVideoLibraryItem };
+
+function normalizeQueueItems<TInput, TItem>(
+  items: readonly TInput[],
+  normalize: (
+    item: TInput
+  ) => { ok: true; item: TItem } | { ok: false; error: QueueDispatchSafeErrorSnapshot }
+): { ok: true; item: TItem[] } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  const normalized: TItem[] = [];
+  for (const item of items) {
+    const result = normalize(item);
+    if (!result.ok) {
+      return result;
+    }
+    normalized.push(result.item);
+  }
+  return { ok: true, item: normalized };
+}
+
+function normalizeQueueItemValues<TInput, TValue>(
+  items: readonly TInput[],
+  normalize: (
+    item: TInput
+  ) => ({ ok: true } & TValue) | { ok: false; error: QueueDispatchSafeErrorSnapshot }
+): { ok: true; value: TValue[] } | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  const normalized: TValue[] = [];
+  for (const item of items) {
+    const result = normalize(item);
+    if (!result.ok) {
+      return result;
+    }
+    normalized.push(result);
+  }
+  return { ok: true, value: normalized };
+}
+
+function normalizedResultValue<TValue>(
+  result: ({ ok: true } & TValue) | { ok: false; error: QueueDispatchSafeErrorSnapshot }
+):
+  | { ok: true; value: { ok: true } & TValue }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  return result.ok ? { ok: true, value: result } : result;
+}
+
+function normalizeLibraryQueueItem(
+  item: LibraryQueueItem
+):
+  | { ok: true; item: NormalizedLibraryQueueItem }
+  | { ok: false; error: QueueDispatchSafeErrorSnapshot } {
+  if (item.media === 'music') {
+    const result = normalizeMusicQueueItem(item.item);
+    return result.ok ? { ok: true, item: { media: 'music', item: result.item } } : result;
+  }
+
+  if (item.media === 'movie') {
+    const result = normalizeMovieQueueItem(item.item);
+    return result.ok ? { ok: true, item: { media: 'movie', item: result.item } } : result;
+  }
+
+  if (item.media === 'episode') {
+    const result = normalizeEpisodeQueueItem(item.item);
+    return result.ok ? { ok: true, item: { media: 'episode', item: result.item } } : result;
+  }
+
+  const result = normalizeMusicVideoQueueItem(item.item);
+  return result.ok ? { ok: true, item: { media: 'musicvideo', item: result.item } } : result;
+}
+
+async function addNormalizedLibraryQueueItems(
+  client: KodiJsonRpcHttpClient,
+  items: readonly NormalizedLibraryQueueItem[]
+): Promise<void> {
+  if (items.length === 0) {
+    return;
+  }
+
+  if (client.callBatch) {
+    await client.callBatch(items.map(playlistAddBatchCallForLibraryItem));
+    return;
+  }
+
+  for (const item of items) {
+    await addNormalizedLibraryQueueItem(client, item);
+  }
+}
+
+function playlistAddBatchCallForLibraryItem(
+  item: NormalizedLibraryQueueItem
+): KodiJsonRpcBatchCall {
+  return {
+    method: 'Playlist.Add',
+    params: {
+      playlistid: item.media === 'music' ? 0 : 1,
+      item: item.item
+    }
+  };
+}
+
+async function addNormalizedLibraryQueueItem(
+  client: KodiJsonRpcHttpClient,
+  item: NormalizedLibraryQueueItem
+): Promise<void> {
+  if (item.media === 'music') {
+    await addMusicPlaylistItem(client, item.item);
+    return;
+  }
+
+  if (item.media === 'movie') {
+    await addMoviePlaylistItem(client, item.item);
+    return;
+  }
+
+  if (item.media === 'episode') {
+    await addEpisodePlaylistItem(client, item.item);
+    return;
+  }
+
+  await addMusicVideoPlaylistItem(client, item.item);
+}
+
 function normalizeFileQueueItem(
   item: unknown
 ):
@@ -1145,6 +807,39 @@ function normalizeFileQueueItem(
   }
 
   return { ok: false, error: createInvalidFileItemError() };
+}
+
+type NormalizedFileQueueItem = {
+  playlistid: number;
+  item: { file: string } | { directory: string };
+};
+
+async function addNormalizedFileQueueItems(
+  client: KodiJsonRpcHttpClient,
+  items: readonly NormalizedFileQueueItem[]
+): Promise<void> {
+  if (items.length === 0) {
+    return;
+  }
+
+  if (client.callBatch) {
+    await client.callBatch(items.map(playlistAddBatchCallForFileItem));
+    return;
+  }
+
+  for (const item of items) {
+    await addFilePlaylistItem(client, item.playlistid, item.item);
+  }
+}
+
+function playlistAddBatchCallForFileItem(item: NormalizedFileQueueItem): KodiJsonRpcBatchCall {
+  return {
+    method: 'Playlist.Add',
+    params: {
+      playlistid: item.playlistid,
+      item: item.item
+    }
+  };
 }
 
 function normalizePlaylistQueueItem(
@@ -1262,54 +957,6 @@ function cloneDispatchError(error: QueueDispatchSafeErrorSnapshot): QueueDispatc
   return {
     ...error,
     ...(error.endpoint ? { endpoint: { ...error.endpoint } } : {})
-  };
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-function stringField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, string>> {
-  const normalized = stringValue(value);
-  return normalized === undefined ? {} : ({ [key]: normalized } as Partial<Record<Key, string>>);
-}
-
-function stringArrayField<Key extends string>(
-  key: Key,
-  value: unknown
-): Partial<Record<Key, string[]>> {
-  if (!Array.isArray(value)) {
-    return {};
-  }
-
-  const normalized = value.filter((entry): entry is string => typeof entry === 'string');
-  return normalized.length === 0 ? {} : ({ [key]: normalized } as Partial<Record<Key, string[]>>);
-}
-
-function numberField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, number>> {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? ({ [key]: value } as Partial<Record<Key, number>>)
-    : {};
-}
-
-function finiteNumberOr(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-function cloneSnapshot(snapshot: QueueStoreSnapshot): QueueStoreSnapshot {
-  return {
-    ...snapshot,
-    items: snapshot.items.map((item) => ({
-      ...item,
-      ...(item.artist ? { artist: [...item.artist] } : {})
-    })),
-    limits: { ...snapshot.limits },
-    lastError: snapshot.lastError
-      ? {
-          ...snapshot.lastError,
-          ...(snapshot.lastError.endpoint ? { endpoint: { ...snapshot.lastError.endpoint } } : {})
-        }
-      : null
   };
 }
 

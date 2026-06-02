@@ -1,10 +1,10 @@
 import {
-  getFileDirectory,
   type FileDirectoryPropertyName,
   type FileMediaType,
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
+import { getPagedFileDirectory } from './mediaDirectoryPages';
 import {
   MusicLibraryClientError,
   cloneMusicLibrarySafeError,
@@ -83,6 +83,19 @@ export type MediaPlaylistsPlayablePlaylistResult =
     }
   | { ok: false; error: MusicLibrarySafeErrorSnapshot };
 
+export type MediaPlaylistsPlayableEntryResult =
+  | {
+      ok: true;
+      entry: {
+        id: string;
+        label: string;
+        media: MediaPlaylistsMedia;
+        mediaKind: 'audio' | 'video';
+        file: string;
+      };
+    }
+  | { ok: false; error: MusicLibrarySafeErrorSnapshot };
+
 type PlaylistRecord = {
   id: string;
   label: string;
@@ -143,6 +156,7 @@ export class MediaPlaylistsStore {
 
   #requestId = 0;
   #playlists = new Map<string, PlaylistRecord>();
+  #entries = new Map<string, EntryRecord>();
   #entryCounter = 0;
 
   constructor(options: MediaPlaylistsStoreOptions = {}) {
@@ -168,7 +182,7 @@ export class MediaPlaylistsStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getFileDirectory(client, {
+      const result = await getPagedFileDirectory(client, {
         directory: playlistRootForMedia(this.#media),
         media: this.#media,
         properties: ROOT_PROPERTIES,
@@ -181,6 +195,7 @@ export class MediaPlaylistsStore {
 
       const playlists = this.#normalizePlaylists(result.files);
       this.#playlists = new Map(playlists.map((playlist) => [playlist.record.id, playlist.record]));
+      this.#entries = new Map();
       this.#entryCounter = 0;
 
       this.#snapshot = {
@@ -235,7 +250,7 @@ export class MediaPlaylistsStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getFileDirectory(client, {
+      const result = await getPagedFileDirectory(client, {
         directory: playlist.path,
         media: this.#media,
         properties: ENTRY_PROPERTIES,
@@ -247,6 +262,7 @@ export class MediaPlaylistsStore {
       }
 
       const entries = this.#normalizeEntries(result.files);
+      this.#entries = new Map(entries.map((entry) => [entry.record.id, entry.record]));
 
       this.#snapshot = {
         refreshStatus: 'ready',
@@ -273,6 +289,39 @@ export class MediaPlaylistsStore {
         lastError: safeError
       };
     }
+  }
+
+  getPlayableEntry(id: string): MediaPlaylistsPlayableEntryResult {
+    const entry = this.#entries.get(id);
+
+    if (!entry) {
+      return { ok: false, error: unknownEntryError() };
+    }
+
+    if (!entry.playable) {
+      return { ok: false, error: unsupportedEntryError() };
+    }
+
+    const mediaKind = entryMediaKindForExtension(
+      this.#media,
+      undefined,
+      extensionFromPath(entry.path)
+    );
+
+    if (mediaKind !== 'audio' && mediaKind !== 'video') {
+      return { ok: false, error: unsupportedEntryError() };
+    }
+
+    return {
+      ok: true,
+      entry: {
+        id: entry.id,
+        label: entry.label,
+        media: this.#media,
+        mediaKind,
+        file: entry.path
+      }
+    };
   }
 
   getPlayablePlaylist(id: string): MediaPlaylistsPlayablePlaylistResult {
@@ -305,6 +354,7 @@ export class MediaPlaylistsStore {
   clear(): void {
     this.#requestId += 1;
     this.#playlists = new Map();
+    this.#entries = new Map();
     this.#entryCounter = 0;
     this.#snapshot = cloneMediaPlaylistsSnapshot(defaultSnapshot(this.#media));
   }
@@ -570,6 +620,24 @@ function cloneBreadcrumbs(
   breadcrumbs: readonly MediaPlaylistsBreadcrumbSnapshot[]
 ): MediaPlaylistsBreadcrumbSnapshot[] {
   return breadcrumbs.map((breadcrumb) => ({ ...breadcrumb }));
+}
+
+function unknownEntryError(): MusicLibrarySafeErrorSnapshot {
+  return createMusicLibrarySafeError(
+    new MusicLibraryClientError(
+      'client/unknown-entry',
+      'The selected playlist entry is no longer available.'
+    )
+  );
+}
+
+function unsupportedEntryError(): MusicLibrarySafeErrorSnapshot {
+  return createMusicLibrarySafeError(
+    new MusicLibraryClientError(
+      'client/unsupported-entry',
+      'The selected playlist entry cannot be played from this view.'
+    )
+  );
 }
 
 function unknownPlaylistError(): MusicLibrarySafeErrorSnapshot {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildTvShowMetadataEditorSource,
   createMetadataEditorInitialValues,
   createMetadataEditorSavePayload,
   metadataEditorDefinitionForAction,
@@ -193,6 +194,37 @@ describe('Chorus2 metadata editor parity schema', () => {
         album: ''
       })
     );
+  });
+
+  it('maps TV show label, plot, uniqueid, and art into editor values', () => {
+    const values = createMetadataEditorInitialValues(
+      METADATA_EDITOR_DEFINITIONS.tvshow,
+      buildTvShowMetadataEditorSource({
+        label: 'Atlanta',
+        plot: 'Earnest dramedy in Atlanta.',
+        studio: ['FX Productions'],
+        mpaa: 'TV-MA',
+        premiered: '2016-09-06',
+        rating: 8.6,
+        uniqueid: { imdb: 'tt3281796' },
+        art: {
+          poster: 'image://poster.jpg/',
+          fanart: 'image://fanart.jpg/'
+        }
+      })
+    );
+
+    expect(values).toMatchObject({
+      title: 'Atlanta',
+      plot: 'Earnest dramedy in Atlanta.',
+      studio: 'FX Productions',
+      mpaa: 'TV-MA',
+      premiered: '2016-09-06',
+      rating: '8.6',
+      imdbnumber: 'tt3281796',
+      thumbnail: 'image://poster.jpg/',
+      fanart: 'image://fanart.jpg/'
+    });
   });
 
   it('maps movie poster and fanart editor values into Kodi art payloads', () => {

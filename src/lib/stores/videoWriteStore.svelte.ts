@@ -162,6 +162,7 @@ const NO_ACTIVE_HOST_ERROR: VideoWriteSafeErrorSnapshot = {
   code: 'config/no-active-host',
   message: 'Choose an active Kodi host before writing video library changes.'
 };
+const BATCH_WRITE_CONCURRENCY = 6;
 
 export class VideoWriteStore {
   #snapshot = $state<VideoWriteStoreSnapshot>(cloneStoreSnapshot(DEFAULT_SNAPSHOT));
@@ -381,7 +382,7 @@ export class VideoWriteStore {
     const failedTargets: VideoWriteTarget[] = [];
     const succeededTargets: VideoWriteTarget[] = [];
 
-    for (const target of targets) {
+    await runWithConcurrency(targets, BATCH_WRITE_CONCURRENCY, async (target) => {
       try {
         await this.#writeTarget(client, target);
         succeeded += 1;
@@ -391,7 +392,7 @@ export class VideoWriteStore {
         failures.push(createFailedItem(target.kind, target.id, target.label, safeError));
         failedTargets.push(target);
       }
-    }
+    });
 
     const failed = failures.length;
     const status: VideoWriteStatus =
@@ -670,6 +671,26 @@ function finitePositiveSafeInteger(value: unknown): number | null {
 
 function finiteNonNegativeNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> {
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const item = items[nextIndex];
+        nextIndex += 1;
+        if (item !== undefined) {
+          await worker(item);
+        }
+      }
+    })
+  );
 }
 
 export function createVideoWriteStore(options: VideoWriteStoreOptions = {}): VideoWriteStore {

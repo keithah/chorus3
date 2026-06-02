@@ -15,7 +15,6 @@ import {
   unwrapVideoRoute,
   type AppRoute
 } from './appRouter';
-import { getChorus2ParityRowById } from './chorus2ParityLedger';
 import { buildVideoRoute, type VideoRoute } from '../video/videoRouter';
 import type { PrimaryRoute } from './primaryRoutes';
 import { THUMBS_UP_LEGACY_PATHS } from './thumbsUpLegacyRoutes';
@@ -35,13 +34,6 @@ describe('chorus2 placeholder metadata', () => {
       expect(placeholder.status).toMatch(/^(missing|deferred|intentionallyChanged)$/u);
       expect(placeholder.owner).toMatch(/^(M006\/S0[2-4]|R0\d+\/M006\/S0[4-5])$/u);
       expect(placeholder.recoveryRoute).toMatch(/^\//u);
-
-      for (const ledgerId of placeholder.ledgerIds) {
-        const row = getChorus2ParityRowById(ledgerId);
-
-        expect(row, ledgerId).toBeDefined();
-        expect(row?.owner, ledgerId).toBe(placeholder.owner);
-      }
     }
 
     expect(getParityPlaceholderMetadata('missing-id')).toBeUndefined();
@@ -64,6 +56,7 @@ const PRIMARY_ROUTE_CASES = [
   ['/music/album/abc', { kind: 'musicAlbumDetail', albumid: 'abc' }],
   ['/music/artist/abc', { kind: 'musicArtistDetail', artistid: 'abc' }],
   ['/music/genre/recent', { kind: 'musicGenreDetail', genreid: 'recent' }],
+  ['/music/genre/Hip%20Hop%2FRap', { kind: 'musicGenreDetail', genreid: 'Hip Hop/Rap' }],
   ['/movies/recent', { kind: 'moviesRecent' }],
   ['/movies', { kind: 'movies' }],
   ['/movies/all', { kind: 'movies' }],

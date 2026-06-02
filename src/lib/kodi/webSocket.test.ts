@@ -227,6 +227,28 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     expect(FakeWebSocket.instances).toHaveLength(4);
   });
 
+  it('detaches handlers from closed sockets before reconnecting', () => {
+    const client = createClient();
+    const { listener, types } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    const firstSocket = FakeWebSocket.instances[0];
+    firstSocket?.open();
+    firstSocket?.closeFromServer();
+
+    expect(firstSocket?.onopen).toBeNull();
+    expect(firstSocket?.onmessage).toBeNull();
+    expect(firstSocket?.onerror).toBeNull();
+    expect(firstSocket?.onclose).toBeNull();
+
+    vi.advanceTimersByTime(100);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    firstSocket?.message(JSON.stringify({ jsonrpc: '2.0', method: 'Player.OnPlay' }));
+
+    expect(types()).toEqual(['connecting', 'open', 'close', 'reconnecting', 'connecting']);
+  });
+
   it('emits error and schedules reconnect after socket error', () => {
     const client = createClient();
     const { listener, types } = collectEvents();
@@ -237,6 +259,24 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     FakeWebSocket.instances[0]?.error();
 
     expect(types()).toEqual(['connecting', 'open', 'error', 'reconnecting']);
+  });
+
+  it('times out stalled WebSocket connections and schedules reconnect', () => {
+    const client = createClient({ connectTimeoutMs: 250 });
+    const { events, listener, types } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    vi.advanceTimersByTime(250);
+
+    expect(types()).toEqual(['connecting', 'error', 'reconnecting']);
+    expect(events.at(-2)).toMatchObject({
+      type: 'error',
+      error: { code: 'connect-timeout' }
+    });
+    vi.advanceTimersByTime(100);
+    expect(FakeWebSocket.instances).toHaveLength(2);
   });
 
   it('does not reconnect after manual disconnect and clears heartbeat', () => {

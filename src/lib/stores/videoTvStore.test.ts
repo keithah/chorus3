@@ -199,7 +199,19 @@ describe('video TV store', () => {
       method: 'VideoLibrary.GetTVShowDetails',
       params: {
         tvshowid: 7,
-        properties: expect.arrayContaining(['plot', 'genre', 'studio', 'rating', 'premiered'])
+        properties: expect.arrayContaining([
+          'plot',
+          'genre',
+          'studio',
+          'rating',
+          'premiered',
+          'mpaa',
+          'imdbnumber',
+          'sorttitle',
+          'originaltitle',
+          'tag',
+          'uniqueid'
+        ])
       }
     });
     expect(store.snapshot).toMatchObject({

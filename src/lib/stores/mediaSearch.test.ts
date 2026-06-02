@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
+import {
+  KodiHttpClientError,
+  type KodiHttpCallOptions,
+  type KodiJsonRpcHttpClient
+} from '$lib/kodi';
 import { createMediaSearchStore, type MediaSearchStoreSnapshot } from './index';
 
 type CallRecord = {
   method: string;
   params?: unknown;
+  options?: KodiHttpCallOptions;
 };
 
 type Deferred<T> = {
@@ -29,6 +34,12 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function callParams(calls: readonly CallRecord[]): Array<{ method: string; params?: unknown }> {
+  return calls.map(({ method, params }) =>
+    params === undefined ? { method } : { method, params }
+  );
+}
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -37,8 +48,12 @@ class FakeKodiClient implements KodiJsonRpcHttpClient {
     this.responses.set(method, [...(this.responses.get(method) ?? []), response]);
   }
 
-  async call<TResult>(method: string, params?: unknown): Promise<TResult> {
-    this.calls.push(params === undefined ? { method } : { method, params });
+  async call<TResult>(
+    method: string,
+    params?: unknown,
+    options?: KodiHttpCallOptions
+  ): Promise<TResult> {
+    this.calls.push({ ...(params === undefined ? { method } : { method, params }), options });
     const queue = this.responses.get(method) ?? [];
 
     if (queue.length === 0) {
@@ -260,7 +275,7 @@ describe('media search store', () => {
 
     await store.search({ scope: 'movie', text: 'ae' });
 
-    expect(client.calls).toEqual([
+    expect(callParams(client.calls)).toEqual([
       {
         method: 'VideoLibrary.GetMovies',
         params: {
@@ -280,7 +295,7 @@ describe('media search store', () => {
 
     await store.search({ scope: 'music', text: 'ae' });
 
-    expect(client.calls).toEqual([
+    expect(callParams(client.calls)).toEqual([
       {
         method: 'AudioLibrary.GetArtists',
         params: {
@@ -566,9 +581,12 @@ describe('media search store', () => {
 
     const slowSearch = store.search({ scope: 'music', text: 'old' });
     await flushPromises();
+    const staleSignal = client.calls[0].options?.signal;
+    expect(staleSignal?.aborted).toBe(false);
 
     enqueueMusicResults(client);
     await store.search({ scope: 'music', text: 'new' });
+    expect(staleSignal?.aborted).toBe(true);
 
     slowArtists.resolve({ artists: [{ artistid: 1, label: 'Old artist' }] });
     slowAlbums.resolve({ albums: [{ albumid: 1, label: 'Old album' }] });
@@ -628,8 +646,10 @@ describe('media search store', () => {
 
     const search = store.search({ scope: 'music', text: 'old' });
     await flushPromises();
+    const staleSignal = client.calls[0].options?.signal;
 
     store.clear();
+    expect(staleSignal?.aborted).toBe(true);
     slowArtists.resolve({ artists: [{ artistid: 1, label: 'Old artist' }] });
     slowAlbums.resolve({ albums: [{ albumid: 1, label: 'Old album' }] });
     slowSongs.resolve({ songs: [{ songid: 1, label: 'Old song' }] });

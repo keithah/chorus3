@@ -2,10 +2,8 @@ import type {
   MediaFilesActionDispatch,
   MediaFilesPanelDispatch
 } from '$components/MediaFilesPanel.svelte';
-import type {
-  MediaPlaylistsActionDispatch,
-  MediaPlaylistsPanelDispatch
-} from '$components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
 import type {
   MediaSearchActionDispatch,
   MediaSearchPanelDispatch

@@ -144,25 +144,18 @@
     }
 
     if (snapshot.groupBy === 'enabled') {
-      return [
-        {
-          key: 'enabled',
-          label: i18n.t('addons.panel.enabled'),
-          addons: filteredVisibleAddons.filter((addon) => addon.enabled === true)
-        },
-        {
-          key: 'disabled',
-          label: i18n.t('addons.panel.disabled'),
-          addons: filteredVisibleAddons.filter((addon) => addon.enabled === false)
-        },
-        {
-          key: 'unknown',
-          label: i18n.t('addons.panel.enablementUnknown'),
-          addons: filteredVisibleAddons.filter(
-            (addon) => addon.enabled !== true && addon.enabled !== false
-          )
-        }
-      ].filter((group) => group.addons.length > 0);
+      const enabledGroups: AddonsGroupSnapshot[] = [
+        { key: 'enabled', label: i18n.t('addons.panel.enabled'), addons: [] },
+        { key: 'disabled', label: i18n.t('addons.panel.disabled'), addons: [] },
+        { key: 'unknown', label: i18n.t('addons.panel.enablementUnknown'), addons: [] }
+      ];
+
+      for (const addon of filteredVisibleAddons) {
+        const index = addon.enabled === true ? 0 : addon.enabled === false ? 1 : 2;
+        enabledGroups[index].addons.push(addon);
+      }
+
+      return enabledGroups.filter((group) => group.addons.length > 0);
     }
 
     const groups = new Map<string, AddonsGroupSnapshot>();
@@ -170,7 +163,7 @@
       const label = typeLabel(addon);
       const key = label || 'unknown';
       const group = groups.get(key) ?? { key, label, addons: [] };
-      group.addons = [...group.addons, addon];
+      group.addons.push(addon);
       groups.set(key, group);
     }
 

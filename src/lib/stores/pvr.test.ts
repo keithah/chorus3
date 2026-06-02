@@ -297,4 +297,26 @@ describe('PvrStore', () => {
     leaked.broadcastsByChannelId[101][0].title = 'Mutated outside';
     expect(store.snapshot.broadcastsByChannelId[101][0].title).toBe('Evening News');
   });
+
+  it('prunes broadcasts for channels no longer present after channel refresh', async () => {
+    const { client, store } = createHarness();
+    client.enqueue('PVR.GetChannels', {
+      channels: [
+        { channelid: 101, label: 'News', channeltype: 'tv' },
+        { channelid: 102, label: 'Sports', channeltype: 'tv' }
+      ]
+    });
+    await store.refreshChannels('alltv');
+    client.enqueue('PVR.GetBroadcasts', {
+      broadcasts: [{ broadcastid: 1, label: 'News at 10' }]
+    });
+    await store.refreshBroadcasts(101);
+
+    client.enqueue('PVR.GetChannels', {
+      channels: [{ channelid: 102, label: 'Sports', channeltype: 'tv' }]
+    });
+    await store.refreshChannels('alltv');
+
+    expect(store.snapshot.broadcastsByChannelId[101]).toBeUndefined();
+  });
 });

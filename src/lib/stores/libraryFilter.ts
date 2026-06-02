@@ -61,6 +61,11 @@ export interface LibrarySortState {
 type StoredFilters = Record<string, Array<string | number | boolean>>;
 type StoreBucket<T> = Record<string, T>;
 
+export type LibraryFilterPair<T> = {
+  item: T;
+  record: Record<string, unknown>;
+};
+
 const FILTER_STORE_PREFIX = 'filter:store:';
 
 export const LIBRARY_SORT_FIELDS: readonly LibrarySortField[] = [
@@ -338,13 +343,20 @@ export class LibraryFilterStore {
   }
 
   applyFilters<T extends Record<string, unknown>>(path: string, items: readonly T[]): T[] {
+    return this.applyFilterPairs(
+      path,
+      items.map((item) => ({ item, record: item }))
+    );
+  }
+
+  applyFilterPairs<T>(path: string, items: readonly LibraryFilterPair<T>[]): T[] {
     const sort = this.getStoreSort(path);
-    let result = sortItems(items, sort.method, sort.order);
+    let result = [...items];
     for (const [key, values] of Object.entries(this.getStoreFilters(path))) {
       if (values.length === 0) continue;
       result = applySingleFilter(result, key, values, getFilterSettings(key, false));
     }
-    return result;
+    return sortFilterPairs(result, sort.method, sort.order).map((pair) => pair.item);
   }
 
   #setStore<T>(path: string, value: T, type: string): void {
@@ -422,65 +434,108 @@ function extractFilterValues(
 ): Array<string | number | boolean> {
   const raw = item[key];
   if (settings?.type === 'object' && Array.isArray(raw)) {
-    return raw
-      .slice(0, 5)
-      .map((entry) => (isRecord(entry) && settings.property ? entry[settings.property] : undefined))
-      .filter(isPrimitiveFilterValue);
+    return raw.slice(0, 5).flatMap((entry) => {
+      if (typeof entry === 'string') {
+        return isPrimitiveFilterValue(entry) ? [entry] : [];
+      }
+      if (!isRecord(entry) || !settings.property) {
+        return [];
+      }
+      const value = entry[settings.property];
+      return isPrimitiveFilterValue(value) ? [value] : [];
+    });
   }
   if (Array.isArray(raw)) return raw.filter(isPrimitiveFilterValue);
   return isPrimitiveFilterValue(raw) ? [raw] : [];
 }
 
-function applySingleFilter<T extends Record<string, unknown>>(
-  items: readonly T[],
+function applySingleFilter<T>(
+  items: readonly LibraryFilterPair<T>[],
   key: string,
   values: Array<string | number | boolean>,
   settings: LibraryFilterField | undefined
-): T[] {
+): LibraryFilterPair<T>[] {
   switch (settings?.filterCallback) {
     case 'unwatched':
-      return items.filter((item) => numericValue(item.playcount) === 0 && item.watched !== true);
+      return items.filter(
+        ({ record }) => numericValue(record.playcount) === 0 && record.watched !== true
+      );
     case 'watched':
-      return items.filter((item) => numericValue(item.playcount) > 0 || item.watched === true);
+      return items.filter(
+        ({ record }) => numericValue(record.playcount) > 0 || record.watched === true
+      );
     case 'inprogress':
-      return items.filter((item) => {
-        const resume = isRecord(item.resume) ? item.resume : {};
-        return numericValue(resume.position) > 0;
+      return items.filter(({ record }) => {
+        const resume = isRecord(record.resume) ? record.resume : {};
+        const position = numericValue(resume.position);
+        const total = numericValue(resume.total);
+        return position > 0 && (total <= 0 || position < total);
       });
     case 'thumbsup':
-      return items.filter((item) => item.thumbsUp === true);
+      return items.filter(({ record }) => record.thumbsUp === true);
     case 'multiple':
-    default:
-      return items.filter((item) =>
-        extractFilterValues(item, key, settings).some((value) => values.includes(value))
+    default: {
+      const selected = new Set(values);
+      return items.filter(({ record }) =>
+        extractFilterValues(record, key, settings).some((value) => selected.has(value))
       );
+    }
   }
 }
 
-function sortItems<T extends Record<string, unknown>>(
-  items: readonly T[],
+function sortFilterPairs<T>(
+  items: readonly LibraryFilterPair<T>[],
   key: string,
   order: LibrarySortOrder
-): T[] {
+): LibraryFilterPair<T>[] {
   const result = [...items];
   if (key === 'random') {
-    return stableRandomSort(result);
+    return stableRandomSort(result, (pair) => stableRandomSortKey(pair.record));
   }
   return result.sort((left, right) =>
-    comparePrimitive(sortValue(left[key]), sortValue(right[key]), order)
+    comparePrimitive(
+      sortValue(left.record[key], left.record.label),
+      sortValue(right.record[key], right.record.label),
+      order
+    )
   );
 }
 
-function sortValue(value: unknown): string | number | boolean {
+function sortValue(value: unknown, fallbackLabel?: unknown): string | number | boolean {
   if (Array.isArray(value)) return value.map((entry) => String(entry)).join(', ');
   if (isPrimitiveFilterValue(value)) return value;
+  if (typeof fallbackLabel === 'string' && fallbackLabel.trim()) return fallbackLabel;
   return '';
 }
 
-function stableRandomSort<T extends Record<string, unknown>>(items: readonly T[]): T[] {
-  return [...items].sort(
-    (left, right) => stableHash(JSON.stringify(left)) - stableHash(JSON.stringify(right))
-  );
+function stableRandomSort<T>(items: readonly T[], keyForItem: (item: T) => string): T[] {
+  return items
+    .map((item) => ({ item, hash: stableHash(keyForItem(item)) }))
+    .sort((left, right) => left.hash - right.hash)
+    .map(({ item }) => item);
+}
+
+function stableRandomSortKey(record: Record<string, unknown>): string {
+  for (const key of [
+    'songid',
+    'albumid',
+    'artistid',
+    'movieid',
+    'tvshowid',
+    'episodeid',
+    'musicvideoid',
+    'id',
+    'file',
+    'path',
+    'label',
+    'title'
+  ]) {
+    const value = record[key];
+    if (typeof value === 'string' || typeof value === 'number') {
+      return `${key}:${value}`;
+    }
+  }
+  return Object.keys(record).sort().join('|');
 }
 
 function stableHash(value: string): number {

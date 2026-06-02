@@ -263,6 +263,9 @@ describe('integrated player loop store contracts', () => {
       localPlayerStore: localPlayerStore as never,
       configStore: { activeHost: createActiveHost() } as never,
       createClient: () => client,
+      afterSuccessfulCommand: (command) => {
+        queueStore.refreshReasons.push(`command:${command}`);
+      },
       now: () => '2026-04-29T20:10:00.000Z'
     });
     const queueDispatch = createQueueDispatch({
@@ -275,6 +278,7 @@ describe('integrated player loop store contracts', () => {
     await playerDispatch.playMusicItem({ kind: 'song', songid: 42 });
     await queueDispatch.queueMusicItem({ kind: 'song', songid: 42 });
 
+    expect(queueStore.refreshReasons).toEqual(['command:playMusicItem', 'command:queueMusicItem']);
     expect(localPlayerStore.stop).not.toHaveBeenCalled();
     expect(localPlayerStore.loadAndPlay).toHaveBeenCalledTimes(1);
     expect(client.calls).toEqual([
@@ -289,7 +293,7 @@ describe('integrated player loop store contracts', () => {
       'command:playMusicItem',
       'command:queueMusicItem'
     ]);
-    expect(queueStore.refreshReasons).toEqual(['command:queueMusicItem']);
+    expect(queueStore.refreshReasons).toEqual(['command:playMusicItem', 'command:queueMusicItem']);
     expect(playerDispatch.snapshot).toMatchObject({
       mode: 'local',
       commandStatus: 'success',

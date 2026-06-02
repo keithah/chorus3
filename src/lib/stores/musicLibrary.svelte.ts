@@ -44,20 +44,29 @@ export interface MusicLibraryStoreOptions {
 }
 
 const DEFAULT_LIMITS: MusicLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIBRARY_LIMIT = { start: 0 } as const;
+const DEFAULT_LIBRARY_LIMIT = { start: 0, end: 5000 } as const;
 const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
 
-const DEFAULT_ARTIST_PROPERTIES = [
+const DEFAULT_ARTIST_LIST_PROPERTIES = [
   'thumbnail',
-  'genre'
+  'genre',
+  'mood',
+  'style'
 ] as const satisfies readonly AudioLibraryArtistPropertyName[];
-const DEFAULT_ALBUM_PROPERTIES = [
+const DEFAULT_ALBUM_LIST_PROPERTIES = [
   'title',
   'artist',
   'year',
-  'thumbnail'
+  'thumbnail',
+  'genre',
+  'mood',
+  'style',
+  'albumlabel',
+  'rating',
+  'dateadded',
+  'playcount'
 ] as const satisfies readonly AudioLibraryAlbumPropertyName[];
-const DEFAULT_SONG_PROPERTIES = [
+const DEFAULT_SONG_LIST_PROPERTIES = [
   'title',
   'artist',
   'album',
@@ -66,7 +75,24 @@ const DEFAULT_SONG_PROPERTIES = [
   'thumbnail',
   'playcount',
   'lastplayed',
-  'dateadded'
+  'dateadded',
+  'genre',
+  'year',
+  'rating',
+  'mood'
+] as const satisfies readonly AudioLibrarySongPropertyName[];
+const DEFAULT_SONG_RECENT_PROPERTIES = [
+  'title',
+  'artist',
+  'album',
+  'duration',
+  'track',
+  'thumbnail',
+  'playcount',
+  'lastplayed',
+  'dateadded',
+  'year',
+  'rating'
 ] as const satisfies readonly AudioLibrarySongPropertyName[];
 const DEFAULT_GENRE_PROPERTIES = [
   'title',
@@ -105,6 +131,7 @@ export class MusicLibraryStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #abortController: AbortController | null = null;
 
   constructor(options: MusicLibraryStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -118,6 +145,7 @@ export class MusicLibraryStore {
 
   async refresh(reason: MusicLibraryRefreshReason = 'manual'): Promise<void> {
     const requestId = ++this.#requestId;
+    const signal = this.#startRequest();
 
     this.#snapshot = {
       ...this.#snapshot,
@@ -137,37 +165,65 @@ export class MusicLibraryStore {
         mostPlayedSongsResult,
         genresResult
       ] = await Promise.all([
-        getAudioLibraryArtists(client, {
-          properties: DEFAULT_ARTIST_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        }),
-        getAudioLibraryAlbums(client, {
-          properties: DEFAULT_ALBUM_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        }),
-        getAudioLibrarySongs(client, {
-          properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        }),
-        getAudioLibrarySongs(client, {
-          properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'dateadded', order: 'descending' }
-        }),
-        getAudioLibrarySongs(client, {
-          properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'lastplayed', order: 'descending' }
-        }),
-        getAudioLibrarySongs(client, {
-          properties: DEFAULT_SONG_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'playcount', order: 'descending' }
-        }),
-        getAudioLibraryGenres(client, {
-          properties: DEFAULT_GENRE_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        })
+        getAudioLibraryArtists(
+          client,
+          {
+            properties: DEFAULT_ARTIST_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        ),
+        getAudioLibraryAlbums(
+          client,
+          {
+            properties: DEFAULT_ALBUM_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        ),
+        getAudioLibrarySongs(
+          client,
+          {
+            properties: DEFAULT_SONG_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        ),
+        getAudioLibrarySongs(
+          client,
+          {
+            properties: DEFAULT_SONG_RECENT_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'dateadded', order: 'descending' }
+          },
+          { signal }
+        ),
+        getAudioLibrarySongs(
+          client,
+          {
+            properties: DEFAULT_SONG_RECENT_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'lastplayed', order: 'descending' }
+          },
+          { signal }
+        ),
+        getAudioLibrarySongs(
+          client,
+          {
+            properties: DEFAULT_SONG_RECENT_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'playcount', order: 'descending' }
+          },
+          { signal }
+        ),
+        getAudioLibraryGenres(
+          client,
+          {
+            properties: DEFAULT_GENRE_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        )
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -236,6 +292,7 @@ export class MusicLibraryStore {
 
   destroy(): void {
     this.#requestId += 1;
+    this.#abortActiveRequest();
   }
 
   #resolveClient(): KodiJsonRpcHttpClient {
@@ -253,6 +310,17 @@ export class MusicLibraryStore {
 
   #isCurrent(requestId: number): boolean {
     return requestId === this.#requestId;
+  }
+
+  #startRequest(): AbortSignal {
+    this.#abortActiveRequest();
+    this.#abortController = new AbortController();
+    return this.#abortController.signal;
+  }
+
+  #abortActiveRequest(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
   }
 }
 

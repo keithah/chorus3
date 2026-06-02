@@ -4,6 +4,7 @@
   import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import {
     METADATA_EDITOR_DEFINITIONS,
+    buildTvShowMetadataEditorSource,
     displayTitleForMetadataEditor,
     type MetadataEditorPayload
   } from '$lib/metadata/metadataEditor';
@@ -238,11 +239,7 @@
   }
 
   function tvShowEditSource(value: VideoTvShowDetailSnapshot): Record<string, unknown> {
-    return {
-      ...value,
-      thumbnail: value.thumbnail ?? value.art?.poster,
-      fanart: value.fanart ?? value.art?.fanart
-    };
+    return buildTvShowMetadataEditorSource({ ...value });
   }
 
   function preferredPosterUrl(value: VideoTvShowDetailSnapshot): string | undefined {

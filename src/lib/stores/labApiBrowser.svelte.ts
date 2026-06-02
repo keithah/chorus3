@@ -485,10 +485,9 @@ function normalizeIntrospection(
 
   const namespaceMap = new Map<string, LabApiBrowserMethodSnapshot[]>();
   for (const method of methods) {
-    namespaceMap.set(method.namespace, [
-      ...(namespaceMap.get(method.namespace) ?? []),
-      cloneMethod(method)
-    ]);
+    const namespaceMethods = namespaceMap.get(method.namespace) ?? [];
+    namespaceMethods.push(cloneMethod(method));
+    namespaceMap.set(method.namespace, namespaceMethods);
   }
 
   const namespaces = [...namespaceMap.entries()]
@@ -632,10 +631,13 @@ function isSafeMethodName(name: string): boolean {
 
 function cloneDisplayMetadata(value: unknown): unknown {
   if (value === undefined) return null;
-  return JSON.parse(redactJsonForDisplay(value));
+  return deepFreeze(JSON.parse(redactJsonForDisplay(value)));
 }
 
 function clonePlainRecord(record: Record<string, unknown>): Record<string, unknown> {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(record) as Record<string, unknown>;
+  }
   return JSON.parse(JSON.stringify(record)) as Record<string, unknown>;
 }
 
@@ -659,8 +661,8 @@ function cloneNamespace(namespace: LabApiBrowserNamespaceSnapshot): LabApiBrowse
 function cloneMethod(method: LabApiBrowserMethodSnapshot): LabApiBrowserMethodSnapshot {
   return {
     ...method,
-    params: cloneDisplayMetadata(method.params),
-    returns: cloneDisplayMetadata(method.returns),
+    params: method.params,
+    returns: method.returns,
     guard: cloneGuard(method.guard)
   };
 }
@@ -675,6 +677,18 @@ function cloneError(error: LabApiBrowserSafeErrorSnapshot): LabApiBrowserSafeErr
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function deepFreeze<T>(value: T): T {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  for (const child of Object.values(value)) {
+    deepFreeze(child);
+  }
+
+  return Object.freeze(value);
 }
 
 export function createLabApiBrowserStore(

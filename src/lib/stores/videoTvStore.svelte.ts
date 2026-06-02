@@ -46,7 +46,7 @@ export interface VideoTvStoreOptions {
 
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
 const DEFAULT_LIST_LIMIT = { start: 0, end: 5000 } as const;
-const DEFAULT_TV_SHOW_PROPERTIES = [
+const DEFAULT_TV_SHOW_LIST_PROPERTIES = [
   'title',
   'year',
   'thumbnail',
@@ -63,6 +63,16 @@ const DEFAULT_TV_SHOW_PROPERTIES = [
   'premiered',
   'lastplayed',
   'dateadded'
+] as const satisfies readonly VideoLibraryTvShowPropertyName[];
+
+export const VIDEO_TV_SHOW_DETAIL_PROPERTIES = [
+  ...DEFAULT_TV_SHOW_LIST_PROPERTIES,
+  'sorttitle',
+  'originaltitle',
+  'mpaa',
+  'imdbnumber',
+  'tag',
+  'uniqueid'
 ] as const satisfies readonly VideoLibraryTvShowPropertyName[];
 const DEFAULT_SEASON_PROPERTIES = [
   'title',
@@ -149,7 +159,7 @@ export class VideoTvStore {
     try {
       const client = this.#resolveClient('TV show list refresh');
       const result = await getVideoLibraryTvShows(client, {
-        properties: DEFAULT_TV_SHOW_PROPERTIES,
+        properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
         limits: DEFAULT_LIST_LIMIT
       });
 
@@ -199,7 +209,10 @@ export class VideoTvStore {
     try {
       const client = this.#resolveClient('TV show detail refresh');
       const [detailResult, seasonsResult] = await Promise.all([
-        getVideoLibraryTvShowDetails(client, { tvshowid, properties: DEFAULT_TV_SHOW_PROPERTIES }),
+        getVideoLibraryTvShowDetails(client, {
+          tvshowid,
+          properties: VIDEO_TV_SHOW_DETAIL_PROPERTIES
+        }),
         getVideoLibrarySeasons(client, {
           tvshowid,
           properties: DEFAULT_SEASON_PROPERTIES,

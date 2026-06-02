@@ -1,0 +1,253 @@
+.addon-detail {
+  display: grid;
+  gap: 1rem;
+  color: #333;
+}
+
+.addon-detail-hero,
+.addon-status-grid,
+.addon-card,
+.addon-card-heading,
+.addon-meta,
+.addon-toggle-panel,
+.addon-confirm {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.addon-detail-hero {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.addon-eyebrow,
+.addon-status span,
+.addon-card-heading > span,
+.addon-meta dt,
+.addon-badges span {
+  margin: 0;
+  color: #888;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+h2,
+h3,
+h4,
+p,
+dl,
+dd {
+  margin: 0;
+}
+
+h2 {
+  color: #555;
+  font-size: 1.85rem;
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+h3 {
+  color: #444;
+  font-size: 1.4rem;
+  font-weight: 400;
+}
+
+h4 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+p,
+dd,
+button {
+  line-height: 1.5;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.addon-hero-actions,
+.addon-error-actions,
+.addon-confirm div,
+.addon-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.addon-primary-action,
+.addon-secondary-action,
+.addon-danger-action,
+.addon-error-actions button {
+  padding: 0.45rem 0.7rem;
+  color: #fff;
+  font-weight: 600;
+  background: #777;
+}
+
+.addon-primary-action {
+  background: #4bb3e8;
+}
+
+.addon-danger-action {
+  color: #fff;
+  background: #9b5151;
+}
+
+.addon-primary-action:not(:disabled):hover,
+.addon-secondary-action:not(:disabled):hover,
+.addon-danger-action:not(:disabled):hover,
+.addon-error-actions button:not(:disabled):hover {
+  filter: brightness(0.94);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+}
+
+.addon-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.addon-status,
+.addon-alert,
+.addon-diagnostics,
+.addon-error-actions,
+.addon-card,
+.addon-empty,
+.addon-confirm {
+  padding: 0.9rem;
+  background: #f8f8f8;
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+}
+
+.addon-status {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.addon-alert {
+  display: grid;
+  gap: var(--space-2xs);
+  color: #8a2b2b;
+  background: #fff4f4;
+}
+
+.addon-diagnostics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  color: #666;
+}
+
+.addon-diagnostics .warning {
+  color: #8a6a22;
+}
+
+.addon-error-actions {
+  justify-content: space-between;
+}
+
+.addon-card {
+  background: #f8f8f8;
+}
+
+.addon-card.broken {
+  box-shadow:
+    inset 3px 0 0 #d09b38,
+    0 1px 3px rgb(0 0 0 / 14%);
+}
+
+.addon-card-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.addon-card-heading p,
+.addon-summary,
+.addon-description,
+.addon-empty,
+.addon-error-actions p,
+.addon-toggle-panel p {
+  color: #666;
+}
+
+.addon-description.muted {
+  font-style: italic;
+}
+
+.addon-card-heading > span,
+.addon-badges span,
+.addon-meta div,
+.addon-toggle-panel {
+  padding: 0.55rem 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.addon-card-heading > span.enabled {
+  color: #228552;
+}
+
+.addon-card-heading > span.disabled,
+.addon-badges .danger {
+  color: #8a2b2b;
+}
+
+.addon-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid #e1e1e1;
+  border-left: 1px solid #e1e1e1;
+  background: #fff;
+}
+
+.addon-meta div {
+  padding: 0.65rem;
+  border-right: 1px solid #e1e1e1;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+.addon-toggle-panel {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding: 0.8rem;
+  background: #eee;
+}
+
+.addon-confirm {
+  background: #fff;
+  box-shadow:
+    inset 3px 0 0 #4bb3e8,
+    0 1px 3px rgb(0 0 0 / 14%);
+}
+
+@media (max-width: 760px) {
+  .addon-detail-hero,
+  .addon-status-grid,
+  .addon-card-heading,
+  .addon-meta,
+  .addon-toggle-panel {
+    grid-template-columns: 1fr;
+  }
+}

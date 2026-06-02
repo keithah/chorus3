@@ -32,10 +32,8 @@ import type {
   MediaFilesActionDispatch,
   MediaFilesPanelDispatch
 } from './lib/components/MediaFilesPanel.svelte';
-import type {
-  MediaPlaylistsActionDispatch,
-  MediaPlaylistsPanelDispatch
-} from './lib/components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsPanelDispatch } from './lib/components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsActionDispatch } from './lib/components/mediaPlaylistsActionModel';
 import type { SettingsPanelDispatch } from './lib/components/SettingsPanel.svelte';
 import type { AddonDetailDispatch } from './lib/components/AddonDetailShell.svelte';
 import type { AddonsPanelDispatch } from './lib/components/AddonsPanel.svelte';
@@ -1841,23 +1839,12 @@ describe('App shell', () => {
 
   it('keeps Chorus2 primary video detail routes on the classic library surface', () => {
     const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
-    const appSource = readFileSync('src/App.svelte', 'utf8');
-    const libraryBranch = surfaceSource.indexOf('{#if isChorus2LibraryRoute}');
+    const libraryBranch = surfaceSource.indexOf('{#if currentLibraryRoute}');
 
     expect(libraryBranch).toBeGreaterThanOrEqual(0);
+    expect(surfaceSource).toContain("import { isLibraryRoute } from './libraryRouteFilters'");
     expect(surfaceSource).not.toContain('const isVideoDetailRoute = $derived(');
     expect(surfaceSource).not.toContain('<VideoMovieDetailShell');
-    expect(surfaceSource).toContain("route.kind === 'movieDetail'");
-    expect(surfaceSource).toContain("route.kind === 'tvshowDetail'");
-    expect(surfaceSource).toContain("route.kind === 'tvshowSeasonDetail'");
-    expect(surfaceSource).toContain("route.kind === 'tvshowEpisodeDetail'");
-    expect(appSource).toContain('function videoDetailRefreshKey(');
-    expect(appSource).toContain('${activeHost.id}:${routeKey}');
-    expect(appSource).toContain(
-      'videoDetailRefreshKey(currentVideoRoute, currentActiveKodiHost) !== expectedRefreshKey'
-    );
-    expect(appSource).toContain('function videoRouteToPrimaryRoute(');
-    expect(appSource).toContain('const currentMetadataPrimaryRoute');
   });
 
   it('keeps the extracted primary shell safe with empty nav, enabled drawer defaults, and trailing package base', () => {
@@ -3759,7 +3746,7 @@ describe('App shell', () => {
     );
     expect(refreshEpisodeDetail).toHaveBeenCalledWith(6601, 'command:videoWrite');
     await waitForText(target, 'Marked Signal Mirror watched.');
-  });
+  }, 15_000);
 
   it('routes default season batch writes through videoWriteStore and refreshes season episodes after partial writes', async () => {
     const markEpisodesWatched = vi

@@ -12,10 +12,8 @@ import type {
   VideoSeasonArtworkDispatch,
   VideoSeasonWriteDispatch
 } from '$lib/components/VideoSeasonDetailShell.svelte';
-import type {
-  MediaPlaylistsActionDispatch,
-  MediaPlaylistsPanelDispatch
-} from '$lib/components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsPanelDispatch } from '$lib/components/MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsActionDispatch } from '$lib/components/mediaPlaylistsActionModel';
 import type { MediaPlaylistsStoreSnapshot } from '$lib/stores/mediaPlaylists.svelte';
 import { parseVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 

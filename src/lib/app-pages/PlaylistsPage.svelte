@@ -10,10 +10,8 @@
     LocalPlaylistStoreSnapshot,
     MediaPlaylistsStoreSnapshot
   } from '$lib/stores';
-  import type {
-    MediaPlaylistsActionDispatch,
-    MediaPlaylistsPanelDispatch
-  } from '$components/MediaPlaylistsPanel.svelte';
+  import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
+  import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
   import MediaPlaylistsPanel from '$components/MediaPlaylistsPanel.svelte';
 
   export interface LocalPlaylistPageActions {
@@ -60,6 +58,7 @@
   let renameName = $state('');
   let menuOpen = $state(false);
   let pendingDelete = $state(false);
+  let autoRefreshStarted = $state(false);
 
   const routePlaylist = $derived(resolveRoutePlaylist(route, localPlaylistSnapshot));
   const selectedPlaylist = $derived(
@@ -79,6 +78,15 @@
     renameName = selectedPlaylist?.label ?? '';
     pendingDelete = false;
     menuOpen = false;
+  });
+
+  $effect(() => {
+    if (autoRefreshStarted || snapshot.refreshStatus !== 'idle') {
+      return;
+    }
+
+    autoRefreshStarted = true;
+    void dispatch.refresh();
   });
 
   function resolveRoutePlaylist(
@@ -216,7 +224,9 @@
     <div class="side-inner">
       <div class="current-lists">
         <h3>Playlists</h3>
-        {#if localPlaylistSnapshot.playlists.length > 0}
+        {#if localPlaylistSnapshot.playlists.length === 0}
+          <p class="sidebar-empty">No local playlists yet. Create one below.</p>
+        {:else}
           <ul class="lists options">
             {#each localPlaylistSnapshot.playlists as playlist (playlist.id)}
               {@const playlistHref = buildPrimaryAppRoute(
@@ -396,6 +406,13 @@
     color: #888;
     font-size: 17px;
     font-weight: 400;
+  }
+
+  .sidebar-empty {
+    margin: 0 0 12px;
+    color: #888;
+    font-size: 13px;
+    line-height: 1.4;
   }
 
   .lists {

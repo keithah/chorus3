@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "package:kodi": "npm run build && node scripts/package-kodi-webinterface.mjs",
+    "package:kodi": "npm run build && npm run package:kodi:dist",
+    "package:kodi:dist": "node scripts/package-kodi-webinterface.mjs",
     "install:kodi": "npm run package:kodi && rsync -ac --delete dist/kodi/webinterface.chorus3/ \"$HOME/Library/Application Support/Kodi/addons/webinterface.chorus3/\"",
-    "package:kodi:repo": "npm run build && node scripts/package-kodi-repository.mjs",
+    "package:kodi:repo": "npm run build && npm run package:kodi:repo:dist",
+    "package:kodi:repo:dist": "node scripts/package-kodi-repository.mjs",
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.app.json",
     "lint": "eslint . && prettier --check .",
@@ -27,7 +29,7 @@
     "verify:no-tailwind": "node scripts/verify-no-tailwind.mjs",
     "verify:i18n": "node scripts/verify-i18n.mjs",
     "verify:kodi-package": "node scripts/verify-kodi-package.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:no-tailwind && npm run verify:i18n && npm run package:kodi && npm run verify:kodi-package && npm run package:kodi:repo"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:no-tailwind && npm run verify:i18n && npm run package:kodi:dist && npm run verify:kodi-package && npm run package:kodi:repo:dist"
   },
   "dependencies": {
     "svelte": "^5.0.0"

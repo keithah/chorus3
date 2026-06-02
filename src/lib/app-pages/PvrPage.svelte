@@ -14,7 +14,7 @@
   export interface PvrPageDispatch {
     refreshChannels(group: PvrChannelGroup): Promise<void> | void;
     refreshRecordings(): Promise<void> | void;
-    refreshBroadcasts?(channelid: number): Promise<void> | void;
+    refreshBroadcasts?(channelid: number): Promise<boolean | void> | boolean | void;
     loadChannelDetail?(channelid: number): Promise<unknown> | unknown;
     toggleChannelRecording?(channelid: number): Promise<void> | void;
     toggleBroadcastTimer?(broadcastid: number, timerrule?: boolean): Promise<void> | void;
@@ -39,6 +39,7 @@
 
   let lastRefreshKey = $state('');
   let lastGlobalEpgKey = $state('');
+  let globalEpgRunId = 0;
   let pendingAction = $state<string | null>(null);
   let localStatusText = $state<string | null>(null);
   const mode = $derived(resolveMode(route));
@@ -85,6 +86,7 @@
   $effect(() => {
     if (route.kind !== 'pvrEpg') {
       lastGlobalEpgKey = '';
+      globalEpgRunId += 1;
       return;
     }
 
@@ -94,9 +96,7 @@
     }
 
     lastGlobalEpgKey = key;
-    for (const channel of snapshot.tvChannels) {
-      void dispatch.refreshBroadcasts?.(channel.channelid);
-    }
+    void refreshBroadcastsForChannels(snapshot.tvChannels);
   });
 
   $effect(() => {
@@ -207,9 +207,44 @@
 
   async function refreshGlobalEpg(): Promise<void> {
     await dispatch.refreshChannels('alltv');
-    await Promise.all(
-      snapshot.tvChannels.map((channel) => dispatch.refreshBroadcasts?.(channel.channelid))
-    );
+    await refreshBroadcastsForChannels(snapshot.tvChannels);
+  }
+
+  async function refreshBroadcastsForChannels(
+    items: readonly PvrChannelSnapshot[],
+    concurrency = 6
+  ): Promise<void> {
+    const refreshBroadcasts = dispatch.refreshBroadcasts;
+    if (!refreshBroadcasts || items.length === 0) {
+      return;
+    }
+
+    const runId = ++globalEpgRunId;
+    let nextIndex = 0;
+    const workerCount = Math.min(Math.max(1, concurrency), items.length);
+    let failed = 0;
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (runId === globalEpgRunId) {
+        const channel = items[nextIndex];
+        nextIndex += 1;
+        if (!channel) {
+          return;
+        }
+        try {
+          const result = await refreshBroadcasts(channel.channelid);
+          if (result === false) {
+            failed += 1;
+          }
+        } catch {
+          failed += 1;
+        }
+      }
+    });
+
+    await Promise.allSettled(workers);
+    if (runId === globalEpgRunId && failed > 0) {
+      localStatusText = `Updated TV guide with ${failed} channel${failed === 1 ? '' : 's'} failing.`;
+    }
   }
 
   function broadcastsFor(channel: PvrChannelSnapshot): readonly PvrBroadcastSnapshot[] {
@@ -491,7 +526,7 @@
               >
                 <span class="thumb" aria-hidden="true">
                   {#if channelThumb}
-                    <img src={channelThumb} alt="" />
+                    <img src={channelThumb} alt="" loading="lazy" decoding="async" />
                   {:else}
                     <span class="thumb-placeholder">K</span>
                   {/if}

@@ -6,6 +6,7 @@
   } from '$lib/stores/settingsStore.svelte';
   import type { SettingsSettingValue } from '$lib/kodi';
   import type { TranslationContext } from '$lib/i18n';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   export interface SettingsPanelDispatch {
     load: () => void | Promise<void>;
@@ -27,8 +28,11 @@
 
   const valueSeparator = '::';
 
+  const settingsVisibility = createIncrementalVisibility(120);
+
   const isBusy = $derived(snapshot.loadStatus === 'loading' || snapshot.writeStatus === 'pending');
   const visibleSettingIds = $derived(new Set(snapshot.settings.map((setting) => setting.id)));
+  const visibleSettings = $derived(settingsVisibility.visibleItems(snapshot.settings));
   const hasOnlyReadOnlySettings = $derived(
     snapshot.settings.length > 0 && snapshot.settings.every((setting) => !canEdit(setting))
   );
@@ -281,7 +285,7 @@
         <p class="settings-read-only-category">{i18n.t('settings.panel.readOnlyCategory')}</p>
       {/if}
       <div class="settings-list">
-        {#each snapshot.settings as setting (setting.id)}
+        {#each visibleSettings as setting (setting.id)}
           <label class="settings-row" class:read-only={!canEdit(setting)}>
             <span class="settings-label">
               <strong>{settingLabel(setting)}</strong>
@@ -359,6 +363,11 @@
           </label>
         {/each}
       </div>
+      {#if settingsVisibility.hasMore(snapshot.settings.length)}
+        <button type="button" class="settings-show-more" onclick={settingsVisibility.showMore}>
+          Show more settings
+        </button>
+      {/if}
     {:else}
       <div class="settings-empty">
         {#if snapshot.sections.length === 0}
@@ -490,6 +499,19 @@
     display: grid;
     gap: 0;
     padding: 12px 18px 44px;
+  }
+
+  .settings-show-more {
+    grid-column: 2;
+    justify-self: start;
+    margin: 0 18px 18px;
+    padding: 7px 13px;
+    color: #fff;
+    background: #777;
+    border: 0;
+    border-radius: 0;
+    font: inherit;
+    cursor: pointer;
   }
 
   .settings-read-only-category {

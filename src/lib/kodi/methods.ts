@@ -2701,13 +2701,11 @@ export async function testKodiHttpConnection(
   client: KodiJsonRpcHttpClient,
   options?: KodiHttpCallOptions
 ): Promise<KodiHttpConnectionTestResult> {
-  const ping = await pingKodi(client, options);
-  const jsonRpcVersion = await getJsonRpcVersion(client, options);
-  const application = await getApplicationProperties(
-    client,
-    ['name', 'version', 'volume', 'muted'],
-    options
-  );
+  const [ping, jsonRpcVersion, application] = await Promise.all([
+    pingKodi(client, options),
+    getJsonRpcVersion(client, options),
+    getApplicationProperties(client, ['name', 'version', 'volume', 'muted'], options)
+  ]);
 
   return { ping, jsonRpcVersion, application };
 }

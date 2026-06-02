@@ -1,32 +1,26 @@
 <script lang="ts" module>
-  import type {
-    MediaPlaylistCapabilitiesSnapshot,
-    MediaPlaylistKind,
-    MediaPlaylistsMedia
-  } from '$lib/stores/mediaPlaylists.svelte';
-
   export interface MediaPlaylistsPanelDispatch {
     refresh: () => Promise<void> | void;
     openPlaylist: (id: string) => Promise<void> | void;
     openBreadcrumb: (id: string) => Promise<void> | void;
   }
-
-  export interface MediaPlaylistsActionItem {
-    id: string;
-    label: string;
-    media: MediaPlaylistsMedia;
-    kind: MediaPlaylistKind;
-    capabilities: MediaPlaylistCapabilitiesSnapshot;
-  }
-
-  export interface MediaPlaylistsActionDispatch {
-    playPlaylistItem: (item: MediaPlaylistsActionItem) => Promise<void> | void;
-    queuePlaylistItem: (item: MediaPlaylistsActionItem) => Promise<void> | void;
-  }
 </script>
 
 <script lang="ts">
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import {
+    actionId,
+    entryActionFor as buildEntryAction,
+    entryActionRun,
+    playlistActionFor as buildPlaylistAction,
+    playlistActionRun,
+    type MediaPlaylistsActionDispatch,
+    type MediaPlaylistsActionItem,
+    type MediaPlaylistsEntryActionItem,
+    type PendingPlaylistAction,
+    type PlaylistActionRun,
+    type PlaylistActionVerb
+  } from './mediaPlaylistsActionModel';
   import type {
     MediaPlaylistEntrySnapshot,
     MediaPlaylistSnapshot,
@@ -42,18 +36,10 @@
   }
 
   type BrowseOperationKind = 'refresh' | 'playlist' | 'breadcrumb';
-  type PlaylistActionVerb = 'play' | 'queue';
 
   type PendingBrowseOperation = {
     kind: BrowseOperationKind;
     id: string;
-  };
-
-  type PendingPlaylistAction = {
-    id: string;
-    verb: PlaylistActionVerb;
-    label: string;
-    item: MediaPlaylistsActionItem;
   };
 
   let {
@@ -153,6 +139,19 @@
     }
   }
 
+  async function handleEntryAction(
+    verb: PlaylistActionVerb,
+    entry: MediaPlaylistEntrySnapshot,
+    index: number
+  ): Promise<void> {
+    const item = entryActionFor(entry, index);
+    if (!item || isEntryVerbDisabled(verb, entry, item)) {
+      return;
+    }
+
+    await runPlaylistAction(entryActionRun(actionDispatch, verb, item));
+  }
+
   async function handlePlaylistAction(
     verb: PlaylistActionVerb,
     playlist: MediaPlaylistSnapshot,
@@ -163,23 +162,25 @@
       return;
     }
 
-    const label = item.label;
-    pendingAction = { id: actionId(verb, item), verb, label, item };
+    await runPlaylistAction(playlistActionRun(actionDispatch, verb, item));
+  }
+
+  async function runPlaylistAction(action: PlaylistActionRun): Promise<void> {
+    pendingAction = {
+      id: actionId(action.verb, action.item),
+      verb: action.verb,
+      label: action.label,
+      item: action.item
+    };
     localErrorText = null;
-    localStatusText = `${capitalize(verb === 'play' ? 'playing' : 'queueing')} playlist ${label}…`;
+    localStatusText = action.pendingCopy;
 
     try {
-      if (verb === 'play') {
-        await actionDispatch.playPlaylistItem(item);
-      } else {
-        await actionDispatch.queuePlaylistItem(item);
-      }
-      localStatusText = `${verb === 'play' ? 'Played' : 'Queued'} playlist ${label}.`;
+      await action.run();
+      localStatusText = action.successCopy;
     } catch (error) {
-      const message = sanitizeUiText(
-        error instanceof Error ? error.message : 'Playlist action failed.'
-      );
-      localErrorText = `Could not ${verb} playlist ${label}. ${message}`;
+      const message = sanitizeUiText(error instanceof Error ? error.message : action.fallbackError);
+      localErrorText = `${action.errorCopy} ${message}`;
       localStatusText = localErrorText;
     } finally {
       pendingAction = null;
@@ -224,7 +225,9 @@
     return pendingBrowse.kind === kind && pendingBrowse.id === id;
   }
 
-  function isActionDisabled(item: MediaPlaylistsActionItem): boolean {
+  function isActionDisabled(
+    item: MediaPlaylistsActionItem | MediaPlaylistsEntryActionItem
+  ): boolean {
     if (isLoading) {
       return true;
     }
@@ -241,21 +244,65 @@
     index: number
   ): MediaPlaylistsActionItem | null {
     const id = stringOrNull(playlist.id);
-    if (!id || !playlist.capabilities.canPlay || !playlist.capabilities.canQueue) {
+    if (!id || (!playlist.capabilities.canPlay && !playlist.capabilities.canQueue)) {
       return null;
     }
 
-    return {
-      id,
-      label: safePlaylistLabel(playlist, index),
-      media: playlist.media,
-      kind: playlist.kind,
-      capabilities: { ...playlist.capabilities }
-    };
+    return buildPlaylistAction(playlist, id, safePlaylistLabel(playlist, index));
   }
 
-  function actionId(verb: PlaylistActionVerb, item: MediaPlaylistsActionItem): string {
-    return `${verb}:playlist:${item.id}`;
+  function entryActionFor(
+    entry: MediaPlaylistEntrySnapshot,
+    index: number
+  ): MediaPlaylistsEntryActionItem | null {
+    const id = stringOrNull(entry.id);
+    if (
+      !id ||
+      (entry.mediaKind !== 'audio' && entry.mediaKind !== 'video') ||
+      (!entry.capabilities.canPlay && !entry.capabilities.canQueue)
+    ) {
+      return null;
+    }
+
+    return buildEntryAction(
+      entry,
+      id,
+      safeEntryLabel(entry, index),
+      snapshot.media,
+      entry.mediaKind
+    );
+  }
+
+  function isEntryActionDisabled(item: MediaPlaylistsEntryActionItem): boolean {
+    if (isLoading) {
+      return true;
+    }
+
+    return isActionDisabled(item);
+  }
+
+  function isEntryVerbDisabled(
+    verb: PlaylistActionVerb,
+    entry: MediaPlaylistEntrySnapshot,
+    item: MediaPlaylistsEntryActionItem
+  ): boolean {
+    if (verb === 'play' && !entry.capabilities.canPlay) {
+      return true;
+    }
+
+    if (verb === 'queue' && !entry.capabilities.canQueue) {
+      return true;
+    }
+
+    if (verb === 'play' && !actionDispatch.playEntryItem) {
+      return true;
+    }
+
+    if (verb === 'queue' && !actionDispatch.queueEntryItem) {
+      return true;
+    }
+
+    return isEntryActionDisabled(item);
   }
 
   function safePlaylistLabel(playlist: MediaPlaylistSnapshot, index: number): string {
@@ -282,6 +329,10 @@
   function playlistKicker(playlist: MediaPlaylistSnapshot): string {
     if (playlist.kind === 'smart') {
       return 'Smart playlist';
+    }
+
+    if (playlist.kind === 'basic') {
+      return 'Playlist file';
     }
 
     return 'Unsupported playlist';
@@ -414,10 +465,6 @@
       /\\/.test(value)
     );
   }
-
-  function capitalize(value: string): string {
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  }
 </script>
 
 <section class="media-playlists-panel surface" aria-labelledby="media-playlists-title">
@@ -425,8 +472,8 @@
     <p class="section-kicker">{i18n.t('media.playlists.kicker')}</p>
     <h2 id="media-playlists-title">{i18n.t('media.playlists.title')}</h2>
     <p class="summary-line">
-      Browse Kodi {safeMediaLabel(snapshot.media)} smart playlists and safely play or queue supported
-      playlist IDs.
+      Browse Kodi {safeMediaLabel(snapshot.media)} playlists, open smart playlists to browse tracks, and
+      play or queue supported items.
     </p>
   </div>
 
@@ -577,12 +624,35 @@
         <ul class="entry-list">
           {#each snapshot.entries as entry, index (safeEachKey('entry', entry.id, index))}
             {@const label = safeEntryLabel(entry, index)}
+            {@const entryAction = entryActionFor(entry, index)}
             <li class="entry-card">
               <div class="item-copy">
                 <span class="item-kicker">{entryKicker(entry)}</span>
                 <span class="item-title">{label}</span>
                 <span class="item-meta">{entryMeta(entry)}</span>
               </div>
+              {#if entryAction}
+                <div class="action-row" aria-label={`Actions for ${label}`}>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Play ${label}`}
+                    disabled={isEntryVerbDisabled('play', entry, entryAction)}
+                    onclick={() => handleEntryAction('play', entry, index)}
+                  >
+                    Play
+                  </button>
+                  <button
+                    type="button"
+                    class="action-button"
+                    aria-label={`Queue ${label}`}
+                    disabled={isEntryVerbDisabled('queue', entry, entryAction)}
+                    onclick={() => handleEntryAction('queue', entry, index)}
+                  >
+                    Queue
+                  </button>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>

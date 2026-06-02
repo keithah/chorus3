@@ -225,6 +225,7 @@ export class MediaSearchStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #abortController: AbortController | null = null;
 
   constructor(options: MediaSearchStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -239,8 +240,10 @@ export class MediaSearchStore {
   async search(query: string | MediaSearchQuery): Promise<void> {
     const requestId = ++this.#requestId;
     const normalizedQuery = normalizeSearchQuery(query);
+    const signal = this.#startRequest();
 
     if (normalizedQuery.text.length < MIN_QUERY_LENGTH) {
+      this.#abortActiveRequest();
       this.#snapshot = cloneMediaSearchSnapshot(DEFAULT_SNAPSHOT);
       return;
     }
@@ -293,59 +296,87 @@ export class MediaSearchStore {
         musicVideosResult
       ] = await Promise.all([
         includeArtists
-          ? getAudioLibraryArtists(client, {
-              properties: DEFAULT_ARTIST_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('artist', normalizedQuery.text),
-              sort: LABEL_SORT
-            })
+          ? getAudioLibraryArtists(
+              client,
+              {
+                properties: DEFAULT_ARTIST_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('artist', normalizedQuery.text),
+                sort: LABEL_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ artists: [], limits: EMPTY_LIMITS }),
         includeAlbums
-          ? getAudioLibraryAlbums(client, {
-              properties: DEFAULT_ALBUM_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('album', normalizedQuery.text),
-              sort: LABEL_SORT
-            })
+          ? getAudioLibraryAlbums(
+              client,
+              {
+                properties: DEFAULT_ALBUM_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('album', normalizedQuery.text),
+                sort: LABEL_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ albums: [], limits: EMPTY_LIMITS }),
         includeSongs
-          ? getAudioLibrarySongs(client, {
-              properties: DEFAULT_SONG_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('title', normalizedQuery.text),
-              sort: TITLE_SORT
-            })
+          ? getAudioLibrarySongs(
+              client,
+              {
+                properties: DEFAULT_SONG_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('title', normalizedQuery.text),
+                sort: TITLE_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ songs: [], limits: EMPTY_LIMITS }),
         includeGenres
-          ? getAudioLibraryGenres(client, {
-              properties: DEFAULT_GENRE_PROPERTIES,
-              limits: GENRE_SEARCH_LIMIT,
-              sort: TITLE_SORT
-            })
+          ? getAudioLibraryGenres(
+              client,
+              {
+                properties: DEFAULT_GENRE_PROPERTIES,
+                limits: GENRE_SEARCH_LIMIT,
+                sort: TITLE_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ genres: [], limits: EMPTY_LIMITS }),
         includeMovies
-          ? getVideoLibraryMovies(client, {
-              properties: DEFAULT_VIDEO_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('title', normalizedQuery.text),
-              sort: TITLE_SORT
-            })
+          ? getVideoLibraryMovies(
+              client,
+              {
+                properties: DEFAULT_VIDEO_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('title', normalizedQuery.text),
+                sort: TITLE_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ movies: [], limits: EMPTY_LIMITS }),
         includeTvShows
-          ? getVideoLibraryTvShows(client, {
-              properties: DEFAULT_VIDEO_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('title', normalizedQuery.text),
-              sort: TITLE_SORT
-            })
+          ? getVideoLibraryTvShows(
+              client,
+              {
+                properties: DEFAULT_VIDEO_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('title', normalizedQuery.text),
+                sort: TITLE_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ tvshows: [], limits: EMPTY_LIMITS }),
         includeMusicVideos
-          ? getVideoLibraryMusicVideos(client, {
-              properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
-              limits: SEARCH_LIMIT,
-              filter: containsFilter('title', normalizedQuery.text),
-              sort: TITLE_SORT
-            })
+          ? getVideoLibraryMusicVideos(
+              client,
+              {
+                properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
+                limits: SEARCH_LIMIT,
+                filter: containsFilter('title', normalizedQuery.text),
+                sort: TITLE_SORT
+              },
+              { signal }
+            )
           : Promise.resolve({ musicvideos: [], limits: EMPTY_LIMITS })
       ]);
 
@@ -418,11 +449,13 @@ export class MediaSearchStore {
 
   clear(): void {
     this.#requestId += 1;
+    this.#abortActiveRequest();
     this.#snapshot = cloneMediaSearchSnapshot(DEFAULT_SNAPSHOT);
   }
 
   destroy(): void {
     this.#requestId += 1;
+    this.#abortActiveRequest();
   }
 
   #resolveClient(): KodiJsonRpcHttpClient {
@@ -440,6 +473,17 @@ export class MediaSearchStore {
 
   #isCurrent(requestId: number): boolean {
     return requestId === this.#requestId;
+  }
+
+  #startRequest(): AbortSignal {
+    this.#abortActiveRequest();
+    this.#abortController = new AbortController();
+    return this.#abortController.signal;
+  }
+
+  #abortActiveRequest(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
   }
 }
 

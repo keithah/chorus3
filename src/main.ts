@@ -201,20 +201,20 @@ export function resolveEntrypointAppProps(
       }
     : {};
 
-  if (shouldUseM007VisualProofFixtures(location, env) && canLoadM007VisualProofFixtures) {
+  if (canLoadM007VisualProofFixtures && shouldUseM007VisualProofFixtures(location, env)) {
     return createM007VisualProofAppProps(location);
   }
 
-  if (shouldUseM004BrowserProofFixtures(location, env) && canLoadM004BrowserProofFixtures) {
+  if (canLoadM004BrowserProofFixtures && shouldUseM004BrowserProofFixtures(location, env)) {
     const props = createM004BrowserProofAppProps(location);
     return { ...props, route: toAppRoute(props.route) };
   }
 
-  if (shouldUseM003BrowserProofFixtures(location, env) && canLoadM003BrowserProofFixtures) {
+  if (canLoadM003BrowserProofFixtures && shouldUseM003BrowserProofFixtures(location, env)) {
     return { route, ...createM003BrowserProofAppProps() };
   }
 
-  if (shouldUseM005BrowserProofFixtures(location, env) && canLoadM005BrowserProofFixtures) {
+  if (canLoadM005BrowserProofFixtures && shouldUseM005BrowserProofFixtures(location, env)) {
     const props = createM005BrowserProofAppProps(location);
     return props.settingsSnapshot || props.addonsSnapshot || props.nowPlayingEmbedQuery
       ? props

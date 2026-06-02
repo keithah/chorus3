@@ -4,7 +4,6 @@ import {
   type DashboardRoute,
   type VideoRoute
 } from '../video/videoRouter';
-import { getChorus2ParityRowById, type Chorus2ParityStatus } from './chorus2ParityLedger';
 import { buildPrimaryRoutePath, parsePrimaryRoutePath, type PrimaryRoute } from './primaryRoutes';
 import { isThumbsUpRoutePath, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
 
@@ -31,7 +30,6 @@ export type ParityPlaceholderStatus = 'missing' | 'deferred' | 'intentionallyCha
 
 export interface ParityRoutePlaceholder {
   readonly id: string;
-  readonly ledgerIds: readonly string[];
   readonly surface: string;
   readonly title: string;
   readonly status: ParityPlaceholderStatus;
@@ -106,8 +104,6 @@ const PARITY_PLACEHOLDERS_BY_ID = new Map(
 const PARITY_PLACEHOLDERS_BY_ROUTE_PATH = new Map(
   PARITY_PLACEHOLDER_DEFINITIONS.map((placeholder) => [placeholder.routePath, placeholder])
 );
-
-validateParityPlaceholderLedgerIds();
 
 export function parseAppRoute(
   pathname: unknown,
@@ -744,44 +740,6 @@ function sanitizePathSegment(segment: string): string {
   }
 
   return decoded;
-}
-
-function validateParityPlaceholderLedgerIds(): void {
-  for (const placeholder of PARITY_PLACEHOLDER_DEFINITIONS) {
-    for (const ledgerId of placeholder.ledgerIds) {
-      const row = getChorus2ParityRowById(ledgerId);
-
-      if (!row) {
-        throw new Error(
-          `Missing classic parity ledger row for placeholder ${placeholder.id}: ${ledgerId}`
-        );
-      }
-
-      if (row.owner !== placeholder.owner) {
-        throw new Error(
-          `classic placeholder ${placeholder.id} owner ${placeholder.owner} does not match ledger row ${ledgerId} owner ${row.owner}`
-        );
-      }
-
-      if (toPlaceholderStatus(row.status) !== placeholder.status) {
-        throw new Error(
-          `classic placeholder ${placeholder.id} status ${placeholder.status} does not match ledger row ${ledgerId} status ${row.status}`
-        );
-      }
-    }
-  }
-}
-
-function toPlaceholderStatus(status: Chorus2ParityStatus): ParityPlaceholderStatus {
-  if (status === 'missing' || status === 'deferred') {
-    return status;
-  }
-
-  if (status === 'out-of-scope') {
-    return 'intentionallyChanged';
-  }
-
-  throw new Error(`Unsupported classic placeholder status: ${status}`);
 }
 
 function safeDecode(value: string): string {

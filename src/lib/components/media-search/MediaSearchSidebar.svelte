@@ -1,11 +1,13 @@
 <script lang="ts">
   import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import type { TranslationContext } from '$lib/i18n';
   import type { MediaSearchScope } from '$lib/stores/mediaSearch.svelte';
   import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
   import { displayText } from './mediaSearchFormatting';
   import { EXTERNAL_SEARCH_PROVIDERS, LOCAL_SEARCH_LINKS } from './mediaSearchLinks';
 
   interface Props {
+    i18n: TranslationContext;
     buildOptions: BuildAppRouteOptions;
     providerQuery: string;
     selectedScope: MediaSearchScope;
@@ -18,6 +20,7 @@
   }
 
   let {
+    i18n,
     buildOptions,
     providerQuery,
     selectedScope,
@@ -31,7 +34,10 @@
 
   function localSearchHref(scope: MediaSearchScope): string {
     return providerQuery
-      ? buildPrimaryAppRoute({ kind: 'searchMedia', media: scope, query: providerQuery }, buildOptions)
+      ? buildPrimaryAppRoute(
+          { kind: 'searchMedia', media: scope, query: providerQuery },
+          buildOptions
+        )
       : buildPrimaryAppRoute({ kind: 'search' }, buildOptions);
   }
 
@@ -63,9 +69,9 @@
   }
 </script>
 
-<aside class="search-sidebar" aria-label="Search navigation">
+<aside class="search-sidebar" aria-label={i18n.t('media.search.sidebarAria')}>
   <section class="sidebar-section">
-    <h3>Local media</h3>
+    <h3>{i18n.t('media.search.localMedia')}</h3>
     <ul class="search-media-links">
       {#each LOCAL_SEARCH_LINKS as [scope, label] (scope)}
         <li>
@@ -76,7 +82,7 @@
   </section>
 
   <section class="sidebar-section">
-    <h3 id="media-search-providers-title">Addons</h3>
+    <h3 id="media-search-providers-title">{i18n.t('media.search.addons')}</h3>
     <ul
       class="provider-search__links search-addon-links"
       aria-labelledby="media-search-providers-title"
@@ -110,14 +116,17 @@
               {displayText(row.title, 'Add-on search')}
             </a>
           {:else}
-            <span class="disabled" aria-disabled="true">{displayText(row.title, 'Add-on search')}</span>
+            <span class="disabled" aria-disabled="true"
+              >{displayText(row.title, 'Add-on search')}</span
+            >
           {/if}
         </li>
       {/each}
     </ul>
     <a
       class="configure-addons-link"
-      href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}>Configure add-ons</a
+      href={buildPrimaryAppRoute({ kind: 'settingsSearch' }, buildOptions)}
+      >{i18n.t('media.search.configureAddons')}</a
     >
   </section>
 </aside>

@@ -68,6 +68,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
 
   readonly #storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null;
   readonly #now: () => string;
+  #ids = createEmptyIdSets();
 
   constructor(options: ThumbsUpStoreOptions = {}) {
     this.#storage = options.storage ?? globalThis.localStorage ?? null;
@@ -86,7 +87,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
     }
 
     const group = this.#snapshot.groups[normalized.media];
-    const exists = group.some((candidate) => candidate.id === normalized.id);
+    const exists = this.#ids[normalized.media].has(normalized.id);
     const nextGroup = exists
       ? group.filter((candidate) => candidate.id !== normalized.id)
       : [normalized, ...group.filter((candidate) => candidate.id !== normalized.id)];
@@ -109,11 +110,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
   }
 
   hasItem(media: ThumbsUpMedia, id: number): boolean {
-    return (
-      isSupportedMedia(media) &&
-      isPositiveInteger(id) &&
-      this.#snapshot.groups[media].some((item) => item.id === id)
-    );
+    return isSupportedMedia(media) && isPositiveInteger(id) && this.#ids[media].has(id);
   }
 
   #setGroups(groups: Record<ThumbsUpMedia, ThumbsUpItemSnapshot[]>): void {
@@ -125,6 +122,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
       lastUpdatedAt: now,
       storageWarning: null
     };
+    this.#ids = createIdSets(sanitized);
     this.#persist();
   }
 
@@ -147,6 +145,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
         lastUpdatedAt: null,
         storageWarning: null
       };
+      this.#ids = createIdSets(payload.groups);
     } catch {
       this.#snapshot = {
         groups: cloneGroups(DEFAULT_GROUPS),
@@ -154,6 +153,7 @@ export class ThumbsUpStore implements ThumbsUpDispatch {
         lastUpdatedAt: null,
         storageWarning: 'Stored thumbs-up data could not be loaded.'
       };
+      this.#ids = createEmptyIdSets();
     }
   }
 
@@ -252,6 +252,21 @@ function createEmptyGroups(): Record<ThumbsUpMedia, ThumbsUpItemSnapshot[]> {
     episode: [],
     musicvideo: []
   };
+}
+
+function createEmptyIdSets(): Record<ThumbsUpMedia, Set<number>> {
+  return Object.fromEntries(MEDIA_ORDER.map((media) => [media, new Set<number>()])) as Record<
+    ThumbsUpMedia,
+    Set<number>
+  >;
+}
+
+function createIdSets(
+  groups: Record<ThumbsUpMedia, ThumbsUpItemSnapshot[]>
+): Record<ThumbsUpMedia, Set<number>> {
+  return Object.fromEntries(
+    MEDIA_ORDER.map((media) => [media, new Set(groups[media].map((item) => item.id))])
+  ) as Record<ThumbsUpMedia, Set<number>>;
 }
 
 function cloneSnapshot(snapshot: ThumbsUpStoreSnapshot): ThumbsUpStoreSnapshot {

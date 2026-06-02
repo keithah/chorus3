@@ -181,6 +181,7 @@ describe('media playlists store', () => {
         method: 'Files.GetDirectory',
         params: {
           directory: 'special://musicplaylists',
+          limits: { start: 0, end: 500 },
           media: 'music',
           properties: ['title', 'file'],
           sort: { method: 'label', order: 'ascending' }
@@ -279,6 +280,7 @@ describe('media playlists store', () => {
       method: 'Files.GetDirectory',
       params: {
         directory: 'special://musicplaylists/Favorites.xsp',
+        limits: { start: 0, end: 500 },
         media: 'music',
         properties: ['title', 'artist', 'album', 'duration', 'track', 'thumbnail', 'file'],
         sort: { method: 'label', order: 'ascending' }
@@ -590,6 +592,20 @@ describe('media playlists store', () => {
       ok: false,
       error: { code: 'client/unknown-playlist' }
     });
+    expect(store.getPlayableEntry(entryId(store.snapshot, 'Dael'))).toEqual({
+      ok: true,
+      entry: {
+        id: 'entry:1',
+        label: 'Dael',
+        media: 'music',
+        mediaKind: 'audio',
+        file: 'smb://secret/music/Dael.flac'
+      }
+    });
+    expect(store.getPlayableEntry('entry:999')).toMatchObject({
+      ok: false,
+      error: { code: 'client/unknown-entry' }
+    });
   });
 
   it('refreshes video smart playlists with video Kodi params, opaque ids, playback capabilities, and safe labels', async () => {
@@ -620,6 +636,7 @@ describe('media playlists store', () => {
         method: 'Files.GetDirectory',
         params: {
           directory: 'special://videoplaylists',
+          limits: { start: 0, end: 500 },
           media: 'video',
           properties: ['title', 'file'],
           sort: { method: 'label', order: 'ascending' }
@@ -703,6 +720,7 @@ describe('media playlists store', () => {
       method: 'Files.GetDirectory',
       params: {
         directory: 'special://videoplaylists/Movies.xsp',
+        limits: { start: 0, end: 500 },
         media: 'video',
         properties: ['title', 'artist', 'album', 'duration', 'track', 'thumbnail', 'file'],
         sort: { method: 'label', order: 'ascending' }

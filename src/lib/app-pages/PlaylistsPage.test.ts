@@ -2,6 +2,7 @@ import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PlaylistsPage, { type LocalPlaylistPageActions } from './PlaylistsPage.svelte';
+import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
 import type { BuildAppRouteOptions } from '$lib/app/appRouter';
 import type { TranslationContext } from '$lib/i18n';
 import type {
@@ -122,21 +123,23 @@ function renderPage(
 ): {
   target: HTMLElement;
   dispatch: LocalPlaylistDispatch;
+  mediaDispatch: MediaPlaylistsPanelDispatch;
 } {
   document.body.innerHTML = '<div id="target"></div>';
   const target = document.getElementById('target');
   expect(target).toBeInstanceOf(HTMLElement);
   const dispatch = createDispatch();
+  const mediaDispatch = {
+    refresh: vi.fn().mockResolvedValue(undefined),
+    openPlaylist: vi.fn(),
+    openBreadcrumb: vi.fn()
+  };
 
   mounted = mount(PlaylistsPage, {
     target: target as HTMLElement,
     props: {
       snapshot: createMediaSnapshot(),
-      dispatch: {
-        refresh: vi.fn(),
-        openPlaylist: vi.fn(),
-        openBreadcrumb: vi.fn()
-      },
+      dispatch: mediaDispatch,
       actionDispatch: {
         playPlaylistItem: vi.fn(),
         queuePlaylistItem: vi.fn()
@@ -150,10 +153,18 @@ function renderPage(
   });
   flushSync();
 
-  return { target: target as HTMLElement, dispatch };
+  return { target: target as HTMLElement, dispatch, mediaDispatch };
 }
 
 describe('PlaylistsPage', () => {
+  it('loads Kodi playlists automatically on first visit', async () => {
+    const { mediaDispatch } = renderPage();
+    await Promise.resolve();
+    flushSync();
+
+    expect(mediaDispatch.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('renders the Chorus2 local playlist layout without the Chorus3 hero shell', () => {
     const { target } = renderPage();
 

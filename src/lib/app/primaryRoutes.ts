@@ -1,4 +1,7 @@
-import { registerThumbsUpLegacyPrimaryRoutes, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
+import {
+  registerThumbsUpLegacyPrimaryRoutes,
+  THUMBS_UP_PRIMARY_ROUTE
+} from './thumbsUpLegacyRoutes';
 
 export type PrimaryRoute =
   | { kind: 'home' }
@@ -151,7 +154,7 @@ export function parsePrimaryRoutePath(path: string): PrimaryRoute | null {
   }
 
   if (segments.length === 3 && segments[0] === 'music' && segments[1] === 'genre') {
-    return withSafeDynamicSegment(segments[2], (genreid) => ({
+    return withSafeMusicGenreSegment(segments[2], (genreid) => ({
       kind: 'musicGenreDetail',
       genreid
     }));
@@ -286,7 +289,7 @@ export function buildPrimaryRoutePath(route: PrimaryRoute): string {
     case 'musicArtistDetail':
       return buildDynamicPath('/music/artist', route.artistid);
     case 'musicGenreDetail':
-      return buildDynamicPath('/music/genre', route.genreid);
+      return buildMusicGenrePath(route.genreid);
     case 'movies':
       return '/movies';
     case 'moviesRecent':
@@ -398,6 +401,11 @@ function buildDynamicPath(prefix: string, segment: unknown): string {
   return normalized ? `${prefix}/${encodeURIComponent(normalized)}` : '/[redacted]';
 }
 
+function buildMusicGenrePath(segment: unknown): string {
+  const normalized = normalizeMusicGenreSegment(segment);
+  return normalized ? `/music/genre/${encodeURIComponent(normalized)}` : '/[redacted]';
+}
+
 function buildMultiDynamicPath(prefix: string, segments: unknown[]): string {
   const normalized = segments.map(normalizeDynamicSegment);
 
@@ -423,6 +431,14 @@ function withSafeDynamicSegment<T extends PrimaryRoute>(
   return normalized ? createRoute(normalized) : null;
 }
 
+function withSafeMusicGenreSegment<T extends PrimaryRoute>(
+  segment: string | undefined,
+  createRoute: (segment: string) => T
+): T | null {
+  const normalized = normalizeMusicGenreSegment(segment);
+  return normalized ? createRoute(normalized) : null;
+}
+
 function normalizeDynamicSegment(segment: unknown): string | null {
   if (typeof segment !== 'string') {
     return null;
@@ -444,6 +460,27 @@ function normalizeDynamicSegment(segment: unknown): string | null {
   }
 
   return /^[a-z0-9._-]+$/i.test(decoded) ? decoded : null;
+}
+
+function normalizeMusicGenreSegment(segment: unknown): string | null {
+  if (typeof segment !== 'string') {
+    return null;
+  }
+
+  const decoded = safeDecode(segment).trim();
+
+  if (
+    !decoded ||
+    decoded.length > MAX_DYNAMIC_SEGMENT_LENGTH ||
+    decoded === '.' ||
+    decoded === '..' ||
+    decoded.includes('..') ||
+    FORBIDDEN_SEGMENT_PATTERN.test(decoded)
+  ) {
+    return null;
+  }
+
+  return /^[a-z0-9 &/._-]+$/i.test(decoded) ? decoded : null;
 }
 
 function normalizeSearchMediaSegment(segment: unknown): string | null {

@@ -41,7 +41,6 @@ function getPlaceholderText(target: HTMLElement): string {
 
 const SYNTHETIC_PLACEHOLDER: ParityRoutePlaceholder = {
   id: 'synthetic-route',
-  ledgerIds: ['route:synthetic'],
   surface: 'synthetic',
   title: 'Synthetic Route',
   status: 'intentionallyChanged',

@@ -9,6 +9,14 @@ export type MetadataEditorKind =
 
 export type MetadataEditorFieldFormat = 'string' | 'array.string' | 'integer' | 'float';
 export type MetadataEditorFieldInput = 'text' | 'textarea' | 'number' | 'date' | 'url';
+export type MetadataEditorActionIdKey =
+  | 'albumid'
+  | 'artistid'
+  | 'songid'
+  | 'movieid'
+  | 'musicvideoid'
+  | 'tvshowid'
+  | 'episodeid';
 
 export type MetadataEditorField = {
   key: string;
@@ -31,7 +39,7 @@ export type MetadataEditorDefinition = {
   title: string;
   method: string;
   idParam: string;
-  idActionKey: string;
+  idActionKey: MetadataEditorActionIdKey;
   displayKey: string;
   artFields?: {
     poster?: string;
@@ -300,6 +308,49 @@ export const METADATA_EDITOR_DEFINITIONS: Record<MetadataEditorKind, MetadataEdi
   }
 };
 
+function isMetadataRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function buildTvShowMetadataEditorSource(
+  source: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  if (!source) {
+    return {};
+  }
+
+  const art = isMetadataRecord(source.art) ? source.art : {};
+  const uniqueid = isMetadataRecord(source.uniqueid) ? source.uniqueid : {};
+  const poster =
+    (typeof art.poster === 'string' && art.poster) ||
+    (typeof art.thumb === 'string' && art.thumb) ||
+    (typeof source.thumbnail === 'string' ? source.thumbnail : undefined);
+  const fanart =
+    (typeof art.fanart === 'string' && art.fanart) ||
+    (typeof source.fanart === 'string' ? source.fanart : undefined);
+  const imdbFromUnique =
+    typeof uniqueid.imdb === 'string'
+      ? uniqueid.imdb
+      : typeof uniqueid.IMDB === 'string'
+        ? uniqueid.IMDB
+        : undefined;
+
+  const title =
+    (typeof source.title === 'string' && source.title.trim()) ||
+    (typeof source.label === 'string' && source.label.trim()) ||
+    undefined;
+
+  return {
+    ...source,
+    ...(title ? { title } : {}),
+    thumbnail: poster,
+    fanart,
+    thumbnailOriginal: poster,
+    fanartOriginal: fanart,
+    imdbnumber: source.imdbnumber ?? imdbFromUnique
+  };
+}
+
 export function metadataEditorDefinitionForAction(
   action: MetadataEditableAction | null | undefined
 ): MetadataEditorDefinition | null {
@@ -319,8 +370,30 @@ export function metadataEditorIdForAction(
   definition: MetadataEditorDefinition,
   action: MetadataEditableAction
 ): number | null {
-  const value = (action as unknown as Record<string, unknown>)[definition.idActionKey];
+  const value = metadataActionIdValue(action, definition.idActionKey);
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function metadataActionIdValue(
+  action: MetadataEditableAction,
+  key: MetadataEditorActionIdKey
+): number | undefined {
+  switch (key) {
+    case 'albumid':
+      return action.media === 'music' && action.kind === 'album' ? action.albumid : undefined;
+    case 'artistid':
+      return action.media === 'music' && action.kind === 'artist' ? action.artistid : undefined;
+    case 'songid':
+      return action.media === 'music' && action.kind === 'song' ? action.songid : undefined;
+    case 'movieid':
+      return action.media === 'movie' ? action.movieid : undefined;
+    case 'musicvideoid':
+      return action.media === 'musicvideo' ? action.musicvideoid : undefined;
+    case 'tvshowid':
+      return action.media === 'tvshow' ? action.tvshowid : undefined;
+    case 'episodeid':
+      return action.media === 'episode' ? action.episodeid : undefined;
+  }
 }
 
 export function createMetadataEditorInitialValues(

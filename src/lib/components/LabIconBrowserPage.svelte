@@ -1,6 +1,5 @@
 <script lang="ts">
-  import materialIcons from '$lib/assets/classic/icons/mdi.json';
-  import customIcons from '$lib/assets/classic/icons/icomoon.json';
+  import { onMount } from 'svelte';
 
   type IconDictionary = Record<string, string>;
 
@@ -9,8 +8,27 @@
     label: string;
   }
 
-  const materialIconEntries = toIconEntries(materialIcons as IconDictionary);
-  const customIconEntries = toIconEntries(customIcons as IconDictionary);
+  let materialIconEntries = $state<IconEntry[]>([]);
+  let customIconEntries = $state<IconEntry[]>([]);
+  let iconStatus = $state<'loading' | 'ready' | 'error'>('loading');
+
+  onMount(() => {
+    void loadIconCatalogs();
+  });
+
+  async function loadIconCatalogs(): Promise<void> {
+    try {
+      const [materialIcons, customIcons] = await Promise.all([
+        import('$lib/assets/classic/icons/mdi.json'),
+        import('$lib/assets/classic/icons/icomoon.json')
+      ]);
+      materialIconEntries = toIconEntries(materialIcons.default as IconDictionary);
+      customIconEntries = toIconEntries(customIcons.default as IconDictionary);
+      iconStatus = 'ready';
+    } catch {
+      iconStatus = 'error';
+    }
+  }
 
   function toIconEntries(value: IconDictionary): IconEntry[] {
     return Object.entries(value)
@@ -21,6 +39,12 @@
 
 <section class="classic-icon-browser" aria-labelledby="icon-browser-title">
   <h2 id="icon-browser-title">Icon browser</h2>
+
+  {#if iconStatus === 'loading'}
+    <p>Loading icons...</p>
+  {:else if iconStatus === 'error'}
+    <p>Could not load icon catalogs.</p>
+  {/if}
 
   <section aria-labelledby="icons-material-title">
     <h3 id="icons-material-title">Material Icons</h3>

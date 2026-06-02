@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { KodiHttpClientError, type KodiJsonRpcHttpClient } from '$lib/kodi';
+import {
+  KodiHttpClientError,
+  type KodiHttpCallOptions,
+  type KodiJsonRpcHttpClient
+} from '$lib/kodi';
 import { createVideoLibraryStore, type VideoLibraryStoreSnapshot } from './index';
 
 type CallRecord = {
   method: string;
   params?: unknown;
+  options?: KodiHttpCallOptions;
 };
 
 type Deferred<T> = {
@@ -29,6 +34,12 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function callParams(calls: readonly CallRecord[]): Array<{ method: string; params?: unknown }> {
+  return calls.map(({ method, params }) =>
+    params === undefined ? { method } : { method, params }
+  );
+}
+
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: CallRecord[] = [];
   readonly responses = new Map<string, unknown[]>();
@@ -37,8 +48,12 @@ class FakeKodiClient implements KodiJsonRpcHttpClient {
     this.responses.set(method, [...(this.responses.get(method) ?? []), response]);
   }
 
-  async call<TResult>(method: string, params?: unknown): Promise<TResult> {
-    this.calls.push(params === undefined ? { method } : { method, params });
+  async call<TResult>(
+    method: string,
+    params?: unknown,
+    options?: KodiHttpCallOptions
+  ): Promise<TResult> {
+    this.calls.push({ ...(params === undefined ? { method } : { method, params }), options });
     const queue = this.responses.get(method) ?? [];
 
     if (queue.length === 0) {
@@ -199,7 +214,7 @@ describe('video library store', () => {
 
     await store.refresh('manual');
 
-    expect(client.calls).toEqual([
+    expect(callParams(client.calls)).toEqual([
       {
         method: 'VideoLibrary.GetMovies',
         params: {
@@ -208,9 +223,17 @@ describe('video library store', () => {
             'year',
             'runtime',
             'thumbnail',
-            'fanart',
             'art',
             'playcount',
+            'genre',
+            'rating',
+            'mpaa',
+            'studio',
+            'tag',
+            'cast',
+            'director',
+            'writer',
+            'set',
             'lastplayed',
             'resume',
             'dateadded'
@@ -225,11 +248,16 @@ describe('video library store', () => {
             'title',
             'year',
             'thumbnail',
-            'fanart',
             'art',
             'episode',
             'watchedepisodes',
             'playcount',
+            'genre',
+            'rating',
+            'mpaa',
+            'studio',
+            'tag',
+            'cast',
             'lastplayed',
             'dateadded'
           ],
@@ -244,9 +272,17 @@ describe('video library store', () => {
             'year',
             'runtime',
             'thumbnail',
-            'fanart',
             'art',
             'playcount',
+            'genre',
+            'rating',
+            'mpaa',
+            'studio',
+            'tag',
+            'cast',
+            'director',
+            'writer',
+            'set',
             'lastplayed',
             'resume',
             'dateadded'
@@ -263,9 +299,17 @@ describe('video library store', () => {
             'year',
             'runtime',
             'thumbnail',
-            'fanart',
             'art',
             'playcount',
+            'genre',
+            'rating',
+            'mpaa',
+            'studio',
+            'tag',
+            'cast',
+            'director',
+            'writer',
+            'set',
             'lastplayed',
             'resume',
             'dateadded'
@@ -324,11 +368,12 @@ describe('video library store', () => {
             'year',
             'runtime',
             'thumbnail',
-            'fanart',
             'art',
             'genre',
             'director',
             'studio',
+            'tag',
+            'rating',
             'playcount',
             'lastplayed',
             'resume',
@@ -663,8 +708,11 @@ describe('video library store', () => {
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
+    const staleSignal = client.calls[0].options?.signal;
+    expect(staleSignal?.aborted).toBe(false);
     setNow(4_000);
     await store.refresh('poll');
+    expect(staleSignal?.aborted).toBe(true);
     slow.resolve({
       movies: [{ movieid: 8, label: 'Stale movie' }],
       limits: { start: 0, end: 25, total: 1 }
@@ -694,7 +742,9 @@ describe('video library store', () => {
 
     const slowRefresh = store.refresh('manual');
     await flushPromises();
+    const staleSignal = client.calls[0].options?.signal;
     await store.refresh('manual');
+    expect(staleSignal?.aborted).toBe(true);
     slow.reject(new Error('Authorization: Basic abc123 raw response body smb://secret/video'));
     await slowRefresh;
 
@@ -715,7 +765,9 @@ describe('video library store', () => {
 
     const refresh = store.refresh('manual');
     await flushPromises();
+    const staleSignal = client.calls[0].options?.signal;
     store.destroy();
+    expect(staleSignal?.aborted).toBe(true);
     slow.resolve({ movies: [{ movieid: 1, label: 'Too late' }] });
     await refresh;
 

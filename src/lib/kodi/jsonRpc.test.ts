@@ -89,6 +89,69 @@ describe('Kodi JSON-RPC HTTP client', () => {
     expect(JSON.parse(String(fetchImpl.mock.calls[1][1]?.body))).toMatchObject({ id: 2 });
   });
 
+  it('posts JSON-RPC batches and returns results in request order', async () => {
+    const fetchImpl = createFetchMock(
+      jsonResponse([
+        { jsonrpc: '2.0', id: 2, result: 'second' },
+        { jsonrpc: '2.0', id: 1, result: 'first' }
+      ])
+    );
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    await expect(
+      client.callBatch?.([
+        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 10 } } },
+        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 11 } } }
+      ])
+    ).resolves.toEqual(['first', 'second']);
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual([
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { episodeid: 10 } }
+      },
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { episodeid: 11 } }
+      }
+    ]);
+  });
+
+  it('classifies a JSON-RPC error inside a batch against the failed method', async () => {
+    const fetchImpl = createFetchMock(
+      jsonResponse([
+        { jsonrpc: '2.0', id: 1, result: 'OK' },
+        { jsonrpc: '2.0', id: 2, error: { code: -32602, message: 'Invalid params' } }
+      ])
+    );
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    await expect(
+      client.callBatch?.([
+        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 10 } } },
+        { method: 'Player.Open', params: { item: { playlistid: 1 } } }
+      ])
+    ).rejects.toMatchObject({
+      code: 'json-rpc-error',
+      method: 'Player.Open',
+      jsonRpcError: { code: -32602, message: 'Invalid params' }
+    });
+  });
+
+  it('does not send an HTTP request for empty batches', async () => {
+    const fetchImpl = createFetchMock(jsonResponse([]));
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    await expect(client.callBatch?.([])).resolves.toEqual([]);
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('turns Kodi JSON-RPC error envelopes into typed safe errors', async () => {
     const fetchImpl = createFetchMock(
       jsonResponse({

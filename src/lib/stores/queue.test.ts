@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { KodiHttpClientError, type KodiJsonRpcHttpClient, type KodiNotification } from '$lib/kodi';
+import {
+  KodiHttpClientError,
+  type KodiJsonRpcBatchCall,
+  type KodiJsonRpcHttpClient,
+  type KodiNotification
+} from '$lib/kodi';
 import {
   createQueueDispatch,
   createQueueStore,
@@ -10,7 +15,9 @@ import {
   type QueueStoreNotificationSource,
   type QueueStorePlayerStore,
   type QueueStoreSnapshot,
-  type QueueDispatch
+  type QueueDispatch,
+  type FileQueueItem,
+  type LibraryQueueItem
 } from './index';
 
 type Deferred<T> = {
@@ -67,6 +74,15 @@ class FakeKodiClient implements KodiJsonRpcHttpClient {
     }
 
     return response as TResult;
+  }
+}
+
+class BatchFakeKodiClient extends FakeKodiClient {
+  readonly batches: Array<readonly KodiJsonRpcBatchCall[]> = [];
+
+  async callBatch<TResult>(calls: readonly KodiJsonRpcBatchCall[]): Promise<TResult[]> {
+    this.batches.push(calls);
+    return calls.map(() => 'OK' as TResult);
   }
 }
 
@@ -233,8 +249,16 @@ type QueueDispatchWithMusicVideos = QueueDispatch & {
   queueMusicVideoItem(item: unknown): Promise<void>;
 };
 
+type QueueDispatchWithLibraryItems = QueueDispatch & {
+  queueLibraryItems(items: readonly LibraryQueueItem[]): Promise<void>;
+};
+
 type QueueDispatchWithFiles = QueueDispatch & {
   queueFileItem(item: unknown): Promise<void>;
+};
+
+type QueueDispatchWithFileItems = QueueDispatch & {
+  queueFileItems(items: readonly FileQueueItem[]): Promise<void>;
 };
 
 type QueueDispatchWithPlaylists = QueueDispatch & {
@@ -257,8 +281,16 @@ function asMusicVideoDispatch(dispatch: QueueDispatch): QueueDispatchWithMusicVi
   return dispatch as QueueDispatchWithMusicVideos;
 }
 
+function asLibraryItemsDispatch(dispatch: QueueDispatch): QueueDispatchWithLibraryItems {
+  return dispatch as QueueDispatchWithLibraryItems;
+}
+
 function asFileDispatch(dispatch: QueueDispatch): QueueDispatchWithFiles {
   return dispatch as QueueDispatchWithFiles;
+}
+
+function asFileItemsDispatch(dispatch: QueueDispatch): QueueDispatchWithFileItems {
+  return dispatch as QueueDispatchWithFileItems;
 }
 
 function asPlaylistDispatch(dispatch: QueueDispatch): QueueDispatchWithPlaylists {
@@ -833,6 +865,49 @@ describe('queue dispatch', () => {
     });
   });
 
+  it('queues multiple file browser items with one JSON-RPC batch when available', async () => {
+    const client = new BatchFakeKodiClient();
+    const queueStore = new FakeQueueDispatchStore();
+    const playerStore = new FakePlayerStore();
+    const dispatch = createQueueDispatch({
+      queueStore,
+      playerStore,
+      createClient: () => client,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+
+    await asFileItemsDispatch(dispatch).queueFileItems([
+      { file: 'smb://nas/music/special.mp3', mediaKind: 'audio' },
+      { file: 'smb://nas/videos/Big Buck Bunny.mkv', mediaKind: 'video' },
+      { file: 'smb://nas/music/Albums/', mediaKind: 'audio', itemType: 'directory' }
+    ]);
+
+    expect(client.calls).toEqual([]);
+    expect(client.batches).toEqual([
+      [
+        {
+          method: 'Playlist.Add',
+          params: { playlistid: 0, item: { file: 'smb://nas/music/special.mp3' } }
+        },
+        {
+          method: 'Playlist.Add',
+          params: { playlistid: 1, item: { file: 'smb://nas/videos/Big Buck Bunny.mkv' } }
+        },
+        {
+          method: 'Playlist.Add',
+          params: { playlistid: 0, item: { directory: 'smb://nas/music/Albums/' } }
+        }
+      ]
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueFileItems']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueFileItems']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueFileItems',
+      lastError: null
+    });
+  });
+
   it('rejects invalid file queue inputs before calling Kodi or refreshing stores', async () => {
     const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
     const invalidInputs = [
@@ -970,6 +1045,77 @@ describe('queue dispatch', () => {
       lastError: null,
       lastCompletedAt: '2026-01-02T00:00:00.000Z'
     });
+  });
+
+  it('queues mixed library selections and refreshes queue/player once', async () => {
+    const { client, dispatch, playerStore, queueStore } = createDispatchHarness();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    const libraryDispatch = asLibraryItemsDispatch(dispatch);
+
+    await libraryDispatch.queueLibraryItems([
+      { media: 'music', item: { kind: 'song', songid: 42 } },
+      { media: 'movie', item: { movieid: 4401 } },
+      { media: 'episode', item: { episodeid: 8801 } },
+      { media: 'musicvideo', item: { musicvideoid: 7701 } }
+    ]);
+
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { songid: 42 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { musicvideoid: 7701 } } }
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueLibraryItems']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueLibraryItems']);
+    expect(dispatch.snapshot).toMatchObject({
+      commandStatus: 'success',
+      lastCommand: 'queueLibraryItems',
+      lastError: null,
+      lastCompletedAt: '2026-01-02T00:00:00.000Z'
+    });
+  });
+
+  it('queues mixed library selections with one JSON-RPC batch when available', async () => {
+    const client = new BatchFakeKodiClient();
+    const queueStore = new FakeQueueDispatchStore();
+    const playerStore = new FakePlayerStore();
+    queueStore.snapshot = createQueueSnapshot({
+      playlistid: null,
+      activePosition: null,
+      items: []
+    });
+    const dispatch = createQueueDispatch({
+      queueStore,
+      playerStore,
+      createClient: () => client,
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+    const libraryDispatch = asLibraryItemsDispatch(dispatch);
+
+    await libraryDispatch.queueLibraryItems([
+      { media: 'music', item: { kind: 'album', albumid: 7 } },
+      { media: 'movie', item: { movieid: 4401 } },
+      { media: 'episode', item: { episodeid: 8801 } }
+    ]);
+
+    expect(client.calls).toEqual([]);
+    expect(client.batches).toEqual([
+      [
+        { method: 'Playlist.Add', params: { playlistid: 0, item: { albumid: 7 } } },
+        { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } },
+        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } }
+      ]
+    ]);
+    expect(queueStore.refreshReasons).toEqual(['command:queueLibraryItems']);
+    expect(playerStore.refreshReasons).toEqual(['command:queueLibraryItems']);
   });
 
   it('rejects invalid music queue inputs before calling Kodi or refreshing stores', async () => {
@@ -1343,6 +1489,7 @@ describe('queue store', () => {
         method: 'Playlist.GetItems',
         params: {
           playlistid: 7,
+          limits: { start: 0, end: 1000 },
           properties: expect.arrayContaining(['title', 'artist', 'duration', 'file', 'thumbnail'])
         }
       }
@@ -1558,6 +1705,7 @@ describe('queue store', () => {
         method: 'Playlist.GetItems',
         params: {
           playlistid: 7,
+          limits: { start: 0, end: 1000 },
           properties: expect.any(Array)
         }
       }

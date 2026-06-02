@@ -160,6 +160,7 @@ export class PlayerStore {
 
   #requestId = 0;
   #pollIntervalId: unknown = null;
+  #pollRefresh: Promise<void> | null = null;
   #unsubscribeNotifications: (() => void) | null = null;
 
   constructor(options: PlayerStoreOptions = {}) {
@@ -189,11 +190,10 @@ export class PlayerStore {
 
     try {
       const client = this.#resolveClient();
-      const activePlayersResponse = await getActivePlayers(client);
-      const applicationResponse = await getApplicationProperties(
-        client,
-        DEFAULT_APPLICATION_PROPERTIES
-      );
+      const [activePlayersResponse, applicationResponse] = await Promise.all([
+        getActivePlayers(client),
+        getApplicationProperties(client, DEFAULT_APPLICATION_PROPERTIES)
+      ]);
       const activePlayers = normalizeActivePlayers(activePlayersResponse);
       const primaryPlayer = choosePrimaryPlayer(activePlayers);
 
@@ -201,16 +201,10 @@ export class PlayerStore {
       let properties: PlayerPropertiesResult | null = null;
 
       if (primaryPlayer) {
-        const itemResult = await getPlayerItem(
-          client,
-          primaryPlayer.playerid,
-          DEFAULT_PLAYER_ITEM_PROPERTIES
-        );
-        const propertiesResult = await getPlayerProperties(
-          client,
-          primaryPlayer.playerid,
-          DEFAULT_PLAYER_PROPERTIES
-        );
+        const [itemResult, propertiesResult] = await Promise.all([
+          getPlayerItem(client, primaryPlayer.playerid, DEFAULT_PLAYER_ITEM_PROPERTIES),
+          getPlayerProperties(client, primaryPlayer.playerid, DEFAULT_PLAYER_PROPERTIES)
+        ]);
         item = isRecord(itemResult.item) ? itemResult.item : null;
         properties = isRecord(propertiesResult) ? propertiesResult : null;
       }
@@ -284,7 +278,17 @@ export class PlayerStore {
     }
 
     this.#pollIntervalId = this.#timers.setInterval(() => {
-      void this.refresh('poll');
+      if (this.#pollRefresh) {
+        return;
+      }
+
+      const refresh = this.refresh('poll');
+      this.#pollRefresh = refresh;
+      void refresh.finally(() => {
+        if (this.#pollRefresh === refresh) {
+          this.#pollRefresh = null;
+        }
+      });
     }, intervalMs);
     return true;
   }
@@ -397,7 +401,13 @@ function normalizeActivePlayers(players: unknown): NormalizedActivePlayer[] {
 }
 
 function choosePrimaryPlayer(players: NormalizedActivePlayer[]): NormalizedActivePlayer | null {
-  return [...players].sort((left, right) => left.playerid - right.playerid)[0] ?? null;
+  let primary: NormalizedActivePlayer | null = null;
+  for (const player of players) {
+    if (primary === null || player.playerid < primary.playerid) {
+      primary = player;
+    }
+  }
+  return primary;
 }
 
 function normalizeApplication(application: ApplicationPropertiesResult): PlayerApplicationSnapshot {

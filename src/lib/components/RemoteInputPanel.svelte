@@ -201,14 +201,6 @@
 </article>
 
 <style>
-  @font-face {
-    font-family: 'Material-Design-Icons';
-    src: url('../assets/classic/fonts/material/Material-Design-Icons.woff') format('woff');
-    font-weight: 400;
-    font-style: normal;
-    font-display: block;
-  }
-
   .remote-input-panel {
     --remote-background: #282c2e;
     --remote-button: #222324;

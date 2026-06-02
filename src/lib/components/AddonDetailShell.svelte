@@ -11,6 +11,8 @@
 </script>
 
 <script lang="ts">
+  import { redactAddonText } from '$lib/safety/redaction';
+
   interface Props {
     snapshot: AddonsStoreSnapshot;
     dispatch: AddonDetailDispatch;
@@ -158,6 +160,9 @@
       : i18n.t('addon.detail.refreshUnavailable');
     return i18n.t('addon.detail.refresh.warning', { warning });
   }
+  function hasDiagnostics(): boolean {
+    return Boolean(pendingToggleCopy() || lastWriteCopy() || rollbackCopy() || refreshCopy());
+  }
   function errorMessage(): string | null {
     return snapshot.lastError ? safeText(snapshot.lastError.message) : null;
   }
@@ -172,23 +177,7 @@
     });
   }
   function safeText(value: string): string {
-    return value
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
-      .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=._-]+/gi, 'credentials [redacted]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/admin:p@ssword/gi, '[redacted-secret]')
-      .replace(/p@ssword/gi, '[redacted-secret]')
-      .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-file')
-      .replace(/\/[\w./-]+/gi, '[redacted-path]')
-      .replace(/localStorage/gi, 'browser storage')
-      .replace(/sessionStorage/gi, 'browser storage')
-      .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
-      .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
-      .replace(/password/gi, 'credentials');
+    return redactAddonText(value);
   }
 </script>
 
@@ -229,15 +218,18 @@
   {#if errorMessage()}<div class="addon-alert" role="alert">
       {#if errorCode()}<strong>{errorCode()}</strong>{/if}<span>{errorMessage()}</span>
     </div>{/if}
-  <div class="addon-diagnostics" aria-label={i18n.t('addon.detail.diagnosticsAria')}>
-    {#if pendingToggleCopy()}<p>{pendingToggleCopy()}</p>{/if}{#if lastWriteCopy()}<p>
-        {lastWriteCopy()}
-      </p>{/if}{#if rollbackCopy()}<p>{rollbackCopy()}</p>{/if}{#if refreshCopy()}<p
-        class:warning={snapshot.refreshAfterWrite?.refreshed === false}
-      >
-        {refreshCopy()}
-      </p>{/if}
-  </div>
+  {#if hasDiagnostics()}<div
+      class="addon-diagnostics"
+      aria-label={i18n.t('addon.detail.diagnosticsAria')}
+    >
+      {#if pendingToggleCopy()}<p>{pendingToggleCopy()}</p>{/if}{#if lastWriteCopy()}<p>
+          {lastWriteCopy()}
+        </p>{/if}{#if rollbackCopy()}<p>{rollbackCopy()}</p>{/if}{#if refreshCopy()}<p
+          class:warning={snapshot.refreshAfterWrite?.refreshed === false}
+        >
+          {refreshCopy()}
+        </p>{/if}
+    </div>{/if}
   {#if snapshot.detailStatus === 'error'}<div class="addon-error-actions">
       <p>{i18n.t('addon.detail.errorGuidance')}</p>
       <button type="button" onclick={callRetry}>{i18n.t('addon.detail.retryLoad')}</button>
@@ -357,264 +349,5 @@
 </section>
 
 <style>
-  .addon-detail {
-    display: grid;
-    gap: var(--space-lg);
-  }
-
-  .addon-detail-hero,
-  .addon-status-grid,
-  .addon-card,
-  .addon-card-heading,
-  .addon-meta,
-  .addon-toggle-panel,
-  .addon-confirm {
-    display: grid;
-    gap: var(--space-md);
-  }
-
-  .addon-detail-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    padding: var(--space-xl);
-    overflow: hidden;
-    background:
-      radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--color-accent) 24%, transparent),
-        transparent 40%
-      ),
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--color-surface-raised) 86%, transparent),
-        var(--color-surface)
-      );
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-soft);
-  }
-
-  .addon-eyebrow,
-  .addon-status span,
-  .addon-card-heading > span,
-  .addon-meta dt,
-  .addon-badges span {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  h2,
-  h3,
-  h4,
-  p,
-  dl,
-  dd {
-    margin: 0;
-  }
-
-  h2 {
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 0.95;
-  }
-
-  h3 {
-    font-size: clamp(1.1rem, 2vw, 1.45rem);
-  }
-
-  h4 {
-    font-size: 1rem;
-  }
-
-  p,
-  dd,
-  button {
-    line-height: 1.5;
-  }
-
-  button {
-    cursor: pointer;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-  }
-
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.58;
-  }
-
-  .addon-hero-actions,
-  .addon-error-actions,
-  .addon-confirm div,
-  .addon-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-    align-items: center;
-  }
-
-  .addon-primary-action,
-  .addon-secondary-action,
-  .addon-danger-action,
-  .addon-error-actions button {
-    padding: var(--space-xs) var(--space-md);
-    color: var(--color-text);
-    font-weight: 800;
-    background: color-mix(in srgb, var(--color-surface-raised) 84%, transparent);
-  }
-
-  .addon-danger-action {
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 44%,
-      var(--color-border)
-    );
-  }
-
-  .addon-primary-action:not(:disabled):hover,
-  .addon-secondary-action:not(:disabled):hover,
-  .addon-danger-action:not(:disabled):hover,
-  .addon-error-actions button:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
-  }
-
-  .addon-status-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .addon-status,
-  .addon-alert,
-  .addon-diagnostics,
-  .addon-error-actions,
-  .addon-card,
-  .addon-empty,
-  .addon-confirm {
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-  }
-
-  .addon-status {
-    display: grid;
-    gap: var(--space-2xs);
-  }
-
-  .addon-alert {
-    display: grid;
-    gap: var(--space-2xs);
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .addon-diagnostics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm) var(--space-lg);
-    color: var(--color-text-muted);
-  }
-
-  .addon-diagnostics .warning {
-    color: var(--color-warning, var(--color-accent));
-  }
-
-  .addon-error-actions {
-    justify-content: space-between;
-  }
-
-  .addon-card {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--color-surface-raised) 44%, transparent),
-        transparent
-      ),
-      var(--color-surface);
-  }
-
-  .addon-card.broken {
-    border-color: color-mix(
-      in srgb,
-      var(--color-warning, var(--color-accent)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .addon-card-heading {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-  }
-
-  .addon-card-heading p,
-  .addon-summary,
-  .addon-description,
-  .addon-empty,
-  .addon-error-actions p,
-  .addon-toggle-panel p {
-    color: var(--color-text-muted);
-  }
-
-  .addon-description.muted {
-    font-style: italic;
-  }
-
-  .addon-card-heading > span,
-  .addon-badges span,
-  .addon-meta div,
-  .addon-toggle-panel {
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-background) 34%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-    border-radius: var(--radius-md);
-  }
-
-  .addon-card-heading > span.enabled {
-    color: var(--color-success, var(--color-accent));
-  }
-
-  .addon-card-heading > span.disabled,
-  .addon-badges .danger {
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .addon-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .addon-toggle-panel {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-
-  .addon-confirm {
-    border-color: color-mix(in srgb, var(--color-accent) 44%, var(--color-border));
-    background:
-      linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent),
-      color-mix(in srgb, var(--color-surface) 88%, transparent);
-  }
-
-  @media (max-width: 760px) {
-    .addon-detail-hero,
-    .addon-status-grid,
-    .addon-card-heading,
-    .addon-meta,
-    .addon-toggle-panel {
-      grid-template-columns: 1fr;
-    }
-  }
+  @import './addonDetailClassic.css';
 </style>

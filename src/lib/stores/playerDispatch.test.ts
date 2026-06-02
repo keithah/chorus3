@@ -1568,7 +1568,50 @@ describe('player dispatch', () => {
     expectSecretSafe(dispatch.snapshot);
   });
 
-  it('calls play/pause through the wrapper and refreshes authoritative player state', async () => {
+  it('runs injected success effects after successful commands without coupling to queue store', async () => {
+    const client = new FakeKodiClient();
+    const playerStore = new FakePlayerStore();
+    const effects: string[] = [];
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      configStore: { activeHost: createActiveHost() } as never,
+      createClient: () => client,
+      afterSuccessfulCommand: async (command) => {
+        effects.push(command);
+      },
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+    client.enqueue('Player.Open', 'OK');
+
+    await dispatch.playMusicItem({ kind: 'album', albumid: 7 });
+
+    expect(effects).toEqual(['playMusicItem']);
+    expect(playerStore.refreshReasons).toEqual(['command:playMusicItem']);
+    expect(dispatch.snapshot).toMatchObject({ commandStatus: 'success', lastError: null });
+  });
+
+  it('preserves command success when injected success effects fail', async () => {
+    const client = new FakeKodiClient();
+    const playerStore = new FakePlayerStore();
+    const dispatch = createPlayerDispatch({
+      playerStore,
+      configStore: { activeHost: createActiveHost() } as never,
+      createClient: () => client,
+      afterSuccessfulCommand: async () => {
+        throw new Error('queue refresh failed with smb://secret/movie.mkv');
+      },
+      now: () => '2026-01-02T00:00:00.000Z'
+    });
+    client.enqueue('Player.Open', 'OK');
+
+    await dispatch.playMovieItem({ movieid: 42 });
+
+    expect(playerStore.refreshReasons).toEqual(['command:playMovieItem']);
+    expect(dispatch.snapshot).toMatchObject({ commandStatus: 'success', lastError: null });
+    expectSecretSafe(dispatch.snapshot);
+  });
+
+  it('calls play/pause and refreshes authoritative player state', async () => {
     const { client, dispatch, playerStore } = createHarness();
     client.enqueue('Player.PlayPause', { speed: 0 });
 

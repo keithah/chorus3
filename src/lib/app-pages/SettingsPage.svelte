@@ -481,7 +481,9 @@
     const groups = new Map<string, AddonSnapshot[]>();
     for (const addon of addons) {
       const label = safeText(addon.type || 'unknown');
-      groups.set(label, [...(groups.get(label) ?? []), addon]);
+      const group = groups.get(label) ?? [];
+      group.push(addon);
+      groups.set(label, group);
     }
     return [...groups.entries()].map(([label, items]) => ({
       key: label,

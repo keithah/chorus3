@@ -32,7 +32,16 @@ export interface MusicLibraryArtistSnapshot {
   artistid: number;
   label: string;
   thumbnail?: string;
+  fanart?: string;
+  description?: string;
+  born?: string;
+  died?: string;
+  formed?: string;
+  yearsactive?: string[];
+  instrument?: string[];
   genre?: string[];
+  mood?: string[];
+  style?: string[];
 }
 
 export interface MusicLibraryAlbumSnapshot {
@@ -42,6 +51,20 @@ export interface MusicLibraryAlbumSnapshot {
   artist?: string[];
   year?: number;
   thumbnail?: string;
+  fanart?: string;
+  description?: string;
+  albumduration?: number;
+  genre?: string[];
+  mood?: string[];
+  style?: string[];
+  albumlabel?: string;
+  displayartist?: string;
+  rating?: number;
+  userrating?: number;
+  votes?: string;
+  dateadded?: string;
+  playcount?: number;
+  watched?: boolean;
 }
 
 export interface MusicLibrarySongSnapshot {
@@ -53,9 +76,14 @@ export interface MusicLibrarySongSnapshot {
   duration?: number;
   track?: number;
   thumbnail?: string;
+  genre?: string[];
+  year?: number;
+  rating?: number;
+  mood?: string[];
   playcount?: number;
   lastplayed?: string;
   dateadded?: string;
+  watched?: boolean;
 }
 
 export interface MusicLibraryGenreSnapshot {
@@ -111,7 +139,16 @@ export function normalizeMusicArtists(items: unknown): MusicLibraryArtistSnapsho
         artistid,
         label: stringValue(item.label) ?? stringValue(item.title) ?? 'Unknown artist',
         ...stringField('thumbnail', item.thumbnail),
-        ...stringArrayField('genre', item.genre)
+        ...stringField('fanart', item.fanart),
+        ...stringField('description', item.description),
+        ...stringField('born', item.born),
+        ...stringField('died', item.died),
+        ...stringField('formed', item.formed),
+        ...stringArrayField('yearsactive', item.yearsactive),
+        ...stringArrayField('instrument', item.instrument),
+        ...stringArrayField('genre', item.genre),
+        ...stringArrayField('mood', item.mood),
+        ...stringArrayField('style', item.style)
       }
     ];
   });
@@ -131,7 +168,20 @@ export function normalizeMusicAlbums(items: unknown): MusicLibraryAlbumSnapshot[
         ...stringField('title', item.title),
         ...stringArrayField('artist', item.artist),
         ...numberField('year', item.year),
-        ...stringField('thumbnail', item.thumbnail)
+        ...stringField('thumbnail', item.thumbnail),
+        ...stringField('fanart', item.fanart),
+        ...stringField('description', item.description),
+        ...numberField('albumduration', item.albumduration),
+        ...stringArrayField('genre', item.genre),
+        ...stringArrayField('mood', item.mood),
+        ...stringArrayField('style', item.style),
+        ...stringField('albumlabel', item.albumlabel),
+        ...stringField('displayartist', item.displayartist),
+        ...numberField('rating', item.rating),
+        ...numberField('userrating', item.userrating),
+        ...stringField('votes', item.votes),
+        ...stringField('dateadded', item.dateadded),
+        ...playcountFields(item)
       }
     ];
   });
@@ -154,7 +204,11 @@ export function normalizeMusicSongs(items: unknown): MusicLibrarySongSnapshot[] 
         ...numberField('duration', item.duration),
         ...numberField('track', item.track),
         ...stringField('thumbnail', item.thumbnail),
-        ...numberField('playcount', item.playcount),
+        ...stringArrayField('genre', item.genre),
+        ...numberField('year', item.year),
+        ...numberField('rating', item.rating),
+        ...stringArrayField('mood', item.mood),
+        ...playcountFields(item),
         ...stringField('lastplayed', item.lastplayed),
         ...stringField('dateadded', item.dateadded)
       }
@@ -234,7 +288,11 @@ export function cloneMusicLibraryArtistSnapshots(
 ): MusicLibraryArtistSnapshot[] {
   return artists.map((artist) => ({
     ...artist,
-    ...(artist.genre ? { genre: [...artist.genre] } : {})
+    ...(artist.yearsactive ? { yearsactive: [...artist.yearsactive] } : {}),
+    ...(artist.instrument ? { instrument: [...artist.instrument] } : {}),
+    ...(artist.genre ? { genre: [...artist.genre] } : {}),
+    ...(artist.mood ? { mood: [...artist.mood] } : {}),
+    ...(artist.style ? { style: [...artist.style] } : {})
   }));
 }
 
@@ -243,7 +301,10 @@ export function cloneMusicLibraryAlbumSnapshots(
 ): MusicLibraryAlbumSnapshot[] {
   return albums.map((album) => ({
     ...album,
-    ...(album.artist ? { artist: [...album.artist] } : {})
+    ...(album.artist ? { artist: [...album.artist] } : {}),
+    ...(album.genre ? { genre: [...album.genre] } : {}),
+    ...(album.mood ? { mood: [...album.mood] } : {}),
+    ...(album.style ? { style: [...album.style] } : {})
   }));
 }
 
@@ -252,7 +313,9 @@ export function cloneMusicLibrarySongSnapshots(
 ): MusicLibrarySongSnapshot[] {
   return songs.map((song) => ({
     ...song,
-    ...(song.artist ? { artist: [...song.artist] } : {})
+    ...(song.artist ? { artist: [...song.artist] } : {}),
+    ...(song.genre ? { genre: [...song.genre] } : {}),
+    ...(song.mood ? { mood: [...song.mood] } : {})
   }));
 }
 
@@ -356,6 +419,16 @@ function numberField<Key extends string>(key: Key, value: unknown): Partial<Reco
 
 function finiteNumberOr(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function playcountFields(
+  item: Record<string, unknown>
+): Partial<Pick<MusicLibraryAlbumSnapshot, 'playcount' | 'watched'>> {
+  const playcount =
+    typeof item.playcount === 'number' && Number.isFinite(item.playcount)
+      ? Math.max(0, Math.trunc(item.playcount))
+      : undefined;
+  return playcount === undefined ? {} : { playcount, watched: playcount > 0 };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

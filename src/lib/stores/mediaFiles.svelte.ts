@@ -1,6 +1,5 @@
 import {
   getAddons,
-  getFileDirectory,
   getFileSources,
   type AddonPropertyName,
   type AddonSummary,
@@ -17,6 +16,7 @@ import {
   type MusicLibraryRefreshStatus,
   type MusicLibrarySafeErrorSnapshot
 } from './musicLibraryNormalization';
+import { getPagedFileDirectory } from './mediaDirectoryPages';
 
 export type MediaFilesMedia = Extract<FileMediaType, 'music' | 'video'>;
 export type MediaFilesRefreshStatus = MusicLibraryRefreshStatus;
@@ -354,7 +354,7 @@ export class MediaFilesStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getFileDirectory(client, {
+      const result = await getPagedFileDirectory(client, {
         directory: options.path,
         media: this.#media,
         properties: DIRECTORY_PROPERTIES,

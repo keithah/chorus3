@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import type {
     AppShellCallbacks,
     AppShellDestinationState,
@@ -123,10 +124,17 @@
     invoke(action);
   }
 
-  function scheduleSearchNavigation(): void {
+  function clearSearchDebounce(): void {
     if (searchDebounce) {
       clearTimeout(searchDebounce);
+      searchDebounce = null;
     }
+  }
+
+  onDestroy(clearSearchDebounce);
+
+  function scheduleSearchNavigation(): void {
+    clearSearchDebounce();
 
     const query = shellSearchValue.trim();
 
@@ -140,10 +148,7 @@
   }
 
   function submitShellSearch(): void {
-    if (searchDebounce) {
-      clearTimeout(searchDebounce);
-      searchDebounce = null;
-    }
+    clearSearchDebounce();
 
     const query = shellSearchValue.trim();
 
@@ -438,7 +443,7 @@
     src: url('../assets/classic/fonts/material/Material-Design-Icons.woff') format('woff');
     font-weight: 400;
     font-style: normal;
-    font-display: block;
+    font-display: swap;
   }
 
   .chorus-app {
@@ -796,9 +801,10 @@
     bottom: 60px;
     z-index: 8;
     width: var(--classic-playlist-width, 300px);
+    contain: layout paint;
     overflow: hidden;
     background: var(--classic-playlist);
-    transition-property: width;
+    transition-property: none;
     transition-duration: 140ms;
     transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
   }

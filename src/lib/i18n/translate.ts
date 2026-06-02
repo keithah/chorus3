@@ -75,12 +75,14 @@ export function createTranslationContext(locale: Locale): TranslationContext {
 
 export function getPlaceholders(value: string): string[] {
   const placeholders: string[] = [];
+  const seen = new Set<string>();
   PLACEHOLDER_PATTERN.lastIndex = 0;
 
   for (const match of value.matchAll(PLACEHOLDER_PATTERN)) {
     const placeholder = match[1];
 
-    if (!placeholders.includes(placeholder)) {
+    if (!seen.has(placeholder)) {
+      seen.add(placeholder);
       placeholders.push(placeholder);
     }
   }
@@ -94,6 +96,9 @@ export function validateDictionaryParity<TLocale extends string>(
 ): DictionaryParityIssue[] {
   const baseDictionary = dictionaries[baseLocale];
   const baseKeys = Object.keys(baseDictionary).sort();
+  const basePlaceholdersByKey = new Map(
+    baseKeys.map((key) => [key, getPlaceholders(baseDictionary[key])] as const)
+  );
   const issues: DictionaryParityIssue[] = [];
 
   for (const [locale, dictionary] of Object.entries(dictionaries) as Array<
@@ -133,7 +138,7 @@ export function validateDictionaryParity<TLocale extends string>(
         continue;
       }
 
-      const expected = getPlaceholders(baseDictionary[key]);
+      const expected = basePlaceholdersByKey.get(key) ?? [];
       const actual = getPlaceholders(dictionary[key]);
 
       if (!sameStringSet(expected, actual)) {
@@ -181,7 +186,12 @@ function findBlankValues(
 }
 
 function sameStringSet(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((value) => right.includes(value));
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const rightValues = new Set(right);
+  return left.every((value) => rightValues.has(value));
 }
 
 function formatPlaceholderList(placeholders: string[]): string {

@@ -12,6 +12,7 @@
     MediaFilesMedia
   } from '$lib/stores';
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
+  import { createIncrementalVisibility } from '$components/incrementalVisibility.svelte';
 
   interface Props {
     route?: PrimaryRoute;
@@ -38,6 +39,13 @@
     }>;
   };
 
+  type BrowserEntryPartitions = {
+    folders: MediaDirectoryEntrySnapshot[];
+    files: MediaDirectoryEntrySnapshot[];
+    playable: MediaDirectoryEntrySnapshot[];
+    queueable: MediaDirectoryEntrySnapshot[];
+  };
+
   type BrowserSortMode = 'none' | 'label' | 'dateadded' | 'year' | 'random';
   type BrowserSortOrder = 'ascending' | 'descending';
 
@@ -56,6 +64,8 @@
   let sortMode = $state<BrowserSortMode>(storedBrowserSort().method);
   let sortOrder = $state<BrowserSortOrder>(storedBrowserSort().order);
   let lastRouteItemKey = $state('');
+  const fileVisibility = createIncrementalVisibility(250);
+  const folderVisibility = createIncrementalVisibility(250);
 
   const activeMedia = $derived(
     route.kind === 'browserItem' && route.media === 'video' ? 'video' : snapshot.media
@@ -72,16 +82,13 @@
   );
   const contentItems = $derived(snapshot.entries.length ? snapshot.entries : []);
   const sortedContentItems = $derived(sortEntries(contentItems, sortMode, sortOrder));
-  const sortedFolderItems = $derived(
-    sortedContentItems.filter((entry) => entry.kind === 'directory')
-  );
-  const sortedFileItems = $derived(sortedContentItems.filter((entry) => entry.kind === 'file'));
-  const playableContentItems = $derived(
-    sortedContentItems.filter((entry) => entry.capabilities.canPlay)
-  );
-  const queueableContentItems = $derived(
-    sortedContentItems.filter((entry) => entry.capabilities.canQueue)
-  );
+  const sortedPartitions = $derived(partitionBrowserEntries(sortedContentItems));
+  const sortedFolderItems = $derived(sortedPartitions.folders);
+  const sortedFileItems = $derived(sortedPartitions.files);
+  const visibleFolderItems = $derived(folderVisibility.visibleItems(sortedFolderItems));
+  const visibleFileItems = $derived(fileVisibility.visibleItems(sortedFileItems));
+  const playableContentItems = $derived(sortedPartitions.playable);
+  const queueableContentItems = $derived(sortedPartitions.queueable);
   const parentBreadcrumb = $derived(
     snapshot.breadcrumbs.length >= 2 ? snapshot.breadcrumbs.at(-2) : null
   );
@@ -193,6 +200,31 @@
     });
 
     return sorted;
+  }
+
+  function partitionBrowserEntries(
+    entries: readonly MediaDirectoryEntrySnapshot[]
+  ): BrowserEntryPartitions {
+    const partitions: BrowserEntryPartitions = {
+      folders: [],
+      files: [],
+      playable: [],
+      queueable: []
+    };
+    for (const entry of entries) {
+      if (entry.kind === 'directory') {
+        partitions.folders.push(entry);
+      } else if (entry.kind === 'file') {
+        partitions.files.push(entry);
+      }
+      if (entry.capabilities.canPlay) {
+        partitions.playable.push(entry);
+      }
+      if (entry.capabilities.canQueue) {
+        partitions.queueable.push(entry);
+      }
+    }
+    return partitions;
   }
 
   function sortDirection(order: BrowserSortOrder): 1 | -1 {
@@ -375,7 +407,6 @@
       media: snapshot.media
     });
   }
-
 </script>
 
 <section class="classic-browser-page" aria-labelledby="browser-files-title">
@@ -454,7 +485,7 @@
     <div class="classic-browser-columns">
       <div class="classic-browser-list classic-browser-files" aria-label="Files">
         {#if sortedFileItems.length}
-          {#each sortedFileItems as entry}
+          {#each visibleFileItems as entry}
             {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="file-row">
               <button
@@ -465,7 +496,7 @@
                 onclick={() => void playEntry(entry)}
               >
                 {#if entryThumb}
-                  <img src={entryThumb} alt="" />
+                  <img src={entryThumb} alt="" loading="lazy" decoding="async" />
                 {:else}
                   <span aria-hidden="true">▶</span>
                 {/if}
@@ -494,6 +525,15 @@
               </span>
             </article>
           {/each}
+          {#if fileVisibility.hasMore(sortedFileItems.length)}
+            <button
+              type="button"
+              class="classic-browser-show-more"
+              onclick={fileVisibility.showMore}
+            >
+              Show more files
+            </button>
+          {/if}
         {:else if !contentItems.length && snapshot.sources.length}
           {#each snapshot.sources as source}
             <article>
@@ -529,7 +569,7 @@
           </article>
         {/if}
         {#if sortedFolderItems.length}
-          {#each sortedFolderItems as entry}
+          {#each visibleFolderItems as entry}
             {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="folder-row">
               <button
@@ -539,7 +579,7 @@
                 onclick={(event) => void openEntry(event, entry)}
               >
                 {#if entryThumb}
-                  <img src={entryThumb} alt="" />
+                  <img src={entryThumb} alt="" loading="lazy" decoding="async" />
                 {:else}
                   <span aria-hidden="true">▱</span>
                 {/if}
@@ -565,6 +605,15 @@
               </span>
             </article>
           {/each}
+          {#if folderVisibility.hasMore(sortedFolderItems.length)}
+            <button
+              type="button"
+              class="classic-browser-show-more"
+              onclick={folderVisibility.showMore}
+            >
+              Show more folders
+            </button>
+          {/if}
         {:else if !contentItems.length}
           <div class="classic-browser-intro">
             <h3><span aria-hidden="true">←</span> Browse files and add-ons</h3>
@@ -747,6 +796,18 @@
     min-height: 43px;
     border-bottom: 1px solid #ddd;
     background: #f4f4f4;
+  }
+
+  .classic-browser-show-more {
+    width: 100%;
+    min-height: 43px;
+    color: #555;
+    background: #ececec;
+    border: 0;
+    border-bottom: 1px solid #ddd;
+    font: inherit;
+    cursor: pointer;
+    text-align: center;
   }
 
   .classic-browser-thumb {

@@ -108,8 +108,8 @@
         {#if snapshot.storageWarning}
           No thumbs-up items are available until stored data can be loaded in this browser.
         {:else}
-          No items have been thumbed up yet. Use the thumbs-up control on music, movies, or TV
-          shows to save favorites here.
+          No items have been thumbed up yet. Use the thumbs-up control on music, movies, or TV shows
+          to save favorites here.
         {/if}
       </p>
     {/if}

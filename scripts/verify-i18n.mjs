@@ -26,6 +26,7 @@ const SCRIPT_VISIBLE_LITERAL_PATTERN =
 export const APPROVED_VISIBLE_COPY_FILE_PATTERNS = [
   /^src\/App\.svelte$/,
   /^src\/lib\/components\/[A-Za-z0-9]+\.svelte$/,
+  /^src\/lib\/components\/media-search\/mediaSearchLinks\.ts$/,
   /^src\/lib\/stores\/[A-Za-z0-9]+\.svelte\.ts$/
 ];
 
@@ -82,16 +83,22 @@ export function scanForHardcodedVisibleCopy({
     }
 
     const contents = readFileSync(file, 'utf8');
+    const scanContents = relativePath.endsWith('.svelte')
+      ? maskSvelteStyleBlocks(contents)
+      : contents;
+    const patternSources = relativePath.endsWith('.ts')
+      ? [[SCRIPT_VISIBLE_LITERAL_PATTERN, 'visible-literal']]
+      : [
+          [TEXT_BETWEEN_TAGS_PATTERN, 'text-node'],
+          [VISIBLE_ATTRIBUTE_PATTERN, 'visible-attribute'],
+          [SCRIPT_VISIBLE_LITERAL_PATTERN, 'visible-literal']
+        ];
     const findings = [];
 
-    for (const [pattern, source] of [
-      [TEXT_BETWEEN_TAGS_PATTERN, 'text-node'],
-      [VISIBLE_ATTRIBUTE_PATTERN, 'visible-attribute'],
-      [SCRIPT_VISIBLE_LITERAL_PATTERN, 'visible-literal']
-    ]) {
+    for (const [pattern, source] of patternSources) {
       pattern.lastIndex = 0;
 
-      for (const match of contents.matchAll(pattern)) {
+      for (const match of scanContents.matchAll(pattern)) {
         const text = (match[2] ?? match[1]).trim();
 
         if (!shouldReportVisibleCopy(text)) {
@@ -121,6 +128,12 @@ function dedupeHardcodedFindings(findings) {
     seen.add(key);
     return true;
   });
+}
+
+function maskSvelteStyleBlocks(contents) {
+  return contents.replace(/<style(?:\s[^>]*)?>[\s\S]*?<\/style>/gi, (block) =>
+    block.replace(/[^\n]/g, ' ')
+  );
 }
 
 export function validateDictionaryParity(dictionaries, baseLocale = DEFAULT_BASE_LOCALE) {

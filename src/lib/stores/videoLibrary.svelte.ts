@@ -47,27 +47,40 @@ export interface VideoLibraryStoreOptions {
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
 const DEFAULT_LIBRARY_LIMIT = { start: 0, end: 5000 } as const;
 const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
-const DEFAULT_MOVIE_PROPERTIES = [
+const DEFAULT_MOVIE_LIST_PROPERTIES = [
   'title',
   'year',
   'runtime',
   'thumbnail',
-  'fanart',
   'art',
   'playcount',
+  'genre',
+  'rating',
+  'mpaa',
+  'studio',
+  'tag',
+  'cast',
+  'director',
+  'writer',
+  'set',
   'lastplayed',
   'resume',
   'dateadded'
 ] as const satisfies readonly VideoLibraryMoviePropertyName[];
-const DEFAULT_TV_SHOW_PROPERTIES = [
+const DEFAULT_TV_SHOW_LIST_PROPERTIES = [
   'title',
   'year',
   'thumbnail',
-  'fanart',
   'art',
   'episode',
   'watchedepisodes',
   'playcount',
+  'genre',
+  'rating',
+  'mpaa',
+  'studio',
+  'tag',
+  'cast',
   'lastplayed',
   'dateadded'
 ] as const satisfies readonly VideoLibraryTvShowPropertyName[];
@@ -84,18 +97,19 @@ const DEFAULT_RECENT_EPISODE_PROPERTIES = [
   'resume',
   'dateadded'
 ] as const satisfies readonly VideoLibraryEpisodePropertyName[];
-const DEFAULT_MUSIC_VIDEO_PROPERTIES = [
+const DEFAULT_MUSIC_VIDEO_LIST_PROPERTIES = [
   'title',
   'artist',
   'album',
   'year',
   'runtime',
   'thumbnail',
-  'fanart',
   'art',
   'genre',
   'director',
   'studio',
+  'tag',
+  'rating',
   'playcount',
   'lastplayed',
   'resume',
@@ -134,6 +148,7 @@ export class VideoLibraryStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #abortController: AbortController | null = null;
 
   constructor(options: VideoLibraryStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -147,6 +162,7 @@ export class VideoLibraryStore {
 
   async refresh(reason: VideoLibraryRefreshReason = 'manual'): Promise<void> {
     const requestId = ++this.#requestId;
+    const signal = this.#startRequest();
 
     this.#snapshot = {
       ...this.#snapshot,
@@ -166,39 +182,67 @@ export class VideoLibraryStore {
         recentlyPlayedEpisodesResult,
         musicVideosResult
       ] = await Promise.all([
-        getVideoLibraryMovies(client, {
-          properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        }),
-        getVideoLibraryTvShows(client, {
-          properties: DEFAULT_TV_SHOW_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT
-        }),
-        getVideoLibraryMovies(client, {
-          properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'dateadded', order: 'descending' }
-        }),
-        getVideoLibraryMovies(client, {
-          properties: DEFAULT_MOVIE_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'lastplayed', order: 'descending' }
-        }),
-        getVideoLibraryEpisodes(client, {
-          properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'dateadded', order: 'descending' }
-        }),
-        getVideoLibraryEpisodes(client, {
-          properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
-          limits: DEFAULT_RECENT_LIMIT,
-          sort: { method: 'lastplayed', order: 'descending' }
-        }),
-        getVideoLibraryMusicVideos(client, {
-          properties: DEFAULT_MUSIC_VIDEO_PROPERTIES,
-          limits: DEFAULT_LIBRARY_LIMIT,
-          sort: { method: 'title', order: 'ascending' }
-        })
+        getVideoLibraryMovies(
+          client,
+          {
+            properties: DEFAULT_MOVIE_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        ),
+        getVideoLibraryTvShows(
+          client,
+          {
+            properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT
+          },
+          { signal }
+        ),
+        getVideoLibraryMovies(
+          client,
+          {
+            properties: DEFAULT_MOVIE_LIST_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'dateadded', order: 'descending' }
+          },
+          { signal }
+        ),
+        getVideoLibraryMovies(
+          client,
+          {
+            properties: DEFAULT_MOVIE_LIST_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'lastplayed', order: 'descending' }
+          },
+          { signal }
+        ),
+        getVideoLibraryEpisodes(
+          client,
+          {
+            properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'dateadded', order: 'descending' }
+          },
+          { signal }
+        ),
+        getVideoLibraryEpisodes(
+          client,
+          {
+            properties: DEFAULT_RECENT_EPISODE_PROPERTIES,
+            limits: DEFAULT_RECENT_LIMIT,
+            sort: { method: 'lastplayed', order: 'descending' }
+          },
+          { signal }
+        ),
+        getVideoLibraryMusicVideos(
+          client,
+          {
+            properties: DEFAULT_MUSIC_VIDEO_LIST_PROPERTIES,
+            limits: DEFAULT_LIBRARY_LIMIT,
+            sort: { method: 'title', order: 'ascending' }
+          },
+          { signal }
+        )
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -277,6 +321,7 @@ export class VideoLibraryStore {
 
   destroy(): void {
     this.#requestId += 1;
+    this.#abortActiveRequest();
   }
 
   #resolveClient(): KodiJsonRpcHttpClient {
@@ -294,6 +339,17 @@ export class VideoLibraryStore {
 
   #isCurrent(requestId: number): boolean {
     return requestId === this.#requestId;
+  }
+
+  #startRequest(): AbortSignal {
+    this.#abortActiveRequest();
+    this.#abortController = new AbortController();
+    return this.#abortController.signal;
+  }
+
+  #abortActiveRequest(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
   }
 }
 

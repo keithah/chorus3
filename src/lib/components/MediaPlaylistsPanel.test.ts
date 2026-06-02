@@ -2,9 +2,9 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import MediaPlaylistsPanel, {
-  type MediaPlaylistsActionDispatch,
   type MediaPlaylistsPanelDispatch
 } from './MediaPlaylistsPanel.svelte';
+import type { MediaPlaylistsActionDispatch } from './mediaPlaylistsActionModel';
 import type { MediaPlaylistsStoreSnapshot } from '$lib/stores/mediaPlaylists.svelte';
 
 type MountedComponent = ReturnType<typeof mount>;
@@ -101,6 +101,8 @@ function createActionDispatch(
   return {
     playPlaylistItem: vi.fn(),
     queuePlaylistItem: vi.fn(),
+    playEntryItem: vi.fn(),
+    queueEntryItem: vi.fn(),
     ...overrides
   };
 }
@@ -231,6 +233,91 @@ describe('MediaPlaylistsPanel', () => {
     expect(actionDispatch.queuePlaylistItem).toHaveBeenCalledWith(
       playlistPayload('playlist:1', 'Favorites')
     );
+  });
+
+  it('routes entry play and queue actions through injected entry dispatch', async () => {
+    const { actionDispatch } = renderPanel({
+      snapshot: createSnapshot({
+        entries: [
+          {
+            id: 'entry:1',
+            label: 'Sinnerman.flac',
+            mediaKind: 'audio',
+            capabilities: { canPlay: true, canQueue: true }
+          }
+        ],
+        breadcrumbs: [{ id: 'playlist:1', label: 'Favorites' }],
+        isEmpty: false
+      })
+    });
+
+    button('Play Sinnerman.flac').click();
+    await tick();
+    await tick();
+    button('Queue Sinnerman.flac').click();
+    await tick();
+
+    expect(actionDispatch.playEntryItem).toHaveBeenCalledWith({
+      id: 'entry:1',
+      label: 'Sinnerman.flac',
+      media: 'music',
+      mediaKind: 'audio'
+    });
+    expect(actionDispatch.queueEntryItem).toHaveBeenCalledWith({
+      id: 'entry:1',
+      label: 'Sinnerman.flac',
+      media: 'music',
+      mediaKind: 'audio'
+    });
+  });
+
+  it('honors entry play and queue capabilities independently', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        entries: [
+          {
+            id: 'entry:play-only',
+            label: 'Play only.flac',
+            mediaKind: 'audio',
+            capabilities: { canPlay: true, canQueue: false }
+          },
+          {
+            id: 'entry:queue-only',
+            label: 'Queue only.flac',
+            mediaKind: 'audio',
+            capabilities: { canPlay: false, canQueue: true }
+          }
+        ],
+        breadcrumbs: [{ id: 'playlist:1', label: 'Favorites' }],
+        isEmpty: false
+      })
+    });
+
+    expect(button('Play Play only.flac').disabled).toBe(false);
+    expect(button('Queue Play only.flac').disabled).toBe(true);
+    expect(button('Play Queue only.flac').disabled).toBe(true);
+    expect(button('Queue Queue only.flac').disabled).toBe(false);
+  });
+
+  it('does not require both entry action dispatchers for the available verb', () => {
+    renderPanel({
+      actionDispatch: createActionDispatch({ queueEntryItem: undefined }),
+      snapshot: createSnapshot({
+        entries: [
+          {
+            id: 'entry:playable',
+            label: 'Playable.flac',
+            mediaKind: 'audio',
+            capabilities: { canPlay: true, canQueue: true }
+          }
+        ],
+        breadcrumbs: [{ id: 'playlist:1', label: 'Favorites' }],
+        isEmpty: false
+      })
+    });
+
+    expect(button('Play Playable.flac').disabled).toBe(false);
+    expect(button('Queue Playable.flac').disabled).toBe(true);
   });
 
   it('renders loading, empty, and sanitized error lifecycle states while preserving previous data', () => {

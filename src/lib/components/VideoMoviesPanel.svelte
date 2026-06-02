@@ -5,6 +5,7 @@
   } from '$lib/stores/videoLibrary.svelte';
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute } from '$lib/video/videoRouter';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   interface Props {
     snapshot: VideoLibraryStoreSnapshot;
@@ -19,9 +20,11 @@
   };
 
   let { snapshot }: Props = $props();
+  const movieVisibility = createIncrementalVisibility(240);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));
+  const visibleMovies = $derived(movieVisibility.visibleItems(snapshot.movies));
 
   function formatStatus(value: VideoLibraryStoreSnapshot): string {
     if (value.refreshStatus === 'loading') {
@@ -307,7 +310,7 @@
 
   {#if snapshot.movies.length > 0}
     <ul class="movie-grid" aria-label="Video movies">
-      {#each snapshot.movies as movie, index (safeMovieId(movie.movieid) ?? index)}
+      {#each visibleMovies as movie, index (safeMovieId(movie.movieid) ?? index)}
         {@const href = detailHref(movie)}
         {@const label = safeMovieLabel(movie)}
         {@const metadata = movieMetadata(movie)}
@@ -363,6 +366,11 @@
         </li>
       {/each}
     </ul>
+    {#if movieVisibility.hasMore(snapshot.movies.length)}
+      <button type="button" class="show-more-button" onclick={movieVisibility.showMore}
+        >Show more movies</button
+      >
+    {/if}
   {/if}
 </section>
 
@@ -425,6 +433,19 @@
     gap: var(--space-md);
     padding: 0;
     list-style: none;
+  }
+
+  .show-more-button {
+    justify-self: start;
+    min-height: 2.35rem;
+    padding: var(--space-xs) var(--space-sm);
+    font: inherit;
+    color: var(--color-text);
+    font-weight: 800;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-raised));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
   }
 
   .movie-card {

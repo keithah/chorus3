@@ -104,6 +104,7 @@ describe('music library normalization helpers', () => {
         track: 1,
         thumbnail: 'song.jpg',
         playcount: 4,
+        watched: true,
         lastplayed: '2026-01-01 01:02:03',
         dateadded: '2025-12-31 23:59:58'
       },

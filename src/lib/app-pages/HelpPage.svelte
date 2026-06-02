@@ -21,6 +21,29 @@
     match: (route: PrimaryRoute) => boolean;
   }
 
+  const sanitizedHelpHtmlCache = new Map<string, string>();
+  const REMOVED_HELP_TAGS = new Set([
+    'script',
+    'style',
+    'iframe',
+    'object',
+    'embed',
+    'link',
+    'meta'
+  ]);
+  const ALLOWED_HELP_ATTRIBUTES = new Set([
+    'aria-label',
+    'aria-labelledby',
+    'class',
+    'colspan',
+    'href',
+    'id',
+    'role',
+    'rowspan',
+    'scope',
+    'title'
+  ]);
+
   let {
     route,
     buildOptions = {},
@@ -28,7 +51,7 @@
     chorusVersion = packageJson.version
   }: Props = $props();
   let topic = $derived(resolveHelpTopic(route));
-  let routedTopicHtml = $derived(sanitizeHelpVisibleText(rewriteHelpRouteLinks(topic.html)));
+  let routedTopicHtml = $derived(sanitizedHelpHtml(rewriteHelpRouteLinks(topic.html)));
   let kodiVersionText = $derived(formatKodiVersion(connectionSnapshot?.kodiVersion ?? null));
 
   const helpLinks: HelpLink[] = [
@@ -91,6 +114,17 @@
     return null;
   }
 
+  function sanitizedHelpHtml(html: string): string {
+    const cached = sanitizedHelpHtmlCache.get(html);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const sanitized = sanitizeHelpVisibleText(html);
+    sanitizedHelpHtmlCache.set(html, sanitized);
+    return sanitized;
+  }
+
   function sanitizeHelpVisibleText(html: string): string {
     if (typeof document === 'undefined') {
       return sanitizeHelpTextPatterns(html);
@@ -98,6 +132,7 @@
 
     const template = document.createElement('template');
     template.innerHTML = html;
+    sanitizeHelpElementTree(template.content);
     const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
 
     let node = walker.nextNode();
@@ -107,6 +142,38 @@
     }
 
     return template.innerHTML;
+  }
+
+  function sanitizeHelpElementTree(root: DocumentFragment): void {
+    for (const element of [...root.querySelectorAll('*')]) {
+      const tagName = element.tagName.toLowerCase();
+      if (REMOVED_HELP_TAGS.has(tagName)) {
+        element.remove();
+        continue;
+      }
+
+      for (const attribute of [...element.attributes]) {
+        const name = attribute.name.toLowerCase();
+        if (name.startsWith('on') || name === 'style' || !ALLOWED_HELP_ATTRIBUTES.has(name)) {
+          element.removeAttribute(attribute.name);
+          continue;
+        }
+
+        if ((name === 'href' || name === 'src') && !isSafeHelpUrl(attribute.value)) {
+          element.removeAttribute(attribute.name);
+        }
+      }
+    }
+  }
+
+  function isSafeHelpUrl(value: string): boolean {
+    const trimmed = value.trim();
+    return (
+      trimmed.startsWith('#') ||
+      trimmed.startsWith('/') ||
+      trimmed.startsWith('./') ||
+      trimmed.startsWith('../')
+    );
   }
 
   function sanitizeHelpTextPatterns(value: string): string {

@@ -8,6 +8,7 @@
     MusicLibrarySongSnapshot,
     MusicLibraryStoreSnapshot
   } from '$lib/stores/musicLibrary.svelte';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   interface Props {
     snapshot: MusicLibraryStoreSnapshot;
@@ -21,10 +22,18 @@
 
   let { snapshot, onRefresh, i18n = createTranslationContext('en') }: Props = $props();
   let isRefreshing = $state(false);
+  const artistVisibility = createIncrementalVisibility(150);
+  const albumVisibility = createIncrementalVisibility(150);
+  const songVisibility = createIncrementalVisibility(150);
+  const genreVisibility = createIncrementalVisibility(150);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const refreshDisabled = $derived(isLoading || isRefreshing);
   const statusText = $derived(formatStatus(snapshot, isRefreshing));
+  const visibleArtists = $derived(artistVisibility.visibleItems(snapshot.artists));
+  const visibleAlbums = $derived(albumVisibility.visibleItems(snapshot.albums));
+  const visibleSongs = $derived(songVisibility.visibleItems(snapshot.songs));
+  const visibleGenres = $derived(genreVisibility.visibleItems(snapshot.genres));
 
   async function handleRefresh(): Promise<void> {
     if (!onRefresh || refreshDisabled) {
@@ -305,7 +314,7 @@
         <p class="empty-copy">{sectionEmptyCopy('artists')}</p>
       {:else}
         <ul>
-          {#each snapshot.artists as artist (artist.artistid)}
+          {#each visibleArtists as artist (artist.artistid)}
             <li>
               <span class="item-title">{safeArtistLabel(artist)}</span>
               {#if joinText(artist.genre)}
@@ -314,6 +323,11 @@
             </li>
           {/each}
         </ul>
+        {#if artistVisibility.hasMore(snapshot.artists.length)}
+          <button type="button" class="show-more-button" onclick={artistVisibility.showMore}>
+            Show more artists
+          </button>
+        {/if}
       {/if}
     </section>
 
@@ -326,7 +340,7 @@
         <p class="empty-copy">{sectionEmptyCopy('albums')}</p>
       {:else}
         <ul>
-          {#each snapshot.albums as album (album.albumid)}
+          {#each visibleAlbums as album (album.albumid)}
             <li>
               <span class="item-title">{safeAlbumLabel(album)}</span>
               <span class="item-meta">
@@ -335,6 +349,11 @@
             </li>
           {/each}
         </ul>
+        {#if albumVisibility.hasMore(snapshot.albums.length)}
+          <button type="button" class="show-more-button" onclick={albumVisibility.showMore}>
+            Show more albums
+          </button>
+        {/if}
       {/if}
     </section>
 
@@ -347,7 +366,7 @@
         <p class="empty-copy">{sectionEmptyCopy('songs')}</p>
       {:else}
         <ul>
-          {#each snapshot.songs as song (song.songid)}
+          {#each visibleSongs as song (song.songid)}
             <li>
               <span class="item-title">{safeSongLabel(song)}</span>
               <span class="item-meta">
@@ -364,6 +383,11 @@
             </li>
           {/each}
         </ul>
+        {#if songVisibility.hasMore(snapshot.songs.length)}
+          <button type="button" class="show-more-button" onclick={songVisibility.showMore}>
+            Show more songs
+          </button>
+        {/if}
       {/if}
     </section>
 
@@ -376,12 +400,17 @@
         <p class="empty-copy">{sectionEmptyCopy('genres')}</p>
       {:else}
         <ul>
-          {#each snapshot.genres as genre (genre.genreid)}
+          {#each visibleGenres as genre (genre.genreid)}
             <li>
               <span class="item-title">{safeGenreLabel(genre)}</span>
             </li>
           {/each}
         </ul>
+        {#if genreVisibility.hasMore(snapshot.genres.length)}
+          <button type="button" class="show-more-button" onclick={genreVisibility.showMore}>
+            Show more genres
+          </button>
+        {/if}
       {/if}
     </section>
   </div>
@@ -570,6 +599,19 @@
   .refresh-button:focus-visible {
     outline: none;
     box-shadow: var(--shadow-ring);
+  }
+
+  .show-more-button {
+    justify-self: start;
+    min-height: 2.25rem;
+    padding: var(--space-xs) var(--space-sm);
+    font: inherit;
+    color: var(--color-text);
+    font-weight: 800;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-raised));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
   }
 
   .library-grid,

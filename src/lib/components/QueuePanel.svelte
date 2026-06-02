@@ -2,6 +2,7 @@
   import type { QueueDispatchSnapshot, QueueStoreSnapshot } from '$lib/stores';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import { redactDiagnosticText } from '$lib/safety/redaction';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   export interface QueuePanelDispatch {
     readonly snapshot: QueueDispatchSnapshot;
@@ -17,6 +18,7 @@
   }
 
   let { snapshot, dispatch, i18n = createTranslationContext('en') }: Props = $props();
+  const itemVisibility = createIncrementalVisibility(200);
 
   const isDisabled = $derived(
     dispatch.snapshot.commandStatus === 'running' ||
@@ -27,6 +29,7 @@
   const hasPlaylist = $derived(snapshot.playlistid !== null);
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const isEmpty = $derived(hasPlaylist && !isLoading && snapshot.items.length === 0);
+  const visibleItems = $derived(itemVisibility.visibleItems(snapshot.items));
 
   function sanitize(text: string): string {
     return redactDiagnosticText(text);
@@ -78,7 +81,7 @@
     <button disabled>{i18n.t('queue.panel.clear')}</button>
   {:else}
     <ol>
-      {#each snapshot.items as item (item.position)}
+      {#each visibleItems as item (item.position)}
         {@const isActive = item.position === snapshot.activePosition}
         {@const isFirst = item.position === snapshot.items[0].position}
         {@const isLast = item.position === snapshot.items[snapshot.items.length - 1].position}
@@ -114,6 +117,11 @@
         </li>
       {/each}
     </ol>
+    {#if itemVisibility.hasMore(snapshot.items.length)}
+      <button type="button" disabled={isDisabled} onclick={itemVisibility.showMore}
+        >Show more</button
+      >
+    {/if}
     <button disabled={isDisabled} onclick={() => dispatch.clear()}
       >{i18n.t('queue.panel.clear')}</button
     >

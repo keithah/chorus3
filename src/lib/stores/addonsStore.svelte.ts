@@ -767,7 +767,9 @@ function groupAddons(
   const buckets = new Map<string, AddonSnapshot[]>();
   for (const addon of addons) {
     const key = groupBy === 'enabled' ? enabledGroupKey(addon.enabled) : addon.type;
-    buckets.set(key, [...(buckets.get(key) ?? []), cloneAddon(addon)]);
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(cloneAddon(addon));
+    buckets.set(key, bucket);
   }
 
   return [...buckets.entries()].map(([key, groupedAddons]) => ({

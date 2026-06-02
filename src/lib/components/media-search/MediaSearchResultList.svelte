@@ -54,10 +54,7 @@
     {@const meta = resultMeta(result, i18n)}
     {@const imageUrl = resultImageUrl(result)}
     {@const actionItem = searchActionFor(result)}
-    <li
-      class="result-card"
-      data-songid={result.kind === 'song' ? result.songid : undefined}
-    >
+    <li class="result-card" data-songid={result.kind === 'song' ? result.songid : undefined}>
       {#if layout === 'poster' || layout === 'square'}
         <span class="result-art" aria-hidden="true">
           {#if imageUrl}
@@ -95,8 +92,7 @@
             class="action-button"
             aria-label={actionLabel('play', actionItem, label)}
             disabled={isActionDisabled(actionItem)}
-            onclick={() =>
-              onMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
+            onclick={() => onMusicAction('play', actionItem, actionTargetLabel(actionItem, label))}
           >
             {i18n.t('media.action.play')}
           </button>
@@ -105,8 +101,7 @@
             class="action-button"
             aria-label={actionLabel('queue', actionItem, label)}
             disabled={isActionDisabled(actionItem)}
-            onclick={() =>
-              onMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
+            onclick={() => onMusicAction('queue', actionItem, actionTargetLabel(actionItem, label))}
           >
             {i18n.t('media.action.queue')}
           </button>

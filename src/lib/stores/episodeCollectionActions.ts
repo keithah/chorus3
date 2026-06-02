@@ -20,15 +20,33 @@ export interface EpisodeCollectionActionDispatch {
   ) => Promise<EpisodeCollectionActionResult> | EpisodeCollectionActionResult;
 }
 
-export const defaultEpisodeCollectionActionDispatch: EpisodeCollectionActionDispatch = {
-  playEpisodeCollection,
-  queueEpisodeCollection
-};
+export interface EpisodeCollectionActionDispatchOptions {
+  createClient?: () => KodiJsonRpcHttpClient | null;
+}
+
+export function createEpisodeCollectionActionDispatch(
+  options: EpisodeCollectionActionDispatchOptions = {}
+): EpisodeCollectionActionDispatch {
+  const resolveClient = (): KodiJsonRpcHttpClient => {
+    const client = (options.createClient ?? createActiveKodiJsonRpcHttpClient)();
+    if (!client) {
+      throw new Error('Choose an active Kodi host before playing TV episodes.');
+    }
+    return client;
+  };
+
+  return {
+    playEpisodeCollection: (request) => playEpisodeCollection(resolveClient(), request),
+    queueEpisodeCollection: (request) => queueEpisodeCollection(resolveClient(), request)
+  };
+}
+
+export const defaultEpisodeCollectionActionDispatch = createEpisodeCollectionActionDispatch();
 
 async function playEpisodeCollection(
+  client: KodiJsonRpcHttpClient,
   request: EpisodeCollectionActionRequest
 ): Promise<EpisodeCollectionActionResult> {
-  const client = resolveClient();
   const episodeIds = await fetchEpisodeIds(client, request);
 
   if (episodeIds.length === 0) {
@@ -43,21 +61,13 @@ async function playEpisodeCollection(
 }
 
 async function queueEpisodeCollection(
+  client: KodiJsonRpcHttpClient,
   request: EpisodeCollectionActionRequest
 ): Promise<EpisodeCollectionActionResult> {
-  const client = resolveClient();
   const episodeIds = await fetchEpisodeIds(client, request);
   await addEpisodesToPlaylist(client, episodeIds);
 
   return { count: episodeIds.length };
-}
-
-function resolveClient(): KodiJsonRpcHttpClient {
-  const client = createActiveKodiJsonRpcHttpClient();
-  if (!client) {
-    throw new Error('Choose an active Kodi host before playing TV episodes.');
-  }
-  return client;
 }
 
 async function fetchEpisodeIds(
@@ -69,7 +79,7 @@ async function fetchEpisodeIds(
     {
       tvshowid: request.tvshowid,
       properties: ['title'],
-      limits: { start: 0 },
+      limits: { start: 0, end: 1000 },
       sort: { method: 'episode', order: 'ascending' },
       ...(typeof request.season === 'number' ? { season: request.season } : {})
     }
@@ -88,6 +98,20 @@ async function addEpisodesToPlaylist(
   client: KodiJsonRpcHttpClient,
   episodeIds: readonly number[]
 ): Promise<void> {
+  if (episodeIds.length === 0) {
+    return;
+  }
+
+  if (client.callBatch) {
+    await client.callBatch(
+      episodeIds.map((episodeid) => ({
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { episodeid } }
+      }))
+    );
+    return;
+  }
+
   for (const episodeid of episodeIds) {
     await client.call('Playlist.Add', { playlistid: 1, item: { episodeid } });
   }

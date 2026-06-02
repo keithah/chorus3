@@ -35,6 +35,7 @@ export {
   type KodiHttpClientErrorCode,
   type KodiHttpClientErrorDetails,
   type KodiHttpClientOptions,
+  type KodiJsonRpcBatchCall,
   type KodiJsonRpcHttpClient
 } from './jsonRpc';
 

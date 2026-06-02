@@ -7,25 +7,7 @@ export const THUMBS_UP_LEGACY_PATHS = thumbsRouteContract.legacyPaths as readonl
 
 export const THUMBS_UP_PRIMARY_ROUTE = { kind: 'thumbsup' } as const satisfies PrimaryRoute;
 
-export function buildThumbsUpLegacyPackageFallbacks(): ReadonlyArray<{
-  name: string;
-  routePath: string;
-  stagedIndexPath: string;
-}> {
-  return THUMBS_UP_LEGACY_PATHS.map((routePath) => {
-    const segment = routePath.slice(1);
-
-    return {
-      name: `${segment}-legacy`,
-      routePath,
-      stagedIndexPath: `${segment}/index.html`
-    };
-  });
-}
-
-export function registerThumbsUpLegacyPrimaryRoutes(
-  routes: Map<string, PrimaryRoute>
-): void {
+export function registerThumbsUpLegacyPrimaryRoutes(routes: Map<string, PrimaryRoute>): void {
   for (const path of THUMBS_UP_LEGACY_PATHS) {
     routes.set(path, THUMBS_UP_PRIMARY_ROUTE);
   }

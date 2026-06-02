@@ -42,6 +42,15 @@ export interface VideoLibraryMovieSnapshot {
   thumbnail?: string;
   fanart?: string;
   art?: Record<string, string>;
+  genre?: string[];
+  director?: string[];
+  writer?: string[];
+  cast?: string[];
+  studio?: string[];
+  mpaa?: string;
+  rating?: number;
+  set?: string;
+  tag?: string[];
   playcount?: number;
   lastplayed?: string;
   resume?: VideoLibraryResumeSnapshot;
@@ -57,6 +66,12 @@ export interface VideoTvShowSnapshot {
   thumbnail?: string;
   fanart?: string;
   art?: Record<string, string>;
+  genre?: string[];
+  cast?: string[];
+  studio?: string[];
+  mpaa?: string;
+  rating?: number;
+  tag?: string[];
   episodeCount?: number;
   watchedEpisodeCount?: number;
   unwatchedEpisodes?: number;
@@ -74,6 +89,11 @@ export interface VideoTvShowDetailSnapshot extends VideoTvShowSnapshot {
   rating?: number;
   userrating?: number;
   premiered?: string;
+  mpaa?: string;
+  imdbnumber?: string;
+  sorttitle?: string;
+  originaltitle?: string;
+  tag?: string[];
   uniqueid?: Record<string, string>;
   thumbnailAvailable: boolean;
   fanartAvailable: boolean;
@@ -299,6 +319,15 @@ export function normalizeVideoMovies(items: unknown): VideoLibraryMovieSnapshot[
       ...stringField('thumbnail', item.thumbnail),
       ...stringField('fanart', item.fanart),
       ...artField(item.art),
+      ...arrayStringField('genre', item.genre),
+      ...arrayStringField('director', item.director),
+      ...arrayStringField('writer', item.writer),
+      ...castField(item.cast),
+      ...arrayStringField('studio', item.studio),
+      ...stringField('mpaa', item.mpaa),
+      ...numberField('rating', item.rating),
+      ...setField(item.set),
+      ...arrayStringField('tag', item.tag),
       ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
       ...stringField('lastplayed', item.lastplayed),
       ...resumeField(item.resume),
@@ -384,6 +413,11 @@ export function normalizeVideoTvShowDetail(item: unknown): VideoTvShowDetailSnap
     ...numberField('rating', item.rating),
     ...numberField('userrating', item.userrating),
     ...stringField('premiered', item.premiered),
+    ...stringField('mpaa', item.mpaa),
+    ...stringField('imdbnumber', item.imdbnumber),
+    ...stringField('sorttitle', item.sorttitle),
+    ...stringField('originaltitle', item.originaltitle),
+    ...arrayStringField('tag', item.tag),
     ...uniqueIdField(item.uniqueid),
     thumbnailAvailable: isSafeArtworkReference(item.thumbnail),
     fanartAvailable: isSafeArtworkReference(item.fanart),
@@ -664,6 +698,12 @@ export function cloneVideoLibraryMovieSnapshots(
   return movies.map((movie) => ({
     ...movie,
     ...(movie.art ? { art: { ...movie.art } } : {}),
+    ...(movie.genre ? { genre: [...movie.genre] } : {}),
+    ...(movie.director ? { director: [...movie.director] } : {}),
+    ...(movie.writer ? { writer: [...movie.writer] } : {}),
+    ...(movie.cast ? { cast: [...movie.cast] } : {}),
+    ...(movie.studio ? { studio: [...movie.studio] } : {}),
+    ...(movie.tag ? { tag: [...movie.tag] } : {}),
     ...(movie.resume ? { resume: { ...movie.resume } } : {})
   }));
 }
@@ -740,7 +780,11 @@ export function cloneVideoTvShowSnapshots(
 ): VideoTvShowSnapshot[] {
   return tvShows.map((tvShow) => ({
     ...tvShow,
-    ...(tvShow.art ? { art: { ...tvShow.art } } : {})
+    ...(tvShow.art ? { art: { ...tvShow.art } } : {}),
+    ...(tvShow.genre ? { genre: [...tvShow.genre] } : {}),
+    ...(tvShow.cast ? { cast: [...tvShow.cast] } : {}),
+    ...(tvShow.studio ? { studio: [...tvShow.studio] } : {}),
+    ...(tvShow.tag ? { tag: [...tvShow.tag] } : {})
   }));
 }
 
@@ -753,6 +797,7 @@ export function cloneVideoTvShowDetailSnapshot(
         ...(detail.art ? { art: { ...detail.art } } : {}),
         ...(detail.genre ? { genre: [...detail.genre] } : {}),
         ...(detail.studio ? { studio: [...detail.studio] } : {}),
+        ...(detail.tag ? { tag: [...detail.tag] } : {}),
         ...(detail.uniqueid ? { uniqueid: { ...detail.uniqueid } } : {}),
         artwork: { ...detail.artwork }
       }
@@ -898,6 +943,12 @@ function normalizeTvShowBase(
     ...stringField('thumbnail', item.thumbnail),
     ...stringField('fanart', item.fanart),
     ...artField(item.art),
+    ...arrayStringField('genre', item.genre),
+    ...castField(item.cast),
+    ...arrayStringField('studio', item.studio),
+    ...stringField('mpaa', item.mpaa),
+    ...numberField('rating', item.rating),
+    ...arrayStringField('tag', item.tag),
     ...episodeCountFields(item),
     ...(playcount === undefined ? {} : { playcount, watched: playcount > 0 }),
     ...stringField('lastplayed', item.lastplayed),
@@ -1201,6 +1252,20 @@ function numberField<Key extends string>(key: Key, value: unknown): Partial<Reco
 
 function finiteNonNegativeNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function setField(value: unknown): Partial<Pick<VideoLibraryMovieSnapshot, 'set'>> {
+  if (typeof value === 'string') {
+    const normalized = safeStringValue(value);
+    return normalized === undefined ? {} : { set: normalized };
+  }
+
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const normalized = safeStringValue(value.set);
+  return normalized === undefined ? {} : { set: normalized };
 }
 
 function artField(value: unknown): Partial<Pick<VideoLibraryMovieSnapshot, 'art'>> {

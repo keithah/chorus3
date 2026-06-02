@@ -77,6 +77,7 @@ export {
   type QueueDispatchSnapshot,
   type QueueErrorSource,
   type FileQueueItem,
+  type LibraryQueueItem,
   type MovieQueueItem,
   type MusicQueueItem,
   type PlaylistQueueItem,
@@ -241,6 +242,7 @@ export {
   type MediaPlaylistsBreadcrumbSnapshot,
   type MediaPlaylistsMedia,
   type MediaPlaylistsPlayablePlaylistResult,
+  type MediaPlaylistsPlayableEntryResult,
   type MediaPlaylistsRefreshReason,
   type MediaPlaylistsRefreshStatus,
   type MediaPlaylistsStoreOptions,
@@ -294,10 +296,11 @@ export {
   type ActiveKodiClientOptions
 } from './kodiClient';
 
+export { playerDispatch } from './defaultPlayerDispatch';
+
 export {
   PlayerDispatch,
   createPlayerDispatch,
-  playerDispatch,
   type PlayerCommandName,
   type PlayerCommandStatus,
   type FilePlaybackItem,

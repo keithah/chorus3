@@ -187,6 +187,7 @@ export class PvrStore {
         channelgroupid: group,
         properties: CHANNEL_PROPERTIES
       });
+      const channels = normalizePvrChannels(result.channels);
 
       if (!this.#isCurrentChannelRequest(group, requestId)) {
         return;
@@ -195,7 +196,11 @@ export class PvrStore {
       this.#snapshot = {
         ...this.#snapshot,
         [statusKey]: 'ready',
-        [channelKey]: normalizePvrChannels(result.channels),
+        [channelKey]: channels,
+        ...this.#prunedBroadcastState(
+          group === 'alltv' ? channels : this.#snapshot.tvChannels,
+          group === 'allradio' ? channels : this.#snapshot.radioChannels
+        ),
         lastUpdatedAt: this.#now(),
         lastError: null
       };
@@ -352,7 +357,7 @@ export class PvrStore {
     }
   }
 
-  async refreshBroadcasts(channelid: number): Promise<void> {
+  async refreshBroadcasts(channelid: number): Promise<boolean> {
     if (!Number.isSafeInteger(channelid) || channelid <= 0) {
       this.#snapshot = {
         ...this.#snapshot,
@@ -360,7 +365,7 @@ export class PvrStore {
           new MusicLibraryClientError('input/invalid-pvr-channel', 'Choose a valid PVR channel.')
         )
       };
-      return;
+      return false;
     }
 
     const requestId = (this.#broadcastRequestIds.get(channelid) ?? 0) + 1;
@@ -373,7 +378,7 @@ export class PvrStore {
       });
 
       if (this.#broadcastRequestIds.get(channelid) !== requestId) {
-        return;
+        return false;
       }
 
       this.#snapshot = {
@@ -385,16 +390,40 @@ export class PvrStore {
         lastUpdatedAt: this.#now(),
         lastError: null
       };
+      return true;
     } catch (error) {
       if (this.#broadcastRequestIds.get(channelid) !== requestId) {
-        return;
+        return false;
       }
 
       this.#snapshot = {
         ...this.#snapshot,
         lastError: createMusicLibrarySafeError(error)
       };
+      return false;
     }
+  }
+
+  #prunedBroadcastState(
+    tvChannels: readonly PvrChannelSnapshot[],
+    radioChannels: readonly PvrChannelSnapshot[]
+  ): Pick<PvrStoreSnapshot, 'broadcastsByChannelId'> {
+    const currentChannelIds = new Set([
+      ...tvChannels.map((channel) => channel.channelid),
+      ...radioChannels.map((channel) => channel.channelid)
+    ]);
+    for (const channelid of [...this.#broadcastRequestIds.keys()]) {
+      if (!currentChannelIds.has(channelid)) {
+        this.#broadcastRequestIds.delete(channelid);
+      }
+    }
+    return {
+      broadcastsByChannelId: Object.fromEntries(
+        Object.entries(this.#snapshot.broadcastsByChannelId).filter(([channelid]) =>
+          currentChannelIds.has(Number(channelid))
+        )
+      )
+    };
   }
 
   async toggleChannelRecording(channelid: number): Promise<void> {

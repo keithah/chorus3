@@ -45,6 +45,26 @@ export function isTextSecretSafe(value: string): boolean {
   return redactText(value) === value;
 }
 
+export function redactAddonText(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
+    .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
+    .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, '[redacted-url]')
+    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
+    .replace(/authorization/gi, 'credentials')
+    .replace(/basic\s+[a-z0-9+/=._-]+/gi, 'credentials [redacted]')
+    .replace(/username or password/gi, 'credentials')
+    .replace(/admin:p@ssword/gi, '[redacted-secret]')
+    .replace(/p@ssword/gi, '[redacted-secret]')
+    .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-file')
+    .replace(/\/[\w./-]+/gi, '[redacted-path]')
+    .replace(/localStorage/gi, 'browser storage')
+    .replace(/sessionStorage/gi, 'browser storage')
+    .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
+    .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
+    .replace(/password/gi, 'credentials');
+}
+
 function normalizeForDisplay(value: unknown, seen: WeakSet<object>, depth: number): unknown {
   if (depth > MAX_DEPTH) {
     return '[Truncated]';

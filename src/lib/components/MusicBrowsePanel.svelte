@@ -25,6 +25,7 @@
 
 <script lang="ts">
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
   import type {
     MusicBrowseSelection,
     MusicBrowseStoreSnapshot
@@ -68,12 +69,22 @@
   let pendingAction = $state<PendingMusicAction | null>(null);
   let actionStatusText = $state<string | null>(null);
   let actionErrorText = $state<string | null>(null);
+  const artistVisibility = createIncrementalVisibility(120);
+  const albumVisibility = createIncrementalVisibility(120);
+  const genreVisibility = createIncrementalVisibility(120);
+  const detailAlbumVisibility = createIncrementalVisibility(120);
+  const detailSongVisibility = createIncrementalVisibility(120);
 
   const isLoading = $derived(browseSnapshot.refreshStatus === 'loading');
   const hasSelection = $derived(Boolean(browseSnapshot.selection));
   const statusText = $derived(actionStatusText ?? formatStatus(browseSnapshot));
   const selectionTitle = $derived(formatSelectionTitle(browseSnapshot.selection));
   const detailTarget = $derived(formatSelectionTarget(browseSnapshot.selection));
+  const visibleArtists = $derived(artistVisibility.visibleItems(librarySnapshot.artists));
+  const visibleAlbums = $derived(albumVisibility.visibleItems(librarySnapshot.albums));
+  const visibleGenres = $derived(genreVisibility.visibleItems(librarySnapshot.genres));
+  const visibleDetailAlbums = $derived(detailAlbumVisibility.visibleItems(browseSnapshot.albums));
+  const visibleDetailSongs = $derived(detailSongVisibility.visibleItems(browseSnapshot.songs));
 
   function handleBrowseArtist(artist: MusicLibraryArtistSnapshot): void {
     if (isLoading) {
@@ -441,7 +452,7 @@
         <p class="empty-copy">{topLevelEmptyCopy('artists')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.artists as artist, index (safeEachKey('artist', artist.artistid, index))}
+          {#each visibleArtists as artist, index (safeEachKey('artist', artist.artistid, index))}
             {@const label = safeArtistLabel(artist)}
             {@const actionItem = musicActionForArtist(artist)}
             <li>
@@ -483,6 +494,11 @@
             </li>
           {/each}
         </ul>
+        {#if artistVisibility.hasMore(librarySnapshot.artists.length)}
+          <button type="button" class="show-more-button" onclick={artistVisibility.showMore}>
+            Show more artists
+          </button>
+        {/if}
       {/if}
     </section>
 
@@ -495,7 +511,7 @@
         <p class="empty-copy">{topLevelEmptyCopy('albums')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.albums as album, index (safeEachKey('album', album.albumid, index))}
+          {#each visibleAlbums as album, index (safeEachKey('album', album.albumid, index))}
             {@const label = safeAlbumLabel(album)}
             {@const actionItem = musicActionForAlbum(album)}
             <li>
@@ -537,6 +553,11 @@
             </li>
           {/each}
         </ul>
+        {#if albumVisibility.hasMore(librarySnapshot.albums.length)}
+          <button type="button" class="show-more-button" onclick={albumVisibility.showMore}>
+            Show more albums
+          </button>
+        {/if}
       {/if}
     </section>
 
@@ -549,7 +570,7 @@
         <p class="empty-copy">{topLevelEmptyCopy('genres')}</p>
       {:else}
         <ul class="choice-list">
-          {#each librarySnapshot.genres as genre, index (safeEachKey('genre', genre.genreid, index))}
+          {#each visibleGenres as genre, index (safeEachKey('genre', genre.genreid, index))}
             {@const label = safeGenreLabel(genre)}
             <li>
               <button
@@ -565,6 +586,11 @@
             </li>
           {/each}
         </ul>
+        {#if genreVisibility.hasMore(librarySnapshot.genres.length)}
+          <button type="button" class="show-more-button" onclick={genreVisibility.showMore}>
+            Show more genres
+          </button>
+        {/if}
       {/if}
     </section>
   </div>
@@ -620,7 +646,7 @@
             <p class="empty-copy">{albumDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each browseSnapshot.albums as album, index (safeEachKey('detail-album', album.albumid, index))}
+              {#each visibleDetailAlbums as album, index (safeEachKey('detail-album', album.albumid, index))}
                 {@const label = safeAlbumLabel(album)}
                 {@const actionItem = musicActionForAlbum(album)}
                 <li class="result-card">
@@ -653,6 +679,15 @@
                 </li>
               {/each}
             </ul>
+            {#if detailAlbumVisibility.hasMore(browseSnapshot.albums.length)}
+              <button
+                type="button"
+                class="show-more-button"
+                onclick={detailAlbumVisibility.showMore}
+              >
+                Show more albums
+              </button>
+            {/if}
           {/if}
         </section>
 
@@ -667,7 +702,7 @@
             <p class="empty-copy">{songDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each browseSnapshot.songs as song, index (safeEachKey('song', song.songid, index))}
+              {#each visibleDetailSongs as song, index (safeEachKey('song', song.songid, index))}
                 {@const label = safeSongLabel(song)}
                 {@const actionItem = musicActionForSong(song)}
                 <li class="result-card" data-songid={song.songid}>
@@ -701,6 +736,15 @@
                 </li>
               {/each}
             </ul>
+            {#if detailSongVisibility.hasMore(browseSnapshot.songs.length)}
+              <button
+                type="button"
+                class="show-more-button"
+                onclick={detailSongVisibility.showMore}
+              >
+                Show more songs
+              </button>
+            {/if}
           {/if}
         </section>
       </div>
@@ -840,7 +884,8 @@
 
   .choice-button,
   .action-button,
-  .clear-button {
+  .clear-button,
+  .show-more-button {
     min-height: 2.5rem;
     font: inherit;
     color: var(--color-text);
@@ -872,6 +917,16 @@
     border-radius: var(--radius-pill);
   }
 
+  .show-more-button {
+    justify-self: start;
+    min-height: 2.25rem;
+    margin-top: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    font-weight: 800;
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-raised));
+    border-radius: var(--radius-sm);
+  }
+
   .clear-button {
     min-width: 8.5rem;
     padding: var(--space-xs) var(--space-md);
@@ -882,27 +937,31 @@
 
   .choice-button:hover:not(:disabled),
   .action-button:hover:not(:disabled),
-  .clear-button:hover:not(:disabled) {
+  .clear-button:hover:not(:disabled),
+  .show-more-button:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
   }
 
   .choice-button:active:not(:disabled),
   .action-button:active:not(:disabled),
-  .clear-button:active:not(:disabled) {
+  .clear-button:active:not(:disabled),
+  .show-more-button:active:not(:disabled) {
     transform: scale(0.96);
   }
 
   .choice-button:disabled,
   .action-button:disabled,
-  .clear-button:disabled {
+  .clear-button:disabled,
+  .show-more-button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
   }
 
   .choice-button:focus-visible,
   .action-button:focus-visible,
-  .clear-button:focus-visible {
+  .clear-button:focus-visible,
+  .show-more-button:focus-visible {
     outline: none;
     box-shadow: var(--shadow-ring);
   }

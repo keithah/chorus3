@@ -2,16 +2,9 @@ import { buildKodiPackageSafePrimaryAppRoute, type BuildAppRouteOptions } from '
 import type { TranslationContext } from '$lib/i18n';
 import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 import type {
-  MediaSearchAlbumResult,
-  MediaSearchArtistResult,
-  MediaSearchGenreResult,
-  MediaSearchMovieResult,
-  MediaSearchMusicVideoResult,
   MediaSearchResult,
   MediaSearchScope,
-  MediaSearchSongResult,
-  MediaSearchStoreSnapshot,
-  MediaSearchTvShowResult
+  MediaSearchStoreSnapshot
 } from '$lib/stores/mediaSearch.svelte';
 export type MediaSearchActionItem =
   | { kind: 'artist'; id: number }
@@ -209,9 +202,9 @@ export function resultHref(
 }
 
 export function resultImageUrl(result: MediaSearchResult): string | null {
-  return optionalKodiImageUrl(
-    typeof result.thumbnail === 'string' ? result.thumbnail : null
-  ) ?? null;
+  return (
+    optionalKodiImageUrl(typeof result.thumbnail === 'string' ? result.thumbnail : null) ?? null
+  );
 }
 
 export function safeEachKey(prefix: string, id: unknown, index: number): string {

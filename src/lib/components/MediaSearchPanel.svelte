@@ -485,13 +485,13 @@
   function actionTargetLabel(item: MediaSearchActionItem, label: string): string {
     return `${itemKindLabel(item.kind)} ${label}`;
   }
-
 </script>
 
 <section class="media-search-page" aria-labelledby="media-search-title">
   <h2 id="media-search-title" class="sr-only">{i18n.t('media.search.title')}</h2>
 
   <MediaSearchSidebar
+    {i18n}
     {buildOptions}
     {providerQuery}
     {selectedScope}
@@ -561,7 +561,7 @@
       <p class="error-copy" role="alert">{localErrorText}</p>
     {/if}
 
-    <MediaSearchAddonResults groups={addonSearchResults} {buildOptions} />
+    <MediaSearchAddonResults groups={addonSearchResults} {i18n} {buildOptions} />
 
     {#if snapshot.searchStatus === 'loading'}
       <p class="state-copy">{i18n.t('media.search.state.loading')}</p>
@@ -589,7 +589,7 @@
                 {kind}
                 results={snapshot.results[kind]}
                 {i18n}
-                buildOptions={buildOptions}
+                {buildOptions}
                 {isActionDisabled}
                 onMusicAction={handleMusicAction}
                 {actionLabel}
@@ -642,8 +642,7 @@
 
   h3,
   h4,
-  p,
-  ul {
+  p {
     margin: 0;
   }
 
@@ -712,7 +711,7 @@
   input[type='search']:focus-visible,
   select[name='scope']:focus-visible,
   button:focus-visible,
-  a:focus-visible {
+  :global(a:focus-visible) {
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;
   }
@@ -787,7 +786,7 @@
   }
 
   .section-heading h4,
-  .addon-results-shell > h3 {
+  :global(.addon-results-shell > h3) {
     color: var(--color-text);
     font-size: 1.45rem;
     font-weight: 300;
@@ -827,6 +826,5 @@
       white-space: normal;
       clip: auto;
     }
-
   }
 </style>

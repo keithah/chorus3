@@ -25,6 +25,7 @@ export type KodiWebSocketImplementation = new (url: string) => KodiWebSocketLike
 export type KodiWebSocketClientErrorCode =
   | 'unsupported'
   | 'network'
+  | 'connect-timeout'
   | 'not-open'
   | 'send-failed'
   | 'heartbeat-failed'
@@ -66,6 +67,7 @@ export type KodiWebSocketUnsubscribe = () => void;
 
 export interface KodiWebSocketClientOptions {
   WebSocketImpl?: KodiWebSocketImplementation;
+  connectTimeoutMs?: number;
   heartbeatIntervalMs?: number;
   reconnectDelaysMs?: number[];
 }
@@ -91,7 +93,9 @@ export interface KodiWebSocketClient {
 }
 
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 30_000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 const DEFAULT_RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
+const WEBSOCKET_CONNECTING = 0;
 const WEBSOCKET_OPEN = 1;
 
 function getDefaultWebSocketImplementation(): KodiWebSocketImplementation | undefined {
@@ -124,6 +128,10 @@ export function createKodiJsonRpcWebSocketClient(
   const endpoint = describeKodiWebSocketEndpoint(hostConfig);
   const url = buildKodiJsonRpcWebSocketUrl(hostConfig).toString();
   const WebSocketImpl = resolveWebSocketImplementation(options);
+  const connectTimeoutMs = normalizePositiveInterval(
+    options.connectTimeoutMs,
+    DEFAULT_CONNECT_TIMEOUT_MS
+  );
   const heartbeatIntervalMs = normalizePositiveInterval(
     options.heartbeatIntervalMs,
     DEFAULT_HEARTBEAT_INTERVAL_MS
@@ -132,6 +140,7 @@ export function createKodiJsonRpcWebSocketClient(
   const listeners = new Set<KodiWebSocketClientListener>();
 
   let socket: KodiWebSocketLike | null = null;
+  let connectTimer: ReturnType<typeof setTimeout> | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
@@ -171,6 +180,13 @@ export function createKodiJsonRpcWebSocketClient(
     }
   }
 
+  function clearConnectTimeout(): void {
+    if (connectTimer !== null) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
+    }
+  }
+
   function clearReconnect(): void {
     if (reconnectTimer !== null) {
       clearTimeout(reconnectTimer);
@@ -190,9 +206,32 @@ export function createKodiJsonRpcWebSocketClient(
   }
 
   function cleanupSocket(): void {
+    clearConnectTimeout();
     clearHeartbeat();
     detachSocketHandlers(socket);
     socket = null;
+  }
+
+  function startConnectTimeout(currentSessionId: number): void {
+    clearConnectTimeout();
+    connectTimer = setTimeout(() => {
+      connectTimer = null;
+      if (currentSessionId !== sessionId || destroyed || intentionallyClosed) {
+        return;
+      }
+
+      const currentSocket = socket;
+      socket = null;
+      detachSocketHandlers(currentSocket);
+      currentSocket?.close(1000, 'Kodi WebSocket connection timed out.');
+      emitError(
+        createError(
+          'connect-timeout',
+          `Kodi WebSocket did not connect within ${connectTimeoutMs}ms.`
+        )
+      );
+      scheduleReconnect();
+    }, connectTimeoutMs);
   }
 
   function reconnectDelayForAttempt(attempt: number): number {
@@ -249,6 +288,7 @@ export function createKodiJsonRpcWebSocketClient(
       return;
     }
 
+    clearConnectTimeout();
     dispatch({ type: 'open', endpoint, lastConnectedAt: new Date().toISOString() });
     startHeartbeat(currentSessionId);
   }
@@ -272,6 +312,7 @@ export function createKodiJsonRpcWebSocketClient(
       return;
     }
 
+    clearConnectTimeout();
     emitError(createError('network', 'Kodi WebSocket emitted an error event.'));
     scheduleReconnect();
   }
@@ -281,8 +322,8 @@ export function createKodiJsonRpcWebSocketClient(
       return;
     }
 
-    clearHeartbeat();
     const intentional = intentionallyClosed;
+    cleanupSocket();
     dispatch({
       type: 'close',
       endpoint,
@@ -298,7 +339,11 @@ export function createKodiJsonRpcWebSocketClient(
   }
 
   function connect(): void {
-    if (destroyed || socket?.readyState === WEBSOCKET_OPEN) {
+    if (
+      destroyed ||
+      socket?.readyState === WEBSOCKET_CONNECTING ||
+      socket?.readyState === WEBSOCKET_OPEN
+    ) {
       return;
     }
 
@@ -325,11 +370,13 @@ export function createKodiJsonRpcWebSocketClient(
     socket.onmessage = (event) => handleMessage(currentSessionId, event);
     socket.onerror = () => handleError(currentSessionId);
     socket.onclose = (event) => handleClose(currentSessionId, event);
+    startConnectTimeout(currentSessionId);
   }
 
   function disconnect(): void {
     intentionallyClosed = true;
     clearReconnect();
+    clearConnectTimeout();
     clearHeartbeat();
 
     const currentSocket = socket;
@@ -344,6 +391,7 @@ export function createKodiJsonRpcWebSocketClient(
     destroyed = true;
     intentionallyClosed = true;
     clearReconnect();
+    clearConnectTimeout();
     clearHeartbeat();
     detachSocketHandlers(socket);
     socket?.close(1000, 'Client destroyed.');

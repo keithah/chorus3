@@ -1,5 +1,6 @@
 <script lang="ts">
   import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
+  import type { TranslationContext } from '$lib/i18n';
   import type {
     MediaSearchAddonResultGroup,
     MediaSearchAddonResultItem
@@ -8,10 +9,11 @@
 
   interface Props {
     groups: MediaSearchAddonResultGroup[];
+    i18n: TranslationContext;
     buildOptions: BuildAppRouteOptions;
   }
 
-  let { groups, buildOptions }: Props = $props();
+  let { groups, i18n, buildOptions }: Props = $props();
 
   function addonItemHref(
     group: MediaSearchAddonResultGroup,
@@ -28,13 +30,13 @@
   }
 
   function addonResultMeta(item: MediaSearchAddonResultItem): string {
-    return textOrNull(item.filetype) ?? 'Add-on result';
+    return textOrNull(item.filetype) ?? i18n.t('media.search.addonResult');
   }
 </script>
 
 {#if groups.length > 0}
   <section class="addon-results-shell" aria-labelledby="media-search-addon-results-title">
-    <h3 id="media-search-addon-results-title">Add-on results</h3>
+    <h3 id="media-search-addon-results-title">{i18n.t('media.search.addonResults')}</h3>
     {#each groups as group (group.row.id)}
       <section
         class="result-section result-section--rows"
@@ -45,7 +47,7 @@
           <p>{group.items.length} result{group.items.length === 1 ? '' : 's'}</p>
         </div>
         {#if group.items.length === 0}
-          <p class="empty-copy">No matching add-on results.</p>
+          <p class="empty-copy">{i18n.t('media.search.noAddonResults')}</p>
         {:else}
           <ul class="result-list">
             {#each group.items as item, index (item.file)}

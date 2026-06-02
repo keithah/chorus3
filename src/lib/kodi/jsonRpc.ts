@@ -95,12 +95,21 @@ export interface KodiHttpCallOptions {
   timeoutMs?: number;
 }
 
+export interface KodiJsonRpcBatchCall<TParams extends JsonRpcParams = JsonRpcParams> {
+  method: string;
+  params?: TParams;
+}
+
 export interface KodiJsonRpcHttpClient {
   call<TResult, TParams extends JsonRpcParams = JsonRpcParams>(
     method: string,
     params?: TParams,
     options?: KodiHttpCallOptions
   ): Promise<TResult>;
+  callBatch?<TResult = unknown>(
+    calls: readonly KodiJsonRpcBatchCall[],
+    options?: KodiHttpCallOptions
+  ): Promise<TResult[]>;
 }
 
 const TIMEOUT_SENTINEL = Symbol('kodi-timeout');
@@ -131,75 +140,123 @@ export function createKodiJsonRpcHttpClient(
     ): Promise<TResult> {
       const requestId = nextId++;
       const request = buildJsonRpcRequest(method, requestId, params);
-      const timeoutMs = callOptions.timeoutMs ?? host.timeoutMs;
-      const controller = new AbortController();
-      let didTimeout = false;
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const envelope = await postJsonRpcRequest(
+        fetchImpl,
+        url,
+        buildKodiRequestHeaders(host),
+        request,
+        endpoint,
+        method,
+        callOptions,
+        host.timeoutMs
+      );
 
-      const abortFromCaller = (): void => {
-        controller.abort();
-      };
-
-      if (callOptions.signal?.aborted) {
-        controller.abort();
-      } else {
-        callOptions.signal?.addEventListener('abort', abortFromCaller, { once: true });
+      return unwrapJsonRpcEnvelope<TResult>(envelope, requestId, endpoint, method);
+    },
+    async callBatch<TResult = unknown>(
+      calls: readonly KodiJsonRpcBatchCall[],
+      callOptions: KodiHttpCallOptions = {}
+    ): Promise<TResult[]> {
+      if (calls.length === 0) {
+        return [];
       }
 
-      try {
-        if (!fetchImpl) {
-          throw createClientError({ code: 'network', endpoint, method });
-        }
+      const requestIds = calls.map(() => nextId++);
+      const requests = calls.map((call, index) =>
+        buildJsonRpcRequest(call.method, requestIds[index], call.params)
+      );
+      const method = batchMethodName(calls);
+      const envelope = await postJsonRpcRequest(
+        fetchImpl,
+        url,
+        buildKodiRequestHeaders(host),
+        requests,
+        endpoint,
+        method,
+        callOptions,
+        host.timeoutMs
+      );
 
-        const timeoutPromise = new Promise<never>((_resolve, reject) => {
-          timeoutId = setTimeout(() => {
-            didTimeout = true;
-            controller.abort();
-            reject(TIMEOUT_SENTINEL);
-          }, timeoutMs);
-        });
-
-        const response = await Promise.race([
-          fetchImpl(url, {
-            method: 'POST',
-            headers: buildKodiRequestHeaders(host),
-            body: JSON.stringify(request),
-            signal: controller.signal
-          }),
-          timeoutPromise
-        ]);
-
-        if (!response.ok) {
-          throw createClientError({
-            code: response.status === 401 || response.status === 403 ? 'auth' : 'http',
-            endpoint,
-            method,
-            status: response.status,
-            statusText: response.statusText
-          });
-        }
-
-        const envelope = await parseJson(response, endpoint, method);
-
-        return unwrapJsonRpcEnvelope<TResult>(envelope, requestId, endpoint, method);
-      } catch (error) {
-        if (isKodiHttpClientError(error)) {
-          throw error;
-        }
-
-        if (error === TIMEOUT_SENTINEL || didTimeout) {
-          throw createClientError({ code: 'timeout', endpoint, method, timeoutMs });
-        }
-
-        throw createClientError({ code: 'network', endpoint, method });
-      } finally {
-        if (timeoutId !== undefined) {
-          clearTimeout(timeoutId);
-        }
-        callOptions.signal?.removeEventListener('abort', abortFromCaller);
-      }
+      return unwrapJsonRpcBatchEnvelope<TResult>(envelope, requestIds, calls, endpoint, method);
     }
   };
+}
+
+async function postJsonRpcRequest(
+  fetchImpl: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | undefined,
+  url: string,
+  headers: Headers,
+  body: JsonRpcRequest | JsonRpcRequest[],
+  endpoint: KodiEndpointDescription,
+  method: string,
+  callOptions: KodiHttpCallOptions,
+  defaultTimeoutMs: number
+): Promise<unknown> {
+  const timeoutMs = callOptions.timeoutMs ?? defaultTimeoutMs;
+  const controller = new AbortController();
+  let didTimeout = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const abortFromCaller = (): void => {
+    controller.abort();
+  };
+
+  if (callOptions.signal?.aborted) {
+    controller.abort();
+  } else {
+    callOptions.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  try {
+    if (!fetchImpl) {
+      throw createClientError({ code: 'network', endpoint, method });
+    }
+
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+        reject(TIMEOUT_SENTINEL);
+      }, timeoutMs);
+    });
+
+    const response = await Promise.race([
+      fetchImpl(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal
+      }),
+      timeoutPromise
+    ]);
+
+    if (!response.ok) {
+      throw createClientError({
+        code: response.status === 401 || response.status === 403 ? 'auth' : 'http',
+        endpoint,
+        method,
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+
+    return await parseJson(response, endpoint, method);
+  } catch (error) {
+    if (isKodiHttpClientError(error)) {
+      throw error;
+    }
+
+    if (error === TIMEOUT_SENTINEL || didTimeout) {
+      throw createClientError({ code: 'timeout', endpoint, method, timeoutMs });
+    }
+
+    throw createClientError({ code: 'network', endpoint, method });
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    callOptions.signal?.removeEventListener('abort', abortFromCaller);
+  }
 }
 
 function buildJsonRpcRequest<TParams extends JsonRpcParams>(
@@ -254,6 +311,40 @@ function unwrapJsonRpcEnvelope<TResult>(
   return envelope.result as TResult;
 }
 
+function unwrapJsonRpcBatchEnvelope<TResult>(
+  envelope: unknown,
+  requestIds: readonly JsonRpcId[],
+  calls: readonly KodiJsonRpcBatchCall[],
+  endpoint: KodiEndpointDescription,
+  method: string
+): TResult[] {
+  if (!Array.isArray(envelope) || envelope.length !== requestIds.length) {
+    throw createClientError({ code: 'malformed-response', endpoint, method });
+  }
+
+  const byId = new Map<JsonRpcId, unknown>();
+  const expectedIds = new Set(requestIds);
+  for (const entry of envelope) {
+    if (!isRecord(entry)) {
+      throw createClientError({ code: 'malformed-response', endpoint, method });
+    }
+    const entryId = entry.id as JsonRpcId;
+    if (!expectedIds.has(entryId) || byId.has(entryId)) {
+      throw createClientError({ code: 'malformed-response', endpoint, method });
+    }
+    byId.set(entryId, entry);
+  }
+
+  return requestIds.map((requestId, index) =>
+    unwrapJsonRpcEnvelope<TResult>(
+      byId.get(requestId),
+      requestId,
+      endpoint,
+      calls[index]?.method ?? method
+    )
+  );
+}
+
 function parseJsonRpcError(error: unknown): JsonRpcError | null {
   if (!isRecord(error) || typeof error.code !== 'number' || typeof error.message !== 'string') {
     return null;
@@ -271,6 +362,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function createClientError(init: KodiHttpClientErrorInit): KodiHttpClientError {
   return new KodiHttpClientError(init);
+}
+
+function batchMethodName(calls: readonly KodiJsonRpcBatchCall[]): string {
+  if (calls.length === 0) return 'batch';
+  if (calls.length === 1) return calls[0]?.method ?? 'batch';
+  return `batch:${calls.length}`;
 }
 
 function buildErrorDetails(init: KodiHttpClientErrorInit): KodiHttpClientErrorDetails {
