@@ -212,7 +212,7 @@ export function musicVideoCards(items: readonly VideoMusicVideoSnapshot[]): Libr
   }));
 }
 
-export function musicVideoDetailRows(item: VideoMusicVideoSnapshot): LibraryDetailRow[] {
+function musicVideoDetailRows(item: VideoMusicVideoSnapshot): LibraryDetailRow[] {
   return [
     { label: 'artist', value: join(item.artist) ?? '' },
     { label: 'album', value: safe(item.album, '') },
@@ -268,7 +268,10 @@ function musicGenreSections(
 ): LibraryContentSection[] {
   const genre = resolveMusicGenre(genreid, music.genres);
   const genreLabel = resolveMusicGenreLabel(genreid, genre);
-  const artists = music.artists.filter((item) => hasArtist(item.genre, genreLabel));
+  const normalizedGenreLabel = normalizeComparableText(genreLabel);
+  const artists = music.artists.filter((item) =>
+    hasNormalizedArtist(item.genre, normalizedGenreLabel)
+  );
 
   return [
     {
@@ -402,11 +405,15 @@ function join(values: unknown): string | undefined {
     : undefined;
 }
 
-function hasArtist(values: unknown, label: string | undefined): boolean {
-  if (!label) return false;
+function hasNormalizedArtist(values: unknown, normalizedLabel: string): boolean {
+  if (!normalizedLabel) return false;
   return Array.isArray(values)
-    ? values.some((entry) => safe(entry, '').toLowerCase() === label.toLowerCase())
+    ? values.some((entry) => normalizeComparableText(safe(entry, '')) === normalizedLabel)
     : false;
+}
+
+function normalizeComparableText(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function resolveMusicGenre(
@@ -418,10 +425,12 @@ function resolveMusicGenre(
     return genres.find((item) => item.genreid === numericGenreId) ?? null;
   }
 
-  const normalized = genreid.toLowerCase();
+  const normalized = normalizeComparableText(genreid);
   return (
     genres.find((item) =>
-      [item.title, item.label].some((entry) => safe(entry, '').toLowerCase() === normalized)
+      [item.title, item.label].some(
+        (entry) => normalizeComparableText(safe(entry, '')) === normalized
+      )
     ) ?? null
   );
 }

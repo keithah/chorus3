@@ -36,22 +36,18 @@ import { createMediaPlaylistActionDispatch } from '$lib/app/mediaPlaylistActionD
 import { startBrowserDownload } from '$lib/app/appDownloads';
 import { safePlaylistExportName } from '$lib/app/appPlaylistAdapters';
 import { getFileDirectory } from '$lib/kodi';
-import {
-  createActiveKodiJsonRpcHttpClient,
-  addonsStore,
-  localeStore,
-  mediaFilesStore,
-  mediaPlaylistsStore,
-  mediaSearchStore,
-  musicBrowseStore,
-  playerDispatch as defaultPlayerDispatch,
-  prepareLocalStreamUrl,
-  pvrStore,
-  queueDispatch as defaultQueueDispatch,
-  settingsStore,
-  videoMediaFilesStore,
-  videoMediaPlaylistsStore
-} from '$lib/stores';
+import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
+import { addonsStore } from '$lib/stores/addonsStore.svelte';
+import { localeStore } from '$lib/stores/locale.svelte';
+import { mediaFilesStore, videoMediaFilesStore } from '$lib/stores/mediaFiles.svelte';
+import { mediaPlaylistsStore, videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
+import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
+import { musicBrowseStore } from '$lib/stores/musicBrowse.svelte';
+import { playerDispatch as defaultPlayerDispatch } from '$lib/stores/defaultPlayerDispatch';
+import { prepareLocalStreamUrl } from '$lib/stores/localPlayer.svelte';
+import { pvrStore } from '$lib/stores/pvr.svelte';
+import { queueDispatch as defaultQueueDispatch } from '$lib/stores/queue.svelte';
+import { settingsStore } from '$lib/stores/settingsStore.svelte';
 import { configStore } from '$lib/stores/config.svelte';
 import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
 import { videoWriteStore } from '$lib/stores/videoWriteStore.svelte';
@@ -263,7 +259,8 @@ async function searchAddonInline(
   const result = await getFileDirectory(client, {
     directory: pluginUrl,
     media: row.media === 'video' ? 'video' : 'music',
-    properties: ['title', 'thumbnail']
+    properties: ['title', 'thumbnail'],
+    limits: { start: 0, end: 50 }
   });
   const files = Array.isArray(result.files) ? result.files : [];
 

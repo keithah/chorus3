@@ -12,7 +12,6 @@
     AppShellRouteIdentity
   } from './appShellTypes';
   import PlaylistDrawer from './PlaylistDrawer.svelte';
-  import chorusFanartUrl from '$lib/assets/classic/tweeter.jpg';
   import chorusLogoUrl from '$lib/assets/classic/logo.png';
   import chorusThumbnailUrl from '$lib/assets/classic/thumbnail_default.png';
 
@@ -44,6 +43,10 @@
     thumbnailUrl: chorusThumbnailUrl,
     disabledReason: 'Playback state is empty.'
   };
+  const chorusFanartUrl = new URL(
+    /* @vite-ignore */ '../classic-assets/images/fanart_default/tweeter.jpg',
+    import.meta.url
+  ).href;
 
   let {
     routeIdentity = { kind: 'primary', route: { kind: 'home' } },

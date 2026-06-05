@@ -53,7 +53,7 @@ export class LocalFilePlaylistState {
   }
 }
 
-export function toLocalFilePlaylistItem(item: LocalFilePlaylistItem): LocalFilePlaylistItem[] {
+function toLocalFilePlaylistItem(item: LocalFilePlaylistItem): LocalFilePlaylistItem[] {
   if (!item || typeof item !== 'object') {
     return [];
   }
@@ -93,7 +93,7 @@ export function toLocalFilePlaylistItem(item: LocalFilePlaylistItem): LocalFileP
   ];
 }
 
-export function resolveLocalFilePlaylistIndex(
+function resolveLocalFilePlaylistIndex(
   items: readonly LocalFilePlaylistItem[],
   startFile: string | undefined
 ): number {

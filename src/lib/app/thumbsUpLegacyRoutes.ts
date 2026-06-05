@@ -1,7 +1,7 @@
 import thumbsRouteContract from './thumbsUpLegacyRoutes.json';
 import type { PrimaryRoute } from './primaryRoutes';
 
-export const THUMBS_UP_CANONICAL_PATH = thumbsRouteContract.canonicalPath;
+const THUMBS_UP_CANONICAL_PATH = thumbsRouteContract.canonicalPath;
 
 export const THUMBS_UP_LEGACY_PATHS = thumbsRouteContract.legacyPaths as readonly string[];
 

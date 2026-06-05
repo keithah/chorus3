@@ -112,7 +112,7 @@ export function cloneVideoTvShowSnapshots(
   }));
 }
 
-export function cloneVideoTvShowDetailSnapshot(
+function cloneVideoTvShowDetailSnapshot(
   detail: VideoTvShowDetailSnapshot | null
 ): VideoTvShowDetailSnapshot | null {
   return detail

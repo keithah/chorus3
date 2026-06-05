@@ -120,7 +120,7 @@ const HELP_ROUTE_KINDS = [
   'helpPage'
 ] as const satisfies readonly PrimaryRoute['kind'][];
 
-export const PRIMARY_APP_NAVIGATION_TARGETS = [
+const PRIMARY_APP_NAVIGATION_TARGETS = [
   {
     id: 'music',
     title: 'Music',

@@ -46,7 +46,7 @@ export const DEFAULT_METHODS: AddonsStoreMethods = {
   setAddonEnabled,
   executeAddon
 };
-export const KNOWN_ADDON_SEARCH_SETTINGS: Readonly<
+const KNOWN_ADDON_SEARCH_SETTINGS: Readonly<
   Record<string, readonly Omit<AddonSearchSetting, 'id'>[]>
 > = {
   'plugin.audio.googlemusic.exp': [

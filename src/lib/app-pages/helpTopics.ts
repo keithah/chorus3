@@ -114,7 +114,7 @@ export function normalizeHelpTopicId(value: string): HelpTopicId | null {
   return null;
 }
 
-export function isKnownHelpTopicId(value: string): value is HelpTopicId {
+function isKnownHelpTopicId(value: string): value is HelpTopicId {
   return Object.hasOwn(HELP_TOPICS, value);
 }
 

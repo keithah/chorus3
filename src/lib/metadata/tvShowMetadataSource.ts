@@ -21,6 +21,8 @@ export type TvShowMetadataSourceResolverOptions = {
 };
 
 const DEFAULT_FAILED_LOOKUP_COOLDOWN_MS = 30_000;
+const MAX_CACHED_TV_SHOW_DETAILS = 100;
+const MAX_FAILED_TV_SHOW_DETAILS = 100;
 
 export function createTvShowMetadataSourceResolver({
   snapshot,
@@ -35,12 +37,14 @@ export function createTvShowMetadataSourceResolver({
     async resolve(tvshowid: number): Promise<Record<string, unknown> | null> {
       const fromSnapshot = detailFromSnapshot(snapshot(), tvshowid);
       if (fromSnapshot) {
-        cachedDetails.set(tvshowid, fromSnapshot);
+        rememberTvShowDetail(cachedDetails, tvshowid, fromSnapshot);
         return buildTvShowMetadataEditorSource({ ...fromSnapshot });
       }
 
       const cached = cachedDetails.get(tvshowid);
       if (cached) {
+        cachedDetails.delete(tvshowid);
+        cachedDetails.set(tvshowid, cached);
         return buildTvShowMetadataEditorSource({ ...cached });
       }
 
@@ -60,12 +64,13 @@ export function createTvShowMetadataSourceResolver({
 
       const detail = await fetchTvShowDetail(tvshowid, client, cachedDetails, pendingDetails);
       if (detail) {
-        cachedDetails.set(tvshowid, detail);
+        rememberTvShowDetail(cachedDetails, tvshowid, detail);
         failedDetails.delete(tvshowid);
         return buildTvShowMetadataEditorSource({ ...detail });
       }
 
       failedDetails.set(tvshowid, Date.now());
+      trimNumberMap(failedDetails, MAX_FAILED_TV_SHOW_DETAILS);
       return null;
     },
     invalidate(tvshowid: number): void {
@@ -94,7 +99,7 @@ async function fetchTvShowDetail(
     .then((result) => normalizeVideoTvShowDetail(result.tvshowdetails))
     .then((detail) => {
       if (detail) {
-        cachedDetails.set(tvshowid, detail);
+        rememberTvShowDetail(cachedDetails, tvshowid, detail);
       }
       return detail;
     })
@@ -105,6 +110,26 @@ async function fetchTvShowDetail(
 
   pendingDetails.set(tvshowid, request);
   return request;
+}
+
+function rememberTvShowDetail(
+  cachedDetails: Map<number, VideoTvShowDetailSnapshot>,
+  tvshowid: number,
+  detail: VideoTvShowDetailSnapshot
+): void {
+  cachedDetails.delete(tvshowid);
+  cachedDetails.set(tvshowid, detail);
+  trimNumberMap(cachedDetails, MAX_CACHED_TV_SHOW_DETAILS);
+}
+
+function trimNumberMap<TValue>(map: Map<number, TValue>, maxEntries: number): void {
+  while (map.size > maxEntries) {
+    const oldestKey = map.keys().next().value;
+    if (typeof oldestKey !== 'number') {
+      return;
+    }
+    map.delete(oldestKey);
+  }
 }
 
 function detailFromSnapshot(

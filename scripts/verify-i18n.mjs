@@ -449,7 +449,12 @@ function getPlaceholders(value) {
 }
 
 function sameStringSet(left, right) {
-  return left.length === right.length && left.every((value) => right.includes(value));
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const rightValues = new Set(right);
+  return left.every((value) => rightValues.has(value));
 }
 
 function formatPlaceholderList(placeholders) {

@@ -44,7 +44,7 @@ export async function packageKodiRepository({ root = cwd(), runZip = runSystemZi
   });
   copyRepositoryAsset({
     root,
-    source: 'src/lib/assets/classic/tweeter.jpg',
+    source: 'public/classic-assets/images/fanart_default/tweeter.jpg',
     target: join(repositoryStageDir, 'fanart.jpg')
   });
   writeFileSync(

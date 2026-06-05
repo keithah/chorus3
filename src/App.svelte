@@ -3,31 +3,29 @@
 
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import AppRuntimeSurface from '$lib/app-pages/AppRuntimeSurface.svelte';
+  import { addonsStore } from '$lib/stores/addonsStore.svelte';
+  import { configStore } from '$lib/stores/config.svelte';
+  import { connectionStore } from '$lib/stores/connection.svelte';
+  import { hostConnectionStore } from '$lib/stores/hostConnection.svelte';
+  import { localPlayerStore } from '$lib/stores/localPlayer.svelte';
+  import { localPlaylistStore } from '$lib/stores/localPlaylist.svelte';
+  import { localeStore } from '$lib/stores/locale.svelte';
+  import { mediaFilesStore, videoMediaFilesStore } from '$lib/stores/mediaFiles.svelte';
+  import { mediaPlaylistsStore, videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
+  import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
+  import { musicBrowseStore } from '$lib/stores/musicBrowse.svelte';
+  import { musicLibraryStore } from '$lib/stores/musicLibrary.svelte';
+  import { playerStore } from '$lib/stores/player.svelte';
+  import { playerDispatch as defaultPlayerDispatch } from '$lib/stores/defaultPlayerDispatch';
+  import { pvrStore } from '$lib/stores/pvr.svelte';
   import {
-    addonsStore,
-    configStore,
-    connectionStore,
-    hostConnectionStore,
-    localPlayerStore,
-    localPlaylistStore,
-    mediaFilesStore,
-    videoMediaFilesStore,
-    mediaPlaylistsStore,
-    videoMediaPlaylistsStore,
-    mediaSearchStore,
-    musicBrowseStore,
-    musicLibraryStore,
-    playerDispatch as defaultPlayerDispatch,
-    pvrStore,
-    remoteInputDispatch as defaultRemoteInputDispatch,
-    playerStore,
     queueDispatch as defaultQueueDispatch,
     queueStore,
-    settingsStore,
-    thumbsUpStore,
-    localeStore,
     type QueuePlayableItemSnapshot
-  } from '$lib/stores';
+  } from '$lib/stores/queue.svelte';
+  import { remoteInputDispatch as defaultRemoteInputDispatch } from '$lib/stores/remoteInputDispatch.svelte';
+  import { settingsStore } from '$lib/stores/settingsStore.svelte';
+  import { thumbsUpStore } from '$lib/stores/thumbsUp.svelte';
   import {
     connectionDescription,
     connectionStatusText,

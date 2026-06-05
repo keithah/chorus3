@@ -642,11 +642,12 @@ function breadcrumbsForPath(path: string): MediaFilesBreadcrumbSnapshot[] {
   const breadcrumbs: MediaFilesBreadcrumbSnapshot[] = [
     { id: `plugin://${addonid}/`, label: addonid }
   ];
-  let current = `plugin://${addonid}/`;
+  const pathParts: string[] = [];
   for (const rawPart of rest.split('/')) {
     const part = rawPart.trim();
     if (!part) continue;
-    current += `${part}/`;
+    pathParts.push(part);
+    const current = `plugin://${addonid}/${pathParts.join('/')}/`;
     if (!excludedPaths.has(current)) {
       breadcrumbs.push({ id: current, label: decodeURIComponent(part) });
     }

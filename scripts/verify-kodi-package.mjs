@@ -691,6 +691,7 @@ function expandPrimaryRouteChecks(packageBasePath) {
 
 function validateArchiveEntries({ entries, addonId, lines }) {
   const normalizedEntries = entries.map(normalizeArchiveEntry).filter(Boolean);
+  const normalizedEntrySet = new Set(normalizedEntries);
   const rootPrefix = `${addonId}/`;
   const badRoots = normalizedEntries.filter(
     (entry) => entry !== addonId && !entry.startsWith(rootPrefix)
@@ -702,7 +703,7 @@ function validateArchiveEntries({ entries, addonId, lines }) {
 
   for (const suffix of REQUIRED_ZIP_ENTRIES) {
     const requiredEntry = `${addonId}/${suffix}`;
-    if (!normalizedEntries.includes(requiredEntry)) {
+    if (!normalizedEntrySet.has(requiredEntry)) {
       lines.push(`[archive] ${requiredEntry} is missing from zip.`);
     }
   }
@@ -730,7 +731,7 @@ function validateArchiveEntries({ entries, addonId, lines }) {
   if (
     badRoots.length === 0 &&
     forbidden.length === 0 &&
-    REQUIRED_ZIP_ENTRIES.every((suffix) => normalizedEntries.includes(`${addonId}/${suffix}`)) &&
+    REQUIRED_ZIP_ENTRIES.every((suffix) => normalizedEntrySet.has(`${addonId}/${suffix}`)) &&
     hasJsAsset &&
     hasCssAsset
   ) {
@@ -741,6 +742,7 @@ function validateArchiveEntries({ entries, addonId, lines }) {
 function validateRouteFallbackEntrypoints({ root, addonId, entries, lines }) {
   const stageRoot = join(root, PACKAGE_ROOT, addonId);
   const normalizedEntries = Array.isArray(entries) ? entries.map(normalizeArchiveEntry) : null;
+  const normalizedEntrySet = normalizedEntries ? new Set(normalizedEntries) : null;
   const fallbacks = getKodiPackageRouteFallbacks();
   let validFallbacks = 0;
 
@@ -766,7 +768,7 @@ function validateRouteFallbackEntrypoints({ root, addonId, entries, lines }) {
       valid = validateRouteFallbackHtml({ html, relativePath, routeLabel, lines });
     }
 
-    if (normalizedEntries && !normalizedEntries.includes(packageEntry)) {
+    if (normalizedEntrySet && !normalizedEntrySet.has(packageEntry)) {
       lines.push(`[route-fallback] ${routeLabel} ${packageEntry} is missing from zip.`);
       valid = false;
     }
@@ -874,6 +876,9 @@ function validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines }
   );
   const nowPlayingPath = safeStagedIndexPath(nowPlayingFallback);
   const nowPlayingEntry = `${addonId}/${nowPlayingPath || 'now-playing'}`;
+  const normalizedEntrySet = Array.isArray(entries)
+    ? new Set(entries.map(normalizeArchiveEntry).filter(Boolean))
+    : null;
   const relativePath = `${PACKAGE_ROOT}/${nowPlayingEntry}`;
   const path = join(root, relativePath);
 
@@ -881,7 +886,7 @@ function validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines }
     lines.push(`[now-playing] ${nowPlayingEntry} is missing from staged package.`);
   }
 
-  if (Array.isArray(entries) && !entries.map(normalizeArchiveEntry).includes(nowPlayingEntry)) {
+  if (normalizedEntrySet && !normalizedEntrySet.has(nowPlayingEntry)) {
     lines.push(`[now-playing] ${nowPlayingEntry} is missing from zip.`);
   }
 
@@ -890,7 +895,7 @@ function validateNowPlaying({ root, addonId, entries, parsePackageRoute, lines }
 
   if (
     existsSync(path) &&
-    (!Array.isArray(entries) || entries.map(normalizeArchiveEntry).includes(nowPlayingEntry)) &&
+    (!normalizedEntrySet || normalizedEntrySet.has(nowPlayingEntry)) &&
     routeResult.ok
   ) {
     lines.push('[now-playing] packaged now-playing entry and route support are present.');

@@ -21,6 +21,7 @@
     match: (route: PrimaryRoute) => boolean;
   }
 
+  const MAX_SANITIZED_HELP_HTML_CACHE_ENTRIES = 32;
   const sanitizedHelpHtmlCache = new Map<string, string>();
   const REMOVED_HELP_TAGS = new Set([
     'script',
@@ -122,7 +123,18 @@
 
     const sanitized = sanitizeHelpVisibleText(html);
     sanitizedHelpHtmlCache.set(html, sanitized);
+    trimSanitizedHelpHtmlCache();
     return sanitized;
+  }
+
+  function trimSanitizedHelpHtmlCache(): void {
+    while (sanitizedHelpHtmlCache.size > MAX_SANITIZED_HELP_HTML_CACHE_ENTRIES) {
+      const oldestKey = sanitizedHelpHtmlCache.keys().next().value;
+      if (typeof oldestKey !== 'string') {
+        return;
+      }
+      sanitizedHelpHtmlCache.delete(oldestKey);
+    }
   }
 
   function sanitizeHelpVisibleText(html: string): string {
