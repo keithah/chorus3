@@ -48,9 +48,9 @@ export interface VideoWriteWriteMethods {
   ): Promise<unknown>;
 }
 
-export type VideoWriteExecutionMode = 'auto' | 'method';
+type VideoWriteExecutionMode = 'auto' | 'method';
 
-export interface VideoWriteExecutionOptions {
+interface VideoWriteExecutionOptions {
   client: KodiJsonRpcHttpClient;
   targets: readonly VideoWriteTarget[];
   writeMethods: VideoWriteWriteMethods;
@@ -58,12 +58,12 @@ export interface VideoWriteExecutionOptions {
   now: () => string;
 }
 
-export interface VideoWriteExecutionFailure {
+interface VideoWriteExecutionFailure {
   target: VideoWriteTarget;
   error: unknown;
 }
 
-export interface VideoWriteExecutionResult {
+interface VideoWriteExecutionResult {
   succeededTargets: VideoWriteTarget[];
   failures: VideoWriteExecutionFailure[];
 }
