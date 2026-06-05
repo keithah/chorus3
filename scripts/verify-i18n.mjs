@@ -227,10 +227,21 @@ function parseDictionaries(source, root = cwd()) {
   const dictionaries = {};
 
   for (const property of dictionaryObject.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
+    if (!ts.isPropertyAssignment(property)) {
+      throw new Error(
+        `${DICTIONARY_SOURCE_PATH} DICTIONARIES only supports locale: importedDictionary entries.`
+      );
+    }
 
     const locale = propertyNameText(property.name);
-    if (!locale || !ts.isIdentifier(property.initializer)) continue;
+    if (!locale) {
+      throw new Error(`${DICTIONARY_SOURCE_PATH} DICTIONARIES contains an unsupported locale key.`);
+    }
+    if (!ts.isIdentifier(property.initializer)) {
+      throw new Error(
+        `${DICTIONARY_SOURCE_PATH} DICTIONARIES locale ${locale} must reference an imported dictionary identifier.`
+      );
+    }
 
     const constName = property.initializer.text;
     const importPath = imports.get(constName);
@@ -308,7 +319,9 @@ function objectLiteralToStringRecord(object, sourcePath) {
   const record = {};
 
   for (const property of object.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
+    if (!ts.isPropertyAssignment(property)) {
+      throw new Error(`${sourcePath} dictionaries only support string key: string value entries.`);
+    }
 
     const key = propertyNameText(property.name);
     const value = stringExpressionText(property.initializer);
@@ -344,34 +357,6 @@ function stringExpressionText(expression) {
   }
 
   return null;
-}
-
-export function extractDictionaryLiteral(source) {
-  const marker = 'export const DICTIONARIES =';
-  const start = source.indexOf(marker);
-
-  if (start === -1) {
-    throw new Error(`${DICTIONARY_SOURCE_PATH} must export DICTIONARIES`);
-  }
-
-  const objectStart = source.indexOf('{', start);
-  let depth = 0;
-
-  for (let index = objectStart; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-
-      if (depth === 0) {
-        return source.slice(objectStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${DICTIONARY_SOURCE_PATH} has an unterminated DICTIONARIES object`);
 }
 
 function sortParityIssues(issues) {

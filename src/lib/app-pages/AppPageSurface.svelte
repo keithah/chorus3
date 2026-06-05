@@ -80,26 +80,27 @@
     isTvDetailRoute
   } from './appPageRouteGroups';
   import {
-    addonsPageRoute,
-    browserFilesRoute,
-    helpPageRoute,
-    labApiBrowserPageRoute,
-    labIconBrowserPageRoute,
-    labLandingPageRoute,
-    labScreenshotPageRoute,
-    libraryPageRoute,
-    mediaSearchPanelRoute,
-    musicLibraryPanelRoute,
-    playlistsPageRoute,
-    pvrPageRoute,
-    settingsPageRoute,
-    thumbsUpPageRoute,
-    videoEpisodeDetailShellRoute,
-    videoMoviesPanelRoute,
-    videoSeasonDetailShellRoute,
-    videoTvShowsPanelRoute,
-    videoTvShowDetailShellRoute
-  } from './appPageLazyRouteBindings';
+    bindLazyRoute,
+    loadAddonsPage,
+    loadBrowserFilesPage,
+    loadHelpPage,
+    loadLabApiBrowserPage,
+    loadLabIconBrowserPage,
+    loadLabLandingPage,
+    loadLabScreenshotPage,
+    loadLibraryPage,
+    loadMediaSearchPanel,
+    loadMusicLibraryPanel,
+    loadPlaylistsPage,
+    loadPvrPage,
+    loadSettingsPage,
+    loadThumbsUpPage,
+    loadVideoEpisodeDetailShell,
+    loadVideoMoviesPanel,
+    loadVideoSeasonDetailShell,
+    loadVideoTvShowsPanel,
+    loadVideoTvShowDetailShell
+  } from './appPageSurfaceLazyRoutes';
   import { isLibraryRoute } from './libraryRouteFilters';
 
   type RouteSurfaceGroup =
@@ -328,7 +329,7 @@
     {#if isTvDetailRoute(route)}
       {#if route.kind === 'tvshowDetail'}
         <LazyRouteComponent
-          route={videoTvShowDetailShellRoute({
+          route={bindLazyRoute(loadVideoTvShowDetailShell, {
             snapshot: videoTvSnapshot,
             route: renderableVideoRoute,
             i18n,
@@ -337,7 +338,7 @@
         />
       {:else if route.kind === 'tvshowSeasonDetail'}
         <LazyRouteComponent
-          route={videoSeasonDetailShellRoute({
+          route={bindLazyRoute(loadVideoSeasonDetailShell, {
             snapshot: videoTvSnapshot,
             route: renderableVideoRoute,
             artworkDispatch: videoSeasonArtworkDispatch,
@@ -348,7 +349,7 @@
         />
       {:else}
         <LazyRouteComponent
-          route={videoEpisodeDetailShellRoute({
+          route={bindLazyRoute(loadVideoEpisodeDetailShell, {
             snapshot: videoTvSnapshot,
             route: renderableVideoRoute,
             actionDispatch: videoEpisodeActionDispatch,
@@ -359,7 +360,7 @@
       {/if}
     {:else}
       <LazyRouteComponent
-        route={libraryPageRoute({
+        route={bindLazyRoute(loadLibraryPage, {
           route: currentLibraryRoute,
           musicLibrarySnapshot,
           videoLibrarySnapshot,
@@ -376,7 +377,7 @@
     {/if}
   {:else if routeSurfaceGroup === 'browser'}
     <LazyRouteComponent
-      route={browserFilesRoute({
+      route={bindLazyRoute(loadBrowserFilesPage, {
         route,
         snapshot: isVideoBrowserRoute ? videoMediaFilesSnapshot : mediaFilesSnapshot,
         musicSnapshot: mediaFilesSnapshot,
@@ -398,7 +399,7 @@
       </section>
     {:else}
       <LazyRouteComponent
-        route={playlistsPageRoute({
+        route={bindLazyRoute(loadPlaylistsPage, {
           snapshot: mediaPlaylistsSnapshot,
           dispatch: mediaPlaylistsDispatch,
           actionDispatch: mediaPlaylistsActionDispatch,
@@ -413,7 +414,7 @@
     {/if}
   {:else if routeSurfaceGroup === 'addons'}
     <LazyRouteComponent
-      route={addonsPageRoute({
+      route={bindLazyRoute(loadAddonsPage, {
         route,
         snapshot: addonsSnapshot,
         dispatch: addonsDispatch,
@@ -425,7 +426,7 @@
     />
   {:else if routeSurfaceGroup === 'settings'}
     <LazyRouteComponent
-      route={settingsPageRoute({
+      route={bindLazyRoute(loadSettingsPage, {
         route,
         snapshot: settingsSnapshot,
         dispatch: settingsDispatch,
@@ -437,7 +438,7 @@
     />
   {:else if routeSurfaceGroup === 'help'}
     <LazyRouteComponent
-      route={helpPageRoute({
+      route={bindLazyRoute(loadHelpPage, {
         route,
         buildOptions: routeBuildOptions,
         connectionSnapshot
@@ -445,7 +446,7 @@
     />
   {:else if routeSurfaceGroup === 'search'}
     <LazyRouteComponent
-      route={mediaSearchPanelRoute({
+      route={bindLazyRoute(loadMediaSearchPanel, {
         snapshot: mediaSearchSnapshot,
         dispatch: mediaSearchDispatch,
         actionDispatch: mediaSearchActionDispatch,
@@ -455,27 +456,29 @@
     />
   {:else if routeSurfaceGroup === 'lab'}
     {#if route.kind === 'lab'}
-      <LazyRouteComponent route={labLandingPageRoute({ buildOptions: routeBuildOptions })} />
+      <LazyRouteComponent
+        route={bindLazyRoute(loadLabLandingPage, { buildOptions: routeBuildOptions })}
+      />
     {:else if route.kind === 'labApiBrowser' || route.kind === 'labApiBrowserMethod'}
       <LazyRouteComponent
-        route={labApiBrowserPageRoute({
+        route={bindLazyRoute(loadLabApiBrowserPage, {
           i18n,
           initialMethod: route.kind === 'labApiBrowserMethod' ? route.method : ''
         })}
       />
     {:else if route.kind === 'labScreenshot'}
       <LazyRouteComponent
-        route={labScreenshotPageRoute({
+        route={bindLazyRoute(loadLabScreenshotPage, {
           dispatch: remoteInputDispatch,
           buildOptions: routeBuildOptions
         })}
       />
     {:else if route.kind === 'labIconBrowser'}
-      <LazyRouteComponent route={labIconBrowserPageRoute()} />
+      <LazyRouteComponent route={bindLazyRoute(loadLabIconBrowserPage, {})} />
     {/if}
   {:else if routeSurfaceGroup === 'pvr'}
     <LazyRouteComponent
-      route={pvrPageRoute({
+      route={bindLazyRoute(loadPvrPage, {
         route,
         snapshot: pvrSnapshot,
         dispatch: pvrDispatch,
@@ -485,7 +488,7 @@
     />
   {:else if routeSurfaceGroup === 'thumbs'}
     <LazyRouteComponent
-      route={thumbsUpPageRoute({
+      route={bindLazyRoute(loadThumbsUpPage, {
         snapshot: thumbsUpSnapshot,
         dispatch: thumbsUpDispatch,
         playerDispatch,
@@ -545,18 +548,22 @@
         />
       {:else if route.kind === 'music'}
         <LazyRouteComponent
-          route={musicLibraryPanelRoute({
+          route={bindLazyRoute(loadMusicLibraryPanel, {
             snapshot: musicLibrarySnapshot,
             i18n
           })}
         />
       {:else if isLibraryRoute(route) && (route.kind === 'movies' || route.kind === 'moviesRecent')}
-        <LazyRouteComponent route={videoMoviesPanelRoute({ snapshot: videoLibrarySnapshot })} />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoMoviesPanel, { snapshot: videoLibrarySnapshot })}
+        />
       {:else if isLibraryRoute(route) && (route.kind === 'tvshows' || route.kind === 'tvshowsRecent')}
-        <LazyRouteComponent route={videoTvShowsPanelRoute({ snapshot: videoLibrarySnapshot })} />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoTvShowsPanel, { snapshot: videoLibrarySnapshot })}
+        />
       {:else if route.kind === 'browser'}
         <LazyRouteComponent
-          route={browserFilesRoute({
+          route={bindLazyRoute(loadBrowserFilesPage, {
             route,
             snapshot: mediaFilesSnapshot,
             dispatch: mediaFilesDispatch,
@@ -566,7 +573,7 @@
         />
       {:else if route.kind === 'browserItem'}
         <LazyRouteComponent
-          route={browserFilesRoute({
+          route={bindLazyRoute(loadBrowserFilesPage, {
             route,
             snapshot: mediaFilesSnapshot,
             dispatch: mediaFilesDispatch,
@@ -576,7 +583,7 @@
         />
       {:else if route.kind === 'playlists'}
         <LazyRouteComponent
-          route={playlistsPageRoute({
+          route={bindLazyRoute(loadPlaylistsPage, {
             snapshot: mediaPlaylistsSnapshot,
             dispatch: mediaPlaylistsDispatch,
             actionDispatch: mediaPlaylistsActionDispatch,
@@ -590,7 +597,7 @@
         />
       {:else if route.kind === 'playlistDetail'}
         <LazyRouteComponent
-          route={playlistsPageRoute({
+          route={bindLazyRoute(loadPlaylistsPage, {
             snapshot: mediaPlaylistsSnapshot,
             dispatch: mediaPlaylistsDispatch,
             actionDispatch: mediaPlaylistsActionDispatch,
@@ -604,7 +611,7 @@
         />
       {:else if isAddonsRoute(route)}
         <LazyRouteComponent
-          route={addonsPageRoute({
+          route={bindLazyRoute(loadAddonsPage, {
             route,
             snapshot: addonsSnapshot,
             dispatch: addonsDispatch,
@@ -618,7 +625,7 @@
         <DeferredPrimaryPage {route} {metadata} />
       {:else if isSettingsRoute(route)}
         <LazyRouteComponent
-          route={settingsPageRoute({
+          route={bindLazyRoute(loadSettingsPage, {
             route,
             snapshot: settingsSnapshot,
             dispatch: settingsDispatch,
@@ -630,7 +637,7 @@
         />
       {:else if isHelpRoute(route)}
         <LazyRouteComponent
-          route={helpPageRoute({
+          route={bindLazyRoute(loadHelpPage, {
             route,
             buildOptions: routeBuildOptions,
             connectionSnapshot
@@ -656,7 +663,7 @@
         </section>
       {:else if isSearchRoute(route)}
         <LazyRouteComponent
-          route={mediaSearchPanelRoute({
+          route={bindLazyRoute(loadMediaSearchPanel, {
             snapshot: mediaSearchSnapshot,
             dispatch: mediaSearchDispatch,
             actionDispatch: mediaSearchActionDispatch,

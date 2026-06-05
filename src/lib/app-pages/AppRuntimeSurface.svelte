@@ -37,21 +37,22 @@
   import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
   import AppPageSurface from '$lib/app-pages/AppPageSurface.svelte';
   import {
-    addonDetailShellRoute,
-    addonsPanelRoute,
-    localBrowserPlayerRoute,
-    mediaPlaylistsPanelRoute,
-    nowPlayingEmbedRoute,
-    settingsPanelRoute,
-    videoEpisodeDetailShellRoute,
-    videoMovieDetailShellRoute,
-    videoMovieStreamShellRoute,
-    videoMoviesPanelRoute,
-    videoRecentPanelRoute,
-    videoSeasonDetailShellRoute,
-    videoTvShowsPanelRoute,
-    videoTvShowDetailShellRoute
-  } from '$lib/app-pages/appPageLazyRouteBindings';
+    bindLazyRoute,
+    loadAddonDetailShell,
+    loadAddonsPanel,
+    loadLocalBrowserPlayerRoute,
+    loadMediaPlaylistsPanel,
+    loadNowPlayingEmbedRoute,
+    loadSettingsPanel,
+    loadVideoEpisodeDetailShell,
+    loadVideoMovieDetailShell,
+    loadVideoMovieStreamShell,
+    loadVideoMoviesPanel,
+    loadVideoRecentPanel,
+    loadVideoSeasonDetailShell,
+    loadVideoTvShowsPanel,
+    loadVideoTvShowDetailShell
+  } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsStoreSnapshot,
@@ -286,7 +287,7 @@
 
 {#if isNowPlayingRoute}
   <LazyRouteComponent
-    route={nowPlayingEmbedRoute({
+    route={bindLazyRoute(loadNowPlayingEmbedRoute, {
       snapshot: currentPlayerSnapshot,
       dispatch: playerDispatch,
       localPlayerSnapshot: currentLocalSnapshot,
@@ -298,7 +299,7 @@
   />
 {:else if isLocalPlayerRoute && currentRoute.kind === 'localPlayer'}
   <LazyRouteComponent
-    route={localBrowserPlayerRoute({
+    route={bindLazyRoute(loadLocalBrowserPlayerRoute, {
       route: currentRoute,
       localPlayerSnapshot: currentLocalSnapshot,
       dispatchSnapshot: playerDispatch.snapshot,
@@ -399,7 +400,7 @@
     {:else if isAddonsRoute}
       <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
         <LazyRouteComponent
-          route={addonsPanelRoute({
+          route={bindLazyRoute(loadAddonsPanel, {
             snapshot: currentAddonsSnapshot,
             dispatch: addonsDispatch,
             i18n: currentI18n
@@ -409,7 +410,7 @@
     {:else if isAddonDetailRoute}
       <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
         <LazyRouteComponent
-          route={addonDetailShellRoute({
+          route={bindLazyRoute(loadAddonDetailShell, {
             snapshot: currentAddonsSnapshot,
             dispatch: addonDetailDispatch,
             i18n: currentI18n
@@ -471,7 +472,7 @@
     {:else if isSettingsRoute}
       <main class="settings-route" aria-label={currentI18n.t('app.route.settings.aria')}>
         <LazyRouteComponent
-          route={settingsPanelRoute({
+          route={bindLazyRoute(loadSettingsPanel, {
             snapshot: currentSettingsSnapshot,
             dispatch: settingsDispatch,
             i18n: currentI18n
@@ -526,16 +527,16 @@
     {:else if isVideoMoviesRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
         <LazyRouteComponent
-          route={videoMoviesPanelRoute({ snapshot: currentVideoLibrarySnapshot })}
+          route={bindLazyRoute(loadVideoMoviesPanel, { snapshot: currentVideoLibrarySnapshot })}
         />
         <LazyRouteComponent
-          route={videoRecentPanelRoute({
+          route={bindLazyRoute(loadVideoRecentPanel, {
             snapshot: currentVideoLibrarySnapshot,
             i18n: currentI18n
           })}
         />
         <LazyRouteComponent
-          route={mediaPlaylistsPanelRoute({
+          route={bindLazyRoute(loadMediaPlaylistsPanel, {
             snapshot: currentVideoMediaPlaylistsSnapshot,
             dispatch: videoMediaPlaylistsDispatch,
             actionDispatch: videoMediaPlaylistsActionDispatch,
@@ -546,7 +547,7 @@
     {:else if isVideoMovieDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoMovieDetail.aria')}>
         <LazyRouteComponent
-          route={videoMovieDetailShellRoute({
+          route={bindLazyRoute(loadVideoMovieDetailShell, {
             snapshot: currentVideoLibrarySnapshot,
             route: currentRenderableVideoRoute,
             detailSnapshot: videoMovieDetailSnapshot,
@@ -561,7 +562,7 @@
         aria-label={currentI18n.t('app.route.videoMovieStream.aria')}
       >
         <LazyRouteComponent
-          route={videoMovieStreamShellRoute({
+          route={bindLazyRoute(loadVideoMovieStreamShell, {
             snapshot: currentVideoLibrarySnapshot,
             route: currentRenderableVideoRoute,
             detailSnapshot: videoMovieDetailSnapshot,
@@ -575,16 +576,16 @@
     {:else if isVideoTvShowsRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
         <LazyRouteComponent
-          route={videoTvShowsPanelRoute({ snapshot: currentVideoLibrarySnapshot })}
+          route={bindLazyRoute(loadVideoTvShowsPanel, { snapshot: currentVideoLibrarySnapshot })}
         />
         <LazyRouteComponent
-          route={videoRecentPanelRoute({
+          route={bindLazyRoute(loadVideoRecentPanel, {
             snapshot: currentVideoLibrarySnapshot,
             i18n: currentI18n
           })}
         />
         <LazyRouteComponent
-          route={mediaPlaylistsPanelRoute({
+          route={bindLazyRoute(loadMediaPlaylistsPanel, {
             snapshot: currentVideoMediaPlaylistsSnapshot,
             dispatch: videoMediaPlaylistsDispatch,
             actionDispatch: videoMediaPlaylistsActionDispatch,
@@ -595,7 +596,7 @@
     {:else if isVideoTvShowDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShowDetail.aria')}>
         <LazyRouteComponent
-          route={videoTvShowDetailShellRoute({
+          route={bindLazyRoute(loadVideoTvShowDetailShell, {
             snapshot: currentVideoTvSnapshot,
             route: currentRenderableVideoRoute,
             i18n: currentI18n,
@@ -606,7 +607,7 @@
     {:else if isVideoTvSeasonDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvSeasonDetail.aria')}>
         <LazyRouteComponent
-          route={videoSeasonDetailShellRoute({
+          route={bindLazyRoute(loadVideoSeasonDetailShell, {
             snapshot: currentVideoTvSnapshot,
             route: currentRenderableVideoRoute,
             artworkDispatch: videoSeasonArtworkDispatch,
@@ -619,7 +620,7 @@
     {:else if isVideoEpisodeDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoEpisodeDetail.aria')}>
         <LazyRouteComponent
-          route={videoEpisodeDetailShellRoute({
+          route={bindLazyRoute(loadVideoEpisodeDetailShell, {
             snapshot: currentVideoTvSnapshot,
             route: currentRenderableVideoRoute,
             actionDispatch: videoEpisodeActionDispatch,
