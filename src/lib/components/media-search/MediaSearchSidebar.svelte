@@ -3,7 +3,7 @@
   import type { TranslationContext } from '$lib/i18n';
   import type { MediaSearchScope } from '$lib/stores/mediaSearch.svelte';
   import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
-  import { displayText } from './mediaSearchFormatting';
+  import { displayText } from '../textFormatting';
   import { EXTERNAL_SEARCH_PROVIDERS, LOCAL_SEARCH_LINKS } from './mediaSearchLinks';
 
   interface Props {

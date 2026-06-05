@@ -50,7 +50,7 @@
   import MediaSearchAddonResults from './media-search/MediaSearchAddonResults.svelte';
   import MediaSearchResultList from './media-search/MediaSearchResultList.svelte';
   import MediaSearchSidebar from './media-search/MediaSearchSidebar.svelte';
-  import { displayText, sanitizeUiText, textOrNull } from './media-search/mediaSearchFormatting';
+  import { displayText, sanitizeUiText, textOrNull } from './textFormatting';
   import {
     resultSectionClass,
     resultSectionHeading,

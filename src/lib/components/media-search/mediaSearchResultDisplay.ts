@@ -6,7 +6,7 @@ import type {
   MediaSearchScope,
   MediaSearchStoreSnapshot
 } from '$lib/stores/mediaSearch.svelte';
-import { displayText, textOrNull } from './mediaSearchFormatting';
+import { displayText, textOrNull } from '../textFormatting';
 export type MediaSearchActionItem =
   | { kind: 'artist'; id: number }
   | { kind: 'album'; id: number }

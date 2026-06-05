@@ -5,7 +5,7 @@
     MediaSearchAddonResultGroup,
     MediaSearchAddonResultItem
   } from '../MediaSearchPanel.svelte';
-  import { displayText, textOrNull } from './mediaSearchFormatting';
+  import { displayText, textOrNull } from '../textFormatting';
 
   interface Props {
     groups: MediaSearchAddonResultGroup[];
