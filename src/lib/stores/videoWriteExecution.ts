@@ -70,7 +70,6 @@ export interface VideoWriteExecutionResult {
 
 const METHOD_WRITE_CONCURRENCY = 6;
 const JSON_RPC_WRITE_BATCH_SIZE = 50;
-type SelectedVideoWriteExecutionMode = 'method' | 'json-rpc-batch';
 
 export async function executeVideoWriteTargets({
   client,
@@ -79,17 +78,9 @@ export async function executeVideoWriteTargets({
   mode,
   now
 }: VideoWriteExecutionOptions): Promise<VideoWriteExecutionResult> {
-  return selectExecutionMode(client, targets, mode) === 'json-rpc-batch'
+  return mode === 'auto' && canUseJsonRpcBatch(client, targets)
     ? executeJsonRpcBatches(client, targets, now)
     : executeMethodWrites(client, targets, writeMethods, now);
-}
-
-function selectExecutionMode(
-  client: KodiJsonRpcHttpClient,
-  targets: readonly VideoWriteTarget[],
-  mode: VideoWriteExecutionMode
-): SelectedVideoWriteExecutionMode {
-  return mode === 'auto' && canUseJsonRpcBatch(client, targets) ? 'json-rpc-batch' : 'method';
 }
 
 function canUseJsonRpcBatch(
