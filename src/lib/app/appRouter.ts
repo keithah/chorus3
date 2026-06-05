@@ -1,105 +1,69 @@
-import {
-  buildVideoRoute,
-  parseVideoRoute,
-  type DashboardRoute,
-  type VideoRoute
-} from '../video/videoRouter';
+import { buildVideoRoute, parseVideoRoute, type VideoRoute } from '../video/videoRouter';
 import { buildPrimaryRoutePath, parsePrimaryRoutePath, type PrimaryRoute } from './primaryRoutes';
 import { isThumbsUpRoutePath, THUMBS_UP_PRIMARY_ROUTE } from './thumbsUpLegacyRoutes';
+import { buildLocalPlayerRoutePath, parseLocalPlayerRoute } from './appLocalPlayerRoute';
+import {
+  buildPackageAwareRoutePath,
+  isPackagePathMode,
+  normalizePackageBasePath,
+  routePathFromPackagePath
+} from './appPackageRoutePath';
+import {
+  hasUnsafePathPayload,
+  normalizePathLabel,
+  normalizePathnameInput,
+  normalizeSearch,
+  parseSafeIntegerSegment
+} from './appRoutePathSafety';
 
-export type AppDashboardRoute = DashboardRoute;
-export type PrimaryAppRoute = { kind: 'primary'; route: PrimaryRoute };
-export type SettingsRoute = { kind: 'settings' };
-export type SettingsUnknownRoute = { kind: 'settingsUnknown'; pathLabel: string };
-export type RemoteRoute = { kind: 'remote' };
-export type AddonsRoute = { kind: 'addons' };
-export type AddonDetailRoute = { kind: 'addonDetail'; addonid: string };
-export type AddonsUnknownRoute = { kind: 'addonsUnknown'; pathLabel: string };
-export type LabUnknownRoute = { kind: 'labUnknown'; pathLabel: string };
-export type NowPlayingRoute = { kind: 'nowPlaying' };
-export type LocalPlayerRoute =
-  | { kind: 'localPlayer'; media: 'movie' | 'episode' | 'musicvideo'; id: number }
-  | {
-      kind: 'localPlayer';
-      media: 'music';
-      musicKind: 'artist' | 'album' | 'song';
-      id: number;
-    };
-export type DelegatedVideoRoute = { kind: 'video'; route: Exclude<VideoRoute, DashboardRoute> };
-export type ParityPlaceholderStatus = 'missing' | 'deferred' | 'intentionallyChanged';
+import type {
+  AppRoute,
+  BuildAppRouteOptions,
+  DelegatedVideoRoute,
+  KodiPackageRouteBuildOptions,
+  NavigateAppRouteOptions,
+  ParseAppRouteOptions,
+  ParityRoutePlaceholder
+} from './appRouteTypes';
 
-export interface ParityRoutePlaceholder {
-  readonly id: string;
-  readonly surface: string;
-  readonly title: string;
-  readonly status: ParityPlaceholderStatus;
-  readonly owner: string;
-  readonly description: string;
-  readonly recoveryRoute: string;
-  readonly routePath: string;
-}
-
-export type ParityPlaceholderRoute = {
-  kind: 'parityPlaceholder';
-  placeholder: ParityRoutePlaceholder;
-};
-
-export type AppRoute =
-  | PrimaryAppRoute
-  | AppDashboardRoute
-  | SettingsRoute
-  | SettingsUnknownRoute
-  | RemoteRoute
-  | AddonsRoute
-  | AddonDetailRoute
-  | AddonsUnknownRoute
-  | LabUnknownRoute
-  | NowPlayingRoute
-  | LocalPlayerRoute
-  | DelegatedVideoRoute
-  | ParityPlaceholderRoute;
-
-export interface AppRouteHistory {
-  pushState: (data: unknown, unused: string, url?: string | URL | null) => void;
-}
-
-export interface NavigateAppRouteOptions {
-  history?: AppRouteHistory | null;
-}
-
-export interface ParseAppRouteOptions {
-  packageBasePath?: unknown;
-}
-
-export interface BuildAppRouteOptions {
-  packageBasePath?: unknown;
-  packageSearch?: unknown;
-  routeMode?: 'path' | 'hash';
-}
-
-export interface KodiPackageRouteBuildOptions {
-  packageBasePath?: unknown;
-  packageSearch?: unknown;
-}
+export type {
+  AddonDetailRoute,
+  AddonsRoute,
+  AddonsUnknownRoute,
+  AppDashboardRoute,
+  AppRoute,
+  AppRouteHistory,
+  BuildAppRouteOptions,
+  DelegatedVideoRoute,
+  KodiPackageRouteBuildOptions,
+  LabUnknownRoute,
+  LocalPlayerRoute,
+  NavigateAppRouteOptions,
+  NowPlayingRoute,
+  ParityPlaceholderRoute,
+  ParityPlaceholderStatus,
+  ParityRoutePlaceholder,
+  ParseAppRouteOptions,
+  PrimaryAppRoute,
+  RemoteRoute,
+  SettingsRoute,
+  SettingsUnknownRoute
+} from './appRouteTypes';
 
 export const KODI_WEBINTERFACE_ADDON_ID = 'webinterface.chorus3';
 export const KODI_WEBINTERFACE_BASE_PATH = `/addons/${KODI_WEBINTERFACE_ADDON_ID}`;
 const KODI_WEBINTERFACE_ADDON_SEGMENT = `/addons/${KODI_WEBINTERFACE_ADDON_ID}`;
 
 const ROOT_PATH = '/';
+const UNSAFE_SEGMENT = '[redacted]';
 const SETTINGS_PATH = '/settings';
 const REMOTE_PATH = '/remote';
 const ADDONS_PATH = '/addons';
 const LAB_PATH = '/lab';
 const NOW_PLAYING_PATH = '/now-playing';
-const LOCAL_PLAYER_PATH = '/local-player';
 const UNKNOWN_SETTINGS_PATH = '/settings/unknown';
 const UNKNOWN_ADDONS_PATH = '/addons/[redacted]';
 const UNKNOWN_LAB_PATH = '/lab/[redacted]';
-const UNSAFE_SEGMENT = '[redacted]';
-const MAX_SAFE_PATH_SEGMENT_LENGTH = 128;
-const FORBIDDEN_SEGMENT_PATTERN =
-  /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
 const PARITY_PLACEHOLDER_DEFINITIONS: readonly ParityRoutePlaceholder[] = [];
 
@@ -117,10 +81,7 @@ export function parseAppRoute(
 ): AppRoute {
   void normalizeSearch(search);
 
-  const path = stripPackageBasePath(
-    normalizePathnameInput(pathname),
-    normalizePackageBasePath(options.packageBasePath)
-  );
+  const path = routePathFromPackagePath(pathname, options.packageBasePath);
 
   const primaryRoute = parsePrimaryRoutePath(path);
 
@@ -226,13 +187,7 @@ export function resolveKodiWebinterfacePackageBasePath(pathname: unknown): strin
 }
 
 export function buildAppRoute(route: AppRoute, options: BuildAppRouteOptions = {}): string {
-  const path = buildAppRoutePath(route);
-  const packageBasePath = normalizePackageBasePath(options.packageBasePath);
-  if (options.routeMode === 'hash') {
-    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
-  }
-
-  return packageBasePath ? prefixPackageBasePath(path, packageBasePath) : path;
+  return buildPackageAwareRoutePath(buildAppRoutePath(route), options);
 }
 
 export function createKodiPackageRouteBuildOptions(
@@ -253,8 +208,7 @@ export function buildPrimaryAppRoute(
   route: PrimaryRoute,
   options: BuildAppRouteOptions = {}
 ): string {
-  const path = buildPrimaryRoutePath(route);
-  return buildPathWithOptions(path, options);
+  return buildPackageAwareRoutePath(buildPrimaryRoutePath(route), options);
 }
 
 export function buildKodiPackageSafePrimaryAppRoute(
@@ -262,16 +216,16 @@ export function buildKodiPackageSafePrimaryAppRoute(
   options: BuildAppRouteOptions = {}
 ): string {
   if (isKodiPackagePathMode(options) && !isKodiPackageStaticPrimaryRoute(route)) {
-    const packageBasePath = normalizePackageBasePath(options.packageBasePath);
-    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(
-      buildPrimaryRoutePath(route)
-    )}`;
+    return buildPackageAwareRoutePath(buildPrimaryRoutePath(route), {
+      ...options,
+      routeMode: 'hash'
+    });
   }
 
   const path = isKodiPackagePathMode(options)
     ? buildKodiPackageSafePrimaryRoutePath(route)
     : buildPrimaryRoutePath(route);
-  return buildPathWithOptions(path, options);
+  return buildPackageAwareRoutePath(path, options);
 }
 
 export function buildKodiPackageSafeVideoAppRoute(
@@ -280,29 +234,14 @@ export function buildKodiPackageSafeVideoAppRoute(
 ): string {
   const path = buildVideoRoute(route);
   if (isKodiPackagePathMode(options)) {
-    const packageBasePath = normalizePackageBasePath(options.packageBasePath);
-    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
+    return buildPackageAwareRoutePath(path, { ...options, routeMode: 'hash' });
   }
 
-  return buildPathWithOptions(path, options);
-}
-
-function buildPathWithOptions(path: string, options: BuildAppRouteOptions): string {
-  const packageBasePath = normalizePackageBasePath(options.packageBasePath);
-  if (options.routeMode === 'hash') {
-    return `${packageHashBasePath(packageBasePath, options.packageSearch)}${toHashRoute(path)}`;
-  }
-
-  if (!packageBasePath) {
-    return path;
-  }
-
-  const safePackageSearch = normalizePackageSearch(options.packageSearch);
-  return `${prefixPackageBasePath(path, packageBasePath)}${safePackageSearch}`;
+  return buildPackageAwareRoutePath(path, options);
 }
 
 function isKodiPackagePathMode(options: BuildAppRouteOptions): boolean {
-  return options.routeMode === 'path' && normalizePackageBasePath(options.packageBasePath) !== '';
+  return isPackagePathMode(options);
 }
 
 function isKodiPackageStaticPrimaryRoute(route: PrimaryRoute): boolean {
@@ -435,53 +374,6 @@ function buildAppRoutePath(route: AppRoute): string {
   return ROOT_PATH;
 }
 
-function parseLocalPlayerRoute(path: string): LocalPlayerRoute | null {
-  if (path === LOCAL_PLAYER_PATH || !path.startsWith(`${LOCAL_PLAYER_PATH}/`)) {
-    return null;
-  }
-
-  const segments = path
-    .slice(LOCAL_PLAYER_PATH.length + 1)
-    .split('/')
-    .filter(Boolean);
-
-  if (segments[0] === 'music') {
-    const musicKind = segments[1];
-    const id = parseSafeIntegerSegment(segments[2]);
-
-    return segments.length === 3 &&
-      (musicKind === 'artist' || musicKind === 'album' || musicKind === 'song') &&
-      id !== null
-      ? { kind: 'localPlayer', media: 'music', musicKind, id }
-      : null;
-  }
-
-  const media = segments[0];
-  const id = parseSafeIntegerSegment(segments[1]);
-
-  return segments.length === 2 &&
-    (media === 'movie' || media === 'episode' || media === 'musicvideo') &&
-    id !== null
-    ? { kind: 'localPlayer', media, id }
-    : null;
-}
-
-function buildLocalPlayerRoutePath(route: LocalPlayerRoute): string {
-  if (!Number.isSafeInteger(route.id) || route.id <= 0) {
-    return ROOT_PATH;
-  }
-
-  if (route.media === 'music') {
-    return route.musicKind === 'artist' || route.musicKind === 'album' || route.musicKind === 'song'
-      ? `${LOCAL_PLAYER_PATH}/music/${route.musicKind}/${route.id}`
-      : ROOT_PATH;
-  }
-
-  return route.media === 'movie' || route.media === 'episode' || route.media === 'musicvideo'
-    ? `${LOCAL_PLAYER_PATH}/${route.media}/${route.id}`
-    : ROOT_PATH;
-}
-
 export function isDelegatedVideoRoute(route: unknown): route is DelegatedVideoRoute {
   return isRouteLike(route) && route.kind === 'video' && isRouteLike(route.route);
 }
@@ -566,22 +458,6 @@ function malformedVideoAliasRoute(): AppRoute {
   return { kind: 'settingsUnknown', pathLabel: '/[redacted]' };
 }
 
-function parseSafeIntegerSegment(segment: string | undefined): number | null {
-  if (typeof segment !== 'string') {
-    return null;
-  }
-
-  const decoded = safeDecode(segment).trim();
-
-  if (decoded !== segment || !/^\d+$/u.test(segment)) {
-    return null;
-  }
-
-  const parsed = Number(segment);
-
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
 function parseParityPlaceholderRoute(path: string): ParityRoutePlaceholder | null {
   const direct = PARITY_PLACEHOLDERS_BY_ROUTE_PATH.get(path);
 
@@ -596,118 +472,6 @@ function normalizeParityPlaceholderRoutePath(placeholder: ParityRoutePlaceholder
   return PARITY_PLACEHOLDERS_BY_ID.get(placeholder.id)?.routePath ?? ROOT_PATH;
 }
 
-function normalizePackageBasePath(packageBasePath: unknown): string {
-  if (typeof packageBasePath !== 'string' || !packageBasePath.trim()) {
-    return '';
-  }
-
-  const normalized = normalizePathnameInput(packageBasePath);
-  return normalized === ROOT_PATH || normalized.includes(UNSAFE_SEGMENT) ? '' : normalized;
-}
-
-function stripPackageBasePath(pathname: string, packageBasePath: string): string {
-  if (!packageBasePath) {
-    return normalizeIndexFallbackPath(pathname);
-  }
-
-  if (pathname === packageBasePath) {
-    return ROOT_PATH;
-  }
-
-  const stripped = pathname.startsWith(`${packageBasePath}/`)
-    ? normalizePathnameInput(pathname.slice(packageBasePath.length))
-    : pathname;
-
-  return normalizeIndexFallbackPath(stripped);
-}
-
-function normalizeIndexFallbackPath(pathname: string): string {
-  const path = normalizePathnameInput(pathname);
-  if (path === '/index.html') {
-    return ROOT_PATH;
-  }
-
-  return path.endsWith('/index.html') ? path.slice(0, -'/index.html'.length) || ROOT_PATH : path;
-}
-
-function prefixPackageBasePath(pathname: string, packageBasePath: string): string {
-  const path = normalizePathnameInput(pathname);
-  return path === ROOT_PATH ? packageBasePath : `${packageBasePath}${path}`;
-}
-
-function packageHashBasePath(packageBasePath: string, packageSearch?: unknown): string {
-  if (!packageBasePath) {
-    return '';
-  }
-
-  return `${packageBasePath}/${normalizePackageSearch(packageSearch ?? globalThis.location?.search)}`;
-}
-
-function toHashRoute(pathname: string): string {
-  const path = normalizePathnameInput(pathname);
-  return path === ROOT_PATH ? '#home' : `#${path.slice(1)}`;
-}
-
-function normalizePackageSearch(search: unknown): string {
-  if (typeof search !== 'string') {
-    return '';
-  }
-
-  const trimmed = search.trim();
-  if (!trimmed || trimmed === '?' || !trimmed.startsWith('?') || trimmed.length > 128) {
-    return '';
-  }
-
-  if (FORBIDDEN_SEGMENT_PATTERN.test(trimmed)) {
-    return '';
-  }
-
-  return trimmed.replace(/#/gu, '');
-}
-
-function normalizePathnameInput(pathname: unknown): string {
-  if (pathname === null || pathname === undefined || pathname === '') {
-    return ROOT_PATH;
-  }
-
-  if (typeof pathname !== 'string') {
-    return '/[redacted]';
-  }
-
-  const pathOnly = pathname.split(/[?#]/, 1)[0]?.trim() ?? '';
-
-  if (!pathOnly) {
-    return ROOT_PATH;
-  }
-
-  const withLeadingSlash = pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`;
-  const compacted = withLeadingSlash.replace(/\/{2,}/g, '/');
-  const withoutTrailingSlash = compacted.length > 1 ? compacted.replace(/\/+$/g, '') : compacted;
-
-  return withoutTrailingSlash === '' ? ROOT_PATH : withoutTrailingSlash;
-}
-
-function normalizeSearch(search: unknown): URLSearchParams | null {
-  if (typeof search !== 'string' || search.length === 0) {
-    return null;
-  }
-
-  try {
-    return new URLSearchParams(search);
-  } catch {
-    return null;
-  }
-}
-
-function normalizePathLabel(pathname: string, fallback: string): string {
-  const normalized = normalizePathnameInput(pathname);
-  const segments = normalized.split('/').filter(Boolean);
-  const safeSegments = segments.map(sanitizePathSegment).slice(0, 5);
-  const pathLabel = `/${safeSegments.join('/')}`;
-
-  return pathLabel === '/' ? fallback : pathLabel;
-}
-
 function normalizeUnknownLabPathLabel(pathname: string): string {
   const normalized = normalizePathnameInput(pathname);
   const segments = normalized.split('/').filter(Boolean);
@@ -716,12 +480,9 @@ function normalizeUnknownLabPathLabel(pathname: string): string {
     return UNKNOWN_LAB_PATH;
   }
 
-  const labPayloadSegments = segments.slice(1);
-  const hasUnsafePayload = labPayloadSegments.some(
-    (segment) => sanitizePathSegment(segment) === UNSAFE_SEGMENT
-  );
-
-  return hasUnsafePayload ? UNKNOWN_LAB_PATH : normalizePathLabel(normalized, UNKNOWN_LAB_PATH);
+  return hasUnsafePathPayload(normalized, 1)
+    ? UNKNOWN_LAB_PATH
+    : normalizePathLabel(normalized, UNKNOWN_LAB_PATH);
 }
 
 function normalizeUnknownNowPlayingPathLabel(pathname: string): string {
@@ -732,41 +493,9 @@ function normalizeUnknownNowPlayingPathLabel(pathname: string): string {
     return `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`;
   }
 
-  const nowPlayingPayloadSegments = segments.slice(1);
-  const hasUnsafePayload = nowPlayingPayloadSegments.some(
-    (segment) => sanitizePathSegment(segment) === UNSAFE_SEGMENT
-  );
-
-  return hasUnsafePayload
+  return hasUnsafePathPayload(normalized, 1)
     ? `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`
     : normalizePathLabel(normalized, `${NOW_PLAYING_PATH}/${UNSAFE_SEGMENT}`);
-}
-
-function sanitizePathSegment(segment: string): string {
-  const decoded = safeDecode(segment).trim();
-
-  if (
-    !decoded ||
-    decoded.length > MAX_SAFE_PATH_SEGMENT_LENGTH ||
-    FORBIDDEN_SEGMENT_PATTERN.test(decoded) ||
-    decoded.includes('/')
-  ) {
-    return UNSAFE_SEGMENT;
-  }
-
-  if (!/^[a-z0-9._-]+$/i.test(decoded)) {
-    return UNSAFE_SEGMENT;
-  }
-
-  return decoded;
-}
-
-function safeDecode(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
 }
 
 function isRouteLike(route: unknown): route is Record<string, unknown> {

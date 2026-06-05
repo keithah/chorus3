@@ -23,6 +23,7 @@ import {
   type VideoLibraryRefreshReason,
   type VideoLibraryStoreSnapshot
 } from './videoLibraryNormalization';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export type {
   VideoLibraryErrorSource,
@@ -45,7 +46,7 @@ export interface VideoLibraryStoreOptions {
 }
 
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIBRARY_LIMIT = { start: 0, end: 5000 } as const;
+const DEFAULT_LIBRARY_LIMIT = { start: 0, end: DEFAULT_FULL_LIBRARY_PAGE_SIZE } as const;
 const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
 const DEFAULT_MOVIE_LIST_PROPERTIES = [
   'title',
@@ -149,6 +150,7 @@ export class VideoLibraryStore {
 
   #requestId = 0;
   #abortController: AbortController | null = null;
+  #refreshPromise: { reason: VideoLibraryRefreshReason; promise: Promise<void> } | null = null;
 
   constructor(options: VideoLibraryStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -161,6 +163,23 @@ export class VideoLibraryStore {
   }
 
   async refresh(reason: VideoLibraryRefreshReason = 'manual'): Promise<void> {
+    if (this.#refreshPromise?.reason === reason) {
+      return this.#refreshPromise.promise;
+    }
+
+    const promise = this.#refresh(reason);
+    this.#refreshPromise = { reason, promise };
+
+    try {
+      await promise;
+    } finally {
+      if (this.#refreshPromise?.promise === promise) {
+        this.#refreshPromise = null;
+      }
+    }
+  }
+
+  async #refresh(reason: VideoLibraryRefreshReason): Promise<void> {
     const requestId = ++this.#requestId;
     const signal = this.#startRequest();
 
@@ -182,20 +201,22 @@ export class VideoLibraryStore {
         recentlyPlayedEpisodesResult,
         musicVideosResult
       ] = await Promise.all([
-        getVideoLibraryMovies(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getVideoLibraryMovies(client, params, options),
           {
             properties: DEFAULT_MOVIE_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'movies',
           { signal }
         ),
-        getVideoLibraryTvShows(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getVideoLibraryTvShows(client, params, options),
           {
             properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'tvshows',
           { signal }
         ),
         getVideoLibraryMovies(
@@ -234,13 +255,14 @@ export class VideoLibraryStore {
           },
           { signal }
         ),
-        getVideoLibraryMusicVideos(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getVideoLibraryMusicVideos(client, params, options),
           {
             properties: DEFAULT_MUSIC_VIDEO_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT,
             sort: { method: 'title', order: 'ascending' }
           },
+          'musicvideos',
           { signal }
         )
       ]);
@@ -321,6 +343,7 @@ export class VideoLibraryStore {
 
   destroy(): void {
     this.#requestId += 1;
+    this.#refreshPromise = null;
     this.#abortActiveRequest();
   }
 

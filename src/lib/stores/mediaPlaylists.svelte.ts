@@ -360,7 +360,7 @@ export class MediaPlaylistsStore {
   }
 
   destroy(): void {
-    this.#requestId += 1;
+    this.clear();
   }
 
   #normalizePlaylists(

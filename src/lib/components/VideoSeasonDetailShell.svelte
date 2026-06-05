@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import './videoSeasonDetailShellClassic.css';
   import type {
     VideoWriteFailedItemSnapshot,
     VideoWriteSafeErrorSnapshot
@@ -46,6 +47,7 @@
     type EpisodeCollectionActionDispatch
   } from '$lib/stores/episodeCollectionActions';
   import type { VideoRoute } from '$lib/video/videoRouter';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   interface Props {
     snapshot: VideoTvStoreSnapshot;
@@ -105,6 +107,7 @@
   let retryItems = $state<VideoSeasonWriteItem[]>([]);
   let collectionActionStatus = $state('');
   let pendingCollectionAction = $state<'play' | 'queue' | null>(null);
+  const episodeVisibility = createIncrementalVisibility(150);
 
   const routeTvShowId = $derived(
     route.kind === 'videoTvSeasonDetail' ? safePositiveId(route.tvshowid) : null
@@ -119,6 +122,7 @@
   const episodes = $derived(
     season ? orderedEpisodes(snapshot.episodes, routeTvShowId, routeSeason) : []
   );
+  const visibleEpisodes = $derived(episodeVisibility.visibleItems(episodes));
   const title = $derived(season ? safeSeasonLabel(season) : fallbackTitle(route));
   const showTitle = $derived(tvShow ? safeLabel(tvShow, 'Unknown TV show') : 'TV show');
   const statusMessage = $derived(
@@ -597,7 +601,7 @@
       <p class="state-copy">No episodes found for this season snapshot.</p>
     {:else}
       <ul class="episode-list" aria-label="Season episodes">
-        {#each episodes as episode, index (episodeKey(episode, index))}
+        {#each visibleEpisodes as episode, index (episodeKey(episode, index))}
           {@const href = episodeHref(episode)}
           <li class="episode-card">
             {#if href}<a class="episode-link episode-title" {href}>{safeEpisodeLabel(episode)}</a
@@ -614,6 +618,11 @@
           </li>
         {/each}
       </ul>
+      {#if episodeVisibility.hasMore(episodes.length)}
+        <button type="button" class="show-more-button" onclick={episodeVisibility.showMore}>
+          Show more episodes
+        </button>
+      {/if}
     {/if}
   {:else}
     <div class="empty-state" role="status" aria-live="polite" aria-atomic="true">
@@ -622,175 +631,3 @@
     </div>
   {/if}
 </section>
-
-<style>
-  .video-season-detail-shell {
-    display: grid;
-    gap: var(--space-lg);
-    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
-  }
-  .panel-heading,
-  .hero-copy,
-  .episode-card,
-  .empty-state,
-  .artwork-actions,
-  .season-write-actions {
-    display: grid;
-    gap: var(--space-xs);
-  }
-  .season-hero {
-    grid-template-columns: minmax(5rem, 0.22fr) minmax(0, 1fr);
-    align-items: end;
-    padding: clamp(var(--space-md), 3vw, var(--space-lg));
-    background:
-      radial-gradient(
-        circle at top right,
-        color-mix(in srgb, var(--color-accent) 20%, transparent),
-        transparent 20rem
-      ),
-      color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
-    border-radius: calc(var(--radius-lg) + var(--space-xs));
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
-      0 1.2rem 3rem color-mix(in srgb, black 14%, transparent);
-  }
-  .season-poster-frame {
-    aspect-ratio: 2 / 3;
-    min-height: 8rem;
-    display: grid;
-    place-items: end start;
-    padding: var(--space-sm);
-    color: color-mix(in srgb, var(--color-text) 82%, transparent);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 850;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background:
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-accent) 30%, transparent),
-        transparent
-      ),
-      color-mix(in srgb, var(--color-surface) 88%, black);
-    border-radius: var(--radius-lg);
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
-      0 1rem 2rem color-mix(in srgb, black 22%, transparent);
-  }
-  .section-kicker,
-  h2,
-  p,
-  ul {
-    margin: 0;
-  }
-  .section-kicker {
-    color: var(--color-accent);
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  h2 {
-    overflow-wrap: anywhere;
-    font-size: clamp(1.4rem, 3vw, 2.1rem);
-    line-height: 1.08;
-    text-wrap: balance;
-  }
-  .summary-line,
-  .episode-meta,
-  .empty-state,
-  .action-status,
-  .write-status,
-  .state-copy,
-  .count-summary {
-    color: var(--color-text-muted);
-    line-height: 1.55;
-    text-wrap: pretty;
-  }
-  .back-link,
-  .episode-link,
-  .episode-title {
-    color: var(--color-text);
-    font-weight: 850;
-    text-decoration-thickness: 0.08em;
-    text-underline-offset: 0.18em;
-    overflow-wrap: anywhere;
-  }
-  .back-link:focus-visible,
-  .episode-link:focus-visible,
-  button:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-ring);
-  }
-  button {
-    min-height: 2.5rem;
-    min-width: 2.5rem;
-    justify-self: start;
-    padding: 0.65rem 1rem;
-    border: 0;
-    border-radius: var(--radius-md);
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
-    font: inherit;
-    font-weight: 850;
-    cursor: pointer;
-    transition-property: scale, background-color, opacity;
-    transition-duration: 160ms;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-  }
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
-  button:active:not(:disabled) {
-    scale: 0.96;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    button {
-      transition-duration: 0.01ms;
-    }
-    button:active:not(:disabled) {
-      scale: 1;
-    }
-  }
-  .episode-list {
-    display: grid;
-    gap: var(--space-md);
-    padding: 0;
-    list-style: none;
-  }
-  .episode-card,
-  .empty-state,
-  .action-status,
-  .write-status {
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-  }
-  .write-status.success {
-    color: var(--color-success);
-  }
-  .write-status.partial,
-  .write-status.error {
-    color: var(--color-danger);
-  }
-  .badge-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-  }
-  .badge {
-    padding: 0.18rem 0.55rem;
-    color: var(--color-text);
-    font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
-    font-weight: 800;
-    line-height: 1.4;
-    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
-    border-radius: var(--radius-pill);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
-  }
-</style>

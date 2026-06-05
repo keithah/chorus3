@@ -2,23 +2,21 @@
   import type { AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
   import LocaleToggle, { type LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
-  import MediaFilesPanel, {
-    type MediaFilesActionDispatch,
-    type MediaFilesPanelDispatch
+  import type {
+    MediaFilesActionDispatch,
+    MediaFilesPanelDispatch
   } from '$components/MediaFilesPanel.svelte';
   import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
   import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
-  import MediaSearchPanel, {
-    type MediaSearchActionDispatch,
-    type MediaSearchPanelDispatch
+  import type {
+    MediaSearchActionDispatch,
+    MediaSearchPanelDispatch
   } from '$components/MediaSearchPanel.svelte';
   import type { MediaSearchScope } from '$lib/stores/mediaSearch.svelte';
-  import MusicBrowsePanel, {
-    type MusicBrowseActionDispatch,
-    type MusicBrowsePanelDispatch
+  import type {
+    MusicBrowseActionDispatch,
+    MusicBrowsePanelDispatch
   } from '$components/MusicBrowsePanel.svelte';
-  import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
-  import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { LocalPlaylistPageActions } from './PlaylistsPage.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { PvrPageDispatch } from './PvrPage.svelte';
@@ -32,25 +30,9 @@
     VideoSeasonArtworkDispatch,
     VideoSeasonWriteDispatch
   } from '$components/VideoSeasonDetailShell.svelte';
-  import VideoEpisodeDetailShell from '$components/VideoEpisodeDetailShell.svelte';
-  import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
-  import VideoSeasonDetailShell from '$components/VideoSeasonDetailShell.svelte';
-  import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
-  import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
-  import BrowserFilesPage from '$lib/app-pages/BrowserFilesPage.svelte';
   import DeferredPrimaryPage from '$lib/app-pages/DeferredPrimaryPage.svelte';
-  import HelpPage from '$lib/app-pages/HelpPage.svelte';
-  import LibraryPage from '$lib/app-pages/LibraryPage.svelte';
-  import PlaylistsPage from '$lib/app-pages/PlaylistsPage.svelte';
-  import PvrPage from '$lib/app-pages/PvrPage.svelte';
-  import SettingsPage from '$lib/app-pages/SettingsPage.svelte';
-  import ThumbsUpPage from '$lib/app-pages/ThumbsUpPage.svelte';
-  import AddonsPage from '$lib/app-pages/AddonsPage.svelte';
-  import LabApiBrowserPage from '$components/LabApiBrowserPage.svelte';
-  import LabIconBrowserPage from '$components/LabIconBrowserPage.svelte';
-  import LabLandingPage from '$components/LabLandingPage.svelte';
-  import LabScreenshotPage from '$components/LabScreenshotPage.svelte';
-  import MediaPlaylistsPanel from '$components/MediaPlaylistsPanel.svelte';
+  import AppHomeMediaPanels from '$lib/app-pages/AppHomeMediaPanels.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import QueuePanel from '$components/QueuePanel.svelte';
   import RemoteInputPanel from '$components/RemoteInputPanel.svelte';
@@ -97,6 +79,28 @@
     isSettingsRoute,
     isTvDetailRoute
   } from './appPageRouteGroups';
+  import {
+    bindLazyRoute,
+    loadAddonsPage,
+    loadBrowserFilesPage,
+    loadHelpPage,
+    loadLabApiBrowserPage,
+    loadLabIconBrowserPage,
+    loadLabLandingPage,
+    loadLabScreenshotPage,
+    loadLibraryPage,
+    loadMediaSearchPanel,
+    loadMusicLibraryPanel,
+    loadPlaylistsPage,
+    loadPvrPage,
+    loadSettingsPage,
+    loadThumbsUpPage,
+    loadVideoEpisodeDetailShell,
+    loadVideoMoviesPanel,
+    loadVideoSeasonDetailShell,
+    loadVideoTvShowsPanel,
+    loadVideoTvShowDetailShell
+  } from './appPageSurfaceLazyRoutes';
   import { isLibraryRoute } from './libraryRouteFilters';
 
   type RouteSurfaceGroup =
@@ -324,58 +328,68 @@
   {#if currentLibraryRoute}
     {#if isTvDetailRoute(route)}
       {#if route.kind === 'tvshowDetail'}
-        <VideoTvShowDetailShell
-          snapshot={videoTvSnapshot}
-          route={renderableVideoRoute}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoTvShowDetailShell, {
+            snapshot: videoTvSnapshot,
+            route: renderableVideoRoute,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if route.kind === 'tvshowSeasonDetail'}
-        <VideoSeasonDetailShell
-          snapshot={videoTvSnapshot}
-          route={renderableVideoRoute}
-          artworkDispatch={videoSeasonArtworkDispatch}
-          writeDispatch={videoSeasonWriteDispatch}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoSeasonDetailShell, {
+            snapshot: videoTvSnapshot,
+            route: renderableVideoRoute,
+            artworkDispatch: videoSeasonArtworkDispatch,
+            writeDispatch: videoSeasonWriteDispatch,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else}
-        <VideoEpisodeDetailShell
-          snapshot={videoTvSnapshot}
-          route={renderableVideoRoute}
-          actionDispatch={videoEpisodeActionDispatch}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoEpisodeDetailShell, {
+            snapshot: videoTvSnapshot,
+            route: renderableVideoRoute,
+            actionDispatch: videoEpisodeActionDispatch,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {/if}
     {:else}
-      <LibraryPage
-        route={currentLibraryRoute}
-        {musicLibrarySnapshot}
-        {videoLibrarySnapshot}
-        {playerDispatch}
-        {queueDispatch}
-        {localPlaylistSnapshot}
-        {localPlaylistDispatch}
-        {thumbsUpDispatch}
-        {videoMovieDetailSnapshot}
-        {videoTvSnapshot}
-        buildOptions={routeBuildOptions}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadLibraryPage, {
+          route: currentLibraryRoute,
+          musicLibrarySnapshot,
+          videoLibrarySnapshot,
+          playerDispatch,
+          queueDispatch,
+          localPlaylistSnapshot,
+          localPlaylistDispatch,
+          thumbsUpDispatch,
+          videoMovieDetailSnapshot,
+          videoTvSnapshot,
+          buildOptions: routeBuildOptions
+        })}
       />
     {/if}
   {:else if routeSurfaceGroup === 'browser'}
-    <BrowserFilesPage
-      {route}
-      snapshot={isVideoBrowserRoute ? videoMediaFilesSnapshot : mediaFilesSnapshot}
-      musicSnapshot={mediaFilesSnapshot}
-      videoSnapshot={videoMediaFilesSnapshot}
-      dispatch={isVideoBrowserRoute ? videoMediaFilesDispatch : mediaFilesDispatch}
-      musicDispatch={mediaFilesDispatch}
-      videoDispatch={videoMediaFilesDispatch}
-      actionDispatch={isVideoBrowserRoute
-        ? videoMediaFilesActionDispatch
-        : mediaFilesActionDispatch}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadBrowserFilesPage, {
+        route,
+        snapshot: isVideoBrowserRoute ? videoMediaFilesSnapshot : mediaFilesSnapshot,
+        musicSnapshot: mediaFilesSnapshot,
+        videoSnapshot: videoMediaFilesSnapshot,
+        dispatch: isVideoBrowserRoute ? videoMediaFilesDispatch : mediaFilesDispatch,
+        musicDispatch: mediaFilesDispatch,
+        videoDispatch: videoMediaFilesDispatch,
+        actionDispatch: isVideoBrowserRoute
+          ? videoMediaFilesActionDispatch
+          : mediaFilesActionDispatch,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else if routeSurfaceGroup === 'playlist'}
     {#if route.kind === 'currentPlaylist'}
@@ -384,76 +398,103 @@
         <QueuePanel snapshot={queueSnapshot} dispatch={queueDispatch} {i18n} />
       </section>
     {:else}
-      <PlaylistsPage
-        snapshot={mediaPlaylistsSnapshot}
-        dispatch={mediaPlaylistsDispatch}
-        actionDispatch={mediaPlaylistsActionDispatch}
-        {localPlaylistSnapshot}
-        {localPlaylistDispatch}
-        {localPlaylistActions}
-        {route}
-        {i18n}
-        buildOptions={routeBuildOptions}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadPlaylistsPage, {
+          snapshot: mediaPlaylistsSnapshot,
+          dispatch: mediaPlaylistsDispatch,
+          actionDispatch: mediaPlaylistsActionDispatch,
+          localPlaylistSnapshot,
+          localPlaylistDispatch,
+          localPlaylistActions,
+          route,
+          i18n,
+          buildOptions: routeBuildOptions
+        })}
       />
     {/if}
   {:else if routeSurfaceGroup === 'addons'}
-    <AddonsPage
-      {route}
-      snapshot={addonsSnapshot}
-      dispatch={addonsDispatch}
-      {addonDetailDispatch}
-      {i18n}
-      {packageBasePath}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadAddonsPage, {
+        route,
+        snapshot: addonsSnapshot,
+        dispatch: addonsDispatch,
+        addonDetailDispatch,
+        i18n,
+        packageBasePath,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else if routeSurfaceGroup === 'settings'}
-    <SettingsPage
-      {route}
-      snapshot={settingsSnapshot}
-      dispatch={settingsDispatch}
-      {addonsSnapshot}
-      {addonsDispatch}
-      {i18n}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadSettingsPage, {
+        route,
+        snapshot: settingsSnapshot,
+        dispatch: settingsDispatch,
+        addonsSnapshot,
+        addonsDispatch,
+        i18n,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else if routeSurfaceGroup === 'help'}
-    <HelpPage {route} buildOptions={routeBuildOptions} {connectionSnapshot} />
+    <LazyRouteComponent
+      route={bindLazyRoute(loadHelpPage, {
+        route,
+        buildOptions: routeBuildOptions,
+        connectionSnapshot
+      })}
+    />
   {:else if routeSurfaceGroup === 'search'}
-    <MediaSearchPanel
-      snapshot={mediaSearchSnapshot}
-      dispatch={mediaSearchDispatch}
-      actionDispatch={mediaSearchActionDispatch}
-      {i18n}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadMediaSearchPanel, {
+        snapshot: mediaSearchSnapshot,
+        dispatch: mediaSearchDispatch,
+        actionDispatch: mediaSearchActionDispatch,
+        i18n,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else if routeSurfaceGroup === 'lab'}
     {#if route.kind === 'lab'}
-      <LabLandingPage buildOptions={routeBuildOptions} />
+      <LazyRouteComponent
+        route={bindLazyRoute(loadLabLandingPage, { buildOptions: routeBuildOptions })}
+      />
     {:else if route.kind === 'labApiBrowser' || route.kind === 'labApiBrowserMethod'}
-      <LabApiBrowserPage
-        {i18n}
-        initialMethod={route.kind === 'labApiBrowserMethod' ? route.method : ''}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadLabApiBrowserPage, {
+          i18n,
+          initialMethod: route.kind === 'labApiBrowserMethod' ? route.method : ''
+        })}
       />
     {:else if route.kind === 'labScreenshot'}
-      <LabScreenshotPage dispatch={remoteInputDispatch} buildOptions={routeBuildOptions} />
+      <LazyRouteComponent
+        route={bindLazyRoute(loadLabScreenshotPage, {
+          dispatch: remoteInputDispatch,
+          buildOptions: routeBuildOptions
+        })}
+      />
     {:else if route.kind === 'labIconBrowser'}
-      <LabIconBrowserPage />
+      <LazyRouteComponent load={loadLabIconBrowserPage} />
     {/if}
   {:else if routeSurfaceGroup === 'pvr'}
-    <PvrPage
-      {route}
-      snapshot={pvrSnapshot}
-      dispatch={pvrDispatch}
-      {playerDispatch}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadPvrPage, {
+        route,
+        snapshot: pvrSnapshot,
+        dispatch: pvrDispatch,
+        playerDispatch,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else if routeSurfaceGroup === 'thumbs'}
-    <ThumbsUpPage
-      snapshot={thumbsUpSnapshot}
-      dispatch={thumbsUpDispatch}
-      {playerDispatch}
-      {queueDispatch}
-      buildOptions={routeBuildOptions}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadThumbsUpPage, {
+        snapshot: thumbsUpSnapshot,
+        dispatch: thumbsUpDispatch,
+        playerDispatch,
+        queueDispatch,
+        buildOptions: routeBuildOptions
+      })}
     />
   {:else}
     <PageFrame
@@ -483,110 +524,125 @@
           <StatusCard {...homeContext.connection} />
           <StatusCard {...homeContext.themeContract} />
         </section>
-        <MusicLibraryPanel snapshot={musicLibrarySnapshot} {i18n} />
-        <MusicBrowsePanel
-          librarySnapshot={musicLibrarySnapshot}
-          browseSnapshot={musicBrowseSnapshot}
-          dispatch={musicBrowseDispatch}
-          actionDispatch={musicActionDispatch}
-          {i18n}
-        />
-        <MediaSearchPanel
-          snapshot={mediaSearchSnapshot}
-          dispatch={mediaSearchDispatch}
-          actionDispatch={mediaSearchActionDispatch}
-          {i18n}
-          buildOptions={routeBuildOptions}
-        />
-        <MediaFilesPanel
-          snapshot={mediaFilesSnapshot}
-          dispatch={mediaFilesDispatch}
-          actionDispatch={mediaFilesActionDispatch}
-          {i18n}
-        />
-        <MediaPlaylistsPanel
-          snapshot={mediaPlaylistsSnapshot}
-          dispatch={mediaPlaylistsDispatch}
-          actionDispatch={mediaPlaylistsActionDispatch}
-          {i18n}
-        />
-        <NowPlayingPanel
-          snapshot={playerSnapshot}
-          dispatch={playerDispatch}
+        <AppHomeMediaPanels
+          {musicLibrarySnapshot}
+          {musicBrowseSnapshot}
+          {musicBrowseDispatch}
+          {musicActionDispatch}
+          {mediaSearchSnapshot}
+          {mediaSearchDispatch}
+          {mediaSearchActionDispatch}
+          {mediaFilesSnapshot}
+          {mediaFilesDispatch}
+          {mediaFilesActionDispatch}
+          {mediaPlaylistsSnapshot}
+          {mediaPlaylistsDispatch}
+          {mediaPlaylistsActionDispatch}
+          {playerSnapshot}
+          {playerDispatch}
           {localPlayerSnapshot}
+          {queueSnapshot}
+          {queueDispatch}
           {i18n}
-        />
-        <QueuePanel snapshot={queueSnapshot} dispatch={queueDispatch} {i18n} />
-      {:else if route.kind === 'music'}
-        <MusicLibraryPanel snapshot={musicLibrarySnapshot} {i18n} />
-      {:else if isLibraryRoute(route) && (route.kind === 'movies' || route.kind === 'moviesRecent')}
-        <VideoMoviesPanel snapshot={videoLibrarySnapshot} />
-      {:else if isLibraryRoute(route) && (route.kind === 'tvshows' || route.kind === 'tvshowsRecent')}
-        <VideoTvShowsPanel snapshot={videoLibrarySnapshot} />
-      {:else if route.kind === 'browser'}
-        <BrowserFilesPage
-          {route}
-          snapshot={mediaFilesSnapshot}
-          dispatch={mediaFilesDispatch}
-          actionDispatch={mediaFilesActionDispatch}
           buildOptions={routeBuildOptions}
+        />
+      {:else if route.kind === 'music'}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadMusicLibraryPanel, {
+            snapshot: musicLibrarySnapshot,
+            i18n
+          })}
+        />
+      {:else if isLibraryRoute(route) && (route.kind === 'movies' || route.kind === 'moviesRecent')}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoMoviesPanel, { snapshot: videoLibrarySnapshot })}
+        />
+      {:else if isLibraryRoute(route) && (route.kind === 'tvshows' || route.kind === 'tvshowsRecent')}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoTvShowsPanel, { snapshot: videoLibrarySnapshot })}
+        />
+      {:else if route.kind === 'browser'}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadBrowserFilesPage, {
+            route,
+            snapshot: mediaFilesSnapshot,
+            dispatch: mediaFilesDispatch,
+            actionDispatch: mediaFilesActionDispatch,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if route.kind === 'browserItem'}
-        <BrowserFilesPage
-          {route}
-          snapshot={mediaFilesSnapshot}
-          dispatch={mediaFilesDispatch}
-          actionDispatch={mediaFilesActionDispatch}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadBrowserFilesPage, {
+            route,
+            snapshot: mediaFilesSnapshot,
+            dispatch: mediaFilesDispatch,
+            actionDispatch: mediaFilesActionDispatch,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if route.kind === 'playlists'}
-        <PlaylistsPage
-          snapshot={mediaPlaylistsSnapshot}
-          dispatch={mediaPlaylistsDispatch}
-          actionDispatch={mediaPlaylistsActionDispatch}
-          {localPlaylistSnapshot}
-          {localPlaylistDispatch}
-          {localPlaylistActions}
-          {route}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadPlaylistsPage, {
+            snapshot: mediaPlaylistsSnapshot,
+            dispatch: mediaPlaylistsDispatch,
+            actionDispatch: mediaPlaylistsActionDispatch,
+            localPlaylistSnapshot,
+            localPlaylistDispatch,
+            localPlaylistActions,
+            route,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if route.kind === 'playlistDetail'}
-        <PlaylistsPage
-          snapshot={mediaPlaylistsSnapshot}
-          dispatch={mediaPlaylistsDispatch}
-          actionDispatch={mediaPlaylistsActionDispatch}
-          {localPlaylistSnapshot}
-          {localPlaylistDispatch}
-          {localPlaylistActions}
-          {route}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadPlaylistsPage, {
+            snapshot: mediaPlaylistsSnapshot,
+            dispatch: mediaPlaylistsDispatch,
+            actionDispatch: mediaPlaylistsActionDispatch,
+            localPlaylistSnapshot,
+            localPlaylistDispatch,
+            localPlaylistActions,
+            route,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if isAddonsRoute(route)}
-        <AddonsPage
-          {route}
-          snapshot={addonsSnapshot}
-          dispatch={addonsDispatch}
-          {addonDetailDispatch}
-          {i18n}
-          {packageBasePath}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadAddonsPage, {
+            route,
+            snapshot: addonsSnapshot,
+            dispatch: addonsDispatch,
+            addonDetailDispatch,
+            i18n,
+            packageBasePath,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if route.kind === 'addonExecute'}
         <DeferredPrimaryPage {route} {metadata} />
       {:else if isSettingsRoute(route)}
-        <SettingsPage
-          {route}
-          snapshot={settingsSnapshot}
-          dispatch={settingsDispatch}
-          {addonsSnapshot}
-          {addonsDispatch}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadSettingsPage, {
+            route,
+            snapshot: settingsSnapshot,
+            dispatch: settingsDispatch,
+            addonsSnapshot,
+            addonsDispatch,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if isHelpRoute(route)}
-        <HelpPage {route} buildOptions={routeBuildOptions} {connectionSnapshot} />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadHelpPage, {
+            route,
+            buildOptions: routeBuildOptions,
+            connectionSnapshot
+          })}
+        />
       {:else if route.kind === 'remote'}
         <section class="remote-app-page" aria-labelledby="remote-app-page-title">
           <div class="remote-app-page__header">
@@ -606,12 +662,14 @@
           />
         </section>
       {:else if isSearchRoute(route)}
-        <MediaSearchPanel
-          snapshot={mediaSearchSnapshot}
-          dispatch={mediaSearchDispatch}
-          actionDispatch={mediaSearchActionDispatch}
-          {i18n}
-          buildOptions={routeBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadMediaSearchPanel, {
+            snapshot: mediaSearchSnapshot,
+            dispatch: mediaSearchDispatch,
+            actionDispatch: mediaSearchActionDispatch,
+            i18n,
+            buildOptions: routeBuildOptions
+          })}
         />
       {:else if parityPlaceholder}
         <ParityPlaceholder placeholder={parityPlaceholder} {packageBasePath} {i18n} />

@@ -6,26 +6,26 @@
   background: #ddd;
 }
 
-.classic-section-nav {
+.classic-library-page .classic-section-nav {
   overflow: hidden;
   background: #f2f2f2;
 }
 
-.classic-filter-panes {
+.classic-library-page .classic-filter-panes {
   display: flex;
   width: 100%;
   transition: transform 160ms ease;
 }
 
-.classic-filter-panes.show-filters {
+.classic-library-page .classic-filter-panes.show-filters {
   transform: translateX(-100%);
 }
 
-.classic-filter-panes.show-options {
+.classic-library-page .classic-filter-panes.show-options {
   transform: translateX(-200%);
 }
 
-.classic-filter-pane {
+.classic-library-page .classic-filter-pane {
   box-sizing: border-box;
   width: 100%;
   flex: 0 0 100%;
@@ -33,11 +33,11 @@
   padding: 2rem 1.5rem;
 }
 
-.classic-nav-section {
+.classic-library-page .classic-nav-section {
   margin-bottom: 2rem;
 }
 
-.classic-section-nav h2 {
+.classic-library-page .classic-section-nav h2 {
   margin: 0 0 1rem;
   color: #8d8d8d;
   font-size: 1rem;
@@ -45,7 +45,7 @@
   text-transform: uppercase;
 }
 
-.classic-pane-title {
+.classic-library-page .classic-pane-title {
   display: flex;
   width: 100%;
   align-items: center;
@@ -60,25 +60,25 @@
   cursor: pointer;
 }
 
-.classic-section-nav nav {
+.classic-library-page .classic-section-nav nav {
   display: grid;
   gap: 0.55rem;
 }
 
-.classic-section-nav a {
+.classic-library-page .classic-section-nav a {
   color: #333;
   font-size: 0.98rem;
   font-weight: 500;
   text-decoration: none;
 }
 
-.classic-section-nav a.active {
+.classic-library-page .classic-section-nav a.active {
   color: #42a5dc;
   font-weight: 700;
 }
 
-.classic-active-list,
-.classic-selection-list {
+.classic-library-page .classic-active-list,
+.classic-library-page .classic-selection-list {
   display: grid;
   gap: 0.35rem;
   margin: 0 0 2rem;
@@ -86,8 +86,8 @@
   list-style: none;
 }
 
-.classic-selection-list button,
-.classic-filter-btn {
+.classic-library-page .classic-selection-list button,
+.classic-library-page .classic-filter-btn {
   width: 100%;
   min-height: 1.7rem;
   padding: 0;
@@ -100,24 +100,24 @@
   cursor: pointer;
 }
 
-.classic-selection-list button.active,
-.classic-filter-btn:hover,
-.classic-selection-list button:hover {
+.classic-library-page .classic-selection-list button.active,
+.classic-library-page .classic-filter-btn:hover,
+.classic-library-page .classic-selection-list button:hover {
   color: #42a5dc;
   font-weight: 700;
 }
 
-.classic-selection-list button.order-asc::after {
+.classic-library-page .classic-selection-list button.order-asc::after {
   content: '⌃';
   margin-left: 0.35rem;
 }
 
-.classic-selection-list button.order-desc::after {
+.classic-library-page .classic-selection-list button.order-desc::after {
   content: '⌄';
   margin-left: 0.35rem;
 }
 
-.classic-filter-btn {
+.classic-library-page .classic-filter-btn {
   display: inline-flex;
   width: auto;
   min-height: 2rem;
@@ -127,13 +127,13 @@
   color: #fff;
 }
 
-.classic-filter-btn::after {
+.classic-library-page .classic-filter-btn::after {
   content: '×';
   margin-left: 0.5rem;
   color: rgb(255 255 255 / 0.72);
 }
 
-.classic-options-search {
+.classic-library-page .classic-options-search {
   width: 100%;
   min-height: 2rem;
   margin-bottom: 0.75rem;
@@ -144,12 +144,12 @@
   font: inherit;
 }
 
-.classic-empty-filter {
+.classic-library-page .classic-empty-filter {
   color: #8a8a8a;
   font-size: 0.95rem;
 }
 
-.classic-deselect-all {
+.classic-library-page .classic-deselect-all {
   width: 100%;
   min-height: 2rem;
   margin-bottom: 0.75rem;
@@ -161,12 +161,12 @@
   cursor: pointer;
 }
 
-.classic-library-content {
+.classic-library-page .classic-library-content {
   min-width: 0;
   padding: 1rem;
 }
 
-.classic-filters-active-bar {
+.classic-library-page .classic-filters-active-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -178,7 +178,7 @@
   border-bottom: 1px solid #cfcfcf;
 }
 
-.classic-filters-active-bar button {
+.classic-library-page .classic-filters-active-bar button {
   border: 0;
   background: transparent;
   color: #888;
@@ -186,11 +186,11 @@
   cursor: pointer;
 }
 
-.classic-card-section {
+.classic-library-page .classic-card-section {
   margin-bottom: 1rem;
 }
 
-.classic-card-section header {
+.classic-library-page .classic-card-section header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -201,21 +201,21 @@
   border-bottom: 1px solid #cfcfcf;
 }
 
-.classic-card-section h3 {
+.classic-library-page .classic-card-section h3 {
   margin: 0;
   color: #666;
   font-size: 1.15rem;
   font-weight: 400;
 }
 
-.classic-card-section button {
+.classic-library-page .classic-card-section button {
   border: 0;
   background: transparent;
   color: #333;
   font-size: 1.35rem;
 }
 
-.classic-card-grid {
+.classic-library-page .classic-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 159px);
   gap: 10px;
@@ -224,7 +224,17 @@
   max-width: none;
 }
 
-.classic-detail-meta {
+.classic-library-page .classic-show-more {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 0;
+  background: var(--classic-blue);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.classic-library-page .classic-detail-meta {
   display: grid;
   gap: 0.9rem;
   max-width: 760px;
@@ -232,47 +242,47 @@
   color: #555;
 }
 
-.classic-detail-meta dl {
+.classic-library-page .classic-detail-meta dl {
   display: grid;
   gap: 0.45rem;
   margin: 0;
 }
 
-.classic-detail-meta dl div {
+.classic-library-page .classic-detail-meta dl div {
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);
   gap: 1rem;
 }
 
-.classic-detail-meta dt {
+.classic-library-page .classic-detail-meta dt {
   color: #777;
   font-weight: 700;
   text-transform: capitalize;
 }
 
-.classic-detail-meta dd {
+.classic-library-page .classic-detail-meta dd {
   margin: 0;
 }
 
-.classic-detail-meta p {
+.classic-library-page .classic-detail-meta p {
   max-width: 60ch;
   margin: 0;
   line-height: 1.55;
 }
 
-.classic-detail-rating {
+.classic-library-page .classic-detail-rating {
   justify-self: start;
   color: #42a5dc;
   font-size: 1.35rem;
   font-weight: 700;
 }
 
-.classic-movie-detail {
+.classic-library-page .classic-movie-detail {
   margin: -1rem -1rem 1rem;
   background: #fff;
 }
 
-.classic-movie-hero {
+.classic-library-page .classic-movie-hero {
   position: relative;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -283,7 +293,7 @@
   color: #eee;
 }
 
-.classic-movie-fanart {
+.classic-library-page .classic-movie-fanart {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -291,7 +301,7 @@
   object-fit: cover;
 }
 
-.classic-movie-shade {
+.classic-library-page .classic-movie-shade {
   position: absolute;
   inset: 0;
   background:
@@ -304,13 +314,13 @@
     linear-gradient(0deg, rgb(40 40 40 / 0.92) 0%, rgb(40 40 40 / 0.18) 100%);
 }
 
-.classic-movie-poster,
-.classic-movie-copy {
+.classic-library-page .classic-movie-poster,
+.classic-library-page .classic-movie-copy {
   position: relative;
   z-index: 1;
 }
 
-.classic-movie-poster {
+.classic-library-page .classic-movie-poster {
   align-self: start;
   min-height: 405px;
   overflow: hidden;
@@ -318,7 +328,7 @@
   box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
 }
 
-.classic-movie-poster::before {
+.classic-library-page .classic-movie-poster::before {
   content: 'POSTER';
   position: absolute;
   left: 0.85rem;
@@ -330,93 +340,93 @@
   letter-spacing: 0.08em;
 }
 
-.classic-movie-poster img {
+.classic-library-page .classic-movie-poster img {
   display: block;
   width: 100%;
   height: 405px;
   object-fit: cover;
 }
 
-.classic-movie-copy {
+.classic-library-page .classic-movie-copy {
   align-self: center;
   max-width: 760px;
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
-.classic-movie-title-row {
+.classic-library-page .classic-movie-title-row {
   display: flex;
   align-items: baseline;
   gap: 1.5rem;
 }
 
-.classic-movie-title-row h3 {
+.classic-library-page .classic-movie-title-row h3 {
   margin: 0;
   color: #fff;
   font-size: 2.35rem;
   font-weight: 300;
 }
 
-.classic-movie-title-row h3 span {
+.classic-library-page .classic-movie-title-row h3 span {
   margin-left: 0.6rem;
   color: #bcbcbc;
   font-size: 1.2rem;
 }
 
-.classic-movie-rating {
+.classic-library-page .classic-movie-rating {
   color: #e6e6e6;
   font-size: 1.75rem;
   font-weight: 300;
   white-space: nowrap;
 }
 
-.classic-movie-rating span {
+.classic-library-page .classic-movie-rating span {
   color: #fff;
 }
 
-.classic-movie-runtime,
-.classic-movie-tagline {
+.classic-library-page .classic-movie-runtime,
+.classic-library-page .classic-movie-tagline {
   margin: 1rem 0;
   color: #d7d7d7;
   font-size: 1.05rem;
 }
 
-.classic-movie-meta,
-.classic-movie-streams {
+.classic-library-page .classic-movie-meta,
+.classic-library-page .classic-movie-streams {
   display: grid;
   gap: 0.35rem;
   margin: 1rem 0;
   color: #ddd;
 }
 
-.classic-movie-meta div,
-.classic-movie-streams div {
+.classic-library-page .classic-movie-meta div,
+.classic-library-page .classic-movie-streams div {
   display: flex;
   gap: 0.35rem;
   line-height: 1.45;
 }
 
-.classic-movie-meta dt,
-.classic-movie-streams dt {
+.classic-library-page .classic-movie-meta dt,
+.classic-library-page .classic-movie-streams dt {
   flex: 0 0 auto;
   margin: 0;
   font-weight: 700;
 }
 
-.classic-movie-meta dd,
-.classic-movie-streams dd {
+.classic-library-page .classic-movie-meta dd,
+.classic-library-page .classic-movie-streams dd {
   margin: 0;
   color: #c9c9c9;
 }
 
-.classic-movie-actions {
+.classic-library-page .classic-movie-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 1.5rem;
 }
 
-.classic-movie-actions button,
-.classic-movie-more-menu a {
+.classic-library-page .classic-movie-actions button,
+.classic-library-page .classic-movie-more-menu a {
   min-height: 2.6rem;
   padding: 0 1rem;
   border: 0;
@@ -427,20 +437,20 @@
   cursor: pointer;
 }
 
-.classic-movie-actions button.primary {
+.classic-library-page .classic-movie-actions button.primary {
   background: #5dade2;
 }
 
-.classic-movie-actions button:disabled {
+.classic-library-page .classic-movie-actions button:disabled {
   color: #aaa;
   cursor: default;
 }
 
-.classic-movie-more {
+.classic-library-page .classic-movie-more {
   position: relative;
 }
 
-.classic-movie-more-menu {
+.classic-library-page .classic-movie-more-menu {
   position: absolute;
   top: calc(100% + 0.45rem);
   left: 0;
@@ -452,8 +462,8 @@
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
 }
 
-.classic-movie-more-menu button,
-.classic-movie-more-menu a {
+.classic-library-page .classic-movie-more-menu button,
+.classic-library-page .classic-movie-more-menu a {
   display: block;
   min-height: 2.5rem;
   padding: 0.55rem 1rem;
@@ -462,37 +472,37 @@
   text-align: left;
 }
 
-.classic-movie-more-menu button:hover,
-.classic-movie-more-menu a:hover {
+.classic-library-page .classic-movie-more-menu button:hover,
+.classic-library-page .classic-movie-more-menu a:hover {
   background: #2f3233;
 }
 
-.classic-movie-synopsis {
+.classic-library-page .classic-movie-synopsis {
   padding: 2rem;
   background: #fff;
   color: #333;
 }
 
-.classic-movie-synopsis h3 {
+.classic-library-page .classic-movie-synopsis h3 {
   margin: 0 0 1.5rem;
   color: #555;
   font-size: 2rem;
   font-weight: 300;
 }
 
-.classic-movie-synopsis p {
+.classic-library-page .classic-movie-synopsis p {
   max-width: 92ch;
   margin: 0;
   color: #333;
   line-height: 1.5;
 }
 
-.compact .classic-card-grid {
+.classic-library-page .compact .classic-card-grid {
   grid-template-columns: repeat(auto-fill, 159px);
   max-width: 860px;
 }
 
-.classic-card {
+.classic-library-page .classic-card {
   position: relative;
   overflow: hidden;
   width: 159px;
@@ -501,7 +511,7 @@
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
 }
 
-.classic-selected-toolbar {
+.classic-library-page .classic-selected-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -512,12 +522,12 @@
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
 }
 
-.classic-selected-toolbar span {
+.classic-library-page .classic-selected-toolbar span {
   margin-right: auto;
   font-weight: 700;
 }
 
-.classic-card-select {
+.classic-library-page .classic-card-select {
   position: absolute;
   z-index: 2;
   top: 0.45rem;
@@ -533,25 +543,25 @@
   cursor: pointer;
 }
 
-.classic-card-select input {
+.classic-library-page .classic-card-select input {
   margin: 0;
 }
 
-.classic-card-main {
+.classic-library-page .classic-card-main {
   display: block;
   color: inherit;
   text-decoration: none;
 }
 
-.classic-card.art-poster {
+.classic-library-page .classic-card.art-poster {
   min-height: 300px;
 }
 
-.compact .classic-card {
+.classic-library-page .compact .classic-card {
   min-height: auto;
 }
 
-.classic-card-art {
+.classic-library-page .classic-card-art {
   display: grid;
   width: 159px;
   height: 159px;
@@ -560,50 +570,50 @@
   background: #cfcfcf;
 }
 
-.classic-card-art::before {
+.classic-library-page .classic-card-art::before {
   content: '◆';
   color: #b5b5b5;
   font-size: 3.5rem;
   transform: rotate(45deg);
 }
 
-.classic-card-art.has-artwork::before {
+.classic-library-page .classic-card-art.has-artwork::before {
   content: none;
 }
 
-.classic-card-art img {
+.classic-library-page .classic-card-art img {
   display: block;
   width: 100%;
   height: 159px;
   object-fit: cover;
 }
 
-.art-square .classic-card-art,
-.art-square .classic-card-art img {
+.classic-library-page .art-square .classic-card-art,
+.classic-library-page .art-square .classic-card-art img {
   aspect-ratio: 1 / 1;
   height: 159px;
   min-height: 159px;
 }
 
-.art-poster .classic-card-art {
+.classic-library-page .art-poster .classic-card-art {
   height: 235px;
   min-height: 235px;
 }
 
-.art-poster .classic-card-art img {
+.classic-library-page .art-poster .classic-card-art img {
   height: 235px;
   object-fit: cover;
 }
 
-.compact .classic-card-art {
+.classic-library-page .compact .classic-card-art {
   display: none;
 }
 
-.compact .classic-card-copy {
+.classic-library-page .compact .classic-card-copy {
   padding-top: 2.4rem;
 }
 
-.sr-only {
+.classic-library-page .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -615,36 +625,36 @@
   border: 0;
 }
 
-.classic-card-copy {
+.classic-library-page .classic-card-copy {
   display: grid;
   gap: 0.35rem;
   padding: 0.65rem;
 }
 
-.classic-card-copy strong,
-.classic-card-copy span {
+.classic-library-page .classic-card-copy strong,
+.classic-library-page .classic-card-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.classic-card-copy strong {
+.classic-library-page .classic-card-copy strong {
   font-size: 0.95rem;
   font-weight: 500;
 }
 
-.classic-card-copy span {
+.classic-library-page .classic-card-copy span {
   color: #8a8a8a;
   font-size: 0.85rem;
 }
 
-.classic-card-actions {
+.classic-library-page .classic-card-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   border-top: 1px solid #eee;
 }
 
-.classic-card-actions button {
+.classic-library-page .classic-card-actions button {
   min-height: 2rem;
   border: 0;
   border-right: 1px solid #eee;
@@ -654,12 +664,12 @@
   cursor: pointer;
 }
 
-.classic-card-actions button:hover {
+.classic-library-page .classic-card-actions button:hover {
   color: #42a5dc;
   background: #fff;
 }
 
-.classic-action-status {
+.classic-library-page .classic-action-status {
   position: sticky;
   bottom: 1rem;
   margin: 0;
@@ -669,27 +679,27 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
 }
 
-.classic-empty {
+.classic-library-page .classic-empty {
   margin: 1rem 0;
   color: #777;
 }
 
 @media (max-width: 820px) {
-  .classic-movie-hero {
+  .classic-library-page .classic-movie-hero {
     grid-template-columns: 180px minmax(0, 1fr);
     gap: 1rem;
     padding: 1rem;
   }
 
-  .classic-movie-poster {
+  .classic-library-page .classic-movie-poster {
     min-height: 270px;
   }
 
-  .classic-movie-poster img {
+  .classic-library-page .classic-movie-poster img {
     height: 270px;
   }
 
-  .classic-movie-title-row h3 {
+  .classic-library-page .classic-movie-title-row h3 {
     font-size: 1.65rem;
   }
 }

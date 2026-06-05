@@ -4,18 +4,18 @@
   color: #333;
 }
 
-.addon-detail-hero,
-.addon-status-grid,
-.addon-card,
-.addon-card-heading,
-.addon-meta,
-.addon-toggle-panel,
-.addon-confirm {
+.addon-detail .addon-detail-hero,
+.addon-detail .addon-status-grid,
+.addon-detail .addon-card,
+.addon-detail .addon-card-heading,
+.addon-detail .addon-meta,
+.addon-detail .addon-toggle-panel,
+.addon-detail .addon-confirm {
   display: grid;
   gap: var(--space-md);
 }
 
-.addon-detail-hero {
+.addon-detail .addon-detail-hero {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   padding: 0;
@@ -25,11 +25,11 @@
   box-shadow: none;
 }
 
-.addon-eyebrow,
-.addon-status span,
-.addon-card-heading > span,
-.addon-meta dt,
-.addon-badges span {
+.addon-detail .addon-eyebrow,
+.addon-detail .addon-status span,
+.addon-detail .addon-card-heading > span,
+.addon-detail .addon-meta dt,
+.addon-detail .addon-badges span {
   margin: 0;
   color: #888;
   font-family: inherit;
@@ -39,99 +39,99 @@
   text-transform: uppercase;
 }
 
-h2,
-h3,
-h4,
-p,
-dl,
-dd {
+.addon-detail h2,
+.addon-detail h3,
+.addon-detail h4,
+.addon-detail p,
+.addon-detail dl,
+.addon-detail dd {
   margin: 0;
 }
 
-h2 {
+.addon-detail h2 {
   color: #555;
   font-size: 1.85rem;
   font-weight: 300;
   line-height: 1.1;
 }
 
-h3 {
+.addon-detail h3 {
   color: #444;
   font-size: 1.4rem;
   font-weight: 400;
 }
 
-h4 {
+.addon-detail h4 {
   font-size: 1rem;
   font-weight: 600;
 }
 
-p,
-dd,
-button {
+.addon-detail p,
+.addon-detail dd,
+.addon-detail button {
   line-height: 1.5;
 }
 
-button {
+.addon-detail button {
   cursor: pointer;
   border: 0;
   border-radius: 0;
   font: inherit;
 }
 
-button:disabled {
+.addon-detail button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
 
-.addon-hero-actions,
-.addon-error-actions,
-.addon-confirm div,
-.addon-badges {
+.addon-detail .addon-hero-actions,
+.addon-detail .addon-error-actions,
+.addon-detail .addon-confirm div,
+.addon-detail .addon-badges {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
   align-items: center;
 }
 
-.addon-primary-action,
-.addon-secondary-action,
-.addon-danger-action,
-.addon-error-actions button {
+.addon-detail .addon-primary-action,
+.addon-detail .addon-secondary-action,
+.addon-detail .addon-danger-action,
+.addon-detail .addon-error-actions button {
   padding: 0.45rem 0.7rem;
   color: #fff;
   font-weight: 600;
   background: #777;
 }
 
-.addon-primary-action {
+.addon-detail .addon-primary-action {
   background: #4bb3e8;
 }
 
-.addon-danger-action {
+.addon-detail .addon-danger-action {
   color: #fff;
   background: #9b5151;
 }
 
-.addon-primary-action:not(:disabled):hover,
-.addon-secondary-action:not(:disabled):hover,
-.addon-danger-action:not(:disabled):hover,
-.addon-error-actions button:not(:disabled):hover {
+.addon-detail .addon-primary-action:not(:disabled):hover,
+.addon-detail .addon-secondary-action:not(:disabled):hover,
+.addon-detail .addon-danger-action:not(:disabled):hover,
+.addon-detail .addon-error-actions button:not(:disabled):hover {
   filter: brightness(0.94);
   box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
 }
 
-.addon-status-grid {
+.addon-detail .addon-status-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.addon-status,
-.addon-alert,
-.addon-diagnostics,
-.addon-error-actions,
-.addon-card,
-.addon-empty,
-.addon-confirm {
+.addon-detail .addon-status,
+.addon-detail .addon-alert,
+.addon-detail .addon-diagnostics,
+.addon-detail .addon-error-actions,
+.addon-detail .addon-card,
+.addon-detail .addon-empty,
+.addon-detail .addon-confirm {
   padding: 0.9rem;
   background: #f8f8f8;
   border: 0;
@@ -139,81 +139,81 @@ button:disabled {
   box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
 }
 
-.addon-status {
+.addon-detail .addon-status {
   display: grid;
   gap: var(--space-2xs);
 }
 
-.addon-alert {
+.addon-detail .addon-alert {
   display: grid;
   gap: var(--space-2xs);
   color: #8a2b2b;
   background: #fff4f4;
 }
 
-.addon-diagnostics {
+.addon-detail .addon-diagnostics {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 1rem;
   color: #666;
 }
 
-.addon-diagnostics .warning {
+.addon-detail .addon-diagnostics .warning {
   color: #8a6a22;
 }
 
-.addon-error-actions {
+.addon-detail .addon-error-actions {
   justify-content: space-between;
 }
 
-.addon-card {
+.addon-detail .addon-card {
   background: #f8f8f8;
 }
 
-.addon-card.broken {
+.addon-detail .addon-card.broken {
   box-shadow:
     inset 3px 0 0 #d09b38,
     0 1px 3px rgb(0 0 0 / 14%);
 }
 
-.addon-card-heading {
+.addon-detail .addon-card-heading {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
 }
 
-.addon-card-heading p,
-.addon-summary,
-.addon-description,
-.addon-empty,
-.addon-error-actions p,
-.addon-toggle-panel p {
+.addon-detail .addon-card-heading p,
+.addon-detail .addon-summary,
+.addon-detail .addon-description,
+.addon-detail .addon-empty,
+.addon-detail .addon-error-actions p,
+.addon-detail .addon-toggle-panel p {
   color: #666;
 }
 
-.addon-description.muted {
+.addon-detail .addon-description.muted {
   font-style: italic;
 }
 
-.addon-card-heading > span,
-.addon-badges span,
-.addon-meta div,
-.addon-toggle-panel {
+.addon-detail .addon-card-heading > span,
+.addon-detail .addon-badges span,
+.addon-detail .addon-meta div,
+.addon-detail .addon-toggle-panel {
   padding: 0.55rem 0;
   background: transparent;
   border: 0;
   border-radius: 0;
 }
 
-.addon-card-heading > span.enabled {
+.addon-detail .addon-card-heading > span.enabled {
   color: #228552;
 }
 
-.addon-card-heading > span.disabled,
-.addon-badges .danger {
+.addon-detail .addon-card-heading > span.disabled,
+.addon-detail .addon-badges .danger {
   color: #8a2b2b;
 }
 
-.addon-meta {
+.addon-detail .addon-meta {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   border-top: 1px solid #e1e1e1;
@@ -221,13 +221,13 @@ button:disabled {
   background: #fff;
 }
 
-.addon-meta div {
+.addon-detail .addon-meta div {
   padding: 0.65rem;
   border-right: 1px solid #e1e1e1;
   border-bottom: 1px solid #e1e1e1;
 }
 
-.addon-toggle-panel {
+.addon-detail .addon-toggle-panel {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   margin-top: 0.35rem;
@@ -235,7 +235,7 @@ button:disabled {
   background: #eee;
 }
 
-.addon-confirm {
+.addon-detail .addon-confirm {
   background: #fff;
   box-shadow:
     inset 3px 0 0 #4bb3e8,
@@ -243,11 +243,11 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-  .addon-detail-hero,
-  .addon-status-grid,
-  .addon-card-heading,
-  .addon-meta,
-  .addon-toggle-panel {
+  .addon-detail .addon-detail-hero,
+  .addon-detail .addon-status-grid,
+  .addon-detail .addon-card-heading,
+  .addon-detail .addon-meta,
+  .addon-detail .addon-toggle-panel {
     grid-template-columns: 1fr;
   }
 }

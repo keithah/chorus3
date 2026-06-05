@@ -238,7 +238,7 @@ function encodeBase64(value: string): string {
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const bytes = new TextEncoder().encode(value);
-  let output = '';
+  const output: string[] = [];
 
   for (let index = 0; index < bytes.length; index += 3) {
     const first = bytes[index];
@@ -246,13 +246,15 @@ function encodeBase64(value: string): string {
     const third = bytes[index + 2];
     const combined = (first << 16) | ((second ?? 0) << 8) | (third ?? 0);
 
-    output += alphabet[(combined >> 18) & 63];
-    output += alphabet[(combined >> 12) & 63];
-    output += second === undefined ? '=' : alphabet[(combined >> 6) & 63];
-    output += third === undefined ? '=' : alphabet[combined & 63];
+    output.push(
+      alphabet[(combined >> 18) & 63],
+      alphabet[(combined >> 12) & 63],
+      second === undefined ? '=' : alphabet[(combined >> 6) & 63],
+      third === undefined ? '=' : alphabet[combined & 63]
+    );
   }
 
-  return output;
+  return output.join('');
 }
 
 export function buildBasicAuthHeader(username: string, password: string): string {

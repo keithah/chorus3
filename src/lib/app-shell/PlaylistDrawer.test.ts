@@ -240,7 +240,7 @@ describe('PlaylistDrawer', () => {
       HTMLButtonElement
     );
 
-    const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
+    const source = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
     expect(source).toMatch(/\.classic-stage[\s\S]*right:\s*var\(--classic-playlist-width/u);
     expect(source).toMatch(/\.classic-search[\s\S]*right:\s*var\(--classic-search-right/u);
   });

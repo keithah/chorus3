@@ -236,7 +236,7 @@ describe('music library store', () => {
         method: 'AudioLibrary.GetArtists',
         params: {
           properties: ['thumbnail', 'genre', 'mood', 'style'],
-          limits: { start: 0, end: 5000 }
+          limits: { start: 0, end: 500 }
         }
       },
       {
@@ -255,7 +255,7 @@ describe('music library store', () => {
             'dateadded',
             'playcount'
           ],
-          limits: { start: 0, end: 5000 }
+          limits: { start: 0, end: 500 }
         }
       },
       {
@@ -276,7 +276,7 @@ describe('music library store', () => {
             'rating',
             'mood'
           ],
-          limits: { start: 0, end: 5000 }
+          limits: { start: 0, end: 500 }
         }
       },
       {
@@ -341,10 +341,40 @@ describe('music library store', () => {
       },
       {
         method: 'AudioLibrary.GetGenres',
-        params: { properties: ['title', 'thumbnail'], limits: { start: 0, end: 5000 } }
+        params: { properties: ['title', 'thumbnail'], limits: { start: 0, end: 500 } }
       }
     ]);
     expect(JSON.stringify(client.calls)).not.toContain('file');
+  });
+
+  it('deduplicates identical in-flight refreshes instead of restarting Kodi reads', async () => {
+    const { client, store } = createHarness();
+    const artists = deferred<unknown>();
+    client.enqueue('AudioLibrary.GetArtists', artists);
+    client.enqueue('AudioLibrary.GetAlbums', {
+      albums: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetGenres', {
+      genres: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+
+    const first = store.refresh('manual');
+    const second = store.refresh('manual');
+    await flushPromises();
+
+    expect(client.calls).toHaveLength(7);
+
+    artists.resolve({ artists: [], limits: { start: 0, end: 0, total: 0 } });
+    await Promise.all([first, second]);
+
+    expect(client.calls).toHaveLength(7);
+    expect(store.snapshot.refreshStatus).toBe('ready');
   });
 
   it('normalizes successful artist album song and genre snapshots without leaking raw song files', async () => {
@@ -568,6 +598,18 @@ describe('music library store', () => {
         statusText: 'Authorization Basic p@ssword raw response body'
       })
     );
+    client.enqueue('AudioLibrary.GetAlbums', {
+      albums: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetSongs', { songs: [], limits: { start: 0, end: 0, total: 0 } });
+    client.enqueue('AudioLibrary.GetGenres', {
+      genres: [],
+      limits: { start: 0, end: 0, total: 0 }
+    });
 
     await store.refresh('manual');
 

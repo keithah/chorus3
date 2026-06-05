@@ -163,9 +163,9 @@
 
   let lastRequestedSection = $state<string | null>(null);
   let searchRows = $state<SearchAddonSetting[]>([]);
-  let loadedSearchRowsKey = $state('');
+  let loadedSearchRowsKey = $state('__unloaded__');
   let mainNavRows = $state<MainNavRow[]>([]);
-  let loadedMainNavRowsKey = $state('');
+  let loadedMainNavRowsKey = $state('__unloaded__');
   const webSettingsSnapshot = $derived(webSettings.snapshot);
   const searchAddonsSnapshot = $derived(searchAddons.snapshot);
   const mainNavSnapshot = $derived(mainNav.snapshot);
@@ -352,7 +352,7 @@
 
   $effect(() => {
     if (pageMode !== 'search') return;
-    const rowsKey = JSON.stringify(searchAddonsSnapshot.rows);
+    const rowsKey = searchAddonRowsKey(searchAddonsSnapshot.rows);
     if (loadedSearchRowsKey === rowsKey) return;
     loadedSearchRowsKey = rowsKey;
     searchRows =
@@ -364,7 +364,7 @@
   $effect(() => {
     if (pageMode !== 'main-menu') return;
     const rows = mainNavSnapshot.customized ? mainNavSnapshot.rows : [...DEFAULT_MAIN_NAV_ROWS];
-    const rowsKey = JSON.stringify(rows);
+    const rowsKey = mainNavRowsKey(rows);
     if (loadedMainNavRowsKey === rowsKey) return;
     loadedMainNavRowsKey = rowsKey;
     mainNavRows = rows.map((row, index) => ({ ...row, weight: index }));
@@ -432,7 +432,7 @@
         weight: index
       }))
     );
-    loadedSearchRowsKey = JSON.stringify(searchAddons.snapshot.rows);
+    loadedSearchRowsKey = searchAddonRowsKey(searchAddons.snapshot.rows);
   }
 
   function updateMainNavRow(index: number, patch: Partial<MainNavRow>): void {
@@ -464,13 +464,27 @@
         weight: index
       }))
     );
-    loadedMainNavRowsKey = JSON.stringify(mainNav.snapshot.rows);
+    loadedMainNavRowsKey = mainNavRowsKey(mainNav.snapshot.rows);
   }
 
   function resetMainNav(): void {
     mainNav.reset();
     mainNavRows = DEFAULT_MAIN_NAV_ROWS.map((row, index) => ({ ...row, weight: index }));
-    loadedMainNavRowsKey = JSON.stringify(mainNavRows);
+    loadedMainNavRowsKey = mainNavRowsKey(mainNavRows);
+  }
+
+  function searchAddonRowsKey(rows: readonly SearchAddonSetting[]): string {
+    return rows
+      .map((row) => [row.id, row.title, row.url, row.media, row.weight].join('\u001f'))
+      .join('\u001e');
+  }
+
+  function mainNavRowsKey(rows: readonly MainNavRow[]): string {
+    return rows
+      .map((row) =>
+        [row.id, row.title, row.path, row.icon, row.classes, row.parent, row.weight].join('\u001f')
+      )
+      .join('\u001e');
   }
 
   function groupSettingsAddons(addons: readonly AddonSnapshot[]): {
@@ -895,286 +909,5 @@
 </section>
 
 <style>
-  .classic-settings {
-    display: grid;
-    grid-template-columns: 16rem minmax(0, 1fr);
-    min-height: calc(100vh - 10rem);
-    background: #fff;
-    color: #333;
-  }
-
-  .settings-sidebar {
-    padding: 2rem 1.4rem;
-    background: #f3f3f3;
-  }
-
-  .settings-sidebar nav + nav {
-    margin-top: 2.25rem;
-  }
-
-  .settings-sidebar p {
-    margin: 0 0 0.65rem;
-    color: #888;
-    font-size: 1rem;
-    font-weight: 400;
-    text-transform: uppercase;
-  }
-
-  .settings-sidebar a {
-    display: block;
-    width: fit-content;
-    margin: 0.48rem 0 0.48rem 0.9rem;
-    color: #333;
-    font-size: 0.94rem;
-    font-weight: 500;
-    text-decoration: none;
-  }
-
-  .settings-sidebar a.active,
-  .settings-sidebar a:hover {
-    color: #4db3e6;
-  }
-
-  .settings-content {
-    max-width: 54rem;
-    padding: 2.7rem 2.5rem 5rem;
-    background: #fff;
-  }
-
-  .settings-content h1,
-  .settings-content h2 {
-    margin: 0;
-    color: #4db3e6;
-    font-size: 1.55rem;
-    font-weight: 300;
-    letter-spacing: 0;
-  }
-
-  .settings-content h2 {
-    margin-top: 4.2rem;
-  }
-
-  .settings-form {
-    display: grid;
-    gap: 2.15rem;
-    margin-top: 1.85rem;
-  }
-
-  .select-row,
-  .toggle-row {
-    display: grid;
-    grid-template-columns: minmax(10rem, 16rem) minmax(16rem, 28rem);
-    gap: 1.75rem;
-    align-items: start;
-    color: #333;
-    font-size: 0.9rem;
-    font-weight: 700;
-  }
-
-  .select-control,
-  .toggle-control {
-    display: grid;
-    gap: 0.35rem;
-    color: #555;
-    font-weight: 400;
-  }
-
-  select,
-  .text-control {
-    width: 100%;
-    height: 1.75rem;
-    border: 0;
-    border-bottom: 1px solid #9e9e9e;
-    border-radius: 0;
-    background: transparent;
-    color: #555;
-    font: inherit;
-    font-weight: 400;
-  }
-
-  small {
-    color: #c3c3c3;
-    font-size: 0.84rem;
-    font-weight: 400;
-    line-height: 1.35;
-  }
-
-  .select-control a {
-    width: fit-content;
-    color: #4db3e6;
-    font-size: 0.84rem;
-    font-weight: 500;
-    text-decoration: none;
-  }
-
-  .toggle-control input {
-    width: 2.75rem;
-    height: 1.35rem;
-    margin: 0;
-    accent-color: #57b6e6;
-  }
-
-  .settings-intro {
-    margin: 1rem 0 1.5rem;
-    color: #777;
-    font-size: 0.95rem;
-  }
-
-  .settings-list {
-    display: grid;
-    gap: 1rem;
-    max-width: 28rem;
-    margin-top: 1.5rem;
-  }
-
-  .settings-list label {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    font-weight: 500;
-  }
-
-  .settings-link-button {
-    display: inline-flex;
-    margin-top: 1rem;
-    color: #4db3e6;
-    font-weight: 700;
-    text-decoration: none;
-  }
-
-  .settings-status,
-  .settings-alert,
-  .settings-addon-group {
-    max-width: 42rem;
-    margin-top: 1.5rem;
-  }
-
-  .settings-status {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1rem;
-    align-items: center;
-    color: #777;
-    font-size: 0.9rem;
-  }
-
-  .settings-status span {
-    text-transform: uppercase;
-  }
-
-  .settings-status button {
-    border: 0;
-    background: #aaa;
-    color: #fff;
-    padding: 0.45rem 0.8rem;
-    font: inherit;
-    font-weight: 700;
-  }
-
-  .settings-alert {
-    color: #b03a2e;
-    font-size: 0.9rem;
-  }
-
-  .settings-addon-groups {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  .settings-addon-group h2 {
-    margin-top: 2rem;
-    color: #888;
-    font-size: 1.05rem;
-    text-transform: none;
-  }
-
-  .nav-main-form,
-  .search-addons-form {
-    max-width: 44rem;
-  }
-
-  .nav-main-row,
-  .search-addon-row {
-    position: relative;
-    display: grid;
-    gap: 1.35rem;
-    margin: 0;
-    padding: 0 2rem 1.7rem 0;
-    border: 0;
-    border-bottom: 1px solid #eee;
-  }
-
-  .nav-main-row .remove-item,
-  .search-addon-row .remove-item {
-    position: absolute;
-    top: -0.2rem;
-    right: 0;
-    border: 0;
-    background: transparent;
-    color: #777;
-    font-size: 1.55rem;
-    line-height: 1;
-  }
-
-  .settings-form-actions,
-  .search-actions {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-  }
-
-  .settings-form-actions button,
-  .search-actions button {
-    border: 0;
-    background: #aaa;
-    color: #fff;
-    padding: 0.45rem 0.85rem;
-    font: inherit;
-    font-weight: 700;
-  }
-
-  .settings-form-actions .save-main-nav-rows,
-  .search-actions .save-search-rows {
-    background: #4db3e6;
-  }
-
-  .restore-defaults-link {
-    margin-left: 0.25rem;
-    border: 0;
-    background: transparent;
-    color: #4db3e6;
-    font: inherit;
-    font-weight: 500;
-    text-decoration: underline;
-  }
-
-  .icon-title {
-    display: inline-flex;
-    gap: 0.45rem;
-    align-items: center;
-  }
-
-  .kodi-settings-content {
-    max-width: none;
-  }
-
-  .kodi-settings-content :global(.settings-panel) {
-    margin-top: 1.5rem;
-  }
-
-  @media (max-width: 760px) {
-    .classic-settings {
-      grid-template-columns: 1fr;
-    }
-
-    .settings-content {
-      padding: 1.5rem;
-    }
-
-    .select-row,
-    .toggle-row {
-      grid-template-columns: 1fr;
-      gap: 0.65rem;
-    }
-  }
+  @import './settingsPageClassic.css';
 </style>

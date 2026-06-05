@@ -327,7 +327,8 @@ describe('AppShell navigation DOM', () => {
   });
 
   it('keeps rail icons focusable without exposing hover flyout menus', () => {
-    const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
+    const componentSource = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
+    const styleSource = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
     const defaultRailIcons = [
       'mdi-av-my-library-music',
       'mdi-image-movie-creation',
@@ -341,18 +342,18 @@ describe('AppShell navigation DOM', () => {
       'mdi-action-help'
     ];
 
-    expect(source).toContain('.mdi-av-pause::before');
-    expect(source).toContain("content: '\\e6b6'");
-    expect(source).toContain('.mdi-action-settings-remote::before');
+    expect(styleSource).toContain('.mdi-av-pause::before');
+    expect(styleSource).toContain("content: '\\e6b6'");
+    expect(styleSource).toContain('.mdi-action-settings-remote::before');
     for (const icon of defaultRailIcons) {
-      expect(source, `${icon} should render a visible glyph`).toContain(`.${icon}::before`);
+      expect(styleSource, `${icon} should render a visible glyph`).toContain(`.${icon}::before`);
     }
-    expect(source).toContain('.classic-player .classic-thumb');
-    expect(source).toContain('.classic-rail-primary:focus-visible');
-    expect(source).toMatch(/class="classic-submenu-link"/u);
-    expect(source).not.toContain('.classic-rail-item:focus-within .classic-submenu');
-    expect(source).not.toContain('classic-rail-label');
-    expect(source).not.toMatch(/\.classic-rail-item:hover\s+\.visually-hidden/u);
-    expect(source).not.toMatch(/\.classic-rail-item:focus-within\s+\.visually-hidden/u);
+    expect(styleSource).toContain('.classic-player .classic-thumb');
+    expect(styleSource).toContain('.classic-rail-primary:focus-visible');
+    expect(componentSource).toMatch(/class="classic-submenu-link"/u);
+    expect(styleSource).not.toContain('.classic-rail-item:focus-within .classic-submenu');
+    expect(componentSource).not.toContain('classic-rail-label');
+    expect(styleSource).not.toMatch(/\.classic-rail-item:hover\s+\.visually-hidden/u);
+    expect(styleSource).not.toMatch(/\.classic-rail-item:focus-within\s+\.visually-hidden/u);
   });
 });

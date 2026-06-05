@@ -4,6 +4,7 @@ import {
   setEpisodeDetails,
   setMovieDetails,
   type KodiEndpointDescription,
+  type KodiJsonRpcBatchCall,
   type KodiJsonRpcHttpClient,
   type KodiLibraryWriteResult,
   type VideoResumePosition
@@ -163,6 +164,7 @@ const NO_ACTIVE_HOST_ERROR: VideoWriteSafeErrorSnapshot = {
   message: 'Choose an active Kodi host before writing video library changes.'
 };
 const BATCH_WRITE_CONCURRENCY = 6;
+const JSON_RPC_WRITE_BATCH_SIZE = 50;
 
 export class VideoWriteStore {
   #snapshot = $state<VideoWriteStoreSnapshot>(cloneStoreSnapshot(DEFAULT_SNAPSHOT));
@@ -382,17 +384,37 @@ export class VideoWriteStore {
     const failedTargets: VideoWriteTarget[] = [];
     const succeededTargets: VideoWriteTarget[] = [];
 
-    await runWithConcurrency(targets, BATCH_WRITE_CONCURRENCY, async (target) => {
-      try {
-        await this.#writeTarget(client, target);
-        succeeded += 1;
-        succeededTargets.push(target);
-      } catch (error) {
-        const safeError = createSafeError(error);
-        failures.push(createFailedItem(target.kind, target.id, target.label, safeError));
-        failedTargets.push(target);
+    if (this.#canBatchTargets(client, targets)) {
+      for (const chunk of chunks(targets, JSON_RPC_WRITE_BATCH_SIZE)) {
+        try {
+          await client.callBatch?.(
+            chunk.map((target) => createWriteBatchCall(target, this.#now()))
+          );
+          succeeded += chunk.length;
+          succeededTargets.push(...chunk);
+        } catch (error) {
+          const safeError = createSafeError(error);
+          failures.push(
+            ...chunk.map((target) =>
+              createFailedItem(target.kind, target.id, target.label, safeError)
+            )
+          );
+          failedTargets.push(...chunk);
+        }
       }
-    });
+    } else {
+      await runWithConcurrency(targets, BATCH_WRITE_CONCURRENCY, async (target) => {
+        try {
+          await this.#writeTarget(client, target);
+          succeeded += 1;
+          succeededTargets.push(target);
+        } catch (error) {
+          const safeError = createSafeError(error);
+          failures.push(createFailedItem(target.kind, target.id, target.label, safeError));
+          failedTargets.push(target);
+        }
+      });
+    }
 
     const failed = failures.length;
     const status: VideoWriteStatus =
@@ -424,6 +446,14 @@ export class VideoWriteStore {
       episodeid: target.id,
       ...createWritePayload(target, this.#now())
     });
+  }
+
+  #canBatchTargets(client: KodiJsonRpcHttpClient, targets: readonly VideoWriteTarget[]): boolean {
+    return (
+      this.#writeMethods === DEFAULT_WRITE_METHODS &&
+      typeof client.callBatch === 'function' &&
+      targets.every((target) => !target.resume)
+    );
   }
 
   async #resolveClient(): Promise<KodiJsonRpcHttpClient | null> {
@@ -504,6 +534,37 @@ function createWritePayload(
   }
 
   return { playcount: 0, resume: { position: 0, total: 0 } };
+}
+
+function createWriteBatchCall(target: VideoWriteTarget, now: string): KodiJsonRpcBatchCall {
+  const payload = createWritePayload(target, now);
+
+  if (target.kind === 'movie') {
+    return {
+      method: 'VideoLibrary.SetMovieDetails',
+      params: {
+        movieid: target.id,
+        ...payload
+      }
+    };
+  }
+
+  return {
+    method: 'VideoLibrary.SetEpisodeDetails',
+    params: {
+      episodeid: target.id,
+      ...payload
+    }
+  };
+}
+
+function chunks<T>(items: readonly T[], size: number): T[][] {
+  const safeSize = Number.isFinite(size) && size > 0 ? Math.floor(size) : items.length;
+  const result: T[][] = [];
+  for (let start = 0; start < items.length; start += safeSize) {
+    result.push(items.slice(start, start + safeSize));
+  }
+  return result;
 }
 
 function incrementWriteCounts(

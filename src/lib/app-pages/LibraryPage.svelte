@@ -12,12 +12,11 @@
     type LibraryFilterOption,
     type LibraryParsedFilterField
   } from '$lib/stores/libraryFilter';
-  import { getVideoLibraryMusicVideoDetails, refreshVideoLibraryMovie } from '$lib/kodi';
+  import { refreshVideoLibraryMovie } from '$lib/kodi';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
   import { configStore } from '$lib/stores/config.svelte';
   import { prepareLocalStreamUrl } from '$lib/stores/localPlayer.svelte';
-  import { normalizeVideoMusicVideos } from '$lib/stores/videoLibraryNormalization';
   import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
   import { defaultEpisodeCollectionActionDispatch } from '$lib/stores/episodeCollectionActions';
   import type {
@@ -62,6 +61,8 @@
     browserPlayerRouteForAction,
     downloadableAction,
     downloadActionKey,
+    isLibraryQueueItem,
+    libraryQueueItemForCard,
     localPlaylistAction,
     localPlaylistActionKey,
     thumbsUpItem,
@@ -92,6 +93,7 @@
   } from '$lib/app-pages/libraryPageBrowserActions';
   import { createLibraryPageFilters } from '$lib/app-pages/libraryPageFiltering';
   import { createTvShowMetadataSourceResolver } from '$lib/metadata/tvShowMetadataSource';
+  import { loadLibraryMusicVideoDetail } from '$lib/app-pages/libraryMusicVideoDetailLoader';
 
   interface Props {
     route: LibraryRoute;
@@ -504,10 +506,6 @@
     }
   }
 
-  function episodeWord(count: number): string {
-    return count === 1 ? 'episode' : 'episodes';
-  }
-
   async function downloadCard(card: Card): Promise<void> {
     const action = downloadableAction(card.action);
     if (!action) return;
@@ -588,8 +586,22 @@
     actionStatus = `Playing ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}...`;
 
     try {
-      for (const card of selectedCards) {
-        await playCard(card);
+      const [firstCard, ...remainingCards] = selectedCards;
+      if (firstCard) {
+        await playCard(firstCard);
+      }
+
+      const remainingLibraryItems = remainingCards.map(libraryQueueItemForCard);
+      if (
+        remainingLibraryItems.length > 0 &&
+        queueDispatch.queueLibraryItems &&
+        remainingLibraryItems.every(isLibraryQueueItem)
+      ) {
+        await queueDispatch.queueLibraryItems(remainingLibraryItems);
+      } else {
+        for (const card of remainingCards) {
+          await queueCard(card);
+        }
       }
       actionStatus = `Played ${selectedCards.length} selected item${selectedCards.length === 1 ? '' : 's'}.`;
     } finally {
@@ -632,7 +644,7 @@
     actionStatus = `Adding ${selectedPlaylistCards.length} selected item${selectedPlaylistCards.length === 1 ? '' : 's'} to playlist...`;
 
     try {
-      const items = await resolveSelectedLocalPlaylistItems(selectedPlaylistCards);
+      const items = await resolveSelectedLocalPlaylistItemsForCards(selectedPlaylistCards);
       const result = localPlaylistDispatch.addItems(playlistId, items);
       if (!result.ok) {
         actionStatus = Object.values(result.errors).join(' ') || 'Could not add selected items.';
@@ -741,44 +753,6 @@
     return item ? (thumbsUpDispatch?.hasItem(item.media, item.id) ?? false) : false;
   }
 
-  function libraryQueueItemForCard(card: Card): LibraryQueueItem | null {
-    const action = card.action;
-    if (!action) return null;
-    if (action.media === 'music') return { media: 'music', item: toMusicActionPayload(action) };
-    if (action.media === 'movie') return { media: 'movie', item: { movieid: action.movieid } };
-    if (action.media === 'episode') {
-      return { media: 'episode', item: { episodeid: action.episodeid } };
-    }
-    if (action.media === 'musicvideo') {
-      return { media: 'musicvideo', item: { musicvideoid: action.musicvideoid } };
-    }
-    return null;
-  }
-
-  async function resolveSelectedLocalPlaylistItems(
-    cards: readonly Card[]
-  ): Promise<LocalPlaylistItemInput[]> {
-    const batches: LocalPlaylistItemInput[][] = [];
-    const concurrency = 4;
-
-    for (let index = 0; index < cards.length; index += concurrency) {
-      const chunk = cards.slice(index, index + concurrency);
-      const resolved = await Promise.all(
-        chunk.map((card) => {
-          const action = localPlaylistAction(card.action);
-          return action ? resolveLocalPlaylistItems(action) : [];
-        })
-      );
-      batches.push(...resolved);
-    }
-
-    return batches.flat();
-  }
-
-  function isLibraryQueueItem(item: LibraryQueueItem | null): item is LibraryQueueItem {
-    return item !== null;
-  }
-
   async function playCardInBrowser(card: Card): Promise<void> {
     const action = browserPlayableAction(card.action);
     if (!action) return;
@@ -800,6 +774,34 @@
     } catch {
       actionStatus = 'The browser blocked the playback popup.';
     }
+  }
+
+  function episodeWord(count: number): string {
+    return count === 1 ? 'episode' : 'episodes';
+  }
+
+  function safe(value: unknown, fallback: string): string {
+    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  async function resolveSelectedLocalPlaylistItemsForCards(
+    cards: readonly Card[],
+    concurrency = 4
+  ): Promise<LocalPlaylistItemInput[]> {
+    const batches: LocalPlaylistItemInput[][] = [];
+
+    for (let index = 0; index < cards.length; index += concurrency) {
+      const chunk = cards.slice(index, index + concurrency);
+      const resolved = await Promise.all(
+        chunk.map((card) => {
+          const action = localPlaylistAction(card.action);
+          return action ? resolveLocalPlaylistItems(action) : [];
+        })
+      );
+      batches.push(...resolved);
+    }
+
+    return batches.flat();
   }
 
   async function resolveDownloadFile(action: DownloadableCardAction): Promise<string | null> {
@@ -837,33 +839,7 @@
     loadingMusicVideoDetailIds = { ...loadingMusicVideoDetailIds, [musicvideoid]: true };
 
     try {
-      const result = await getVideoLibraryMusicVideoDetails(client, {
-        musicvideoid,
-        properties: [
-          'title',
-          'artist',
-          'album',
-          'year',
-          'runtime',
-          'thumbnail',
-          'fanart',
-          'art',
-          'genre',
-          'director',
-          'studio',
-          'playcount',
-          'lastplayed',
-          'resume',
-          'dateadded',
-          'plot',
-          'track',
-          'tag',
-          'rating'
-        ]
-      });
-      const [detail] = normalizeVideoMusicVideos(
-        result.musicvideodetails ? [result.musicvideodetails] : []
-      );
+      const detail = await loadLibraryMusicVideoDetail(client, musicvideoid);
 
       if (detail) {
         musicVideoDetailsById = { ...musicVideoDetailsById, [musicvideoid]: detail };
@@ -877,10 +853,6 @@
       delete remaining[musicvideoid];
       loadingMusicVideoDetailIds = remaining;
     }
-  }
-
-  function safe(value: unknown, fallback: string): string {
-    return typeof value === 'string' && value.trim() ? value.trim() : fallback;
   }
 </script>
 

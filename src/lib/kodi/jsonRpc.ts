@@ -93,6 +93,7 @@ export interface KodiHttpClientOptions {
 export interface KodiHttpCallOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
+  retryAttempts?: number;
 }
 
 export interface KodiJsonRpcBatchCall<TParams extends JsonRpcParams = JsonRpcParams> {
@@ -113,6 +114,9 @@ export interface KodiJsonRpcHttpClient {
 }
 
 const TIMEOUT_SENTINEL = Symbol('kodi-timeout');
+const DEFAULT_IDEMPOTENT_READ_RETRY_ATTEMPTS = 1;
+const RETRY_BACKOFF_BASE_MS = 100;
+const RETRY_BACKOFF_MAX_MS = 1000;
 
 export function isKodiHttpClientError(error: unknown): error is KodiHttpClientError {
   return error instanceof KodiHttpClientError;
@@ -140,7 +144,7 @@ export function createKodiJsonRpcHttpClient(
     ): Promise<TResult> {
       const requestId = nextId++;
       const request = buildJsonRpcRequest(method, requestId, params);
-      const envelope = await postJsonRpcRequest(
+      const envelope = await postJsonRpcRequestWithRetry(
         fetchImpl,
         url,
         buildKodiRequestHeaders(host),
@@ -180,6 +184,85 @@ export function createKodiJsonRpcHttpClient(
       return unwrapJsonRpcBatchEnvelope<TResult>(envelope, requestIds, calls, endpoint, method);
     }
   };
+}
+
+async function postJsonRpcRequestWithRetry(
+  fetchImpl: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | undefined,
+  url: string,
+  headers: Headers,
+  body: JsonRpcRequest,
+  endpoint: KodiEndpointDescription,
+  method: string,
+  callOptions: KodiHttpCallOptions,
+  defaultTimeoutMs: number
+): Promise<unknown> {
+  const retryAttempts =
+    Number.isFinite(callOptions.retryAttempts) && callOptions.retryAttempts !== undefined
+      ? Math.max(0, Math.floor(callOptions.retryAttempts))
+      : DEFAULT_IDEMPOTENT_READ_RETRY_ATTEMPTS;
+  const maxAttempts = isIdempotentReadMethod(method) ? retryAttempts + 1 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await postJsonRpcRequest(
+        fetchImpl,
+        url,
+        headers,
+        body,
+        endpoint,
+        method,
+        callOptions,
+        defaultTimeoutMs
+      );
+    } catch (error) {
+      if (
+        attempt >= maxAttempts ||
+        callOptions.signal?.aborted ||
+        !isTransientKodiHttpClientError(error)
+      ) {
+        throw error;
+      }
+      await delayWithAbort(retryBackoffMs(attempt), callOptions.signal);
+    }
+  }
+
+  throw createClientError({ code: 'network', endpoint, method });
+}
+
+function retryBackoffMs(attempt: number): number {
+  const exponentialDelay = Math.min(
+    RETRY_BACKOFF_BASE_MS * 2 ** Math.max(0, attempt - 1),
+    RETRY_BACKOFF_MAX_MS
+  );
+  const jitter = Math.floor(Math.random() * RETRY_BACKOFF_BASE_MS);
+  return exponentialDelay + jitter;
+}
+
+function delayWithAbort(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => {
+      signal?.removeEventListener('abort', abort);
+    };
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    const abort = (): void => {
+      clearTimeout(timeoutId);
+      cleanup();
+      reject(createAbortError());
+    };
+
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
+function createAbortError(): Error {
+  return new DOMException('Kodi JSON-RPC retry aborted.', 'AbortError');
 }
 
 async function postJsonRpcRequest(
@@ -257,6 +340,28 @@ async function postJsonRpcRequest(
     }
     callOptions.signal?.removeEventListener('abort', abortFromCaller);
   }
+}
+
+function isIdempotentReadMethod(method: string): boolean {
+  const action = method.split('.')[1] ?? '';
+  return (
+    method === 'JSONRPC.Ping' ||
+    action.startsWith('Get') ||
+    action.startsWith('List') ||
+    action.startsWith('Retrieve')
+  );
+}
+
+function isTransientKodiHttpClientError(error: unknown): error is KodiHttpClientError {
+  if (!isKodiHttpClientError(error)) {
+    return false;
+  }
+
+  if (error.code === 'timeout' || error.code === 'network') {
+    return true;
+  }
+
+  return error.code === 'http' && (error.status === undefined || error.status >= 500);
 }
 
 function buildJsonRpcRequest<TParams extends JsonRpcParams>(

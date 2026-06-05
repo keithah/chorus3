@@ -61,11 +61,7 @@ export class SearchAddonsStore {
 
     try {
       this.#clearPersisted();
-      const ids = this.#snapshot.rows.map((row) => row.id);
-      this.#storage.setItem(SEARCH_ADDONS_STORAGE_KEY, ids.join(','));
-      for (const row of this.#snapshot.rows) {
-        this.#storage.setItem(`${SEARCH_ADDONS_STORAGE_KEY}-${row.id}`, JSON.stringify(row));
-      }
+      this.#storage.setItem(SEARCH_ADDONS_STORAGE_KEY, JSON.stringify(this.#snapshot.rows));
     } catch {
       // Keep the in-memory settings active for this session when browser storage fails.
     }
@@ -110,8 +106,11 @@ export function blankSearchAddon(weight: number): SearchAddonSetting {
 }
 
 function readBackboneCollection(storage: SearchAddonsStorage): SearchAddonSetting[] {
-  const ids = storage
-    .getItem(SEARCH_ADDONS_STORAGE_KEY)
+  const raw = storage.getItem(SEARCH_ADDONS_STORAGE_KEY);
+  const jsonRows = parseJsonRows(raw);
+  if (jsonRows) return normalizeRows(jsonRows);
+
+  const ids = raw
     ?.split(',')
     .map((id) => id.trim())
     .filter(Boolean);
@@ -123,6 +122,20 @@ function readBackboneCollection(storage: SearchAddonsStorage): SearchAddonSettin
     .filter((row): row is SearchAddonSetting => row !== null);
 
   return normalizeRows(rows);
+}
+
+function parseJsonRows(raw: string | null): Partial<SearchAddonSetting>[] | null {
+  if (!raw || !['[', '{'].includes(raw.trimStart()[0] ?? '')) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) return parsed as Partial<SearchAddonSetting>[];
+    if (isRecord(parsed) && Array.isArray(parsed.rows)) {
+      return parsed.rows as Partial<SearchAddonSetting>[];
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function readBackboneModel(

@@ -29,11 +29,11 @@ export function findMovieSnapshot(
   video: VideoLibraryStoreSnapshot,
   movieid: number
 ): VideoLibraryMovieSnapshot | null {
-  return (
-    [...video.movies, ...video.recentlyAddedMovies, ...video.recentlyPlayedMovies].find(
-      (item) => item.movieid === movieid
-    ) ?? null
-  );
+  for (const collection of [video.movies, video.recentlyAddedMovies, video.recentlyPlayedMovies]) {
+    const match = collection.find((item) => item.movieid === movieid);
+    if (match) return match;
+  }
+  return null;
 }
 
 export function movieDetailRows(item: MovieDetailSource): LibraryDetailRow[] {

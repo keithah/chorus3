@@ -448,20 +448,24 @@ export async function listZipEntries(zipPath, { runUnzip = runSystemUnzip } = {}
 export function runSystemUnzip({ args }) {
   return new Promise((resolve, reject) => {
     const child = spawn('unzip', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
+    const stdoutChunks = [];
+    const stderrChunks = [];
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
-      stdout += chunk;
+      stdoutChunks.push(chunk);
     });
     child.stderr.on('data', (chunk) => {
-      stderr += chunk;
+      stderrChunks.push(chunk);
     });
     child.on('error', reject);
     child.on('close', (status) => {
-      resolve({ status: status ?? 1, stdout, stderr });
+      resolve({
+        status: status ?? 1,
+        stdout: stdoutChunks.join(''),
+        stderr: stderrChunks.join('')
+      });
     });
   });
 }

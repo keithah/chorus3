@@ -335,7 +335,7 @@ export class MediaFilesStore {
   }
 
   destroy(): void {
-    this.#requestId += 1;
+    this.clear();
   }
 
   async #openDirectoryPath(options: {

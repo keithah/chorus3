@@ -9,6 +9,7 @@ import type {
   PlayerDispatchSafeErrorSnapshot,
   PlayerDispatchSnapshot
 } from './playerDispatchTypes';
+import type { PlayerStoreSnapshot } from './player.svelte';
 
 export const DEFAULT_PLAYER_DISPATCH_SNAPSHOT: PlayerDispatchSnapshot = {
   mode: 'kodi',
@@ -104,6 +105,73 @@ export function cloneError(
     ...error,
     ...(error.endpoint ? { endpoint: { ...error.endpoint } } : {})
   };
+}
+
+export function resolveSinglePlayerIdFromSnapshot(
+  snapshot: PlayerStoreSnapshot
+): { ok: true; playerid: number } | { ok: false; error: PlayerDispatchSafeErrorSnapshot } {
+  if (!snapshot.primaryPlayer || snapshot.activePlayers.length === 0) {
+    return {
+      ok: false,
+      error: {
+        source: 'player',
+        code: 'player/no-active-player',
+        message: 'No active Kodi player is available for this command.'
+      }
+    };
+  }
+
+  if (snapshot.activePlayers.length > 1) {
+    return {
+      ok: false,
+      error: {
+        source: 'player',
+        code: 'player/multiple-active-players',
+        message: 'Multiple Kodi players are active. Choose one player before sending commands.'
+      }
+    };
+  }
+
+  return { ok: true, playerid: snapshot.primaryPlayer.playerid };
+}
+
+export function resolveSingleVideoPlayerIdFromSnapshot(
+  snapshot: PlayerStoreSnapshot
+): { ok: true; playerid: number } | { ok: false; error: PlayerDispatchSafeErrorSnapshot } {
+  if (!snapshot.primaryPlayer || snapshot.activePlayers.length === 0) {
+    return {
+      ok: false,
+      error: {
+        source: 'player',
+        code: 'player/no-active-player',
+        message: 'No active Kodi video player is available for browser streaming.'
+      }
+    };
+  }
+
+  if (snapshot.activePlayers.length > 1) {
+    return {
+      ok: false,
+      error: {
+        source: 'player',
+        code: 'player/multiple-active-players',
+        message: 'Multiple Kodi players are active. Choose one player before browser streaming.'
+      }
+    };
+  }
+
+  if (snapshot.primaryPlayer.type !== 'video') {
+    return {
+      ok: false,
+      error: {
+        source: 'player',
+        code: 'player/no-active-video-player',
+        message: 'Choose a movie with an active Kodi video player before browser streaming.'
+      }
+    };
+  }
+
+  return { ok: true, playerid: snapshot.primaryPlayer.playerid };
 }
 
 function isErrorWithCode(error: Error): error is Error & { code: string } {

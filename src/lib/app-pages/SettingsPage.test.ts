@@ -329,7 +329,7 @@ describe('SettingsPage', () => {
     expect(settingsLink?.getAttribute('href')).toBe('/addons/plugin.video.safe-demo');
   });
 
-  it('persists Chorus2 main menu rows in the compatible local format', async () => {
+  it('persists main menu rows as a single local storage payload', async () => {
     const storage = createMemoryStorage();
     const mainNav = createMainNavStore({ storage });
     renderPage({ kind: 'settingsNav' }, { mainNav });
@@ -360,8 +360,7 @@ describe('SettingsPage', () => {
       ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await tick();
 
-    expect(storage.getItem(MAIN_NAV_STORAGE_KEY)?.split(',')[0]).toBe('1');
-    expect(JSON.parse(storage.getItem(`${MAIN_NAV_STORAGE_KEY}-1`) ?? '{}')).toMatchObject({
+    expect(JSON.parse(storage.getItem(MAIN_NAV_STORAGE_KEY) ?? '[]')[0]).toMatchObject({
       id: '1',
       title: 'Tunes',
       path: 'music',
@@ -399,7 +398,7 @@ describe('SettingsPage', () => {
     expect(storage.getItem(MAIN_NAV_STORAGE_KEY)).toBeNull();
   });
 
-  it('persists Chorus2 custom add-on search rows in the compatible local format', async () => {
+  it('persists custom add-on search rows as a single local storage payload', async () => {
     const storage = createMemoryStorage();
     const searchAddons = createSearchAddonsStore({ storage });
     renderPage({ kind: 'settingsSearch' }, { searchAddons });
@@ -429,10 +428,7 @@ describe('SettingsPage', () => {
       ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await tick();
 
-    expect(storage.getItem(SEARCH_ADDONS_STORAGE_KEY)).toBe('custom.addon.0');
-    expect(
-      JSON.parse(storage.getItem(`${SEARCH_ADDONS_STORAGE_KEY}-custom.addon.0`) ?? '{}')
-    ).toMatchObject({
+    expect(JSON.parse(storage.getItem(SEARCH_ADDONS_STORAGE_KEY) ?? '[]')[0]).toMatchObject({
       id: 'custom.addon.0',
       title: 'YouTube',
       url: 'plugin://plugin.video.youtube/search/?q={query}',

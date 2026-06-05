@@ -165,6 +165,11 @@ export const LIBRARY_FILTER_FIELDS: readonly LibraryFilterField[] = [
   { alias: 'artist', type: 'array', key: 'artist', sortOrder: 'asc', filterCallback: 'multiple' }
 ];
 
+const LIBRARY_SORT_FIELD_BY_KEY = new Map(LIBRARY_SORT_FIELDS.map((field) => [field.key, field]));
+const LIBRARY_FILTER_FIELD_BY_KEY = new Map(
+  LIBRARY_FILTER_FIELDS.map((field) => [field.key, field])
+);
+
 export class LibraryFilterStore {
   readonly #storage: StorageLike;
 
@@ -287,13 +292,9 @@ export class LibraryFilterStore {
   ): LibrarySortField[] | LibraryFilterField[] {
     const available = this.getAvailable(path)[type];
     if (type === 'sort') {
-      return available.flatMap(
-        (key) => LIBRARY_SORT_FIELDS.find((field) => field.key === key) ?? []
-      );
+      return available.flatMap((key) => LIBRARY_SORT_FIELD_BY_KEY.get(key) ?? []);
     }
-    return available.flatMap(
-      (key) => LIBRARY_FILTER_FIELDS.find((field) => field.key === key) ?? []
-    );
+    return available.flatMap((key) => LIBRARY_FILTER_FIELD_BY_KEY.get(key) ?? []);
   }
 
   getSortableEntities(path: string): LibraryParsedSortField[] {
@@ -329,6 +330,7 @@ export class LibraryFilterStore {
     items: readonly T[]
   ): LibraryFilterOption[] {
     const values = this.getStoreFiltersKey(path, key);
+    const activeValues = new Set(values);
     const settings = getFilterSettings(key, false);
     const extracted = uniqueValues(
       items.flatMap((item) => extractFilterValues(item, key, settings))
@@ -338,7 +340,7 @@ export class LibraryFilterStore {
       key,
       value,
       title: String(value),
-      active: values.includes(value)
+      active: activeValues.has(value)
     }));
   }
 

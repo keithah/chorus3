@@ -27,6 +27,7 @@ import {
   type VideoLibraryRefreshReason,
   type VideoTvStoreSnapshot
 } from './videoLibraryNormalization';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export type {
   VideoEpisodeDetailSnapshot,
@@ -45,7 +46,7 @@ export interface VideoTvStoreOptions {
 }
 
 const DEFAULT_LIMITS: VideoLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIST_LIMIT = { start: 0, end: 5000 } as const;
+const DEFAULT_LIST_LIMIT = { start: 0, end: DEFAULT_FULL_LIBRARY_PAGE_SIZE } as const;
 const DEFAULT_TV_SHOW_LIST_PROPERTIES = [
   'title',
   'year',
@@ -158,10 +159,14 @@ export class VideoTvStore {
 
     try {
       const client = this.#resolveClient('TV show list refresh');
-      const result = await getVideoLibraryTvShows(client, {
-        properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
-        limits: DEFAULT_LIST_LIMIT
-      });
+      const result = await readPagedKodiLibraryList(
+        (params, options) => getVideoLibraryTvShows(client, params, options),
+        {
+          properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT
+        },
+        'tvshows'
+      );
 
       if (!this.#isCurrent(requestId)) {
         return;
@@ -213,11 +218,15 @@ export class VideoTvStore {
           tvshowid,
           properties: VIDEO_TV_SHOW_DETAIL_PROPERTIES
         }),
-        getVideoLibrarySeasons(client, {
-          tvshowid,
-          properties: DEFAULT_SEASON_PROPERTIES,
-          limits: DEFAULT_LIST_LIMIT
-        })
+        readPagedKodiLibraryList(
+          (params, options) => getVideoLibrarySeasons(client, params, options),
+          {
+            tvshowid,
+            properties: DEFAULT_SEASON_PROPERTIES,
+            limits: DEFAULT_LIST_LIMIT
+          },
+          'seasons'
+        )
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -292,12 +301,16 @@ export class VideoTvStore {
 
     try {
       const client = this.#resolveClient('season episode refresh');
-      const result = await getVideoLibraryEpisodes(client, {
-        tvshowid,
-        season,
-        properties: DEFAULT_EPISODE_PROPERTIES,
-        limits: DEFAULT_LIST_LIMIT
-      });
+      const result = await readPagedKodiLibraryList(
+        (params, options) => getVideoLibraryEpisodes(client, params, options),
+        {
+          tvshowid,
+          season,
+          properties: DEFAULT_EPISODE_PROPERTIES,
+          limits: DEFAULT_LIST_LIMIT
+        },
+        'episodes'
+      );
 
       if (!this.#isCurrent(requestId)) {
         return;

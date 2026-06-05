@@ -1,7 +1,7 @@
 import type { AppRoute } from '$lib/app/appRouter';
 import type { ThumbsUpItemInput } from '$lib/stores/thumbsUp.svelte';
 import type { MusicPlaybackItem } from '$lib/stores/playerDispatchTypes';
-import type { MusicQueueItem } from '$lib/stores/queue.svelte';
+import type { LibraryQueueItem, MusicQueueItem } from '$lib/stores/queue.svelte';
 import type { LibraryCard } from './libraryCards';
 
 export type DownloadableCardAction =
@@ -95,6 +95,23 @@ export function toMusicActionPayload(
   }
 
   return { kind: 'song', songid: action.songid };
+}
+
+export function libraryQueueItemForCard(card: LibraryCard): LibraryQueueItem | null {
+  const action = card.action;
+  if (!action) return null;
+  if (action.media === 'music') return { media: 'music', item: toMusicActionPayload(action) };
+  if (action.media === 'movie') return { media: 'movie', item: { movieid: action.movieid } };
+  if (action.media === 'episode')
+    return { media: 'episode', item: { episodeid: action.episodeid } };
+  if (action.media === 'musicvideo') {
+    return { media: 'musicvideo', item: { musicvideoid: action.musicvideoid } };
+  }
+  return null;
+}
+
+export function isLibraryQueueItem(item: LibraryQueueItem | null): item is LibraryQueueItem {
+  return item !== null;
 }
 
 export function thumbsUpItem(card: LibraryCard): ThumbsUpItemInput | null {

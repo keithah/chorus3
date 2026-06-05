@@ -1,0 +1,165 @@
+.video-season-detail-shell {
+  display: grid;
+  gap: var(--space-lg);
+  padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+}
+.video-season-detail-shell .panel-heading,
+.video-season-detail-shell .hero-copy,
+.video-season-detail-shell .episode-card,
+.video-season-detail-shell .empty-state,
+.video-season-detail-shell .artwork-actions,
+.video-season-detail-shell .season-write-actions {
+  display: grid;
+  gap: var(--space-xs);
+}
+.video-season-detail-shell .season-hero {
+  grid-template-columns: minmax(5rem, 0.22fr) minmax(0, 1fr);
+  align-items: end;
+  padding: clamp(var(--space-md), 3vw, var(--space-lg));
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--color-accent) 20%, transparent),
+      transparent 20rem
+    ),
+    color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
+  border-radius: calc(var(--radius-lg) + var(--space-xs));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent),
+    0 1.2rem 3rem color-mix(in srgb, black 14%, transparent);
+}
+.video-season-detail-shell .season-poster-frame {
+  aspect-ratio: 2 / 3;
+  min-height: 8rem;
+  display: grid;
+  place-items: end start;
+  padding: var(--space-sm);
+  color: color-mix(in srgb, var(--color-text) 82%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent),
+    color-mix(in srgb, var(--color-surface) 88%, black);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 14%, transparent),
+    0 1rem 2rem color-mix(in srgb, black 22%, transparent);
+}
+.video-season-detail-shell .section-kicker,
+.video-season-detail-shell h2,
+.video-season-detail-shell p,
+.video-season-detail-shell ul {
+  margin: 0;
+}
+.video-season-detail-shell .section-kicker {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.video-season-detail-shell h2 {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.video-season-detail-shell .summary-line,
+.video-season-detail-shell .episode-meta,
+.video-season-detail-shell .empty-state,
+.video-season-detail-shell .action-status,
+.video-season-detail-shell .write-status,
+.video-season-detail-shell .state-copy,
+.video-season-detail-shell .count-summary {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.video-season-detail-shell .back-link,
+.video-season-detail-shell .episode-link,
+.video-season-detail-shell .episode-title {
+  color: var(--color-text);
+  font-weight: 850;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+  overflow-wrap: anywhere;
+}
+.video-season-detail-shell .back-link:focus-visible,
+.video-season-detail-shell .episode-link:focus-visible,
+.video-season-detail-shell button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-ring);
+}
+.video-season-detail-shell button {
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  justify-self: start;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-accent) 24%, var(--color-surface-raised));
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+  transition-property: scale, background-color, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.video-season-detail-shell button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.video-season-detail-shell button:active:not(:disabled) {
+  scale: 0.96;
+}
+@media (prefers-reduced-motion: reduce) {
+  .video-season-detail-shell button {
+    transition-duration: 0.01ms;
+  }
+  .video-season-detail-shell button:active:not(:disabled) {
+    scale: 1;
+  }
+}
+.video-season-detail-shell .episode-list {
+  display: grid;
+  gap: var(--space-md);
+  padding: 0;
+  list-style: none;
+}
+.video-season-detail-shell .episode-card,
+.video-season-detail-shell .empty-state,
+.video-season-detail-shell .action-status,
+.video-season-detail-shell .write-status {
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+.video-season-detail-shell .write-status.success {
+  color: var(--color-success);
+}
+.video-season-detail-shell .write-status.partial,
+.video-season-detail-shell .write-status.error {
+  color: var(--color-danger);
+}
+.video-season-detail-shell .badge-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.video-season-detail-shell .badge {
+  padding: 0.18rem 0.55rem;
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 82%, transparent);
+}

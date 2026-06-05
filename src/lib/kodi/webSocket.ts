@@ -29,6 +29,7 @@ export type KodiWebSocketClientErrorCode =
   | 'not-open'
   | 'send-failed'
   | 'heartbeat-failed'
+  | 'reconnect-exhausted'
   | 'malformed-notification';
 
 export interface KodiWebSocketClientError {
@@ -70,6 +71,7 @@ export interface KodiWebSocketClientOptions {
   connectTimeoutMs?: number;
   heartbeatIntervalMs?: number;
   reconnectDelaysMs?: number[];
+  maxReconnectAttempts?: number;
 }
 
 export interface KodiWebSocketSendSuccess {
@@ -95,6 +97,7 @@ export interface KodiWebSocketClient {
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 30_000;
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
 const DEFAULT_RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 30;
 const WEBSOCKET_CONNECTING = 0;
 const WEBSOCKET_OPEN = 1;
 
@@ -121,6 +124,12 @@ function normalizeReconnectDelays(delays: number[] | undefined): number[] {
   return normalized.length > 0 ? normalized : DEFAULT_RECONNECT_DELAYS_MS;
 }
 
+function normalizeMaxReconnectAttempts(value: number | undefined): number {
+  return Number.isFinite(value) && value !== undefined && value >= 0
+    ? Math.floor(value)
+    : DEFAULT_MAX_RECONNECT_ATTEMPTS;
+}
+
 export function createKodiJsonRpcWebSocketClient(
   hostConfig: KodiWebSocketHost,
   options: KodiWebSocketClientOptions = {}
@@ -137,6 +146,7 @@ export function createKodiJsonRpcWebSocketClient(
     DEFAULT_HEARTBEAT_INTERVAL_MS
   );
   const reconnectDelaysMs = normalizeReconnectDelays(options.reconnectDelaysMs);
+  const maxReconnectAttempts = normalizeMaxReconnectAttempts(options.maxReconnectAttempts);
   const listeners = new Set<KodiWebSocketClientListener>();
 
   let socket: KodiWebSocketLike | null = null;
@@ -244,6 +254,16 @@ export function createKodiJsonRpcWebSocketClient(
     }
 
     clearHeartbeat();
+    if (reconnectAttempt >= maxReconnectAttempts) {
+      emitError(
+        createError(
+          'reconnect-exhausted',
+          `Kodi WebSocket reconnect limit reached after ${reconnectAttempt} attempts.`
+        )
+      );
+      return;
+    }
+
     reconnectAttempt += 1;
     const attempt = reconnectAttempt;
     const delayMs = reconnectDelayForAttempt(attempt);

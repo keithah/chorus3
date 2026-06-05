@@ -18,12 +18,15 @@
   export interface MediaFilesActionDispatch {
     playFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
     queueFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
+    queueFileItems?: (items: readonly MediaFilesActionItem[]) => Promise<void> | void;
     downloadFileItem: (item: MediaFilesActionItem) => Promise<void> | void;
   }
 </script>
 
 <script lang="ts">
+  import './mediaFilesPanelClassic.css';
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
   import type {
     MediaDirectoryEntrySnapshot,
     MediaFileSourceSnapshot,
@@ -64,9 +67,11 @@
   let pendingAction = $state<PendingFileAction | null>(null);
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
+  const entryVisibility = createIncrementalVisibility(250);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(localStatusText ?? formatStatus(snapshot));
+  const visibleEntries = $derived(entryVisibility.visibleItems(snapshot.entries));
 
   async function handleRefresh(): Promise<void> {
     if (isBrowseDisabled('refresh', 'refresh')) {
@@ -538,7 +543,7 @@
         <p class="empty-copy">No directory entries in this snapshot.</p>
       {:else}
         <ul class="entry-list">
-          {#each snapshot.entries as entry, index (safeEachKey('entry', entry.id, index))}
+          {#each visibleEntries as entry, index (safeEachKey('entry', entry.id, index))}
             {@const label = safeEntryLabel(entry, index)}
             {@const actionItem = fileActionFor(entry, index)}
             {@const id = stringOrNull(entry.id)}
@@ -608,251 +613,12 @@
             </li>
           {/each}
         </ul>
+        {#if entryVisibility.hasMore(snapshot.entries.length)}
+          <button type="button" class="show-more-button" onclick={entryVisibility.showMore}>
+            Show more entries
+          </button>
+        {/if}
       {/if}
     </section>
   </div>
 </section>
-
-<style>
-  .media-files-panel {
-    display: grid;
-    gap: var(--space-lg);
-    padding: clamp(var(--space-lg), 4vw, var(--space-xl));
-  }
-
-  .panel-heading,
-  .toolbar,
-  .sources-section,
-  .directory-section,
-  .section-heading,
-  .entry-card,
-  .entry-copy,
-  .breadcrumb-nav {
-    display: grid;
-    gap: var(--space-xs);
-  }
-
-  .section-kicker,
-  h2,
-  h3,
-  p,
-  ul,
-  ol {
-    margin: 0;
-  }
-
-  .section-kicker,
-  .button-kicker,
-  .breadcrumb,
-  .item-kicker,
-  .section-heading p {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-  }
-
-  .section-kicker,
-  .breadcrumb,
-  .item-kicker {
-    color: var(--color-accent);
-    text-transform: uppercase;
-  }
-
-  h2 {
-    font-size: clamp(1.4rem, 3vw, 2.1rem);
-    line-height: 1.08;
-    text-wrap: balance;
-  }
-
-  h3 {
-    font-size: 1.08rem;
-    line-height: 1.2;
-    text-wrap: balance;
-  }
-
-  .summary-line,
-  .state-copy,
-  .empty-copy,
-  .error-copy,
-  .item-meta,
-  .section-heading p {
-    color: var(--color-text-muted);
-    line-height: 1.55;
-    text-wrap: pretty;
-  }
-
-  .toolbar,
-  .section-heading {
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: var(--space-md);
-  }
-
-  .toolbar,
-  .sources-section,
-  .directory-section {
-    padding: var(--space-md);
-    background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
-    border-radius: var(--radius-lg);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-  }
-
-  .browser-grid {
-    display: grid;
-    grid-template-columns: minmax(14rem, 0.55fr) minmax(0, 1.45fr);
-    gap: var(--space-md);
-  }
-
-  .choice-list,
-  .entry-list,
-  .breadcrumb-list,
-  .action-row {
-    display: grid;
-    gap: var(--space-xs);
-    padding: 0;
-    list-style: none;
-  }
-
-  .breadcrumb-list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .breadcrumb-list li:not(:last-child)::after {
-    content: '/';
-    margin-inline: var(--space-xs);
-    color: var(--color-text-muted);
-  }
-
-  .entry-card {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    padding: var(--space-sm);
-    background: color-mix(in srgb, var(--color-surface) 66%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
-  }
-
-  .action-row {
-    grid-template-columns: repeat(2, minmax(5rem, 1fr));
-  }
-
-  .choice-button,
-  .primary-button,
-  .breadcrumb-button,
-  .action-button,
-  .unsupported-button {
-    min-height: 2.5rem;
-    font: inherit;
-    color: var(--color-text);
-    cursor: pointer;
-    border: 1px solid var(--color-border);
-    transition:
-      transform 140ms ease,
-      box-shadow 140ms ease,
-      opacity 140ms ease,
-      background-color 140ms ease;
-  }
-
-  .choice-button {
-    display: grid;
-    width: 100%;
-    gap: var(--space-2xs, 0.25rem);
-    padding: var(--space-sm);
-    text-align: left;
-    background: color-mix(in srgb, var(--color-surface) 66%, transparent);
-    border-radius: var(--radius-md);
-  }
-
-  .primary-button,
-  .breadcrumb-button,
-  .action-button,
-  .unsupported-button {
-    padding: var(--space-xs) var(--space-md);
-    font-weight: 800;
-    border-radius: var(--radius-pill);
-  }
-
-  .primary-button {
-    background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface-raised));
-  }
-
-  .breadcrumb-button,
-  .action-button {
-    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
-  }
-
-  .unsupported-button {
-    color: var(--color-text-muted);
-    background: color-mix(in srgb, var(--color-border) 34%, var(--color-surface));
-  }
-
-  button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
-  }
-
-  button:active:not(:disabled) {
-    transform: scale(0.96);
-  }
-
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
-
-  button:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-ring);
-  }
-
-  .button-kicker {
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-  }
-
-  .item-title {
-    overflow-wrap: anywhere;
-    font-weight: 800;
-  }
-
-  .item-meta {
-    overflow-wrap: anywhere;
-    font-size: 0.9rem;
-  }
-
-  .status-line {
-    padding: var(--space-sm) var(--space-md);
-    color: var(--color-text);
-    line-height: 1.5;
-    background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-  }
-
-  .error-copy {
-    padding: var(--space-sm) var(--space-md);
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-danger, #c2410c) 12%, var(--color-surface-raised));
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--color-danger, #c2410c) 36%, var(--color-border));
-  }
-
-  @media (max-width: 860px) {
-    .browser-grid,
-    .toolbar,
-    .section-heading,
-    .entry-card {
-      grid-template-columns: 1fr;
-    }
-
-    .primary-button,
-    .action-button,
-    .unsupported-button {
-      width: 100%;
-    }
-  }
-</style>

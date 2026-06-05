@@ -1,0 +1,243 @@
+.media-files-panel {
+  display: grid;
+  gap: var(--space-lg);
+  padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+}
+
+.media-files-panel .panel-heading,
+.media-files-panel .toolbar,
+.media-files-panel .sources-section,
+.media-files-panel .directory-section,
+.media-files-panel .section-heading,
+.media-files-panel .entry-card,
+.media-files-panel .entry-copy,
+.media-files-panel .breadcrumb-nav {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.media-files-panel .section-kicker,
+.media-files-panel h2,
+.media-files-panel h3,
+.media-files-panel p,
+.media-files-panel ul,
+.media-files-panel ol {
+  margin: 0;
+}
+
+.media-files-panel .section-kicker,
+.media-files-panel .button-kicker,
+.media-files-panel .breadcrumb,
+.media-files-panel .item-kicker,
+.media-files-panel .section-heading p {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.media-files-panel .section-kicker,
+.media-files-panel .breadcrumb,
+.media-files-panel .item-kicker {
+  color: var(--color-accent);
+  text-transform: uppercase;
+}
+
+.media-files-panel h2 {
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.media-files-panel h3 {
+  font-size: 1.08rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.media-files-panel .summary-line,
+.media-files-panel .state-copy,
+.media-files-panel .empty-copy,
+.media-files-panel .error-copy,
+.media-files-panel .item-meta,
+.media-files-panel .section-heading p {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.media-files-panel .toolbar,
+.media-files-panel .section-heading {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.media-files-panel .toolbar,
+.media-files-panel .sources-section,
+.media-files-panel .directory-section {
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.media-files-panel .browser-grid {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.55fr) minmax(0, 1.45fr);
+  gap: var(--space-md);
+}
+
+.media-files-panel .choice-list,
+.media-files-panel .entry-list,
+.media-files-panel .breadcrumb-list,
+.media-files-panel .action-row {
+  display: grid;
+  gap: var(--space-xs);
+  padding: 0;
+  list-style: none;
+}
+
+.media-files-panel .breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.media-files-panel .breadcrumb-list li:not(:last-child)::after {
+  content: '/';
+  margin-inline: var(--space-xs);
+  color: var(--color-text-muted);
+}
+
+.media-files-panel .entry-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: var(--space-sm);
+  background: color-mix(in srgb, var(--color-surface) 66%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+.media-files-panel .action-row {
+  grid-template-columns: repeat(2, minmax(5rem, 1fr));
+}
+
+.media-files-panel .choice-button,
+.media-files-panel .primary-button,
+.media-files-panel .breadcrumb-button,
+.media-files-panel .action-button,
+.media-files-panel .unsupported-button {
+  min-height: 2.5rem;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease,
+    background-color 140ms ease;
+}
+
+.media-files-panel .choice-button {
+  display: grid;
+  width: 100%;
+  gap: var(--space-2xs, 0.25rem);
+  padding: var(--space-sm);
+  text-align: left;
+  background: color-mix(in srgb, var(--color-surface) 66%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.media-files-panel .primary-button,
+.media-files-panel .breadcrumb-button,
+.media-files-panel .action-button,
+.media-files-panel .unsupported-button,
+.media-files-panel .show-more-button {
+  padding: var(--space-xs) var(--space-md);
+  font-weight: 800;
+  border-radius: var(--radius-pill);
+}
+
+.media-files-panel .primary-button {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface-raised));
+}
+
+.media-files-panel .breadcrumb-button,
+.media-files-panel .action-button,
+.media-files-panel .show-more-button {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+}
+
+.media-files-panel .unsupported-button {
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-border) 34%, var(--color-surface));
+}
+
+.media-files-panel button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
+}
+
+.media-files-panel button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.media-files-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.media-files-panel button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-ring);
+}
+
+.media-files-panel .button-kicker {
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.media-files-panel .item-title {
+  overflow-wrap: anywhere;
+  font-weight: 800;
+}
+
+.media-files-panel .item-meta {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.media-files-panel .status-line {
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text);
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.media-files-panel .error-copy {
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-danger, #c2410c) 12%, var(--color-surface-raised));
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--color-danger, #c2410c) 36%, var(--color-border));
+}
+
+@media (max-width: 860px) {
+  .media-files-panel .browser-grid,
+  .media-files-panel .toolbar,
+  .media-files-panel .section-heading,
+  .media-files-panel .entry-card {
+    grid-template-columns: 1fr;
+  }
+
+  .media-files-panel .primary-button,
+  .media-files-panel .action-button,
+  .media-files-panel .unsupported-button {
+    width: 100%;
+  }
+}

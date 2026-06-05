@@ -1,155 +1,66 @@
-import { isTextSecretSafe, redactDiagnosticText } from '$lib/safety/redaction';
-
 export const LOCAL_PLAYLIST_STORAGE_KEY = 'chorus3.localPlaylists';
 
-const MAX_PLAYLISTS = 100;
-const MAX_ITEMS_PER_PLAYLIST = 1_000;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
-const PLAYLIST_ID_PATTERN = /^playlist-[A-Za-z0-9_-]+$/;
-const ITEM_ID_PATTERN = /^item-[A-Za-z0-9_-]+$/;
+import type {
+  LocalPlaylistDispatch,
+  LocalPlaylistItemRecord,
+  LocalPlaylistItemSnapshot,
+  LocalPlaylistMoveDirection,
+  LocalPlaylistMutationName,
+  LocalPlaylistMutationResult,
+  LocalPlaylistPlayableItem,
+  LocalPlaylistRecord,
+  LocalPlaylistSnapshot,
+  LocalPlaylistStorage,
+  LocalPlaylistStoreOptions,
+  LocalPlaylistStoreSnapshot,
+  LocalPlaylistValidationErrors
+} from './localPlaylistTypes';
 
-export type LocalPlaylistItemKind = 'audio' | 'video' | 'playlist';
-export type LocalPlaylistMutationStatus = 'idle' | 'running' | 'success' | 'error';
-export type LocalPlaylistMutationName =
-  | 'createPlaylist'
-  | 'renamePlaylist'
-  | 'removePlaylist'
-  | 'selectPlaylist'
-  | 'clearPlaylist'
-  | 'addItems'
-  | 'removeItem'
-  | 'moveItem'
-  | 'reorderItems'
-  | 'reset';
-export type LocalPlaylistStorageWarningCode =
-  | 'read-failed'
-  | 'write-failed'
-  | 'remove-failed'
-  | 'invalid-storage';
-export type LocalPlaylistValidationField =
-  | 'id'
-  | 'label'
-  | 'playlistId'
-  | 'itemId'
-  | 'itemIds'
-  | 'items';
-export type LocalPlaylistValidationErrors = Partial<Record<LocalPlaylistValidationField, string>>;
-export type LocalPlaylistMoveDirection = 'up' | 'down';
+export type {
+  LocalPlaylistDispatch,
+  LocalPlaylistItemInput,
+  LocalPlaylistItemKind,
+  LocalPlaylistItemSnapshot,
+  LocalPlaylistMoveDirection,
+  LocalPlaylistMutationName,
+  LocalPlaylistMutationResult,
+  LocalPlaylistMutationStatus,
+  LocalPlaylistPlayableItem,
+  LocalPlaylistSafeErrorSnapshot,
+  LocalPlaylistSnapshot,
+  LocalPlaylistStorage,
+  LocalPlaylistStorageWarning,
+  LocalPlaylistStorageWarningCode,
+  LocalPlaylistStoreOptions,
+  LocalPlaylistStoreSnapshot,
+  LocalPlaylistValidationErrors,
+  LocalPlaylistValidationField
+} from './localPlaylistTypes';
 
-export type LocalPlaylistStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+import {
+  ITEM_ID_PATTERN,
+  MAX_ITEMS_PER_PLAYLIST,
+  PLAYLIST_ID_PATTERN,
+  cloneItemSnapshot,
+  clonePlayableItem,
+  clonePlaylistRecord,
+  clonePlaylistSnapshot,
+  cloneStoreSnapshot,
+  cloneValidationErrors,
+  createRandomId,
+  createStorageWarning,
+  cryptoRandomToken,
+  isRecord,
+  normalizeOptionalDuration,
+  normalizeOptionalPrivateText,
+  normalizeOptionalSourceId,
+  normalizePositions,
+  normalizeSafeLabel,
+  validatePersistedPayload,
+  validatePrivateFile
+} from './localPlaylistModel';
 
-export interface LocalPlaylistStorageWarning {
-  code: LocalPlaylistStorageWarningCode;
-  message: string;
-}
-
-export interface LocalPlaylistSafeErrorSnapshot {
-  source: 'input' | 'storage';
-  code: string;
-  message: string;
-}
-
-export interface LocalPlaylistItemInput {
-  kind: LocalPlaylistItemKind;
-  label: string;
-  file: string;
-  sourceId?: string;
-  durationSeconds?: number;
-  thumbnail?: string;
-}
-
-export interface LocalPlaylistItemSnapshot {
-  id: string;
-  kind: LocalPlaylistItemKind;
-  label: string;
-  position: number;
-  sourceId?: string;
-  durationSeconds?: number;
-  addedAt: string;
-}
-
-export interface LocalPlaylistPlayableItem {
-  id: string;
-  kind: LocalPlaylistItemKind;
-  label: string;
-  file: string;
-  position: number;
-  sourceId?: string;
-  durationSeconds?: number;
-  thumbnail?: string;
-}
-
-export interface LocalPlaylistSnapshot {
-  id: string;
-  label: string;
-  items: LocalPlaylistItemSnapshot[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface LocalPlaylistStoreSnapshot {
-  playlists: LocalPlaylistSnapshot[];
-  selectedPlaylistId: string | null;
-  selectedPlaylist: LocalPlaylistSnapshot | null;
-  playlistCount: number;
-  selectedItemCount: number;
-  mutationStatus: LocalPlaylistMutationStatus;
-  lastMutation: LocalPlaylistMutationName | null;
-  validationErrors: LocalPlaylistValidationErrors;
-  storageWarning: LocalPlaylistStorageWarning | null;
-  lastError: LocalPlaylistSafeErrorSnapshot | null;
-  lastUpdatedAt: string | null;
-}
-
-export interface LocalPlaylistStoreOptions {
-  storage?: LocalPlaylistStorage | null;
-  now?: () => string;
-  createId?: (prefix: 'playlist' | 'item') => string;
-}
-
-export type LocalPlaylistMutationResult<T extends object = object> =
-  | ({ ok: true } & T)
-  | { ok: false; errors: LocalPlaylistValidationErrors };
-
-export interface LocalPlaylistDispatch {
-  createPlaylist(label: string): LocalPlaylistMutationResult<{ playlist: LocalPlaylistSnapshot }>;
-  renamePlaylist(
-    playlistId: string,
-    label: string
-  ): LocalPlaylistMutationResult<{ playlist: LocalPlaylistSnapshot }>;
-  removePlaylist(playlistId: string): LocalPlaylistMutationResult;
-  selectPlaylist(
-    playlistId: string
-  ): LocalPlaylistMutationResult<{ playlist: LocalPlaylistSnapshot }>;
-  clearPlaylist(playlistId: string): LocalPlaylistMutationResult;
-  addItems(
-    playlistId: string,
-    items: unknown
-  ): LocalPlaylistMutationResult<{ items: LocalPlaylistItemSnapshot[] }>;
-  removeItem(playlistId: string, itemId: string): LocalPlaylistMutationResult;
-  moveItem(
-    playlistId: string,
-    itemId: string,
-    direction: LocalPlaylistMoveDirection
-  ): LocalPlaylistMutationResult;
-  reorderItems(playlistId: string, itemIds: string[]): LocalPlaylistMutationResult;
-  getPlayableItems?(playlistId: string): LocalPlaylistPlayableItem[];
-  reset(): void;
-}
-
-interface LocalPlaylistItemRecord extends LocalPlaylistItemSnapshot {
-  file: string;
-  thumbnail?: string;
-}
-
-interface LocalPlaylistRecord extends Omit<LocalPlaylistSnapshot, 'items'> {
-  items: LocalPlaylistItemRecord[];
-}
-
-interface PersistedLocalPlaylistsPayload {
-  playlists: LocalPlaylistRecord[];
-  selectedPlaylistId: string | null;
-}
+export { createLocalPlaylistSafeError } from './localPlaylistModel';
 
 const DEFAULT_SNAPSHOT: LocalPlaylistStoreSnapshot = {
   playlists: [],
@@ -670,327 +581,3 @@ export function createLocalPlaylistStore(
 export const localPlaylistStore = createLocalPlaylistStore({
   storage: typeof localStorage === 'undefined' ? null : localStorage
 });
-
-function validatePersistedPayload(value: unknown): PersistedLocalPlaylistsPayload {
-  if (!isRecord(value) || !Array.isArray(value.playlists)) {
-    throw new Error('Persisted local playlists must include a playlists array.');
-  }
-
-  if (value.playlists.length > MAX_PLAYLISTS) {
-    throw new Error('Persisted local playlists exceeded the playlist limit.');
-  }
-
-  const playlists = value.playlists.map(validatePersistedPlaylist);
-  const selectedPlaylistId = validatePersistedSelectedPlaylistId(
-    value.selectedPlaylistId,
-    playlists
-  );
-
-  return { playlists, selectedPlaylistId };
-}
-
-function validatePersistedPlaylist(value: unknown): LocalPlaylistRecord {
-  if (!isRecord(value) || !Array.isArray(value.items)) {
-    throw new Error('Persisted local playlist was invalid.');
-  }
-
-  if (!isValidPlaylistId(value.id)) {
-    throw new Error('Persisted local playlist id was invalid.');
-  }
-
-  const label = normalizeSafeLabel(value.label, 'Local playlist name is required.');
-  if (!label.ok) {
-    throw new Error('Persisted local playlist label was invalid.');
-  }
-
-  if (value.items.length > MAX_ITEMS_PER_PLAYLIST) {
-    throw new Error('Persisted local playlist item limit exceeded.');
-  }
-
-  return {
-    id: value.id,
-    label: label.value,
-    items: normalizePositions(value.items.map(validatePersistedItem)),
-    createdAt: validateIsoString(value.createdAt),
-    updatedAt: validateIsoString(value.updatedAt)
-  };
-}
-
-function validatePersistedItem(value: unknown): LocalPlaylistItemRecord {
-  if (!isRecord(value)) {
-    throw new Error('Persisted local playlist item was invalid.');
-  }
-
-  if (!isValidItemId(value.id)) {
-    throw new Error('Persisted local playlist item id was invalid.');
-  }
-
-  if (value.kind !== 'audio' && value.kind !== 'video' && value.kind !== 'playlist') {
-    throw new Error('Persisted local playlist item kind was invalid.');
-  }
-
-  const label = normalizeSafeLabel(value.label, 'Local playlist item label is required.');
-  if (!label.ok) {
-    throw new Error('Persisted local playlist item label was invalid.');
-  }
-
-  const file = validatePrivateFile(value.file);
-  if (!file.ok) {
-    throw new Error('Persisted local playlist item file was invalid.');
-  }
-
-  const sourceId = normalizeOptionalSourceId(value.sourceId);
-  if (sourceId === false) {
-    throw new Error('Persisted local playlist source id was invalid.');
-  }
-
-  const durationSeconds = normalizeOptionalDuration(value.durationSeconds);
-  if (durationSeconds === false) {
-    throw new Error('Persisted local playlist duration was invalid.');
-  }
-
-  const thumbnail = normalizeOptionalPrivateText(value.thumbnail);
-  if (thumbnail === false) {
-    throw new Error('Persisted local playlist thumbnail was invalid.');
-  }
-
-  return {
-    id: value.id,
-    kind: value.kind,
-    label: label.value,
-    file: file.value,
-    position:
-      typeof value.position === 'number' &&
-      Number.isSafeInteger(value.position) &&
-      value.position >= 0
-        ? value.position
-        : 0,
-    ...(sourceId === undefined ? {} : { sourceId }),
-    ...(durationSeconds === undefined ? {} : { durationSeconds }),
-    ...(thumbnail === undefined ? {} : { thumbnail }),
-    addedAt: validateIsoString(value.addedAt)
-  };
-}
-
-function validatePersistedSelectedPlaylistId(
-  value: unknown,
-  playlists: LocalPlaylistRecord[]
-): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (typeof value !== 'string' || !playlists.some((playlist) => playlist.id === value)) {
-    throw new Error('Persisted selected local playlist id was invalid.');
-  }
-
-  return value;
-}
-
-function normalizeSafeLabel(
-  value: unknown,
-  requiredMessage: string
-): { ok: true; value: string } | { ok: false; error: string } {
-  if (typeof value !== 'string') {
-    return { ok: false, error: requiredMessage };
-  }
-
-  const label = value.trim().replace(/\s+/g, ' ');
-  if (!label) {
-    return { ok: false, error: requiredMessage };
-  }
-
-  if (!isTextSecretSafe(label)) {
-    return { ok: false, error: 'Use a safe display name without paths, URLs, or credentials.' };
-  }
-
-  return { ok: true, value: label };
-}
-
-function validatePrivateFile(
-  value: unknown
-): { ok: true; value: string } | { ok: false; error: string } {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return { ok: false, error: 'Choose a playable local media item.' };
-  }
-
-  const file = value.trim();
-  if (/https?:\/\//i.test(file) || /authorization\s*:/i.test(file)) {
-    return {
-      ok: false,
-      error: 'Choose a playable local media item without remote URLs or credentials.'
-    };
-  }
-
-  return { ok: true, value: file };
-}
-
-function normalizeOptionalSourceId(value: unknown): string | undefined | false {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  if (typeof value !== 'string') {
-    return false;
-  }
-
-  const sourceId = value.trim();
-  return sourceId && SAFE_ID_PATTERN.test(sourceId.replace(/:/g, '_')) ? sourceId : false;
-}
-
-function normalizeOptionalDuration(value: unknown): number | undefined | false {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : false;
-}
-
-function normalizeOptionalPrivateText(value: unknown): string | undefined | false {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  if (typeof value !== 'string') {
-    return false;
-  }
-
-  const text = value.trim();
-  return text ? text : undefined;
-}
-
-function validateIsoString(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error('Persisted timestamp was invalid.');
-  }
-
-  return value;
-}
-
-function isValidPlaylistId(value: unknown): value is string {
-  return typeof value === 'string' && PLAYLIST_ID_PATTERN.test(value);
-}
-
-function isValidItemId(value: unknown): value is string {
-  return typeof value === 'string' && ITEM_ID_PATTERN.test(value);
-}
-
-function normalizePositions(items: LocalPlaylistItemRecord[]): LocalPlaylistItemRecord[] {
-  return items.map((item, position) => ({ ...item, position }));
-}
-
-function clonePlaylistRecord(playlist: LocalPlaylistRecord): LocalPlaylistRecord {
-  return {
-    ...playlist,
-    items: playlist.items.map((item) => ({ ...item }))
-  };
-}
-
-function clonePlaylistSnapshot(playlist: LocalPlaylistRecord): LocalPlaylistSnapshot {
-  return {
-    id: playlist.id,
-    label: playlist.label,
-    items: playlist.items.map(cloneItemSnapshot),
-    createdAt: playlist.createdAt,
-    updatedAt: playlist.updatedAt
-  };
-}
-
-function cloneItemSnapshot(item: LocalPlaylistItemRecord): LocalPlaylistItemSnapshot {
-  return {
-    id: item.id,
-    kind: item.kind,
-    label: item.label,
-    position: item.position,
-    ...(item.sourceId === undefined ? {} : { sourceId: item.sourceId }),
-    ...(item.durationSeconds === undefined ? {} : { durationSeconds: item.durationSeconds }),
-    addedAt: item.addedAt
-  };
-}
-
-function clonePlayableItem(item: LocalPlaylistItemRecord): LocalPlaylistPlayableItem {
-  return {
-    id: item.id,
-    kind: item.kind,
-    label: item.label,
-    file: item.file,
-    position: item.position,
-    ...(item.sourceId === undefined ? {} : { sourceId: item.sourceId }),
-    ...(item.durationSeconds === undefined ? {} : { durationSeconds: item.durationSeconds }),
-    ...(item.thumbnail === undefined ? {} : { thumbnail: item.thumbnail })
-  };
-}
-
-function cloneStoreSnapshot(snapshot: LocalPlaylistStoreSnapshot): LocalPlaylistStoreSnapshot {
-  return {
-    ...snapshot,
-    playlists: snapshot.playlists.map((playlist) => ({
-      ...playlist,
-      items: playlist.items.map((item) => ({ ...item }))
-    })),
-    selectedPlaylist: snapshot.selectedPlaylist
-      ? {
-          ...snapshot.selectedPlaylist,
-          items: snapshot.selectedPlaylist.items.map((item) => ({ ...item }))
-        }
-      : null,
-    validationErrors: cloneValidationErrors(snapshot.validationErrors),
-    storageWarning: snapshot.storageWarning ? { ...snapshot.storageWarning } : null,
-    lastError: snapshot.lastError ? { ...snapshot.lastError } : null
-  };
-}
-
-function cloneValidationErrors(
-  errors: LocalPlaylistValidationErrors
-): LocalPlaylistValidationErrors {
-  return { ...errors };
-}
-
-function createStorageWarning(code: LocalPlaylistStorageWarningCode): LocalPlaylistStorageWarning {
-  switch (code) {
-    case 'read-failed':
-      return {
-        code,
-        message: 'Local playlists could not be read. In-memory playlists are still available.'
-      };
-    case 'write-failed':
-      return {
-        code,
-        message: 'Local playlists could not be written. Changes are kept in memory only.'
-      };
-    case 'remove-failed':
-      return {
-        code,
-        message: 'Local playlists could not be removed from browser storage.'
-      };
-    case 'invalid-storage':
-      return {
-        code,
-        message: 'Local playlists were reset because stored data was invalid.'
-      };
-  }
-}
-
-function createRandomId(prefix: 'playlist' | 'item'): string {
-  return `${prefix}-${cryptoRandomToken()}`;
-}
-
-function cryptoRandomToken(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-  }
-
-  return Math.random().toString(36).slice(2, 12);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-export function createLocalPlaylistSafeError(error: unknown): LocalPlaylistSafeErrorSnapshot {
-  return {
-    source: 'storage',
-    code: 'storage/failed',
-    message: redactDiagnosticText(error)
-  };
-}

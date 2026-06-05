@@ -221,6 +221,92 @@ describe('video write store', () => {
     });
   });
 
+  it('uses JSON-RPC batches for default watched and unwatched writes when the client supports them', async () => {
+    const batchCalls: unknown[] = [];
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn(),
+      async callBatch<TResult = unknown>(calls: readonly unknown[]) {
+        batchCalls.push(calls);
+        return calls.map(() => 'OK' as TResult);
+      }
+    };
+    const store = createVideoWriteStore({
+      createClient: () => client,
+      now: () => '2026-05-01T10:20:30.000Z'
+    });
+
+    await store.markEpisodesWatched(
+      [1, 2, 3].map((episodeid) => ({ episodeid, label: `Episode ${episodeid}` })),
+      true
+    );
+
+    expect(batchCalls).toEqual([
+      [
+        {
+          method: 'VideoLibrary.SetEpisodeDetails',
+          params: { episodeid: 1, playcount: 1, lastplayed: '2026-05-01 10:20:30' }
+        },
+        {
+          method: 'VideoLibrary.SetEpisodeDetails',
+          params: { episodeid: 2, playcount: 1, lastplayed: '2026-05-01 10:20:30' }
+        },
+        {
+          method: 'VideoLibrary.SetEpisodeDetails',
+          params: { episodeid: 3, playcount: 1, lastplayed: '2026-05-01 10:20:30' }
+        }
+      ]
+    ]);
+    expect(store.snapshot).toMatchObject({
+      status: 'success',
+      summary: { total: 3, succeeded: 3, failed: 0 },
+      writeCounts: { episodesWatched: 3 }
+    });
+  });
+
+  it('chunks large default watched writes into bounded JSON-RPC batches', async () => {
+    const batchSizes: number[] = [];
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn(),
+      async callBatch<TResult = unknown>(calls: readonly unknown[]) {
+        batchSizes.push(calls.length);
+        return calls.map(() => 'OK' as TResult);
+      }
+    };
+    const store = createVideoWriteStore({
+      createClient: () => client,
+      now: () => '2026-05-01T10:20:30.000Z'
+    });
+
+    await store.markEpisodesWatched(
+      Array.from({ length: 103 }, (_value, index) => ({
+        episodeid: index + 1,
+        label: `Episode ${index + 1}`
+      })),
+      true
+    );
+
+    expect(batchSizes).toEqual([50, 50, 3]);
+    expect(store.snapshot).toMatchObject({
+      status: 'success',
+      summary: { total: 103, succeeded: 103, failed: 0 },
+      writeCounts: { episodesWatched: 103 }
+    });
+  });
+
+  it('keeps custom write method batches on the per-target path', async () => {
+    const { store, writeMethods } = createHarness();
+
+    await store.markEpisodesWatched(
+      [
+        { episodeid: 1, label: 'Episode 1' },
+        { episodeid: 2, label: 'Episode 2' }
+      ],
+      true
+    );
+
+    expect(writeMethods.setEpisodeDetails).toHaveBeenCalledTimes(2);
+  });
+
   it('continues episode batches after individual write failures and records sanitized failures', async () => {
     const { store, writeMethods } = createHarness();
     vi.mocked(writeMethods.setEpisodeDetails).mockImplementation(async (_client, params) => {

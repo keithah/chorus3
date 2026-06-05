@@ -1,4 +1,5 @@
 <script lang="ts">
+  import './browserFilesPageClassic.css';
   import { buildPrimaryAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type {
     MediaFilesActionDispatch,
@@ -371,29 +372,50 @@
 
   async function playEntry(entry: MediaDirectoryEntrySnapshot): Promise<void> {
     if (!entry.capabilities.canPlay) return;
-    await actionDispatch.playFileItem({
+    await actionDispatch.playFileItem(fileActionItem(entry));
+  }
+
+  function fileActionItem(entry: MediaDirectoryEntrySnapshot): {
+    id: string;
+    label: string;
+    media: MediaFilesMedia;
+  } {
+    return {
       id: entry.id,
       label: entry.label,
       media: snapshot.media
-    });
+    };
   }
 
   async function queueEntry(entry: MediaDirectoryEntrySnapshot): Promise<void> {
     if (!entry.capabilities.canQueue) return;
-    await actionDispatch.queueFileItem({
-      id: entry.id,
-      label: entry.label,
-      media: snapshot.media
-    });
+    await actionDispatch.queueFileItem(fileActionItem(entry));
   }
 
   async function playCurrentFolder(): Promise<void> {
-    for (const entry of playableContentItems) {
-      await playEntry(entry);
+    const [firstEntry, ...remainingEntries] = playableContentItems;
+    if (!firstEntry) {
+      return;
+    }
+
+    await playEntry(firstEntry);
+    const remainingQueueable = remainingEntries.filter((entry) => entry.capabilities.canQueue);
+    if (remainingQueueable.length > 0 && actionDispatch.queueFileItems) {
+      await actionDispatch.queueFileItems(remainingQueueable.map(fileActionItem));
+      return;
+    }
+
+    for (const entry of remainingEntries) {
+      await queueEntry(entry);
     }
   }
 
   async function queueCurrentFolder(): Promise<void> {
+    if (actionDispatch.queueFileItems) {
+      await actionDispatch.queueFileItems(queueableContentItems.map(fileActionItem));
+      return;
+    }
+
     for (const entry of queueableContentItems) {
       await queueEntry(entry);
     }
@@ -627,276 +649,3 @@
     </div>
   </div>
 </section>
-
-<style>
-  .classic-browser-page {
-    display: grid;
-    grid-template-columns: 255px minmax(0, 1fr);
-    min-height: calc(100vh - 123px);
-    background: #ddd;
-    color: #333;
-  }
-
-  .classic-browser-nav {
-    display: grid;
-    align-content: start;
-    gap: 2rem;
-    padding: 2rem 1.5rem;
-    background: #f2f2f2;
-  }
-
-  .classic-browser-nav h2 {
-    margin: 0 0 0.8rem;
-    color: #8d8d8d;
-    font-size: 1rem;
-    font-weight: 400;
-    text-transform: uppercase;
-  }
-
-  .classic-browser-nav nav {
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  .classic-browser-nav a {
-    display: flex;
-    gap: 0.45rem;
-    color: #333;
-    font-size: 0.95rem;
-    text-decoration: none;
-  }
-
-  .classic-browser-nav a.active {
-    color: #42a5dc;
-    font-weight: 700;
-  }
-
-  .classic-browser-content header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    min-height: 43px;
-    padding: 0.8rem 1rem;
-    background: #d1d1d1;
-  }
-
-  .classic-browser-content h2 {
-    margin: 0;
-    font-size: 1rem;
-  }
-
-  .classic-browser-heading {
-    display: grid;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-
-  .classic-browser-breadcrumbs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    color: #777;
-    font-size: 0.82rem;
-  }
-
-  .classic-browser-breadcrumbs a {
-    color: #42a5dc;
-    text-decoration: none;
-  }
-
-  .classic-browser-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .classic-browser-toolbar button,
-  .sort-wrapper summary {
-    min-height: 30px;
-    border: 0;
-    background: #9e9e9e;
-    color: white;
-    font: inherit;
-    font-size: 0.85rem;
-  }
-
-  .classic-browser-toolbar button,
-  .sort-wrapper summary {
-    padding: 0 0.65rem;
-  }
-
-  .sort-wrapper {
-    position: relative;
-  }
-
-  .sort-wrapper summary {
-    display: grid;
-    align-items: center;
-    list-style: none;
-    cursor: pointer;
-  }
-
-  .sort-wrapper summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .classic-browser-toolbar button:disabled {
-    opacity: 0.45;
-  }
-
-  .sorts {
-    position: absolute;
-    right: 0;
-    z-index: 3;
-    min-width: 10rem;
-    margin: 0;
-    padding: 0.35rem 0;
-    background: #fff;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
-    list-style: none;
-  }
-
-  .sorts button {
-    width: 100%;
-    justify-content: space-between;
-    background: #fff;
-    color: #555;
-    text-align: left;
-  }
-
-  .sorts button.active {
-    color: #42a5dc;
-    font-weight: 700;
-  }
-
-  .sorts button.order-ascending::after {
-    content: '⌃';
-    float: right;
-  }
-
-  .sorts button.order-descending::after {
-    content: '⌄';
-    float: right;
-  }
-
-  .classic-browser-columns {
-    display: grid;
-    grid-template-columns: minmax(300px, 1fr) minmax(260px, 0.95fr);
-    gap: 0;
-    padding: 0;
-  }
-
-  .classic-browser-list article {
-    display: grid;
-    grid-template-columns: 42px 1fr auto;
-    align-items: center;
-    min-height: 43px;
-    border-bottom: 1px solid #ddd;
-    background: #f4f4f4;
-  }
-
-  .classic-browser-show-more {
-    width: 100%;
-    min-height: 43px;
-    color: #555;
-    background: #ececec;
-    border: 0;
-    border-bottom: 1px solid #ddd;
-    font: inherit;
-    cursor: pointer;
-    text-align: center;
-  }
-
-  .classic-browser-thumb {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border: 0;
-    background: #cfcfcf;
-    color: #777;
-    font: inherit;
-    cursor: pointer;
-    overflow: hidden;
-  }
-
-  .classic-browser-thumb:disabled {
-    cursor: default;
-  }
-
-  .classic-browser-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .classic-browser-list a,
-  .classic-browser-title {
-    overflow: hidden;
-    padding: 0 0.7rem;
-    border: 0;
-    background: transparent;
-    color: #333;
-    font: inherit;
-    font-weight: 400;
-    text-decoration: none;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .classic-browser-list article > span:last-child {
-    padding: 0 0.8rem;
-    color: #b3b3b3;
-  }
-
-  .classic-browser-actions {
-    display: flex;
-    gap: 0.2rem;
-    padding: 0 0.45rem;
-  }
-
-  .classic-browser-actions button {
-    border: 0;
-    background: transparent;
-    color: #555;
-    cursor: pointer;
-  }
-
-  .classic-browser-actions button:disabled {
-    color: #bbb;
-    cursor: default;
-  }
-
-  .classic-browser-folders {
-    min-height: calc(100vh - 166px);
-    background: #d8d8d8;
-  }
-
-  .classic-browser-folders article {
-    background: #ececec;
-  }
-
-  .classic-browser-intro {
-    padding: 1.5rem;
-    color: #777;
-  }
-
-  .classic-browser-intro h3 {
-    margin: 0 0 0.7rem;
-    color: #666;
-    font-size: 1.05rem;
-    font-weight: 400;
-  }
-
-  .classic-browser-intro p {
-    max-width: 34rem;
-    margin: 0;
-    color: #888;
-    line-height: 1.45;
-  }
-</style>

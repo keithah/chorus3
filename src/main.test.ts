@@ -8,6 +8,9 @@ import { M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofF
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
 async function importMain(): Promise<typeof import('./main')> {
+  const { preloadAppPageSurfaceRoutesForTest } =
+    await import('./lib/app-pages/appPageSurfaceLazyRoutes');
+  await preloadAppPageSurfaceRoutesForTest();
   return import('./main');
 }
 

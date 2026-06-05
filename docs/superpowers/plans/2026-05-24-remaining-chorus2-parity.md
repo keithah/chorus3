@@ -19,10 +19,21 @@ closed or superseded by the implemented Chorus3 surfaces and verification below.
 - Locale and help parity: implemented with current help topics, aliases, package fallbacks, and
   i18n verification.
 - Visual and live verification: completed against the installed Kodi package.
+- Refactor support for parity work: the app runtime shell now owns overlay, drawer, and local
+  runtime wiring through a dedicated frame component; lazy route call sites use a typed bound route
+  contract; full-library paged reads now reject malformed positive-total Kodi responses instead of
+  silently treating them as empty libraries.
 
 ## Evidence
 
 - `npm run verify` passed with 92 test files and 1510 tests.
+- The parity/refactor branch passed the expanded 2026-06-05 verification after the route-shell and
+  paged-library cleanup:
+  - `npm run typecheck`
+  - focused Vitest route/library run: 7 files, 199 tests
+  - `npm run lint`
+  - `npm test`: 107 files, 1595 tests
+  - `npm run build`
 - `npm run package:kodi && npm run verify:kodi-package` passed after adding the actual Chorus3
   help topic package fallbacks.
 - Installed package was refreshed with:

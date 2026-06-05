@@ -12,7 +12,8 @@
   } from '$lib/stores';
   import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
   import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
-  import MediaPlaylistsPanel from '$components/MediaPlaylistsPanel.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import { bindLazyRoute, loadMediaPlaylistsPanel } from '$lib/app-pages/appPageSurfaceLazyRoutes';
 
   export interface LocalPlaylistPageActions {
     playInKodi: (
@@ -376,7 +377,14 @@
 </section>
 
 <section class="kodi-playlists" aria-label="Kodi playlists">
-  <MediaPlaylistsPanel {snapshot} {dispatch} {actionDispatch} {i18n} />
+  <LazyRouteComponent
+    route={bindLazyRoute(loadMediaPlaylistsPanel, {
+      snapshot,
+      dispatch,
+      actionDispatch,
+      i18n
+    })}
+  />
 </section>
 
 <style>

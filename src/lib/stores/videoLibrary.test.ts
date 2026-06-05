@@ -212,7 +212,7 @@ describe('video library store', () => {
     const { client, store } = createHarness();
     enqueueEmptyMovies(client);
 
-    await store.refresh('manual');
+    await store.refresh('poll');
 
     expect(callParams(client.calls)).toEqual([
       {
@@ -238,7 +238,7 @@ describe('video library store', () => {
             'resume',
             'dateadded'
           ],
-          limits: { start: 0, end: 5000 }
+          limits: { start: 0, end: 500 }
         }
       },
       {
@@ -261,7 +261,7 @@ describe('video library store', () => {
             'lastplayed',
             'dateadded'
           ],
-          limits: { start: 0, end: 5000 }
+          limits: { start: 0, end: 500 }
         }
       },
       {
@@ -379,12 +379,32 @@ describe('video library store', () => {
             'resume',
             'dateadded'
           ],
-          limits: { start: 0, end: 5000 },
+          limits: { start: 0, end: 500 },
           sort: { method: 'title', order: 'ascending' }
         }
       }
     ]);
     expect(JSON.stringify(client.calls)).not.toContain('file');
+  });
+
+  it('deduplicates identical in-flight refreshes instead of restarting Kodi reads', async () => {
+    const { client, store } = createHarness();
+    const movies = deferred<unknown>();
+    client.enqueue('VideoLibrary.GetMovies', movies);
+    enqueueEmptyTvShows(client);
+    enqueueEmptyRecentVideo(client);
+
+    const first = store.refresh('manual');
+    const second = store.refresh('manual');
+    await flushPromises();
+
+    expect(client.calls).toHaveLength(7);
+
+    movies.resolve({ movies: [], limits: { start: 0, end: 0, total: 0 } });
+    await Promise.all([first, second]);
+
+    expect(client.calls).toHaveLength(7);
+    expect(store.snapshot.refreshStatus).toBe('ready');
   });
 
   it('normalizes successful recent video snapshots and clones recent arrays on read', async () => {
@@ -424,7 +444,7 @@ describe('video library store', () => {
     });
     enqueueEmptyMusicVideos(client);
 
-    await store.refresh('manual');
+    await store.refresh('poll');
 
     const snapshot = store.snapshot;
     expect(snapshot).toMatchObject({
@@ -468,24 +488,59 @@ describe('video library store', () => {
     expectSecretSafe(store.snapshot);
   });
 
-  it('preserves bounded 25-of-503 movie limits without pretending the full large grid was fetched', async () => {
+  it('loads large movie libraries in pages while preserving full-library filters', async () => {
     const { client, store } = createHarness();
     client.enqueue('VideoLibrary.GetMovies', {
-      movies: Array.from({ length: 25 }, (_, index) => ({
+      movies: Array.from({ length: 500 }, (_, index) => ({
         movieid: index + 1,
         label: `Movie ${index + 1}`
       })),
-      limits: { start: 0, end: 25, total: 503 }
+      limits: { start: 0, end: 500, total: 503 }
     });
     enqueueEmptyTvShows(client);
-    enqueueEmptyRecentVideo(client);
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [],
+      limits: { start: 0, end: 25, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: [],
+      limits: { start: 0, end: 25, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetMovies', {
+      movies: Array.from({ length: 3 }, (_, index) => ({
+        movieid: index + 501,
+        label: `Movie ${index + 501}`
+      })),
+      limits: { start: 500, end: 503, total: 503 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 25, total: 0 }
+    });
+    client.enqueue('VideoLibrary.GetEpisodes', {
+      episodes: [],
+      limits: { start: 0, end: 25, total: 0 }
+    });
+    enqueueEmptyMusicVideos(client);
 
     await store.refresh('manual');
 
-    expect(store.snapshot.movies).toHaveLength(25);
-    expect(store.snapshot.limits.movies).toEqual({ start: 0, end: 25, total: 503 });
+    expect(store.snapshot.movies).toHaveLength(503);
+    expect(store.snapshot.limits.movies).toEqual({ start: 0, end: 503, total: 503 });
     expect(store.snapshot.isEmpty).toBe(false);
-    expect(JSON.stringify(store.snapshot)).not.toContain('Movie 503');
+    expect(store.snapshot.movies.at(-1)).toMatchObject({ movieid: 503, label: 'Movie 503' });
+    expect(
+      client.calls
+        .filter((call) => call.method === 'VideoLibrary.GetMovies')
+        .map((call) => ({
+          limits: (call.params as { limits?: unknown }).limits
+        }))
+    ).toEqual([
+      { limits: { start: 0, end: 500 } },
+      { limits: { start: 0, end: 25 } },
+      { limits: { start: 0, end: 25 } },
+      { limits: { start: 500, end: 503 } }
+    ]);
   });
 
   it('normalizes successful movie snapshots without leaking raw file fields', async () => {
@@ -743,7 +798,7 @@ describe('video library store', () => {
     const slowRefresh = store.refresh('manual');
     await flushPromises();
     const staleSignal = client.calls[0].options?.signal;
-    await store.refresh('manual');
+    await store.refresh('poll');
     expect(staleSignal?.aborted).toBe(true);
     slow.reject(new Error('Authorization: Basic abc123 raw response body smb://secret/video'));
     await slowRefresh;

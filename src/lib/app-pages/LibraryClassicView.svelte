@@ -60,6 +60,9 @@
     order: 'asc' | 'desc';
   };
 
+  const CARD_RENDER_WINDOW_INITIAL = 120;
+  const CARD_RENDER_WINDOW_STEP = 120;
+
   interface Props {
     family: LibraryRouteFamily;
     route: LibraryRoute;
@@ -190,8 +193,29 @@
     cancelMetadataEdit
   }: Props = $props();
 
+  let visibleCardCounts = $state<Record<string, number>>({});
+
   function safe(value: unknown, fallback: string): string {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  }
+
+  function sectionKey(section: LibraryContentSection, index: number): string {
+    return [route.kind, index, section.title ?? '', section.cards.length].join(':');
+  }
+
+  function visibleCardsForSection(section: LibraryContentSection, index: number): readonly Card[] {
+    const key = sectionKey(section, index);
+    const count = visibleCardCounts[key] ?? CARD_RENDER_WINDOW_INITIAL;
+    return section.cards.slice(0, count);
+  }
+
+  function showMoreCards(section: LibraryContentSection, index: number): void {
+    const key = sectionKey(section, index);
+    const count = visibleCardCounts[key] ?? CARD_RENDER_WINDOW_INITIAL;
+    visibleCardCounts = {
+      ...visibleCardCounts,
+      [key]: Math.min(section.cards.length, count + CARD_RENDER_WINDOW_STEP)
+    };
   }
 </script>
 
@@ -370,7 +394,7 @@
         />
       </section>
     {/if}
-    {#each sections as section}
+    {#each sections as section, sectionIndex}
       <section class="classic-card-section" class:compact={section.compact}>
         {#if section.movieDetail}
           {@const movie = section.movieDetail}
@@ -517,6 +541,7 @@
         {/if}
 
         {#if !section.movieDetail && section.cards.length}
+          {@const visibleCards = visibleCardsForSection(section, sectionIndex)}
           {#if section.detailRows?.length || section.description || section.rating !== undefined}
             <div class="classic-detail-meta">
               {#if section.rating !== undefined}
@@ -538,7 +563,7 @@
             </div>
           {/if}
           <div class="classic-card-grid">
-            {#each section.cards as card}
+            {#each visibleCards as card}
               {@const artworkShape = card.artworkShape ?? (card.poster ? 'poster' : 'square')}
               <article
                 class="classic-card"
@@ -644,6 +669,15 @@
               </article>
             {/each}
           </div>
+          {#if visibleCards.length < section.cards.length}
+            <button
+              type="button"
+              class="classic-show-more"
+              onclick={() => showMoreCards(section, sectionIndex)}
+            >
+              Show more ({visibleCards.length} of {section.cards.length})
+            </button>
+          {/if}
         {:else if !section.movieDetail}
           <p class="classic-empty">{section.empty}</p>
         {/if}

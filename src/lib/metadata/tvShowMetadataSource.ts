@@ -17,14 +17,19 @@ export type TvShowMetadataSourceResolver = {
 export type TvShowMetadataSourceResolverOptions = {
   snapshot: () => VideoTvStoreSnapshot | undefined;
   createClient: () => KodiJsonRpcHttpClient | null;
+  failedLookupCooldownMs?: number;
 };
+
+const DEFAULT_FAILED_LOOKUP_COOLDOWN_MS = 30_000;
 
 export function createTvShowMetadataSourceResolver({
   snapshot,
-  createClient
+  createClient,
+  failedLookupCooldownMs = DEFAULT_FAILED_LOOKUP_COOLDOWN_MS
 }: TvShowMetadataSourceResolverOptions): TvShowMetadataSourceResolver {
   const cachedDetails = new Map<number, VideoTvShowDetailSnapshot>();
   const pendingDetails = new Map<number, Promise<VideoTvShowDetailSnapshot | null>>();
+  const failedDetails = new Map<number, number>();
 
   return {
     async resolve(tvshowid: number): Promise<Record<string, unknown> | null> {
@@ -39,6 +44,15 @@ export function createTvShowMetadataSourceResolver({
         return buildTvShowMetadataEditorSource({ ...cached });
       }
 
+      const failedAt = failedDetails.get(tvshowid);
+      if (
+        failedAt !== undefined &&
+        Number.isFinite(failedLookupCooldownMs) &&
+        Date.now() - failedAt < failedLookupCooldownMs
+      ) {
+        return null;
+      }
+
       const client = createClient();
       if (!client) {
         return null;
@@ -47,14 +61,17 @@ export function createTvShowMetadataSourceResolver({
       const detail = await fetchTvShowDetail(tvshowid, client, cachedDetails, pendingDetails);
       if (detail) {
         cachedDetails.set(tvshowid, detail);
+        failedDetails.delete(tvshowid);
         return buildTvShowMetadataEditorSource({ ...detail });
       }
 
+      failedDetails.set(tvshowid, Date.now());
       return null;
     },
     invalidate(tvshowid: number): void {
       cachedDetails.delete(tvshowid);
       pendingDetails.delete(tvshowid);
+      failedDetails.delete(tvshowid);
     }
   };
 }

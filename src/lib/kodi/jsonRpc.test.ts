@@ -228,6 +228,41 @@ describe('Kodi JSON-RPC HTTP client', () => {
     }
   });
 
+  it('retries transient failures once for idempotent read calls', async () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const fetchImpl = vi
+      .fn<FetchImpl>()
+      .mockRejectedValueOnce(new Error('temporary network failure'))
+      .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: 'pong' }));
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    const pending = client.call<string>('JSONRPC.Ping');
+    await vi.advanceTimersByTimeAsync(99);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(pending).resolves.toBe('pong');
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    randomSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('does not retry write-shaped calls after transient failures', async () => {
+    const fetchImpl = vi
+      .fn<FetchImpl>()
+      .mockRejectedValueOnce(new Error('temporary network failure'))
+      .mockResolvedValueOnce(jsonResponse({ jsonrpc: '2.0', id: 1, result: 'ok' }));
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    await expect(client.call('Playlist.Add')).rejects.toMatchObject({
+      code: 'network',
+      method: 'Playlist.Add'
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it('aborts hanging fetches on client timeout and clears timers', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
@@ -244,7 +279,7 @@ describe('Kodi JSON-RPC HTTP client', () => {
       { fetchImpl }
     );
 
-    const pending = client.call('JSONRPC.Ping');
+    const pending = client.call('JSONRPC.Ping', undefined, { retryAttempts: 0 });
     const capturedError: Promise<KodiHttpClientError> = pending.then(
       () => {
         throw new Error('Expected timeout failure.');

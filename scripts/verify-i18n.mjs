@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { cwd, exit, argv } from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -32,7 +32,7 @@ export const APPROVED_VISIBLE_COPY_FILE_PATTERNS = [
 
 export function runI18nVerification(root = cwd()) {
   const dictionarySource = readFileSync(join(root, DICTIONARY_SOURCE_PATH), 'utf8');
-  const dictionaries = parseDictionaries(dictionarySource);
+  const dictionaries = parseDictionaries(dictionarySource, root);
   const parityIssues = sortParityIssues(
     validateDictionaryParity(dictionaries, DEFAULT_BASE_LOCALE)
   );
@@ -216,13 +216,86 @@ export function validateDictionaryParity(dictionaries, baseLocale = DEFAULT_BASE
 
 export function loadDictionaries(root = cwd()) {
   const source = readFileSync(join(root, DICTIONARY_SOURCE_PATH), 'utf8');
-  return parseDictionaries(source);
+  return parseDictionaries(source, root);
 }
 
-function parseDictionaries(source) {
+function parseDictionaries(source, root = cwd()) {
   const literal = extractDictionaryLiteral(source);
 
+  try {
+    return Function(`"use strict"; return (${literal});`)();
+  } catch (error) {
+    if (!(error instanceof ReferenceError)) {
+      throw error;
+    }
+  }
+
+  return resolveImportedDictionaryReferences(source, literal, root);
+}
+
+function resolveImportedDictionaryReferences(source, dictionaryLiteral, root) {
+  const imports = extractNamedImports(source);
+  const dictionaries = {};
+  const entries = [...dictionaryLiteral.matchAll(/([A-Za-z0-9_$]+)\s*:\s*([A-Za-z0-9_$]+)/g)];
+
+  for (const [, locale, constName] of entries) {
+    const importPath = imports.get(constName);
+    if (!importPath) {
+      throw new Error(`${DICTIONARY_SOURCE_PATH} references unresolved dictionary ${constName}`);
+    }
+
+    dictionaries[locale] = readImportedDictionary(root, importPath, constName);
+  }
+
+  return dictionaries;
+}
+
+function extractNamedImports(source) {
+  const imports = new Map();
+  const importPattern = /import\s+\{\s*([A-Za-z0-9_$]+)\s*\}\s+from\s+['"]([^'"]+)['"]/g;
+
+  for (const [, constName, importPath] of source.matchAll(importPattern)) {
+    imports.set(constName, importPath);
+  }
+
+  return imports;
+}
+
+function readImportedDictionary(root, importPath, constName) {
+  const dictionaryDir = dirname(DICTIONARY_SOURCE_PATH);
+  const sourcePath = join(root, dictionaryDir, `${importPath}.ts`);
+  const source = readFileSync(sourcePath, 'utf8');
+  const literal = extractExportedConstLiteral(source, constName, sourcePath);
+
   return Function(`"use strict"; return (${literal});`)();
+}
+
+function extractExportedConstLiteral(source, constName, sourcePath) {
+  const marker = `export const ${constName} =`;
+  const start = source.indexOf(marker);
+
+  if (start === -1) {
+    throw new Error(`${sourcePath} must export ${constName}`);
+  }
+
+  const objectStart = source.indexOf('{', start);
+  let depth = 0;
+
+  for (let index = objectStart; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+
+      if (depth === 0) {
+        return source.slice(objectStart, index + 1);
+      }
+    }
+  }
+
+  throw new Error(`${sourcePath} has an unterminated ${constName} object`);
 }
 
 export function extractDictionaryLiteral(source) {

@@ -102,11 +102,7 @@ export class MainNavStore {
 
     try {
       this.#clearPersisted();
-      const ids = this.#snapshot.rows.map((item) => item.id);
-      this.#storage.setItem(MAIN_NAV_STORAGE_KEY, ids.join(','));
-      for (const item of this.#snapshot.rows) {
-        this.#storage.setItem(`${MAIN_NAV_STORAGE_KEY}-${item.id}`, JSON.stringify(item));
-      }
+      this.#storage.setItem(MAIN_NAV_STORAGE_KEY, JSON.stringify(this.#snapshot.rows));
     } catch {
       // Keep the in-memory menu for this browser session when storage is unavailable.
     }
@@ -165,8 +161,11 @@ function row(id: number, title: string, path: string, icon: string, classes: str
 }
 
 function readBackboneCollection(storage: MainNavStorage): MainNavRow[] {
-  const ids = storage
-    .getItem(MAIN_NAV_STORAGE_KEY)
+  const raw = storage.getItem(MAIN_NAV_STORAGE_KEY);
+  const jsonRows = parseJsonRows(raw);
+  if (jsonRows) return normalizeRows(jsonRows);
+
+  const ids = raw
     ?.split(',')
     .map((id) => id.trim())
     .filter(Boolean);
@@ -178,6 +177,20 @@ function readBackboneCollection(storage: MainNavStorage): MainNavRow[] {
       .map((id, index) => readBackboneModel(storage, id, index))
       .filter((item): item is MainNavRow => item !== null)
   );
+}
+
+function parseJsonRows(raw: string | null): Partial<MainNavRow>[] | null {
+  if (!raw || !['[', '{'].includes(raw.trimStart()[0] ?? '')) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) return parsed as Partial<MainNavRow>[];
+    if (isRecord(parsed) && Array.isArray(parsed.rows)) {
+      return parsed.rows as Partial<MainNavRow>[];
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function readBackboneModel(storage: MainNavStorage, id: string, weight: number): MainNavRow | null {

@@ -4,6 +4,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
+import { preloadAppPageSurfaceRoutesForTest } from './lib/app-pages/appPageSurfaceLazyRoutes';
 import {
   createM007VisualProofAppProps,
   M007_VISUAL_PROOF_FORBIDDEN_TEXT
@@ -1447,7 +1448,8 @@ async function waitForText(target: HTMLElement, text: string): Promise<void> {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await preloadAppPageSurfaceRoutesForTest();
   vi.restoreAllMocks();
   window.history.pushState({}, '', '/');
   addonsStore.reset();
@@ -2570,12 +2572,13 @@ describe('App shell', () => {
   });
 
   it('keeps package shell rail vertically reachable on short landscape viewports', () => {
-    const source = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
-    const mediaStart = source.indexOf('@media (max-height: 420px)');
-    const nextMediaStart = source.indexOf('@media', mediaStart + 1);
+    const componentSource = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
+    const styleSource = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
+    const mediaStart = styleSource.indexOf('@media (max-height: 420px)');
+    const nextMediaStart = styleSource.indexOf('@media', mediaStart + 1);
     const shortHeightRule =
       mediaStart >= 0
-        ? source.slice(mediaStart, nextMediaStart >= 0 ? nextMediaStart : undefined)
+        ? styleSource.slice(mediaStart, nextMediaStart >= 0 ? nextMediaStart : undefined)
         : '';
 
     expect(shortHeightRule, 'short-height package shell media query').toContain('.classic-rail');
@@ -2585,10 +2588,10 @@ describe('App shell', () => {
     expect(shortHeightRule, 'rail scroll gestures stay contained').toMatch(
       /overscroll-behavior(?:-y)?\s*:\s*contain/u
     );
-    expect(source, 'rail section-name flyouts are not rendered').not.toContain(
+    expect(componentSource, 'rail section-name flyouts are not rendered').not.toContain(
       'classic-rail-label'
     );
-    expect(source, 'rail labels stay screen-reader only').toContain(
+    expect(componentSource, 'rail labels stay screen-reader only').toContain(
       '<span class="visually-hidden">{item.label}</span>'
     );
     expect(shortHeightRule, 'short-height submenus stay bounded').toMatch(

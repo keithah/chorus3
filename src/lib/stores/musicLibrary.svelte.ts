@@ -23,6 +23,7 @@ import {
   type MusicLibraryRefreshReason,
   type MusicLibraryStoreSnapshot
 } from './musicLibraryNormalization';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export type {
   MusicLibraryAlbumSnapshot,
@@ -44,7 +45,7 @@ export interface MusicLibraryStoreOptions {
 }
 
 const DEFAULT_LIMITS: MusicLibraryLimitsSnapshot = { start: 0, end: 0, total: 0 };
-const DEFAULT_LIBRARY_LIMIT = { start: 0, end: 5000 } as const;
+const DEFAULT_LIBRARY_LIMIT = { start: 0, end: DEFAULT_FULL_LIBRARY_PAGE_SIZE } as const;
 const DEFAULT_RECENT_LIMIT = { start: 0, end: 25 } as const;
 
 const DEFAULT_ARTIST_LIST_PROPERTIES = [
@@ -132,6 +133,7 @@ export class MusicLibraryStore {
 
   #requestId = 0;
   #abortController: AbortController | null = null;
+  #refreshPromise: { reason: MusicLibraryRefreshReason; promise: Promise<void> } | null = null;
 
   constructor(options: MusicLibraryStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -144,6 +146,23 @@ export class MusicLibraryStore {
   }
 
   async refresh(reason: MusicLibraryRefreshReason = 'manual'): Promise<void> {
+    if (this.#refreshPromise?.reason === reason) {
+      return this.#refreshPromise.promise;
+    }
+
+    const promise = this.#refresh(reason);
+    this.#refreshPromise = { reason, promise };
+
+    try {
+      await promise;
+    } finally {
+      if (this.#refreshPromise?.promise === promise) {
+        this.#refreshPromise = null;
+      }
+    }
+  }
+
+  async #refresh(reason: MusicLibraryRefreshReason): Promise<void> {
     const requestId = ++this.#requestId;
     const signal = this.#startRequest();
 
@@ -165,28 +184,31 @@ export class MusicLibraryStore {
         mostPlayedSongsResult,
         genresResult
       ] = await Promise.all([
-        getAudioLibraryArtists(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getAudioLibraryArtists(client, params, options),
           {
             properties: DEFAULT_ARTIST_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'artists',
           { signal }
         ),
-        getAudioLibraryAlbums(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getAudioLibraryAlbums(client, params, options),
           {
             properties: DEFAULT_ALBUM_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'albums',
           { signal }
         ),
-        getAudioLibrarySongs(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getAudioLibrarySongs(client, params, options),
           {
             properties: DEFAULT_SONG_LIST_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'songs',
           { signal }
         ),
         getAudioLibrarySongs(
@@ -216,12 +238,13 @@ export class MusicLibraryStore {
           },
           { signal }
         ),
-        getAudioLibraryGenres(
-          client,
+        readPagedKodiLibraryList(
+          (params, options) => getAudioLibraryGenres(client, params, options),
           {
             properties: DEFAULT_GENRE_PROPERTIES,
             limits: DEFAULT_LIBRARY_LIMIT
           },
+          'genres',
           { signal }
         )
       ]);
@@ -292,6 +315,7 @@ export class MusicLibraryStore {
 
   destroy(): void {
     this.#requestId += 1;
+    this.#refreshPromise = null;
     this.#abortActiveRequest();
   }
 

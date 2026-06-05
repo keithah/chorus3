@@ -1,46 +1,29 @@
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
 
-  import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
-  import AddonsPanel, { type AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
-  import LocalBrowserPlayerRoute, {
-    type LocalBrowserPlayerDispatch
-  } from '$components/LocalBrowserPlayerRoute.svelte';
-  import LocalMediaRuntime from '$components/LocalMediaRuntime.svelte';
-  import MediaPlaylistsPanel, {
-    type MediaPlaylistsPanelDispatch
-  } from '$components/MediaPlaylistsPanel.svelte';
+  import type { AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
+  import type { AddonsPanelDispatch } from '$components/AddonsPanel.svelte';
+  import type { LocalBrowserPlayerDispatch } from '$components/LocalBrowserPlayerRoute.svelte';
+  import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
   import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
-  import NowPlayingEmbedRoute from '$components/NowPlayingEmbedRoute.svelte';
+  import type NowPlayingEmbedRoute from '$components/NowPlayingEmbedRoute.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
-  import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
+  import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import RemoteInputPanel, {
     type RemoteInputPanelRemoteDispatch
   } from '$components/RemoteInputPanel.svelte';
-  import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
-  import VideoEpisodeDetailShell, {
-    type VideoEpisodeActionDispatch
-  } from '$components/VideoEpisodeDetailShell.svelte';
-  import VideoMovieDetailShell, {
-    type VideoMovieActionDispatch
-  } from '$components/VideoMovieDetailShell.svelte';
-  import VideoMovieStreamShell, {
-    type VideoMovieStreamDispatch
-  } from '$components/VideoMovieStreamShell.svelte';
+  import type { SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
+  import type { VideoEpisodeActionDispatch } from '$components/VideoEpisodeDetailShell.svelte';
+  import type { VideoMovieActionDispatch } from '$components/VideoMovieDetailShell.svelte';
+  import type { VideoMovieStreamDispatch } from '$components/VideoMovieStreamShell.svelte';
   import type {
     VideoSeasonArtworkDispatch,
     VideoSeasonWriteDispatch
   } from '$components/VideoSeasonDetailShell.svelte';
-  import VideoSeasonDetailShell from '$components/VideoSeasonDetailShell.svelte';
-  import VideoMoviesPanel from '$components/VideoMoviesPanel.svelte';
-  import VideoRecentPanel from '$components/VideoRecentPanel.svelte';
-  import VideoTvShowDetailShell from '$components/VideoTvShowDetailShell.svelte';
-  import VideoTvShowsPanel from '$components/VideoTvShowsPanel.svelte';
   import { buildAppRoute, type AppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
-  import PrimaryAppShell from '$lib/app-shell/AppShell.svelte';
   import type {
     AppShellCallbacks,
     AppShellDestinationState,
@@ -50,8 +33,26 @@
     AppShellPlaylistDestinationMode
   } from '$lib/app-shell/appShellTypes';
   import AppDashboardSurface from '$lib/app-pages/AppDashboardSurface.svelte';
+  import AppRuntimeShellFrame from '$lib/app-pages/AppRuntimeShellFrame.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
   import AppPageSurface from '$lib/app-pages/AppPageSurface.svelte';
-  import AppRemoteOverlay from '$lib/app-pages/AppRemoteOverlay.svelte';
+  import {
+    bindLazyRoute,
+    loadAddonDetailShell,
+    loadAddonsPanel,
+    loadLocalBrowserPlayerRoute,
+    loadMediaPlaylistsPanel,
+    loadNowPlayingEmbedRoute,
+    loadSettingsPanel,
+    loadVideoEpisodeDetailShell,
+    loadVideoMovieDetailShell,
+    loadVideoMovieStreamShell,
+    loadVideoMoviesPanel,
+    loadVideoRecentPanel,
+    loadVideoSeasonDetailShell,
+    loadVideoTvShowsPanel,
+    loadVideoTvShowDetailShell
+  } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     AddonsStoreSnapshot,
@@ -285,24 +286,28 @@
 </script>
 
 {#if isNowPlayingRoute}
-  <NowPlayingEmbedRoute
-    snapshot={currentPlayerSnapshot}
-    dispatch={playerDispatch}
-    localPlayerSnapshot={currentLocalSnapshot}
-    hostSummary={currentNowPlayingHostSummary}
-    query={nowPlayingEmbedQuery}
-    i18n={currentI18n}
-    onRefresh={refreshNowPlayingEmbed}
+  <LazyRouteComponent
+    route={bindLazyRoute(loadNowPlayingEmbedRoute, {
+      snapshot: currentPlayerSnapshot,
+      dispatch: playerDispatch,
+      localPlayerSnapshot: currentLocalSnapshot,
+      hostSummary: currentNowPlayingHostSummary,
+      query: nowPlayingEmbedQuery,
+      i18n: currentI18n,
+      onRefresh: refreshNowPlayingEmbed
+    })}
   />
 {:else if isLocalPlayerRoute && currentRoute.kind === 'localPlayer'}
-  <LocalBrowserPlayerRoute
-    route={currentRoute}
-    localPlayerSnapshot={currentLocalSnapshot}
-    dispatchSnapshot={playerDispatch.snapshot}
-    actionDispatch={localBrowserPlayerActionDispatch}
+  <LazyRouteComponent
+    route={bindLazyRoute(loadLocalBrowserPlayerRoute, {
+      route: currentRoute,
+      localPlayerSnapshot: currentLocalSnapshot,
+      dispatchSnapshot: playerDispatch.snapshot,
+      actionDispatch: localBrowserPlayerActionDispatch
+    })}
   />
 {:else if isPrimaryShellRoute}
-  <PrimaryAppShell
+  <AppRuntimeShellFrame
     routeIdentity={{ kind: 'primary', route: currentPrimaryShellRoute ?? { kind: 'home' } }}
     navigationItems={currentShellNavigationItems}
     stageLabel={currentAppPageMetadata.stageLabel}
@@ -313,31 +318,21 @@
     drawer={currentPlaylistDrawer}
     destination={currentPlaylistDestination}
     callbacks={shellCallbacks}
+    {remoteOverlayOpen}
+    remoteSnapshot={currentRemoteSnapshot}
+    {remoteInputDispatch}
+    playerSnapshot={currentPlayerSnapshot}
+    {remoteOverlayPlayerDispatch}
+    i18n={currentI18n}
+    {closeRemoteOverlay}
+    queueSnapshot={currentQueueSnapshot}
+    {queueDispatch}
+    {handleLocalMediaEnded}
   >
     <AppPageSurface {...currentAppPageSurfaceProps} />
-
-    {#if remoteOverlayOpen}
-      <AppRemoteOverlay
-        remoteSnapshot={currentRemoteSnapshot}
-        {remoteInputDispatch}
-        playerSnapshot={currentPlayerSnapshot}
-        playerDispatch={remoteOverlayPlayerDispatch}
-        backgroundUrl={currentShellStageArtUrl}
-        i18n={currentI18n}
-        onClose={closeRemoteOverlay}
-      />
-    {/if}
-
-    {#snippet drawerContent()}
-      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
-    {/snippet}
-
-    {#snippet localRuntime()}
-      <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
-    {/snippet}
-  </PrimaryAppShell>
+  </AppRuntimeShellFrame>
 {:else}
-  <PrimaryAppShell
+  <AppRuntimeShellFrame
     routeIdentity={{ kind: 'primary', route: currentPrimaryShellRoute ?? { kind: 'home' } }}
     navigationItems={currentShellNavigationItems}
     stageLabel={currentAppPageMetadata.stageLabel}
@@ -348,64 +343,42 @@
     drawer={currentPlaylistDrawer}
     destination={currentPlaylistDestination}
     callbacks={shellCallbacks}
+    {remoteOverlayOpen}
+    remoteSnapshot={currentRemoteSnapshot}
+    {remoteInputDispatch}
+    playerSnapshot={currentPlayerSnapshot}
+    {remoteOverlayPlayerDispatch}
+    i18n={currentI18n}
+    {closeRemoteOverlay}
+    queueSnapshot={currentQueueSnapshot}
+    {queueDispatch}
+    {handleLocalMediaEnded}
   >
     {#if isDashboardRoute}
-      <PrimaryAppShell
-        routeIdentity={{ kind: 'primary', route: { kind: 'home' } }}
-        navigationItems={currentShellNavigationItems}
-        stageLabel={currentI18n.t('app.dashboard.aria')}
-        logoHref={buildAppRoute(
-          { kind: 'primary', route: { kind: 'home' } },
-          currentRouteBuildOptions
-        )}
-        player={currentShellPlayer}
-        stageArtUrl={currentShellStageArtUrl}
-        playerActions={shellPlayerActions}
-        drawer={currentPlaylistDrawer}
-        destination={currentPlaylistDestination}
-        callbacks={playlistDrawerCallbacks}
-      >
-        {#if !isPackageMounted}
-          <AppDashboardSurface
-            {...currentHomeContext}
-            musicLibrarySnapshot={currentMusicLibrarySnapshot}
-            musicBrowseSnapshot={currentMusicBrowseSnapshot}
-            {musicBrowseDispatch}
-            {musicActionDispatch}
-            mediaSearchSnapshot={currentMediaSearchSnapshot}
-            {mediaSearchDispatch}
-            {mediaSearchActionDispatch}
-            mediaFilesSnapshot={currentMediaFilesSnapshot}
-            {mediaFilesDispatch}
-            {mediaFilesActionDispatch}
-            mediaPlaylistsSnapshot={currentMediaPlaylistsSnapshot}
-            {mediaPlaylistsDispatch}
-            {mediaPlaylistsActionDispatch}
-            playerSnapshot={currentPlayerSnapshot}
-            {playerDispatch}
-            localPlayerSnapshot={currentLocalSnapshot}
-            queueSnapshot={currentQueueSnapshot}
-            {queueDispatch}
-            i18n={currentI18n}
-          />
-        {/if}
-
-        {#if remoteOverlayOpen}
-          <AppRemoteOverlay
-            remoteSnapshot={currentRemoteSnapshot}
-            {remoteInputDispatch}
-            playerSnapshot={currentPlayerSnapshot}
-            playerDispatch={remoteOverlayPlayerDispatch}
-            backgroundUrl={currentShellStageArtUrl}
-            i18n={currentI18n}
-            onClose={closeRemoteOverlay}
-          />
-        {/if}
-
-        {#snippet localRuntime()}
-          <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
-        {/snippet}
-      </PrimaryAppShell>
+      {#if !isPackageMounted}
+        <AppDashboardSurface
+          {...currentHomeContext}
+          musicLibrarySnapshot={currentMusicLibrarySnapshot}
+          musicBrowseSnapshot={currentMusicBrowseSnapshot}
+          {musicBrowseDispatch}
+          {musicActionDispatch}
+          mediaSearchSnapshot={currentMediaSearchSnapshot}
+          {mediaSearchDispatch}
+          {mediaSearchActionDispatch}
+          mediaFilesSnapshot={currentMediaFilesSnapshot}
+          {mediaFilesDispatch}
+          {mediaFilesActionDispatch}
+          mediaPlaylistsSnapshot={currentMediaPlaylistsSnapshot}
+          {mediaPlaylistsDispatch}
+          {mediaPlaylistsActionDispatch}
+          playerSnapshot={currentPlayerSnapshot}
+          {playerDispatch}
+          localPlayerSnapshot={currentLocalSnapshot}
+          queueSnapshot={currentQueueSnapshot}
+          {queueDispatch}
+          i18n={currentI18n}
+        />
+      {/if}
     {:else if currentParityPlaceholder}
       <main class="parity-route" aria-label="Parity placeholder">
         <ParityPlaceholder
@@ -426,18 +399,22 @@
       </main>
     {:else if isAddonsRoute}
       <main class="addons-route" aria-label={currentI18n.t('app.route.addons.aria')}>
-        <AddonsPanel
-          snapshot={currentAddonsSnapshot}
-          dispatch={addonsDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadAddonsPanel, {
+            snapshot: currentAddonsSnapshot,
+            dispatch: addonsDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isAddonDetailRoute}
       <main class="addons-route" aria-label={currentI18n.t('app.route.addonDetail.aria')}>
-        <AddonDetailShell
-          snapshot={currentAddonsSnapshot}
-          dispatch={addonDetailDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadAddonDetailShell, {
+            snapshot: currentAddonsSnapshot,
+            dispatch: addonDetailDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isAddonsUnknownRoute}
@@ -494,10 +471,12 @@
       </main>
     {:else if isSettingsRoute}
       <main class="settings-route" aria-label={currentI18n.t('app.route.settings.aria')}>
-        <SettingsPanel
-          snapshot={currentSettingsSnapshot}
-          dispatch={settingsDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadSettingsPanel, {
+            snapshot: currentSettingsSnapshot,
+            dispatch: settingsDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isSettingsUnknownRoute}
@@ -547,23 +526,34 @@
       </main>
     {:else if isVideoMoviesRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoMovies.aria')}>
-        <VideoMoviesPanel snapshot={currentVideoLibrarySnapshot} />
-        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
-        <MediaPlaylistsPanel
-          snapshot={currentVideoMediaPlaylistsSnapshot}
-          dispatch={videoMediaPlaylistsDispatch}
-          actionDispatch={videoMediaPlaylistsActionDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoMoviesPanel, { snapshot: currentVideoLibrarySnapshot })}
+        />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoRecentPanel, {
+            snapshot: currentVideoLibrarySnapshot,
+            i18n: currentI18n
+          })}
+        />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadMediaPlaylistsPanel, {
+            snapshot: currentVideoMediaPlaylistsSnapshot,
+            dispatch: videoMediaPlaylistsDispatch,
+            actionDispatch: videoMediaPlaylistsActionDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isVideoMovieDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoMovieDetail.aria')}>
-        <VideoMovieDetailShell
-          snapshot={currentVideoLibrarySnapshot}
-          route={currentRenderableVideoRoute}
-          detailSnapshot={videoMovieDetailSnapshot}
-          actionDispatch={videoMovieActionDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoMovieDetailShell, {
+            snapshot: currentVideoLibrarySnapshot,
+            route: currentRenderableVideoRoute,
+            detailSnapshot: videoMovieDetailSnapshot,
+            actionDispatch: videoMovieActionDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isVideoMovieStreamRoute}
@@ -571,55 +561,72 @@
         class="video-stream-route"
         aria-label={currentI18n.t('app.route.videoMovieStream.aria')}
       >
-        <VideoMovieStreamShell
-          snapshot={currentVideoLibrarySnapshot}
-          route={currentRenderableVideoRoute}
-          detailSnapshot={videoMovieDetailSnapshot}
-          localPlayerSnapshot={currentLocalSnapshot}
-          dispatchSnapshot={playerDispatch.snapshot}
-          actionDispatch={videoMovieStreamActionDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoMovieStreamShell, {
+            snapshot: currentVideoLibrarySnapshot,
+            route: currentRenderableVideoRoute,
+            detailSnapshot: videoMovieDetailSnapshot,
+            localPlayerSnapshot: currentLocalSnapshot,
+            dispatchSnapshot: playerDispatch.snapshot,
+            actionDispatch: videoMovieStreamActionDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isVideoTvShowsRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShows.aria')}>
-        <VideoTvShowsPanel snapshot={currentVideoLibrarySnapshot} />
-        <VideoRecentPanel snapshot={currentVideoLibrarySnapshot} i18n={currentI18n} />
-        <MediaPlaylistsPanel
-          snapshot={currentVideoMediaPlaylistsSnapshot}
-          dispatch={videoMediaPlaylistsDispatch}
-          actionDispatch={videoMediaPlaylistsActionDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoTvShowsPanel, { snapshot: currentVideoLibrarySnapshot })}
+        />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoRecentPanel, {
+            snapshot: currentVideoLibrarySnapshot,
+            i18n: currentI18n
+          })}
+        />
+        <LazyRouteComponent
+          route={bindLazyRoute(loadMediaPlaylistsPanel, {
+            snapshot: currentVideoMediaPlaylistsSnapshot,
+            dispatch: videoMediaPlaylistsDispatch,
+            actionDispatch: videoMediaPlaylistsActionDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isVideoTvShowDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvShowDetail.aria')}>
-        <VideoTvShowDetailShell
-          snapshot={currentVideoTvSnapshot}
-          route={currentRenderableVideoRoute}
-          i18n={currentI18n}
-          buildOptions={currentRouteBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoTvShowDetailShell, {
+            snapshot: currentVideoTvSnapshot,
+            route: currentRenderableVideoRoute,
+            i18n: currentI18n,
+            buildOptions: currentRouteBuildOptions
+          })}
         />
       </main>
     {:else if isVideoTvSeasonDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoTvSeasonDetail.aria')}>
-        <VideoSeasonDetailShell
-          snapshot={currentVideoTvSnapshot}
-          route={currentRenderableVideoRoute}
-          artworkDispatch={videoSeasonArtworkDispatch}
-          writeDispatch={videoSeasonWriteDispatch}
-          i18n={currentI18n}
-          buildOptions={currentRouteBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoSeasonDetailShell, {
+            snapshot: currentVideoTvSnapshot,
+            route: currentRenderableVideoRoute,
+            artworkDispatch: videoSeasonArtworkDispatch,
+            writeDispatch: videoSeasonWriteDispatch,
+            i18n: currentI18n,
+            buildOptions: currentRouteBuildOptions
+          })}
         />
       </main>
     {:else if isVideoEpisodeDetailRoute}
       <main class="video-route" aria-label={currentI18n.t('app.route.videoEpisodeDetail.aria')}>
-        <VideoEpisodeDetailShell
-          snapshot={currentVideoTvSnapshot}
-          route={currentRenderableVideoRoute}
-          actionDispatch={videoEpisodeActionDispatch}
-          i18n={currentI18n}
-          buildOptions={currentRouteBuildOptions}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadVideoEpisodeDetailShell, {
+            snapshot: currentVideoTvSnapshot,
+            route: currentRenderableVideoRoute,
+            actionDispatch: videoEpisodeActionDispatch,
+            i18n: currentI18n,
+            buildOptions: currentRouteBuildOptions
+          })}
         />
       </main>
     {:else if isVideoUnknownRoute}
@@ -658,27 +665,7 @@
         </section>
       </main>
     {/if}
-
-    {#if remoteOverlayOpen}
-      <AppRemoteOverlay
-        remoteSnapshot={currentRemoteSnapshot}
-        {remoteInputDispatch}
-        playerSnapshot={currentPlayerSnapshot}
-        playerDispatch={remoteOverlayPlayerDispatch}
-        backgroundUrl={currentShellStageArtUrl}
-        i18n={currentI18n}
-        onClose={closeRemoteOverlay}
-      />
-    {/if}
-
-    {#snippet drawerContent()}
-      <QueuePanel snapshot={currentQueueSnapshot} dispatch={queueDispatch} i18n={currentI18n} />
-    {/snippet}
-
-    {#snippet localRuntime()}
-      <LocalMediaRuntime onEnded={handleLocalMediaEnded} />
-    {/snippet}
-  </PrimaryAppShell>
+  </AppRuntimeShellFrame>
 {/if}
 
 <style>

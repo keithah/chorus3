@@ -227,6 +227,40 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     expect(FakeWebSocket.instances).toHaveLength(4);
   });
 
+  it('stops reconnecting after the configured reconnect attempt limit', () => {
+    const client = createClient({ maxReconnectAttempts: 1, reconnectDelaysMs: [100] });
+    const { events, listener, types } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    FakeWebSocket.instances[0]?.open();
+    FakeWebSocket.instances[0]?.closeFromServer();
+
+    expect(events.at(-1)).toMatchObject({ type: 'reconnecting', attempt: 1, delayMs: 100 });
+    vi.advanceTimersByTime(100);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+
+    FakeWebSocket.instances[1]?.open();
+    FakeWebSocket.instances[1]?.closeFromServer();
+
+    expect(types()).toEqual([
+      'connecting',
+      'open',
+      'close',
+      'reconnecting',
+      'connecting',
+      'open',
+      'close',
+      'error'
+    ]);
+    expect(events.at(-1)).toMatchObject({
+      type: 'error',
+      error: { code: 'reconnect-exhausted' }
+    });
+    vi.advanceTimersByTime(1000);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
   it('detaches handlers from closed sockets before reconnecting', () => {
     const client = createClient();
     const { listener, types } = collectEvents();

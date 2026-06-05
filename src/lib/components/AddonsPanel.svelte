@@ -20,12 +20,14 @@
 </script>
 
 <script lang="ts">
+  import './addonsPanelClassic.css';
   import {
     buildKodiPackageSafePrimaryAppRoute,
     buildPrimaryAppRoute,
     createKodiPackageRouteBuildOptions,
     type BuildAppRouteOptions
   } from '$lib/app/appRouter';
+  import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   interface Props {
     snapshot: AddonsStoreSnapshot;
@@ -45,6 +47,7 @@
     buildOptions
   }: Props = $props();
   const routeBuildOptions = $derived(resolveBuildOptions(buildOptions, packageBasePath));
+  const addonVisibility = createIncrementalVisibility(150);
 
   function resolveBuildOptions(
     options: BuildAppRouteOptions | undefined,
@@ -58,7 +61,9 @@
   const filteredVisibleAddons = $derived(filterVisibleAddons(snapshot.visibleAddons, typeFilter));
   const hasInstalledAddons = $derived(categoryAddons.length > 0);
   const hasVisibleAddons = $derived(filteredVisibleAddons.length > 0);
-  const renderedGroups = $derived(createRenderedGroups());
+  const renderedGroups = $derived(
+    limitRenderedGroups(createRenderedGroups(), addonVisibility.count)
+  );
 
   function callLoad(): void {
     if (isLoading) return;
@@ -169,6 +174,23 @@
     }
 
     return [...groups.values()];
+  }
+
+  function limitRenderedGroups(
+    groups: readonly AddonsGroupSnapshot[],
+    maxAddons: number
+  ): AddonsGroupSnapshot[] {
+    let remaining = maxAddons;
+    const visibleGroups: AddonsGroupSnapshot[] = [];
+
+    for (const group of groups) {
+      if (remaining <= 0) break;
+      const addons = group.addons.slice(0, remaining);
+      remaining -= addons.length;
+      visibleGroups.push({ ...group, addons });
+    }
+
+    return visibleGroups.filter((group) => group.addons.length > 0);
   }
 
   function addonLabel(addon: AddonSnapshot): string {
@@ -429,6 +451,11 @@
         {/if}
       {/each}
     </div>
+    {#if addonVisibility.hasMore(filteredVisibleAddons.length)}
+      <button type="button" class="addons-show-more" onclick={addonVisibility.showMore}>
+        Show more add-ons
+      </button>
+    {/if}
   {:else if hasInstalledAddons}
     <p class="addons-empty">
       {i18n.t('addons.panel.noMatches', { query: safeText(snapshot.searchQuery) })}
@@ -437,306 +464,3 @@
     <p class="addons-empty">{noInstalledCopy()}</p>
   {/if}
 </section>
-
-<style>
-  .addons-panel {
-    display: grid;
-    gap: var(--space-lg);
-  }
-
-  .addons-hero,
-  .addons-status-grid,
-  .addons-toolbar,
-  .addons-group,
-  .addons-card-grid,
-  .addons-card-heading,
-  .addons-meta {
-    display: grid;
-    gap: var(--space-md);
-  }
-
-  .addons-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    min-height: 50px;
-    padding: 0.75rem 1rem;
-    background: #f7f7f7;
-    border-bottom: 1px solid #d0d0d0;
-  }
-
-  .addons-status span,
-  .addons-group-heading span,
-  .addons-meta dt {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  h2,
-  h3,
-  p,
-  dl,
-  dd {
-    margin: 0;
-  }
-
-  h2 {
-    color: #555;
-    font-size: 1.25rem;
-    font-weight: 400;
-    line-height: 1.2;
-  }
-
-  h3 {
-    font-size: clamp(1.1rem, 2vw, 1.35rem);
-  }
-
-  p,
-  dd,
-  label,
-  button,
-  input,
-  select,
-  a {
-    line-height: 1.5;
-  }
-
-  button,
-  input,
-  select {
-    border: 1px solid #c8c8c8;
-  }
-
-  button {
-    cursor: pointer;
-  }
-
-  button:disabled,
-  input:disabled,
-  select:disabled {
-    cursor: not-allowed;
-    opacity: 0.58;
-  }
-
-  .addons-primary-action,
-  .addons-error-actions button {
-    padding: var(--space-xs) var(--space-md);
-    color: #333;
-    font-weight: 800;
-    background: #9e9e9e;
-    color: white;
-  }
-
-  .addons-primary-action:not(:disabled):hover,
-  .addons-error-actions button:not(:disabled):hover,
-  .addons-card a:hover {
-    background: #777;
-  }
-
-  .addons-status-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .addons-status,
-  .addons-alert,
-  .addons-toolbar,
-  .addons-error-actions,
-  .addons-group,
-  .addons-card,
-  .addons-empty {
-    padding: var(--space-md);
-    background: #f7f7f7;
-    border: 1px solid #d0d0d0;
-  }
-
-  .addons-status {
-    display: grid;
-    gap: var(--space-2xs);
-  }
-
-  .addons-alert {
-    display: grid;
-    gap: var(--space-2xs);
-    color: var(--color-danger, var(--color-warning));
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger, var(--color-warning)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .addons-toolbar {
-    grid-template-columns: auto minmax(14rem, 1fr) auto minmax(10rem, 0.35fr);
-    align-items: center;
-  }
-
-  .addons-toolbar input,
-  .addons-toolbar select {
-    width: 100%;
-    padding: var(--space-xs) var(--space-sm);
-    color: #333;
-    background: white;
-  }
-
-  .addons-error-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm) var(--space-md);
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .addons-groups {
-    display: grid;
-    gap: var(--space-lg);
-  }
-
-  .addons-group-heading,
-  .addons-card-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-md);
-    align-items: start;
-  }
-
-  .addons-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    align-items: start;
-  }
-
-  .addons-card {
-    display: grid;
-    grid-template-rows: auto auto auto;
-    gap: 0;
-    padding: 0;
-    overflow: hidden;
-    background: white;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
-  }
-
-  .addons-card-heading {
-    display: block;
-  }
-
-  .addons-card.broken {
-    border-color: color-mix(
-      in srgb,
-      var(--color-warning, var(--color-accent)) 42%,
-      var(--color-border)
-    );
-  }
-
-  .addons-summary,
-  .addons-empty,
-  .addons-error-actions p {
-    color: var(--color-text-muted);
-  }
-
-  .addons-summary {
-    display: none;
-  }
-
-  .addons-card a {
-    color: #333;
-    text-decoration: none;
-  }
-
-  .addons-card-primary {
-    display: grid;
-    grid-template-rows: 132px auto;
-    min-width: 0;
-  }
-
-  .addons-card-primary span:last-child {
-    display: grid;
-    gap: 0.1rem;
-    min-width: 0;
-    padding: 0.55rem 0.65rem;
-  }
-
-  .addons-card-primary strong,
-  .addons-card-primary small {
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .addons-card-primary small {
-    color: #888;
-  }
-
-  .addons-card-thumb {
-    display: grid;
-    place-items: center;
-    background: #cfcfcf;
-    color: #aaa;
-    font-size: 3rem;
-    font-weight: 700;
-  }
-
-  .addons-card-detail {
-    display: grid;
-    place-items: center;
-    min-height: 34px;
-    padding: 0.45rem 0.65rem;
-    border-top: 1px solid #eee;
-    color: #42a5dc;
-  }
-
-  .addons-meta {
-    display: block;
-    padding: 0 0.65rem 0.55rem;
-    color: #888;
-    font-size: 11px;
-  }
-
-  .addons-meta div {
-    display: inline;
-  }
-
-  .addons-meta dt,
-  .addons-meta dd {
-    display: inline;
-    margin: 0;
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: 400;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .addons-meta div + div::before {
-    content: ' · ';
-  }
-
-  .addons-actions {
-    display: grid;
-    border-top: 1px solid #eee;
-  }
-
-  .addons-actions button {
-    min-height: 34px;
-    padding: 0.45rem 0.65rem;
-    color: #333;
-    font-weight: 400;
-    background: #fff;
-  }
-
-  .addons-actions button:not(:disabled):hover {
-    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
-  }
-
-  @media (max-width: 760px) {
-    .addons-hero,
-    .addons-status-grid,
-    .addons-toolbar,
-    .addons-group-heading,
-    .addons-card-heading,
-    .addons-meta {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

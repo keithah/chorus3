@@ -1,0 +1,192 @@
+.music-library-panel {
+  display: grid;
+  gap: var(--space-lg);
+  padding: clamp(var(--space-lg), 4vw, var(--space-xl));
+}
+
+.music-library-panel .panel-heading,
+.music-library-panel .discovery-section,
+.music-library-panel .library-section,
+.music-library-panel .section-heading,
+.music-library-panel li {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.music-library-panel .section-kicker,
+.music-library-panel h2,
+.music-library-panel h3,
+.music-library-panel p,
+.music-library-panel ul {
+  margin: 0;
+}
+
+.music-library-panel .section-kicker {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.music-library-panel h2 {
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.music-library-panel h3,
+.music-library-panel h4 {
+  font-size: 1rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.music-library-panel h4 {
+  margin: 0;
+}
+
+.music-library-panel .summary-line,
+.music-library-panel .state-copy,
+.music-library-panel .empty-copy,
+.music-library-panel .item-meta,
+.music-library-panel .section-heading p {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.music-library-panel .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.music-library-panel .status-line {
+  flex: 1 1 16rem;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text);
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--color-surface-raised) 74%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.music-library-panel .refresh-button {
+  min-height: 2.5rem;
+  padding: var(--space-xs) var(--space-md);
+  font: inherit;
+  color: var(--color-text);
+  font-weight: 800;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface-raised));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.music-library-panel .refresh-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0.8rem 1.5rem rgb(0 0 0 / 0.14);
+}
+
+.music-library-panel .refresh-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.music-library-panel .refresh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.music-library-panel .refresh-button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-ring);
+}
+
+.music-library-panel .show-more-button {
+  justify-self: start;
+  min-height: 2.25rem;
+  padding: var(--space-xs) var(--space-sm);
+  font: inherit;
+  color: var(--color-text);
+  font-weight: 800;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface-raised));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.music-library-panel .library-grid,
+.music-library-panel .discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.music-library-panel .discovery-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.music-library-panel .library-section {
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-surface-raised) 64%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.music-library-panel .section-heading {
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.music-library-panel .section-heading p {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.music-library-panel ul {
+  display: grid;
+  gap: var(--space-xs);
+  padding: 0;
+  list-style: none;
+}
+
+.music-library-panel li {
+  min-width: 0;
+  padding: var(--space-sm);
+  background: color-mix(in srgb, var(--color-surface) 66%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+.music-library-panel .item-title {
+  overflow-wrap: anywhere;
+  font-weight: 800;
+}
+
+.music-library-panel .item-meta {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+  .music-library-panel .library-grid,
+  .music-library-panel .discovery-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .music-library-panel .section-heading {
+    grid-template-columns: 1fr;
+  }
+}

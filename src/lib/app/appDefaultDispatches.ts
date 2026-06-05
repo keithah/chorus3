@@ -97,6 +97,7 @@ export function createAppDefaultDispatches(
   const mediaFilesActionDispatch: MediaFilesActionDispatch = {
     playFileItem: (item) => defaultPlayerDispatch.playFileItem(toFilePlaybackItem(item)),
     queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item)),
+    queueFileItems: (items) => defaultQueueDispatch.queueFileItems(items.map(toFileQueueItem)),
     downloadFileItem: (item) => downloadMediaFileItem(toFileDownloadItem(item))
   };
 

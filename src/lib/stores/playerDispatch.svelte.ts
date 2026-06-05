@@ -55,6 +55,8 @@ import {
   createConfigError,
   createInputError,
   createSafeError,
+  resolveSinglePlayerIdFromSnapshot,
+  resolveSingleVideoPlayerIdFromSnapshot,
   validateBoundedNumber,
   validateFiniteNumber
 } from './playerDispatchSupport';
@@ -815,60 +817,17 @@ export class PlayerDispatch {
   }
 
   #resolveSinglePlayerId(): number | null {
-    const snapshot = this.#playerStore.snapshot;
-
-    if (!snapshot.primaryPlayer || snapshot.activePlayers.length === 0) {
-      this.#failCommand({
-        source: 'player',
-        code: 'player/no-active-player',
-        message: 'No active Kodi player is available for this command.'
-      });
-      return null;
-    }
-
-    if (snapshot.activePlayers.length > 1) {
-      this.#failCommand({
-        source: 'player',
-        code: 'player/multiple-active-players',
-        message: 'Multiple Kodi players are active. Choose one player before sending commands.'
-      });
-      return null;
-    }
-
-    return snapshot.primaryPlayer.playerid;
+    const resolved = resolveSinglePlayerIdFromSnapshot(this.#playerStore.snapshot);
+    if (resolved.ok) return resolved.playerid;
+    this.#failCommand(resolved.error);
+    return null;
   }
 
   #resolveSingleVideoPlayerId(): number | null {
-    const snapshot = this.#playerStore.snapshot;
-
-    if (!snapshot.primaryPlayer || snapshot.activePlayers.length === 0) {
-      this.#failCommand({
-        source: 'player',
-        code: 'player/no-active-player',
-        message: 'No active Kodi video player is available for browser streaming.'
-      });
-      return null;
-    }
-
-    if (snapshot.activePlayers.length > 1) {
-      this.#failCommand({
-        source: 'player',
-        code: 'player/multiple-active-players',
-        message: 'Multiple Kodi players are active. Choose one player before browser streaming.'
-      });
-      return null;
-    }
-
-    if (snapshot.primaryPlayer.type !== 'video') {
-      this.#failCommand({
-        source: 'player',
-        code: 'player/no-active-video-player',
-        message: 'Choose a movie with an active Kodi video player before browser streaming.'
-      });
-      return null;
-    }
-
-    return snapshot.primaryPlayer.playerid;
+    const resolved = resolveSingleVideoPlayerIdFromSnapshot(this.#playerStore.snapshot);
+    if (resolved.ok) return resolved.playerid;
+    this.#failCommand(resolved.error);
+    return null;
   }
 }
 

@@ -1,27 +1,24 @@
 <script lang="ts">
   import HostSettings from '$components/HostSettings.svelte';
   import HostSwitcher from '$components/HostSwitcher.svelte';
-  import MediaFilesPanel, {
-    type MediaFilesActionDispatch,
-    type MediaFilesPanelDispatch
+  import type {
+    MediaFilesActionDispatch,
+    MediaFilesPanelDispatch
   } from '$components/MediaFilesPanel.svelte';
-  import MediaPlaylistsPanel, {
-    type MediaPlaylistsPanelDispatch
-  } from '$components/MediaPlaylistsPanel.svelte';
+  import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
   import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
-  import MediaSearchPanel, {
-    type MediaSearchActionDispatch,
-    type MediaSearchPanelDispatch
+  import type {
+    MediaSearchActionDispatch,
+    MediaSearchPanelDispatch
   } from '$components/MediaSearchPanel.svelte';
-  import MusicBrowsePanel, {
-    type MusicBrowseActionDispatch,
-    type MusicBrowsePanelDispatch
+  import type {
+    MusicBrowseActionDispatch,
+    MusicBrowsePanelDispatch
   } from '$components/MusicBrowsePanel.svelte';
-  import MusicLibraryPanel from '$components/MusicLibraryPanel.svelte';
-  import NowPlayingPanel from '$components/NowPlayingPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
-  import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
+  import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import StatusCard from '$components/StatusCard.svelte';
+  import AppHomeMediaPanels from '$lib/app-pages/AppHomeMediaPanels.svelte';
   import type { TranslationContext } from '$lib/i18n';
   import type {
     LocalPlayerStoreSnapshot,
@@ -113,40 +110,27 @@
     <StatusCard {...themeContract} />
   </section>
 
-  <MusicLibraryPanel snapshot={musicLibrarySnapshot} {i18n} />
-  <MusicBrowsePanel
-    librarySnapshot={musicLibrarySnapshot}
-    browseSnapshot={musicBrowseSnapshot}
-    dispatch={musicBrowseDispatch}
-    actionDispatch={musicActionDispatch}
-    {i18n}
-  />
-  <MediaSearchPanel
-    snapshot={mediaSearchSnapshot}
-    dispatch={mediaSearchDispatch}
-    actionDispatch={mediaSearchActionDispatch}
-    {i18n}
-  />
-  <MediaFilesPanel
-    snapshot={mediaFilesSnapshot}
-    dispatch={mediaFilesDispatch}
-    actionDispatch={mediaFilesActionDispatch}
-    {i18n}
-  />
-  <MediaPlaylistsPanel
-    snapshot={mediaPlaylistsSnapshot}
-    dispatch={mediaPlaylistsDispatch}
-    actionDispatch={mediaPlaylistsActionDispatch}
-    {i18n}
-  />
-
-  <NowPlayingPanel
-    snapshot={playerSnapshot}
-    dispatch={playerDispatch}
+  <AppHomeMediaPanels
+    {musicLibrarySnapshot}
+    {musicBrowseSnapshot}
+    {musicBrowseDispatch}
+    {musicActionDispatch}
+    {mediaSearchSnapshot}
+    {mediaSearchDispatch}
+    {mediaSearchActionDispatch}
+    {mediaFilesSnapshot}
+    {mediaFilesDispatch}
+    {mediaFilesActionDispatch}
+    {mediaPlaylistsSnapshot}
+    {mediaPlaylistsDispatch}
+    {mediaPlaylistsActionDispatch}
+    {playerSnapshot}
+    {playerDispatch}
     {localPlayerSnapshot}
+    {queueSnapshot}
+    {queueDispatch}
     {i18n}
   />
-  <QueuePanel snapshot={queueSnapshot} dispatch={queueDispatch} {i18n} />
 </div>
 
 <style>

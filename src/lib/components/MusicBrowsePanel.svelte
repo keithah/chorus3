@@ -1,14 +1,12 @@
 <script lang="ts" module>
+  import type { MusicBrowseActionItem as ImportedMusicBrowseActionItem } from './musicBrowsePanelModel';
   import type {
     MusicBrowseAlbumPick,
     MusicBrowseArtistPick,
     MusicBrowseGenrePick
   } from '$lib/stores/musicBrowse.svelte';
 
-  export type MusicBrowseActionItem =
-    | { kind: 'song'; songid: number }
-    | { kind: 'album'; albumid: number }
-    | { kind: 'artist'; artistid: number };
+  export type MusicBrowseActionItem = ImportedMusicBrowseActionItem;
 
   export interface MusicBrowseActionDispatch {
     playMusicItem: (item: MusicBrowseActionItem) => Promise<void> | void;
@@ -26,16 +24,40 @@
 <script lang="ts">
   import { createTranslationContext, type TranslationContext } from '$lib/i18n';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
-  import type {
-    MusicBrowseSelection,
-    MusicBrowseStoreSnapshot
-  } from '$lib/stores/musicBrowse.svelte';
+  import {
+    albumMusicBrowseDetailEmptyCopy,
+    capitalizeMusicBrowseText,
+    formatMusicBrowseAlbumMeta,
+    formatMusicBrowseArtistMeta,
+    formatMusicBrowseCountSummary,
+    formatMusicBrowseDetailCountSummary,
+    formatMusicBrowseSelectionTarget,
+    formatMusicBrowseSelectionTitle,
+    formatMusicBrowseSongMeta,
+    formatMusicBrowseStatus,
+    musicBrowseActionForAlbum,
+    musicBrowseActionForArtist,
+    musicBrowseActionForSong,
+    musicBrowseActionId,
+    musicBrowseActionTargetKey,
+    musicBrowseEachKey,
+    safeMusicBrowseAlbumLabel,
+    safeMusicBrowseArtistLabel,
+    safeMusicBrowseGenreLabel,
+    safeMusicBrowseSelectionLabel,
+    safeMusicBrowseSongLabel,
+    sanitizeMusicBrowseUiText,
+    songMusicBrowseDetailEmptyCopy,
+    topLevelMusicBrowseEmptyCopy,
+    type MusicBrowseActionVerb,
+    type MusicBrowseDetailKind,
+    type MusicBrowseTopLevelKind
+  } from './musicBrowsePanelModel';
+  import type { MusicBrowseStoreSnapshot } from '$lib/stores/musicBrowse.svelte';
   import type {
     MusicLibraryAlbumSnapshot,
     MusicLibraryArtistSnapshot,
     MusicLibraryGenreSnapshot,
-    MusicLibraryLimitsSnapshot,
-    MusicLibrarySongSnapshot,
     MusicLibraryStoreSnapshot
   } from '$lib/stores/musicLibrary.svelte';
 
@@ -47,13 +69,9 @@
     actionDispatch: MusicBrowseActionDispatch;
   }
 
-  type TopLevelKind = 'artists' | 'albums' | 'genres';
-  type DetailKind = 'albums' | 'songs';
-  type MusicActionVerb = 'play' | 'queue';
-
   type PendingMusicAction = {
     id: string;
-    verb: MusicActionVerb;
+    verb: MusicBrowseActionVerb;
     label: string;
     item: MusicBrowseActionItem;
   };
@@ -77,9 +95,9 @@
 
   const isLoading = $derived(browseSnapshot.refreshStatus === 'loading');
   const hasSelection = $derived(Boolean(browseSnapshot.selection));
-  const statusText = $derived(actionStatusText ?? formatStatus(browseSnapshot));
-  const selectionTitle = $derived(formatSelectionTitle(browseSnapshot.selection));
-  const detailTarget = $derived(formatSelectionTarget(browseSnapshot.selection));
+  const statusText = $derived(actionStatusText ?? formatMusicBrowseStatus(browseSnapshot));
+  const selectionTitle = $derived(formatMusicBrowseSelectionTitle(browseSnapshot.selection));
+  const detailTarget = $derived(formatMusicBrowseSelectionTarget(browseSnapshot.selection));
   const visibleArtists = $derived(artistVisibility.visibleItems(librarySnapshot.artists));
   const visibleAlbums = $derived(albumVisibility.visibleItems(librarySnapshot.albums));
   const visibleGenres = $derived(genreVisibility.visibleItems(librarySnapshot.genres));
@@ -91,7 +109,7 @@
       return;
     }
 
-    dispatch.browseArtist({ artistid: artist.artistid, label: safeArtistLabel(artist) });
+    dispatch.browseArtist({ artistid: artist.artistid, label: safeMusicBrowseArtistLabel(artist) });
   }
 
   function handleBrowseAlbum(album: MusicLibraryAlbumSnapshot): void {
@@ -99,7 +117,7 @@
       return;
     }
 
-    dispatch.browseAlbum({ albumid: album.albumid, label: safeAlbumLabel(album) });
+    dispatch.browseAlbum({ albumid: album.albumid, label: safeMusicBrowseAlbumLabel(album) });
   }
 
   function handleBrowseGenre(genre: MusicLibraryGenreSnapshot): void {
@@ -107,7 +125,7 @@
       return;
     }
 
-    dispatch.browseGenre({ genreid: genre.genreid, label: safeGenreLabel(genre) });
+    dispatch.browseGenre({ genreid: genre.genreid, label: safeMusicBrowseGenreLabel(genre) });
   }
 
   function handleClearSelection(): void {
@@ -119,7 +137,7 @@
   }
 
   async function handleMusicAction(
-    verb: MusicActionVerb,
+    verb: MusicBrowseActionVerb,
     item: MusicBrowseActionItem,
     label: string
   ): Promise<void> {
@@ -127,10 +145,12 @@
       return;
     }
 
-    const action = { id: actionId(verb, item), verb, item, label };
+    const action = { id: musicBrowseActionId(verb, item), verb, item, label };
     pendingAction = action;
     actionErrorText = null;
-    actionStatusText = `${capitalize(verb === 'play' ? 'playing' : 'queueing')} ${label}…`;
+    actionStatusText = `${capitalizeMusicBrowseText(
+      verb === 'play' ? 'playing' : 'queueing'
+    )} ${label}…`;
 
     try {
       if (verb === 'play') {
@@ -140,7 +160,7 @@
       }
       actionStatusText = `${verb === 'play' ? 'Played' : 'Queued'} ${label}.`;
     } catch (error) {
-      const message = sanitizeUiText(
+      const message = sanitizeMusicBrowseUiText(
         error instanceof Error ? error.message : 'Music action failed.'
       );
       actionErrorText = `Could not ${verb} ${label}. ${message}`;
@@ -148,18 +168,6 @@
     } finally {
       pendingAction = null;
     }
-  }
-
-  function actionId(verb: MusicActionVerb, item: MusicBrowseActionItem): string {
-    if (item.kind === 'song') {
-      return `${verb}:song:${item.songid}`;
-    }
-
-    if (item.kind === 'album') {
-      return `${verb}:album:${item.albumid}`;
-    }
-
-    return `${verb}:artist:${item.artistid}`;
   }
 
   function isActionDisabled(item: MusicBrowseActionItem): boolean {
@@ -171,265 +179,25 @@
       return false;
     }
 
-    return actionTargetKey(pendingAction.item) === actionTargetKey(item);
+    return musicBrowseActionTargetKey(pendingAction.item) === musicBrowseActionTargetKey(item);
   }
 
-  function actionTargetKey(item: MusicBrowseActionItem): string {
-    if (item.kind === 'song') {
-      return `song:${item.songid}`;
-    }
-
-    if (item.kind === 'album') {
-      return `album:${item.albumid}`;
-    }
-
-    return `artist:${item.artistid}`;
-  }
-
-  function musicActionForArtist(artist: MusicLibraryArtistSnapshot): MusicBrowseActionItem | null {
-    return isPositiveInteger(artist.artistid)
-      ? { kind: 'artist', artistid: artist.artistid }
-      : null;
-  }
-
-  function musicActionForAlbum(album: MusicLibraryAlbumSnapshot): MusicBrowseActionItem | null {
-    return isPositiveInteger(album.albumid) ? { kind: 'album', albumid: album.albumid } : null;
-  }
-
-  function musicActionForSong(song: MusicLibrarySongSnapshot): MusicBrowseActionItem | null {
-    return isPositiveInteger(song.songid) ? { kind: 'song', songid: song.songid } : null;
-  }
-
-  function safeEachKey(prefix: string, id: unknown, index: number): string {
-    return isPositiveInteger(id) ? `${prefix}:${id}` : `${prefix}:invalid:${index}`;
-  }
-
-  function formatStatus(snapshot: MusicBrowseStoreSnapshot): string {
-    const selection = formatSelectionTarget(snapshot.selection);
-
-    if (!snapshot.selection) {
-      return 'Choose an artist, album, or genre to browse.';
-    }
-
-    if (snapshot.refreshStatus === 'loading') {
-      return `Loading ${selection}.`;
-    }
-
-    if (snapshot.refreshStatus === 'error' && snapshot.lastError) {
-      return sanitizeUiText(snapshot.lastError.message);
-    }
-
-    if (snapshot.isEmpty) {
-      return `No albums or songs found for ${safeSelectionLabel(snapshot.selection)}.`;
-    }
-
-    const updated = textOrNull(snapshot.lastUpdatedAt);
-    return updated ? `Showing ${selection}. Last updated ${updated}.` : `Showing ${selection}.`;
-  }
-
-  function formatSelectionTitle(selection: MusicBrowseSelection): string {
-    if (!selection) {
-      return 'No browse selection';
-    }
-
-    return `${capitalize(selection.kind)}: ${safeSelectionLabel(selection)}`;
-  }
-
-  function formatSelectionTarget(selection: MusicBrowseSelection): string {
-    if (!selection) {
-      return 'music browse details';
-    }
-
-    return `${selection.kind} ${safeSelectionLabel(selection)}`;
-  }
-
-  function countSummary(kind: TopLevelKind, count: number): string {
+  function countSummary(kind: MusicBrowseTopLevelKind, count: number): string {
     const limits = librarySnapshot.limits[kind];
-    return `${count} of ${formatTotal(limits, count)}`;
+    return formatMusicBrowseCountSummary(count, limits);
   }
 
-  function detailCountSummary(kind: DetailKind, count: number): string {
+  function detailCountSummary(kind: MusicBrowseDetailKind, count: number): string {
     const limits = browseSnapshot.limits[kind];
-    return `${capitalize(kind)} ${count} of ${formatTotal(limits, count)}`;
-  }
-
-  function formatTotal(limits: MusicLibraryLimitsSnapshot | undefined, fallback: number): number {
-    return typeof limits?.total === 'number' && Number.isFinite(limits.total)
-      ? limits.total
-      : fallback;
-  }
-
-  function topLevelEmptyCopy(kind: TopLevelKind): string {
-    switch (kind) {
-      case 'artists':
-        return 'No artists in this snapshot.';
-      case 'albums':
-        return 'No albums in this snapshot.';
-      case 'genres':
-        return 'No genres in this snapshot.';
-    }
+    return formatMusicBrowseDetailCountSummary(kind, count, limits);
   }
 
   function albumDetailEmptyCopy(): string {
-    if (browseSnapshot.selection?.kind === 'album') {
-      return 'Album selections show songs only.';
-    }
-
-    return `No albums found for ${detailTarget}.`;
+    return albumMusicBrowseDetailEmptyCopy(browseSnapshot.selection, detailTarget);
   }
 
   function songDetailEmptyCopy(): string {
-    return `No songs found for ${detailTarget}.`;
-  }
-
-  function displayText(value: unknown, fallback: string): string {
-    return textOrNull(value) ?? fallback;
-  }
-
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) {
-      return null;
-    }
-
-    return sanitizeUiText(trimmed);
-  }
-
-  function joinText(values: unknown): string | null {
-    if (Array.isArray(values)) {
-      const joined = values
-        .map((entry) => textOrNull(entry))
-        .filter((entry): entry is string => Boolean(entry))
-        .join(', ');
-      return joined || null;
-    }
-
-    return textOrNull(values);
-  }
-
-  function numberOrNull(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  }
-
-  function isPositiveInteger(value: unknown): value is number {
-    return typeof value === 'number' && Number.isInteger(value) && value > 0;
-  }
-
-  function formatDuration(seconds: unknown): string | null {
-    const value = numberOrNull(seconds);
-    if (value === null) {
-      return null;
-    }
-
-    const safeSeconds = Math.max(0, Math.floor(value));
-    const hours = Math.floor(safeSeconds / 3600);
-    const minutes = Math.floor((safeSeconds % 3600) / 60);
-    const remainingSeconds = safeSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${pad2(minutes)}:${pad2(remainingSeconds)}`;
-    }
-
-    return `${minutes}:${pad2(remainingSeconds)}`;
-  }
-
-  function formatYear(value: unknown): string | null {
-    const year = numberOrNull(value);
-    return year === null ? null : String(Math.trunc(year));
-  }
-
-  function formatTrack(value: unknown): string | null {
-    const track = numberOrNull(value);
-    return track === null ? null : `Track ${Math.trunc(track)}`;
-  }
-
-  function formatPlaycount(value: unknown): string | null {
-    const playcount = numberOrNull(value);
-    if (playcount === null) {
-      return null;
-    }
-
-    const rounded = Math.max(0, Math.trunc(playcount));
-    return rounded === 1 ? 'Played 1 time' : `Played ${rounded} times`;
-  }
-
-  function safeArtistLabel(artist: MusicLibraryArtistSnapshot): string {
-    return displayText(artist.label, 'Unknown artist');
-  }
-
-  function safeAlbumLabel(album: MusicLibraryAlbumSnapshot): string {
-    return displayText(album.title ?? album.label, 'Unknown album');
-  }
-
-  function safeSongLabel(song: MusicLibrarySongSnapshot): string {
-    return displayText(song.title ?? song.label, 'Unknown song');
-  }
-
-  function safeGenreLabel(genre: MusicLibraryGenreSnapshot): string {
-    return displayText(genre.title ?? genre.label, 'Unknown genre');
-  }
-
-  function safeSelectionLabel(selection: NonNullable<MusicBrowseSelection>): string {
-    switch (selection.kind) {
-      case 'artist':
-        return displayText(selection.label, 'Unknown artist');
-      case 'album':
-        return displayText(selection.label, 'Unknown album');
-      case 'genre':
-        return displayText(selection.label, 'Unknown genre');
-    }
-  }
-
-  function songMeta(song: MusicLibrarySongSnapshot): string {
-    return [
-      joinText(song.artist),
-      textOrNull(song.album),
-      formatDuration(song.duration),
-      formatTrack(song.track),
-      formatPlaycount(song.playcount)
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  }
-
-  function albumMeta(album: MusicLibraryAlbumSnapshot): string {
-    return [joinText(album.artist), formatYear(album.year)].filter(Boolean).join(' · ');
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/localStorage/gi, 'browser storage');
-  }
-
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/)/i.test(value) ||
-      /^[a-z]:\\/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
-  }
-
-  function pad2(value: number): string {
-    return value.toString().padStart(2, '0');
-  }
-
-  function capitalize(value: string): string {
-    return value.charAt(0).toUpperCase() + value.slice(1);
+    return songMusicBrowseDetailEmptyCopy(detailTarget);
   }
 </script>
 
@@ -449,12 +217,12 @@
         <p>{countSummary('artists', librarySnapshot.artists.length)}</p>
       </div>
       {#if librarySnapshot.artists.length === 0}
-        <p class="empty-copy">{topLevelEmptyCopy('artists')}</p>
+        <p class="empty-copy">{topLevelMusicBrowseEmptyCopy('artists')}</p>
       {:else}
         <ul class="choice-list">
-          {#each visibleArtists as artist, index (safeEachKey('artist', artist.artistid, index))}
-            {@const label = safeArtistLabel(artist)}
-            {@const actionItem = musicActionForArtist(artist)}
+          {#each visibleArtists as artist, index (musicBrowseEachKey('artist', artist.artistid, index))}
+            {@const label = safeMusicBrowseArtistLabel(artist)}
+            {@const actionItem = musicBrowseActionForArtist(artist)}
             <li>
               <button
                 type="button"
@@ -465,8 +233,8 @@
               >
                 <span class="button-kicker">Browse artist</span>
                 <span class="item-title">{label}</span>
-                {#if joinText(artist.genre)}
-                  <span class="item-meta">{joinText(artist.genre)}</span>
+                {#if formatMusicBrowseArtistMeta(artist)}
+                  <span class="item-meta">{formatMusicBrowseArtistMeta(artist)}</span>
                 {/if}
               </button>
               {#if actionItem}
@@ -508,12 +276,12 @@
         <p>{countSummary('albums', librarySnapshot.albums.length)}</p>
       </div>
       {#if librarySnapshot.albums.length === 0}
-        <p class="empty-copy">{topLevelEmptyCopy('albums')}</p>
+        <p class="empty-copy">{topLevelMusicBrowseEmptyCopy('albums')}</p>
       {:else}
         <ul class="choice-list">
-          {#each visibleAlbums as album, index (safeEachKey('album', album.albumid, index))}
-            {@const label = safeAlbumLabel(album)}
-            {@const actionItem = musicActionForAlbum(album)}
+          {#each visibleAlbums as album, index (musicBrowseEachKey('album', album.albumid, index))}
+            {@const label = safeMusicBrowseAlbumLabel(album)}
+            {@const actionItem = musicBrowseActionForAlbum(album)}
             <li>
               <button
                 type="button"
@@ -524,8 +292,8 @@
               >
                 <span class="button-kicker">Browse album</span>
                 <span class="item-title">{label}</span>
-                {#if albumMeta(album)}
-                  <span class="item-meta">{albumMeta(album)}</span>
+                {#if formatMusicBrowseAlbumMeta(album)}
+                  <span class="item-meta">{formatMusicBrowseAlbumMeta(album)}</span>
                 {/if}
               </button>
               {#if actionItem}
@@ -567,11 +335,11 @@
         <p>{countSummary('genres', librarySnapshot.genres.length)}</p>
       </div>
       {#if librarySnapshot.genres.length === 0}
-        <p class="empty-copy">{topLevelEmptyCopy('genres')}</p>
+        <p class="empty-copy">{topLevelMusicBrowseEmptyCopy('genres')}</p>
       {:else}
         <ul class="choice-list">
-          {#each visibleGenres as genre, index (safeEachKey('genre', genre.genreid, index))}
-            {@const label = safeGenreLabel(genre)}
+          {#each visibleGenres as genre, index (musicBrowseEachKey('genre', genre.genreid, index))}
+            {@const label = safeMusicBrowseGenreLabel(genre)}
             <li>
               <button
                 type="button"
@@ -625,12 +393,12 @@
       {/if}
 
       {#if browseSnapshot.refreshStatus === 'error' && browseSnapshot.lastError}
-        <p class="error-copy">{sanitizeUiText(browseSnapshot.lastError.message)}</p>
+        <p class="error-copy">{sanitizeMusicBrowseUiText(browseSnapshot.lastError.message)}</p>
       {/if}
 
       {#if browseSnapshot.isEmpty && !isLoading}
         <p class="state-copy">
-          No albums or songs found for {safeSelectionLabel(browseSnapshot.selection)}.
+          No albums or songs found for {safeMusicBrowseSelectionLabel(browseSnapshot.selection)}.
         </p>
       {/if}
 
@@ -638,7 +406,7 @@
         <section class="result-section" aria-labelledby="music-browse-detail-albums-title">
           <div class="section-heading">
             <h4 id="music-browse-detail-albums-title">
-              Albums for {safeSelectionLabel(browseSnapshot.selection)}
+              Albums for {safeMusicBrowseSelectionLabel(browseSnapshot.selection)}
             </h4>
             <p>{detailCountSummary('albums', browseSnapshot.albums.length)}</p>
           </div>
@@ -646,13 +414,13 @@
             <p class="empty-copy">{albumDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each visibleDetailAlbums as album, index (safeEachKey('detail-album', album.albumid, index))}
-                {@const label = safeAlbumLabel(album)}
-                {@const actionItem = musicActionForAlbum(album)}
+              {#each visibleDetailAlbums as album, index (musicBrowseEachKey('detail-album', album.albumid, index))}
+                {@const label = safeMusicBrowseAlbumLabel(album)}
+                {@const actionItem = musicBrowseActionForAlbum(album)}
                 <li class="result-card">
                   <span class="item-title">{label}</span>
-                  {#if albumMeta(album)}
-                    <span class="item-meta">{albumMeta(album)}</span>
+                  {#if formatMusicBrowseAlbumMeta(album)}
+                    <span class="item-meta">{formatMusicBrowseAlbumMeta(album)}</span>
                   {/if}
                   {#if actionItem}
                     <div class="action-row" aria-label={`Actions for album ${label}`}>
@@ -694,7 +462,7 @@
         <section class="result-section" aria-labelledby="music-browse-detail-songs-title">
           <div class="section-heading">
             <h4 id="music-browse-detail-songs-title">
-              Songs for {safeSelectionLabel(browseSnapshot.selection)}
+              Songs for {safeMusicBrowseSelectionLabel(browseSnapshot.selection)}
             </h4>
             <p>{detailCountSummary('songs', browseSnapshot.songs.length)}</p>
           </div>
@@ -702,14 +470,14 @@
             <p class="empty-copy">{songDetailEmptyCopy()}</p>
           {:else}
             <ul class="result-list">
-              {#each visibleDetailSongs as song, index (safeEachKey('song', song.songid, index))}
-                {@const label = safeSongLabel(song)}
-                {@const actionItem = musicActionForSong(song)}
+              {#each visibleDetailSongs as song, index (musicBrowseEachKey('song', song.songid, index))}
+                {@const label = safeMusicBrowseSongLabel(song)}
+                {@const actionItem = musicBrowseActionForSong(song)}
                 <li class="result-card" data-songid={song.songid}>
                   <span class="item-title">{label}</span>
                   <span class="identity-chip">Song ID {song.songid}</span>
-                  {#if songMeta(song)}
-                    <span class="item-meta">{songMeta(song)}</span>
+                  {#if formatMusicBrowseSongMeta(song)}
+                    <span class="item-meta">{formatMusicBrowseSongMeta(song)}</span>
                   {/if}
                   {#if actionItem}
                     <div class="action-row" aria-label={`Actions for song ${label}`}>

@@ -1,0 +1,302 @@
+.addons-panel {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.addons-panel .addons-hero,
+.addons-panel .addons-status-grid,
+.addons-panel .addons-toolbar,
+.addons-panel .addons-group,
+.addons-panel .addons-card-grid,
+.addons-panel .addons-card-heading,
+.addons-panel .addons-meta {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.addons-panel .addons-hero {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 50px;
+  padding: 0.75rem 1rem;
+  background: #f7f7f7;
+  border-bottom: 1px solid #d0d0d0;
+}
+
+.addons-panel .addons-status span,
+.addons-panel .addons-group-heading span,
+.addons-panel .addons-meta dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.addons-panel h2,
+.addons-panel h3,
+.addons-panel p,
+.addons-panel dl,
+.addons-panel dd {
+  margin: 0;
+}
+
+.addons-panel h2 {
+  color: #555;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.addons-panel h3 {
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.addons-panel p,
+.addons-panel dd,
+.addons-panel label,
+.addons-panel button,
+.addons-panel input,
+.addons-panel select,
+.addons-panel a {
+  line-height: 1.5;
+}
+
+.addons-panel button,
+.addons-panel input,
+.addons-panel select {
+  border: 1px solid #c8c8c8;
+}
+
+.addons-panel button {
+  cursor: pointer;
+}
+
+.addons-panel button:disabled,
+.addons-panel input:disabled,
+.addons-panel select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.addons-panel .addons-primary-action,
+.addons-panel .addons-error-actions button,
+.addons-panel .addons-show-more {
+  padding: var(--space-xs) var(--space-md);
+  color: #333;
+  font-weight: 800;
+  background: #9e9e9e;
+  color: white;
+}
+
+.addons-panel .addons-primary-action:not(:disabled):hover,
+.addons-panel .addons-error-actions button:not(:disabled):hover,
+.addons-panel .addons-show-more:not(:disabled):hover,
+.addons-panel .addons-card a:hover {
+  background: #777;
+}
+
+.addons-panel .addons-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.addons-panel .addons-status,
+.addons-panel .addons-alert,
+.addons-panel .addons-toolbar,
+.addons-panel .addons-error-actions,
+.addons-panel .addons-group,
+.addons-panel .addons-card,
+.addons-panel .addons-empty {
+  padding: var(--space-md);
+  background: #f7f7f7;
+  border: 1px solid #d0d0d0;
+}
+
+.addons-panel .addons-status {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.addons-panel .addons-alert {
+  display: grid;
+  gap: var(--space-2xs);
+  color: var(--color-danger, var(--color-warning));
+  border-color: color-mix(
+    in srgb,
+    var(--color-danger, var(--color-warning)) 42%,
+    var(--color-border)
+  );
+}
+
+.addons-panel .addons-toolbar {
+  grid-template-columns: auto minmax(14rem, 1fr) auto minmax(10rem, 0.35fr);
+  align-items: center;
+}
+
+.addons-panel .addons-toolbar input,
+.addons-panel .addons-toolbar select {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  color: #333;
+  background: white;
+}
+
+.addons-panel .addons-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.addons-panel .addons-groups {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.addons-panel .addons-group-heading,
+.addons-panel .addons-card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.addons-panel .addons-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-items: start;
+}
+
+.addons-panel .addons-card {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 14%);
+}
+
+.addons-panel .addons-card-heading {
+  display: block;
+}
+
+.addons-panel .addons-card.broken {
+  border-color: color-mix(
+    in srgb,
+    var(--color-warning, var(--color-accent)) 42%,
+    var(--color-border)
+  );
+}
+
+.addons-panel .addons-summary,
+.addons-panel .addons-empty,
+.addons-panel .addons-error-actions p {
+  color: var(--color-text-muted);
+}
+
+.addons-panel .addons-summary {
+  display: none;
+}
+
+.addons-panel .addons-card a {
+  color: #333;
+  text-decoration: none;
+}
+
+.addons-panel .addons-card-primary {
+  display: grid;
+  grid-template-rows: 132px auto;
+  min-width: 0;
+}
+
+.addons-panel .addons-card-primary span:last-child {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+}
+
+.addons-panel .addons-card-primary strong,
+.addons-panel .addons-card-primary small {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.addons-panel .addons-card-primary small {
+  color: #888;
+}
+
+.addons-panel .addons-card-thumb {
+  display: grid;
+  place-items: center;
+  background: #cfcfcf;
+  color: #aaa;
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.addons-panel .addons-card-detail {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  padding: 0.45rem 0.65rem;
+  border-top: 1px solid #eee;
+  color: #42a5dc;
+}
+
+.addons-panel .addons-meta {
+  display: block;
+  padding: 0 0.65rem 0.55rem;
+  color: #888;
+  font-size: 11px;
+}
+
+.addons-panel .addons-meta div {
+  display: inline;
+}
+
+.addons-panel .addons-meta dt,
+.addons-panel .addons-meta dd {
+  display: inline;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.addons-panel .addons-meta div + div::before {
+  content: ' · ';
+}
+
+.addons-panel .addons-actions {
+  display: grid;
+  border-top: 1px solid #eee;
+}
+
+.addons-panel .addons-actions button {
+  min-height: 34px;
+  padding: 0.45rem 0.65rem;
+  color: #333;
+  font-weight: 400;
+  background: #fff;
+}
+
+.addons-panel .addons-actions button:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border));
+}
+
+@media (max-width: 760px) {
+  .addons-panel .addons-hero,
+  .addons-panel .addons-status-grid,
+  .addons-panel .addons-toolbar,
+  .addons-panel .addons-group-heading,
+  .addons-panel .addons-card-heading,
+  .addons-panel .addons-meta {
+    grid-template-columns: 1fr;
+  }
+}
