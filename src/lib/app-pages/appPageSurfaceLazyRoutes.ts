@@ -2,6 +2,8 @@ import type { Component } from 'svelte';
 
 import type { BoundLazyRoute, LazyRouteLoader, LazyRouteModule } from './LazyRouteComponent.svelte';
 
+export type { LazyRouteLoader };
+
 export const loadLibraryPage = lazyRoute(() => import('$lib/app-pages/LibraryPage.svelte'));
 export const loadBrowserFilesPage = lazyRoute(
   () => import('$lib/app-pages/BrowserFilesPage.svelte')
@@ -112,7 +114,7 @@ async function preloadLazyRouteLoaders(
   }
 }
 
-type LazyRouteComponentProps<TLoader> =
+export type LazyRouteComponentProps<TLoader> =
   TLoader extends LazyRouteLoader<infer TComponent>
     ? TComponent extends Component<infer TProps>
       ? TProps

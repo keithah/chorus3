@@ -1,3 +1,5 @@
+import { readBackboneCollectionRows } from './backboneCollectionStorage';
+
 export const SEARCH_ADDONS_STORAGE_KEY = 'searchAddons';
 
 export type SearchAddonsStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key'> & {
@@ -106,53 +108,7 @@ export function blankSearchAddon(weight: number): SearchAddonSetting {
 }
 
 function readBackboneCollection(storage: SearchAddonsStorage): SearchAddonSetting[] {
-  const raw = storage.getItem(SEARCH_ADDONS_STORAGE_KEY);
-  const jsonRows = parseJsonRows(raw);
-  if (jsonRows) return normalizeRows(jsonRows);
-
-  const ids = raw
-    ?.split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-
-  if (!ids?.length) return [];
-
-  const rows = ids
-    .map((id, index) => readBackboneModel(storage, id, index))
-    .filter((row): row is SearchAddonSetting => row !== null);
-
-  return normalizeRows(rows);
-}
-
-function parseJsonRows(raw: string | null): Partial<SearchAddonSetting>[] | null {
-  if (!raw || !['[', '{'].includes(raw.trimStart()[0] ?? '')) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) return parsed as Partial<SearchAddonSetting>[];
-    if (isRecord(parsed) && Array.isArray(parsed.rows)) {
-      return parsed.rows as Partial<SearchAddonSetting>[];
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function readBackboneModel(
-  storage: SearchAddonsStorage,
-  id: string,
-  weight: number
-): SearchAddonSetting | null {
-  const raw = storage.getItem(`${SEARCH_ADDONS_STORAGE_KEY}-${id}`);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed)) return null;
-    return normalizeRow({ ...parsed, id, weight }, weight);
-  } catch {
-    return null;
-  }
+  return normalizeRows(readBackboneCollectionRows(storage, SEARCH_ADDONS_STORAGE_KEY));
 }
 
 function normalizeRows(rows: readonly Partial<SearchAddonSetting>[]): SearchAddonSetting[] {
@@ -186,8 +142,4 @@ function normalizeId(value: unknown, weight: number): string {
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.slice(0, 2048) : '';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

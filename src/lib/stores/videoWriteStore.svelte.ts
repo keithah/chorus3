@@ -4,12 +4,16 @@ import {
   setEpisodeDetails,
   setMovieDetails,
   type KodiEndpointDescription,
-  type KodiJsonRpcBatchCall,
-  type KodiJsonRpcHttpClient,
-  type KodiLibraryWriteResult,
-  type VideoResumePosition
+  type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
+import {
+  executeVideoWriteTargets,
+  type VideoWriteTarget,
+  type VideoWriteWriteMethods
+} from './videoWriteExecution';
+
+export type { VideoWriteWriteMethods } from './videoWriteExecution';
 
 export type VideoWriteStatus = 'idle' | 'writing' | 'success' | 'partial' | 'error';
 export type VideoWriteOperation =
@@ -80,55 +84,11 @@ export interface VideoWriteResumePosition {
   total: number;
 }
 
-export interface VideoWriteWriteMethods {
-  setMovieDetails(
-    client: KodiJsonRpcHttpClient,
-    params: {
-      movieid: number;
-      playcount?: number;
-      lastplayed?: string;
-      resume?: VideoResumePosition;
-    }
-  ): Promise<KodiLibraryWriteResult>;
-  setEpisodeDetails(
-    client: KodiJsonRpcHttpClient,
-    params: {
-      episodeid: number;
-      playcount?: number;
-      lastplayed?: string;
-      resume?: VideoResumePosition;
-    }
-  ): Promise<KodiLibraryWriteResult>;
-}
-
 export interface VideoWriteStoreOptions {
   createClient?: () => KodiJsonRpcHttpClient | null | Promise<KodiJsonRpcHttpClient | null>;
   now?: () => string;
   writeMethods?: VideoWriteWriteMethods;
 }
-
-type VideoWriteTarget =
-  | {
-      kind: 'movie';
-      id: number;
-      label: string;
-      operation: 'movie-watched' | 'movie-unwatched' | 'movie-resume';
-      watched?: boolean;
-      resume?: VideoWriteResumePosition;
-    }
-  | {
-      kind: 'episode';
-      id: number;
-      label: string;
-      operation:
-        | 'episode-watched'
-        | 'episode-unwatched'
-        | 'episodes-batch-watched'
-        | 'episodes-batch-unwatched'
-        | 'episode-resume';
-      watched?: boolean;
-      resume?: VideoWriteResumePosition;
-    };
 
 const DEFAULT_SUMMARY: VideoWriteSummarySnapshot = { total: 0, succeeded: 0, failed: 0 };
 const DEFAULT_WRITE_COUNTS: VideoWriteCountsSnapshot = {
@@ -163,9 +123,6 @@ const NO_ACTIVE_HOST_ERROR: VideoWriteSafeErrorSnapshot = {
   code: 'config/no-active-host',
   message: 'Choose an active Kodi host before writing video library changes.'
 };
-const BATCH_WRITE_CONCURRENCY = 6;
-const JSON_RPC_WRITE_BATCH_SIZE = 50;
-
 export class VideoWriteStore {
   #snapshot = $state<VideoWriteStoreSnapshot>(cloneStoreSnapshot(DEFAULT_SNAPSHOT));
 
@@ -379,43 +336,25 @@ export class VideoWriteStore {
       return;
     }
 
-    let succeeded = 0;
     const failures = existingFailures.map(cloneFailedItem);
-    const failedTargets: VideoWriteTarget[] = [];
-    const succeededTargets: VideoWriteTarget[] = [];
 
-    if (this.#canBatchTargets(client, targets)) {
-      for (const chunk of chunks(targets, JSON_RPC_WRITE_BATCH_SIZE)) {
-        try {
-          await client.callBatch?.(
-            chunk.map((target) => createWriteBatchCall(target, this.#now()))
-          );
-          succeeded += chunk.length;
-          succeededTargets.push(...chunk);
-        } catch (error) {
-          const safeError = createSafeError(error);
-          failures.push(
-            ...chunk.map((target) =>
-              createFailedItem(target.kind, target.id, target.label, safeError)
-            )
-          );
-          failedTargets.push(...chunk);
-        }
-      }
-    } else {
-      await runWithConcurrency(targets, BATCH_WRITE_CONCURRENCY, async (target) => {
-        try {
-          await this.#writeTarget(client, target);
-          succeeded += 1;
-          succeededTargets.push(target);
-        } catch (error) {
-          const safeError = createSafeError(error);
-          failures.push(createFailedItem(target.kind, target.id, target.label, safeError));
-          failedTargets.push(target);
-        }
-      });
+    const execution = await executeVideoWriteTargets({
+      client,
+      targets,
+      writeMethods: this.#writeMethods,
+      defaultWriteMethods: DEFAULT_WRITE_METHODS,
+      now: this.#now
+    });
+
+    for (const failure of execution.failures) {
+      const safeError = createSafeError(failure.error);
+      failures.push(
+        createFailedItem(failure.target.kind, failure.target.id, failure.target.label, safeError)
+      );
     }
 
+    const succeeded = execution.succeededTargets.length;
+    const failedTargets = execution.failures.map((failure) => failure.target);
     const failed = failures.length;
     const status: VideoWriteStatus =
       failed === 0 ? 'success' : succeeded === 0 ? 'error' : 'partial';
@@ -428,32 +367,9 @@ export class VideoWriteStore {
       status,
       lastError: failures.at(-1)?.error ?? null,
       incrementCounts: true,
-      succeededTargets,
+      succeededTargets: execution.succeededTargets,
       isRetry
     });
-  }
-
-  async #writeTarget(client: KodiJsonRpcHttpClient, target: VideoWriteTarget): Promise<void> {
-    if (target.kind === 'movie') {
-      await this.#writeMethods.setMovieDetails(client, {
-        movieid: target.id,
-        ...createWritePayload(target, this.#now())
-      });
-      return;
-    }
-
-    await this.#writeMethods.setEpisodeDetails(client, {
-      episodeid: target.id,
-      ...createWritePayload(target, this.#now())
-    });
-  }
-
-  #canBatchTargets(client: KodiJsonRpcHttpClient, targets: readonly VideoWriteTarget[]): boolean {
-    return (
-      this.#writeMethods === DEFAULT_WRITE_METHODS &&
-      typeof client.callBatch === 'function' &&
-      targets.every((target) => !target.resume)
-    );
   }
 
   async #resolveClient(): Promise<KodiJsonRpcHttpClient | null> {
@@ -519,52 +435,6 @@ export class VideoWriteStore {
         : { ...this.#snapshot.writeCounts }
     };
   }
-}
-
-function createWritePayload(
-  target: VideoWriteTarget,
-  now: string
-): { playcount?: number; lastplayed?: string; resume?: VideoResumePosition } {
-  if (target.resume) {
-    return { resume: target.resume };
-  }
-
-  if (target.watched) {
-    return { playcount: 1, lastplayed: formatKodiDateTime(now) };
-  }
-
-  return { playcount: 0, resume: { position: 0, total: 0 } };
-}
-
-function createWriteBatchCall(target: VideoWriteTarget, now: string): KodiJsonRpcBatchCall {
-  const payload = createWritePayload(target, now);
-
-  if (target.kind === 'movie') {
-    return {
-      method: 'VideoLibrary.SetMovieDetails',
-      params: {
-        movieid: target.id,
-        ...payload
-      }
-    };
-  }
-
-  return {
-    method: 'VideoLibrary.SetEpisodeDetails',
-    params: {
-      episodeid: target.id,
-      ...payload
-    }
-  };
-}
-
-function chunks<T>(items: readonly T[], size: number): T[][] {
-  const safeSize = Number.isFinite(size) && size > 0 ? Math.floor(size) : items.length;
-  const result: T[][] = [];
-  for (let start = 0; start < items.length; start += safeSize) {
-    result.push(items.slice(start, start + safeSize));
-  }
-  return result;
 }
 
 function incrementWriteCounts(
@@ -676,25 +546,6 @@ function sanitizeErrorMessage(message: string): string {
     .replace(/password/gi, 'credentials');
 }
 
-function formatKodiDateTime(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.valueOf())) {
-    return value
-      .replace('T', ' ')
-      .replace(/\.\d{3}Z$/, '')
-      .replace(/Z$/, '');
-  }
-
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(
-    date.getUTCHours()
-  )}:${pad2(date.getUTCMinutes())}:${pad2(date.getUTCSeconds())}`;
-}
-
-function pad2(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
 function cloneStoreSnapshot(snapshot: VideoWriteStoreSnapshot): VideoWriteStoreSnapshot {
   return {
     ...snapshot,
@@ -732,26 +583,6 @@ function finitePositiveSafeInteger(value: unknown): number | null {
 
 function finiteNonNegativeNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
-}
-
-async function runWithConcurrency<T>(
-  items: readonly T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>
-): Promise<void> {
-  let nextIndex = 0;
-  const workerCount = Math.min(Math.max(1, concurrency), items.length);
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (nextIndex < items.length) {
-        const item = items[nextIndex];
-        nextIndex += 1;
-        if (item !== undefined) {
-          await worker(item);
-        }
-      }
-    })
-  );
 }
 
 export function createVideoWriteStore(options: VideoWriteStoreOptions = {}): VideoWriteStore {

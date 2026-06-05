@@ -1,3 +1,5 @@
+import { readBackboneCollectionRows } from './backboneCollectionStorage';
+
 export const MAIN_NAV_STORAGE_KEY = 'mainNav';
 
 export type MainNavStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key'> & {
@@ -161,49 +163,7 @@ function row(id: number, title: string, path: string, icon: string, classes: str
 }
 
 function readBackboneCollection(storage: MainNavStorage): MainNavRow[] {
-  const raw = storage.getItem(MAIN_NAV_STORAGE_KEY);
-  const jsonRows = parseJsonRows(raw);
-  if (jsonRows) return normalizeRows(jsonRows);
-
-  const ids = raw
-    ?.split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-
-  if (!ids?.length) return [];
-
-  return normalizeRows(
-    ids
-      .map((id, index) => readBackboneModel(storage, id, index))
-      .filter((item): item is MainNavRow => item !== null)
-  );
-}
-
-function parseJsonRows(raw: string | null): Partial<MainNavRow>[] | null {
-  if (!raw || !['[', '{'].includes(raw.trimStart()[0] ?? '')) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) return parsed as Partial<MainNavRow>[];
-    if (isRecord(parsed) && Array.isArray(parsed.rows)) {
-      return parsed.rows as Partial<MainNavRow>[];
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function readBackboneModel(storage: MainNavStorage, id: string, weight: number): MainNavRow | null {
-  const raw = storage.getItem(`${MAIN_NAV_STORAGE_KEY}-${id}`);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed)) return null;
-    return normalizeRow({ ...parsed, id, weight }, weight);
-  } catch {
-    return null;
-  }
+  return normalizeRows(readBackboneCollectionRows(storage, MAIN_NAV_STORAGE_KEY));
 }
 
 function normalizeRows(rows: readonly Partial<MainNavRow>[]): MainNavRow[] {
@@ -258,8 +218,4 @@ function normalizeString(value: unknown, maxLength: number): string {
 
 function cloneRows(rows: readonly MainNavRow[]): MainNavRow[] {
   return rows.map((item, index) => ({ ...item, weight: index }));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

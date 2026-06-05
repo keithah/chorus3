@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { cwd, exit, argv } from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import ts from 'typescript';
 
 export const DEFAULT_SCAN_TARGETS = ['src/App.svelte', 'src/lib/components'];
 export const DEFAULT_IGNORED_SEGMENTS = new Set([
@@ -220,25 +221,18 @@ export function loadDictionaries(root = cwd()) {
 }
 
 function parseDictionaries(source, root = cwd()) {
-  const literal = extractDictionaryLiteral(source);
-
-  try {
-    return Function(`"use strict"; return (${literal});`)();
-  } catch (error) {
-    if (!(error instanceof ReferenceError)) {
-      throw error;
-    }
-  }
-
-  return resolveImportedDictionaryReferences(source, literal, root);
-}
-
-function resolveImportedDictionaryReferences(source, dictionaryLiteral, root) {
-  const imports = extractNamedImports(source);
+  const sourceFile = createSourceFile(DICTIONARY_SOURCE_PATH, source);
+  const imports = extractNamedImports(sourceFile);
+  const dictionaryObject = findExportedObjectInitializer(sourceFile, 'DICTIONARIES');
   const dictionaries = {};
-  const entries = [...dictionaryLiteral.matchAll(/([A-Za-z0-9_$]+)\s*:\s*([A-Za-z0-9_$]+)/g)];
 
-  for (const [, locale, constName] of entries) {
+  for (const property of dictionaryObject.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+
+    const locale = propertyNameText(property.name);
+    if (!locale || !ts.isIdentifier(property.initializer)) continue;
+
+    const constName = property.initializer.text;
     const importPath = imports.get(constName);
     if (!importPath) {
       throw new Error(`${DICTIONARY_SOURCE_PATH} references unresolved dictionary ${constName}`);
@@ -250,12 +244,19 @@ function resolveImportedDictionaryReferences(source, dictionaryLiteral, root) {
   return dictionaries;
 }
 
-function extractNamedImports(source) {
+function extractNamedImports(sourceFile) {
   const imports = new Map();
-  const importPattern = /import\s+\{\s*([A-Za-z0-9_$]+)\s*\}\s+from\s+['"]([^'"]+)['"]/g;
 
-  for (const [, constName, importPath] of source.matchAll(importPattern)) {
-    imports.set(constName, importPath);
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+
+    const namedBindings = statement.importClause?.namedBindings;
+    if (!namedBindings || !ts.isNamedImports(namedBindings)) continue;
+
+    for (const specifier of namedBindings.elements) {
+      imports.set(specifier.name.text, statement.moduleSpecifier.text);
+    }
   }
 
   return imports;
@@ -265,37 +266,84 @@ function readImportedDictionary(root, importPath, constName) {
   const dictionaryDir = dirname(DICTIONARY_SOURCE_PATH);
   const sourcePath = join(root, dictionaryDir, `${importPath}.ts`);
   const source = readFileSync(sourcePath, 'utf8');
-  const literal = extractExportedConstLiteral(source, constName, sourcePath);
+  const sourceFile = createSourceFile(sourcePath, source);
+  const object = findExportedObjectInitializer(sourceFile, constName);
 
-  return Function(`"use strict"; return (${literal});`)();
+  return objectLiteralToStringRecord(object, sourcePath);
 }
 
-function extractExportedConstLiteral(source, constName, sourcePath) {
-  const marker = `export const ${constName} =`;
-  const start = source.indexOf(marker);
+function createSourceFile(path, source) {
+  return ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+}
 
-  if (start === -1) {
-    throw new Error(`${sourcePath} must export ${constName}`);
-  }
+function findExportedObjectInitializer(sourceFile, constName) {
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    if (!statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+      continue;
+    }
 
-  const objectStart = source.indexOf('{', start);
-  let depth = 0;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== constName) continue;
 
-  for (let index = objectStart; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-
-      if (depth === 0) {
-        return source.slice(objectStart, index + 1);
+      const initializer = declaration.initializer;
+      const expression = unwrapSatisfiesExpression(initializer);
+      if (expression && ts.isObjectLiteralExpression(expression)) {
+        return expression;
       }
     }
   }
 
-  throw new Error(`${sourcePath} has an unterminated ${constName} object`);
+  throw new Error(`${sourceFile.fileName} must export object literal ${constName}`);
+}
+
+function unwrapSatisfiesExpression(node) {
+  if (!node) return null;
+  if (ts.isSatisfiesExpression(node)) return unwrapSatisfiesExpression(node.expression);
+  if (ts.isAsExpression(node)) return unwrapSatisfiesExpression(node.expression);
+  return node;
+}
+
+function objectLiteralToStringRecord(object, sourcePath) {
+  const record = {};
+
+  for (const property of object.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+
+    const key = propertyNameText(property.name);
+    const value = stringExpressionText(property.initializer);
+    if (key === null || value === null) {
+      throw new Error(`${sourcePath} contains a non-string dictionary entry.`);
+    }
+
+    record[key] = value;
+  }
+
+  return record;
+}
+
+function propertyNameText(name) {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return null;
+}
+
+function stringExpressionText(expression) {
+  if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) {
+    return expression.text;
+  }
+
+  if (
+    ts.isBinaryExpression(expression) &&
+    expression.operatorToken.kind === ts.SyntaxKind.PlusToken
+  ) {
+    const left = stringExpressionText(expression.left);
+    const right = stringExpressionText(expression.right);
+    return left !== null && right !== null ? `${left}${right}` : null;
+  }
+
+  return null;
 }
 
 export function extractDictionaryLiteral(source) {
