@@ -90,6 +90,11 @@ export interface VideoWriteStoreOptions {
   writeMethods?: VideoWriteWriteMethods;
 }
 
+interface VideoWriteExecutionConfig {
+  writeMethods: VideoWriteWriteMethods;
+  mode: 'auto' | 'method';
+}
+
 const DEFAULT_SUMMARY: VideoWriteSummarySnapshot = { total: 0, succeeded: 0, failed: 0 };
 const DEFAULT_WRITE_COUNTS: VideoWriteCountsSnapshot = {
   moviesWatched: 0,
@@ -131,15 +136,16 @@ export class VideoWriteStore {
     | null
     | Promise<KodiJsonRpcHttpClient | null>;
   readonly #now: () => string;
-  readonly #writeMethods: VideoWriteWriteMethods;
-  readonly #useDefaultWriteMethods: boolean;
+  readonly #writeExecution: VideoWriteExecutionConfig;
   #failedTargets: VideoWriteTarget[] = [];
 
   constructor(options: VideoWriteStoreOptions = {}) {
     this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
     this.#now = options.now ?? (() => new Date().toISOString());
-    this.#writeMethods = options.writeMethods ?? DEFAULT_WRITE_METHODS;
-    this.#useDefaultWriteMethods = !options.writeMethods;
+    this.#writeExecution = {
+      writeMethods: options.writeMethods ?? DEFAULT_WRITE_METHODS,
+      mode: options.writeMethods ? 'method' : 'auto'
+    };
   }
 
   get snapshot(): VideoWriteStoreSnapshot {
@@ -343,8 +349,7 @@ export class VideoWriteStore {
     const execution = await executeVideoWriteTargets({
       client,
       targets,
-      writeMethods: this.#writeMethods,
-      mode: this.#useDefaultWriteMethods ? 'auto' : 'method',
+      ...this.#writeExecution,
       now: this.#now
     });
 
