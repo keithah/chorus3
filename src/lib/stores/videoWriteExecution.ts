@@ -48,7 +48,7 @@ export interface VideoWriteWriteMethods {
   ): Promise<unknown>;
 }
 
-export type VideoWriteExecutionMode = 'auto' | 'method' | 'json-rpc-batch';
+export type VideoWriteExecutionMode = 'auto' | 'method';
 
 export interface VideoWriteExecutionOptions {
   client: KodiJsonRpcHttpClient;
@@ -70,6 +70,7 @@ export interface VideoWriteExecutionResult {
 
 const METHOD_WRITE_CONCURRENCY = 6;
 const JSON_RPC_WRITE_BATCH_SIZE = 50;
+type SelectedVideoWriteExecutionMode = 'method' | 'json-rpc-batch';
 
 export async function executeVideoWriteTargets({
   client,
@@ -87,17 +88,8 @@ function selectExecutionMode(
   client: KodiJsonRpcHttpClient,
   targets: readonly VideoWriteTarget[],
   mode: VideoWriteExecutionMode
-): Exclude<VideoWriteExecutionMode, 'auto'> {
-  if (mode === 'method') {
-    return 'method';
-  }
-
-  const batchAvailable = canUseJsonRpcBatch(client, targets);
-  if (mode === 'json-rpc-batch') {
-    return batchAvailable ? 'json-rpc-batch' : 'method';
-  }
-
-  return batchAvailable ? 'json-rpc-batch' : 'method';
+): SelectedVideoWriteExecutionMode {
+  return mode === 'auto' && canUseJsonRpcBatch(client, targets) ? 'json-rpc-batch' : 'method';
 }
 
 function canUseJsonRpcBatch(
