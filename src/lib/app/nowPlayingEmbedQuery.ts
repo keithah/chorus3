@@ -1,4 +1,4 @@
-import { isLocale, type Locale } from '../i18n/translate';
+import { isLocale, type Locale } from '../i18n/localeCore';
 import { isThemeName, type ThemeName } from '../theme/theme';
 
 export interface NowPlayingEmbedQuery {

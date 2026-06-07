@@ -8,8 +8,10 @@
 
 <script lang="ts">
   import './mediaPlaylistsPanelClassic.css';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { safeIndexedKey, stringOrNull } from './listKeyHelpers';
   import { displayText, sanitizeUiText, textOrNull } from './textFormatting';
   import {
     actionId,
@@ -49,7 +51,7 @@
     snapshot,
     dispatch,
     actionDispatch,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
@@ -411,15 +413,6 @@
     return media === 'video' ? 'video' : 'music';
   }
 
-  function stringOrNull(value: unknown): string | null {
-    return typeof value === 'string' && value.trim().length > 0 ? value : null;
-  }
-
-  function safeEachKey(prefix: string, id: unknown, index: number): string {
-    const value = stringOrNull(id);
-    return value ? `${prefix}:${value}:${index}` : `${prefix}:missing:${index}`;
-  }
-
   function plural(noun: string, count: number): string {
     if (count === 1) {
       return noun;
@@ -489,7 +482,7 @@
         <p class="empty-copy">No playlists in this snapshot.</p>
       {:else}
         <ul class="playlist-list">
-          {#each snapshot.playlists as playlist, index (safeEachKey('playlist', playlist.id, index))}
+          {#each snapshot.playlists as playlist, index (safeIndexedKey('playlist', playlist.id, index))}
             {@const label = safePlaylistLabel(playlist, index)}
             {@const id = stringOrNull(playlist.id)}
             {@const actionItem = playlistActionFor(playlist, index)}
@@ -561,7 +554,7 @@
           <p class="empty-copy">No playlist breadcrumbs yet.</p>
         {:else}
           <ol class="breadcrumb-list">
-            {#each snapshot.breadcrumbs as crumb, index (safeEachKey('breadcrumb', crumb.id, index))}
+            {#each snapshot.breadcrumbs as crumb, index (safeIndexedKey('breadcrumb', crumb.id, index))}
               {@const label = safeBreadcrumbLabel(crumb, index)}
               {@const id = stringOrNull(crumb.id)}
               <li>
@@ -584,7 +577,7 @@
         <p class="empty-copy">No playlist entries in this snapshot.</p>
       {:else}
         <ul class="entry-list">
-          {#each visibleEntries as entry, index (safeEachKey('entry', entry.id, index))}
+          {#each visibleEntries as entry, index (safeIndexedKey('entry', entry.id, index))}
             {@const label = safeEntryLabel(entry, index)}
             {@const entryAction = entryActionFor(entry, index)}
             <li class="entry-card">

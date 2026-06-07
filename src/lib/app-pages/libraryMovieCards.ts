@@ -8,10 +8,6 @@ import type { LibraryCard } from './libraryCards';
 export type LibraryDetailRow = { label: string; value: string };
 export type MovieDetailSource = VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot;
 
-export function movieCards(items: readonly VideoLibraryMovieSnapshot[]): LibraryCard[] {
-  return items.map(movieCard);
-}
-
 export function movieCard(item: MovieDetailSource): LibraryCard {
   return {
     key: `movie:${item.movieid}`,

@@ -26,7 +26,8 @@
     VideoMovieDetailStoreSnapshot,
     VideoMovieVersionsSnapshot
   } from '$lib/stores/videoMovieDetailStore.svelte';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { firstOptionalKodiImageUrl, optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
 
@@ -53,7 +54,7 @@
     markMovieWatched: async () => undefined
   };
 
-  const defaultI18n = createTranslationContext('en');
+  const defaultI18n = createEnglishTranslationContext();
   let {
     snapshot,
     route,

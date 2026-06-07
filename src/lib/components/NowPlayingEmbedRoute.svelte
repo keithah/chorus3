@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import type { ActiveHostSummary } from '$lib/stores/hostConnection.svelte';
   import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
@@ -30,7 +31,7 @@
     localPlayerSnapshot,
     hostSummary,
     query,
-    i18n = createTranslationContext('en'),
+    i18n = createEnglishTranslationContext(),
     onRefresh
   }: Props = $props();
 

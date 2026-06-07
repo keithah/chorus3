@@ -1,4 +1,5 @@
 import { flushSync, mount, unmount } from 'svelte';
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import LibraryPage from './LibraryPage.svelte';
@@ -466,6 +467,12 @@ describe('LibraryPage', () => {
 
     const text = target!.textContent ?? '';
     expect(text).toContain('Arrival');
+    expect(target!.querySelector<HTMLAnchorElement>('.classic-detail-back-link')?.href).toContain(
+      '#movies'
+    );
+    expect(target!.querySelector('.classic-detail-back-link')?.textContent).toContain(
+      'Back to movies'
+    );
     expect(text).toContain('Drama, Sci-Fi');
     expect(text).toContain('Denis Villeneuve');
     expect(text).toContain('Eric Heisserer');
@@ -487,6 +494,17 @@ describe('LibraryPage', () => {
       '/image/image%3A%2F%2Farrival-fanart.jpg%2F'
     );
     expect(text).not.toContain('Movie not found.');
+  });
+
+  it('keeps classic poster artwork contained in 2:3 frames instead of cropping it', () => {
+    const css = readFileSync('src/lib/app-pages/libraryPageClassic.css', 'utf8');
+
+    expect(css).toMatch(
+      /\.classic-library-page \.classic-movie-poster img\s*\{[^}]*object-fit:\s*contain;/s
+    );
+    expect(css).toMatch(
+      /\.classic-library-page \.art-poster \.classic-card-art img\s*\{[^}]*object-fit:\s*contain;/s
+    );
   });
 
   it('adds classic music library actions to the selected local playlist', async () => {
@@ -1454,5 +1472,40 @@ describe('LibraryPage', () => {
     expect(target!.textContent).toContain('Hip-Hop');
     expect(target!.textContent).toContain('Blue Scholars');
     expect(target!.textContent).not.toContain('No artists found for this genre.');
+  });
+
+  it('renders compact music genre rows without visible select prefixes', async () => {
+    document.body.innerHTML = '<div id="target"></div>';
+    const target = document.getElementById('target');
+    expect(target).toBeInstanceOf(HTMLElement);
+
+    mounted = mount(LibraryPage, {
+      target: target as HTMLElement,
+      props: {
+        route: { kind: 'musicGenres' },
+        musicLibrarySnapshot: {
+          ...emptyMusicSnapshot(),
+          isEmpty: false,
+          genres: [
+            { genreid: 1, label: 'Hip-Hop', title: 'Hip-Hop' },
+            { genreid: 2, label: 'Downtempo', title: 'Downtempo' }
+          ]
+        } as never,
+        videoLibrarySnapshot: emptyVideoSnapshot() as never,
+        playerDispatch: {} as never,
+        queueDispatch: {} as never,
+        buildOptions: { routeMode: 'hash', packageBasePath: '/addons/webinterface.chorus3/' }
+      }
+    });
+    await settle();
+
+    expect(target!.textContent).toContain('Hip-Hop');
+    expect(target!.textContent).toContain('Downtempo');
+    expect(target!.textContent).not.toContain('Select Hip-Hop');
+    expect(
+      target!
+        .querySelector<HTMLInputElement>('input[data-card-select="genre:1"]')
+        ?.getAttribute('aria-label')
+    ).toBe('Select Hip-Hop');
   });
 });

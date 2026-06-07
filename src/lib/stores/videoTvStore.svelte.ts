@@ -6,6 +6,7 @@ import {
   getVideoLibrarySeasons,
   getVideoLibraryTvShowDetails,
   getVideoLibraryTvShows,
+  type KodiHttpCallOptions,
   type KodiJsonRpcHttpClient,
   type VideoLibraryEpisodePropertyName,
   type VideoLibrarySeasonPropertyName,
@@ -143,6 +144,7 @@ export class VideoTvStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #abortController: AbortController | null = null;
 
   constructor(options: VideoTvStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -165,7 +167,8 @@ export class VideoTvStore {
           properties: DEFAULT_TV_SHOW_LIST_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
         },
-        'tvshows'
+        'tvshows',
+        this.#callOptions()
       );
 
       if (!this.#isCurrent(requestId)) {
@@ -214,10 +217,14 @@ export class VideoTvStore {
     try {
       const client = this.#resolveClient('TV show detail refresh');
       const [detailResult, seasonsResult] = await Promise.all([
-        getVideoLibraryTvShowDetails(client, {
-          tvshowid,
-          properties: VIDEO_TV_SHOW_DETAIL_PROPERTIES
-        }),
+        getVideoLibraryTvShowDetails(
+          client,
+          {
+            tvshowid,
+            properties: VIDEO_TV_SHOW_DETAIL_PROPERTIES
+          },
+          this.#callOptions()
+        ),
         readPagedKodiLibraryList(
           (params, options) => getVideoLibrarySeasons(client, params, options),
           {
@@ -225,7 +232,8 @@ export class VideoTvStore {
             properties: DEFAULT_SEASON_PROPERTIES,
             limits: DEFAULT_LIST_LIMIT
           },
-          'seasons'
+          'seasons',
+          this.#callOptions()
         )
       ]);
 
@@ -309,7 +317,8 @@ export class VideoTvStore {
           properties: DEFAULT_EPISODE_PROPERTIES,
           limits: DEFAULT_LIST_LIMIT
         },
-        'episodes'
+        'episodes',
+        this.#callOptions()
       );
 
       if (!this.#isCurrent(requestId)) {
@@ -357,10 +366,14 @@ export class VideoTvStore {
 
     try {
       const client = this.#resolveClient('episode detail refresh');
-      const result = await getVideoLibraryEpisodeDetails(client, {
-        episodeid,
-        properties: DEFAULT_EPISODE_DETAIL_PROPERTIES
-      });
+      const result = await getVideoLibraryEpisodeDetails(
+        client,
+        {
+          episodeid,
+          properties: DEFAULT_EPISODE_DETAIL_PROPERTIES
+        },
+        this.#callOptions()
+      );
 
       if (!this.#isCurrent(requestId)) {
         return;
@@ -422,8 +435,12 @@ export class VideoTvStore {
     try {
       const client = this.#resolveClient('season artwork capability refresh');
       const [typesResult, artResult] = await Promise.all([
-        getVideoLibraryAvailableArtTypes(client, { media: 'season' }),
-        getVideoLibraryAvailableArt(client, { media: 'season', tvshowid, season })
+        getVideoLibraryAvailableArtTypes(client, { media: 'season' }, this.#callOptions()),
+        getVideoLibraryAvailableArt(
+          client,
+          { media: 'season', tvshowid, season },
+          this.#callOptions()
+        )
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -490,7 +507,7 @@ export class VideoTvStore {
       return;
     }
 
-    this.#requestId += 1;
+    this.#cancelRequest();
     this.#snapshot = {
       ...this.#snapshot,
       refreshStatus: 'ready',
@@ -507,7 +524,7 @@ export class VideoTvStore {
   }
 
   destroy(): void {
-    this.#requestId += 1;
+    this.#cancelRequest();
   }
 
   #beginLoading(
@@ -516,7 +533,7 @@ export class VideoTvStore {
       Pick<VideoTvStoreSnapshot, 'selectedTvShowId' | 'selectedSeason' | 'selectedEpisodeId'>
     >
   ): number {
-    const requestId = ++this.#requestId;
+    const requestId = this.#beginRequest();
     this.#snapshot = {
       ...this.#snapshot,
       ...selection,
@@ -534,7 +551,7 @@ export class VideoTvStore {
       Pick<VideoTvStoreSnapshot, 'selectedTvShowId' | 'selectedSeason' | 'selectedEpisodeId'>
     >
   ): void {
-    this.#requestId += 1;
+    this.#cancelRequest();
     const safeError = createVideoLibrarySafeError(new VideoLibraryClientError(code, message));
     this.#snapshot = {
       ...this.#snapshot,
@@ -576,6 +593,22 @@ export class VideoTvStore {
 
   #isCurrent(requestId: number): boolean {
     return requestId === this.#requestId;
+  }
+
+  #beginRequest(): number {
+    this.#abortController?.abort();
+    this.#abortController = new AbortController();
+    return ++this.#requestId;
+  }
+
+  #cancelRequest(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
+    this.#requestId += 1;
+  }
+
+  #callOptions(): KodiHttpCallOptions {
+    return { signal: this.#abortController?.signal };
   }
 }
 

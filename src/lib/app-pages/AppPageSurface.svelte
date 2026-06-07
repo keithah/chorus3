@@ -173,9 +173,6 @@
     pvrDispatch: PvrPageDispatch;
     thumbsUpSnapshot: ThumbsUpStoreSnapshot;
     thumbsUpDispatch: ThumbsUpDispatch;
-    videoMediaPlaylistsSnapshot: MediaPlaylistsStoreSnapshot;
-    videoMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch;
-    videoMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch;
     videoLibrarySnapshot: VideoLibraryStoreSnapshot;
     settingsSnapshot: SettingsStoreSnapshot;
     settingsDispatch: SettingsPanelDispatch;

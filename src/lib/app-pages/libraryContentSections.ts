@@ -177,7 +177,7 @@ export function libraryContentSections({
   }
 }
 
-export function tvShowCards(
+function tvShowCards(
   items: readonly {
     tvshowid: number;
     title?: string;
@@ -199,7 +199,7 @@ export function tvShowCards(
   }));
 }
 
-export function musicVideoCards(items: readonly VideoMusicVideoSnapshot[]): LibraryCard[] {
+function musicVideoCards(items: readonly VideoMusicVideoSnapshot[]): LibraryCard[] {
   return items.map((item) => ({
     key: `musicvideo:${item.musicvideoid}`,
     title: safe(item.title ?? item.label, 'Unknown music video'),

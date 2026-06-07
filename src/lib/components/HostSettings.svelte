@@ -1,6 +1,7 @@
 <script lang="ts">
   import { configStore, hostConnectionStore, type ConfigValidationErrors } from '$lib/stores';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
 
   interface Props {
     i18n?: TranslationContext;
@@ -8,7 +9,7 @@
 
   type FieldName = 'label' | 'host' | 'port' | 'username' | 'password';
 
-  let { i18n = createTranslationContext('en') }: Props = $props();
+  let { i18n = createEnglishTranslationContext() }: Props = $props();
 
   let editingHostId = $state<string | null>(null);
   let label = $state('');

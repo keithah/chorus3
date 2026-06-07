@@ -54,6 +54,11 @@
   object-fit: cover;
 }
 
+:global(.media-search-page .result-section--poster .result-art img) {
+  object-fit: contain;
+  background: var(--color-placeholder, var(--color-border));
+}
+
 :global(.media-search-page .item-title) {
   display: block;
   min-width: 0;

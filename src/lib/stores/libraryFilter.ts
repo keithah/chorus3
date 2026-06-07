@@ -494,13 +494,10 @@ function sortFilterPairs<T>(
   if (key === 'random') {
     return stableRandomSort(result, (pair) => stableRandomSortKey(pair.record));
   }
-  return result.sort((left, right) =>
-    comparePrimitive(
-      sortValue(left.record[key], left.record.label),
-      sortValue(right.record[key], right.record.label),
-      order
-    )
-  );
+  return result
+    .map((pair) => ({ pair, sortKey: sortValue(pair.record[key], pair.record.label) }))
+    .sort((left, right) => comparePrimitive(left.sortKey, right.sortKey, order))
+    .map(({ pair }) => pair);
 }
 
 function sortValue(value: unknown, fallbackLabel?: unknown): string | number | boolean {

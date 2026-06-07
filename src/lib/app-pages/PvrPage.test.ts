@@ -150,6 +150,24 @@ describe('PvrPage', () => {
     expect(epgLink?.getAttribute('href')).toBe('/addons/webinterface.chorus3/#pvr/epg');
   });
 
+  it('does not auto-refresh ready empty PVR channel snapshots on mount', async () => {
+    const dispatch = createDispatch();
+
+    mounted = mount(PvrPage, {
+      target: document.body,
+      props: {
+        route: { kind: 'pvrTv' },
+        snapshot: createSnapshot({ tvChannels: [], tvStatus: 'ready' }),
+        dispatch,
+        playerDispatch: createPlayerDispatch()
+      }
+    });
+    await tick();
+
+    expect(document.body.textContent).toContain('No TV channels found.');
+    expect(dispatch.refreshChannels).not.toHaveBeenCalled();
+  });
+
   it('renders the global Chorus2 EPG route across TV channels', async () => {
     const dispatch = createDispatch();
     const playerDispatch = createPlayerDispatch();
@@ -217,7 +235,7 @@ describe('PvrPage', () => {
     expect(document.body.textContent).toContain('Evening News');
     expect(document.body.textContent).toContain('Feature');
     expect(document.body.textContent).not.toContain('Radio One');
-    expect(dispatch.refreshChannels).toHaveBeenCalledWith('alltv');
+    expect(dispatch.refreshChannels).not.toHaveBeenCalled();
     expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(101);
     expect(dispatch.refreshBroadcasts).toHaveBeenCalledWith(102);
 

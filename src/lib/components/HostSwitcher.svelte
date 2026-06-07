@@ -5,13 +5,14 @@
     type HostConnectionErrorSnapshot,
     type HostTestSnapshot
   } from '$lib/stores';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
 
   interface Props {
     i18n?: TranslationContext;
   }
 
-  let { i18n = createTranslationContext('en') }: Props = $props();
+  let { i18n = createEnglishTranslationContext() }: Props = $props();
 
   const configSnapshot = $derived(configStore.snapshot);
   const connectionSnapshot = $derived(hostConnectionStore.snapshot);

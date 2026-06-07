@@ -29,6 +29,15 @@ import type { SavedKodiHost } from './lib/stores';
 import type { VideoRoute } from './lib/video/videoRouter';
 
 const KODI_WEBINTERFACE_MARKER_NAME = 'chorus3:kodi-webinterface';
+const CHORUS3_MOUNT_STATE_KEY = '__chorus3MountedApp';
+
+interface Chorus3MountState {
+  target: HTMLElement;
+}
+
+type Chorus3Global = typeof globalThis & {
+  [CHORUS3_MOUNT_STATE_KEY]?: Chorus3MountState;
+};
 
 export interface EntrypointEnv {
   DEV?: boolean;
@@ -324,9 +333,18 @@ if (!target) {
   throw new Error('Unable to mount chorus3: #app element was not found.');
 }
 
+const mountGlobal = globalThis as Chorus3Global;
+const previousMount = mountGlobal[CHORUS3_MOUNT_STATE_KEY];
+
+if (previousMount?.target === target) {
+  target.replaceChildren();
+}
+
 const app = mount(App, {
   target,
   props: resolveEntrypointAppProps(window.location)
 });
+
+mountGlobal[CHORUS3_MOUNT_STATE_KEY] = { target };
 
 export default app;

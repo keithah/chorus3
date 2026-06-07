@@ -281,12 +281,13 @@
   }
 
   function stableRandomSort(entries: MediaDirectoryEntrySnapshot[]): MediaDirectoryEntrySnapshot[] {
-    return entries.sort((a, b) => {
-      const left = hashText(routeIdForEntry(a));
-      const right = hashText(routeIdForEntry(b));
-      if (left !== right) return left - right;
-      return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
-    });
+    return entries
+      .map((entry) => ({ entry, hash: hashText(routeIdForEntry(entry)) }))
+      .sort((a, b) => {
+        if (a.hash !== b.hash) return a.hash - b.hash;
+        return a.entry.label.localeCompare(b.entry.label, undefined, { sensitivity: 'base' });
+      })
+      .map(({ entry }) => entry);
   }
 
   function hashText(value: string): number {

@@ -565,7 +565,8 @@
   .poster-frame img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
   }
 
   .fallback-initials {

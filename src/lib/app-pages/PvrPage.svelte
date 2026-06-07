@@ -88,11 +88,15 @@
 
     lastRefreshKey = key;
     if (mode === 'recordings') {
-      void dispatch.refreshRecordings();
+      if (snapshot.recordingsStatus === 'idle') {
+        void dispatch.refreshRecordings();
+      }
       return;
     }
 
-    void dispatch.refreshChannels(activeGroup);
+    if (channelStatus === 'idle') {
+      void dispatch.refreshChannels(activeGroup);
+    }
   });
 
   $effect(() => {

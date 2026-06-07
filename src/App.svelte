@@ -10,21 +10,14 @@
   import { localPlayerStore } from '$lib/stores/localPlayer.svelte';
   import { localPlaylistStore } from '$lib/stores/localPlaylist.svelte';
   import { localeStore } from '$lib/stores/locale.svelte';
-  import { mediaFilesStore, videoMediaFilesStore } from '$lib/stores/mediaFiles.svelte';
-  import { mediaPlaylistsStore, videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
-  import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
-  import { musicBrowseStore } from '$lib/stores/musicBrowse.svelte';
-  import { musicLibraryStore } from '$lib/stores/musicLibrary.svelte';
   import { playerStore } from '$lib/stores/player.svelte';
   import { playerDispatch as defaultPlayerDispatch } from '$lib/stores/defaultPlayerDispatch';
-  import { pvrStore } from '$lib/stores/pvr.svelte';
   import {
     queueDispatch as defaultQueueDispatch,
     queueStore,
     type QueuePlayableItemSnapshot
   } from '$lib/stores/queue.svelte';
   import { remoteInputDispatch as defaultRemoteInputDispatch } from '$lib/stores/remoteInputDispatch.svelte';
-  import { settingsStore } from '$lib/stores/settingsStore.svelte';
   import { thumbsUpStore } from '$lib/stores/thumbsUp.svelte';
   import {
     connectionDescription,
@@ -55,11 +48,7 @@
     videoRouteToPrimaryRoute
   } from '$lib/app/appRouteAdapters';
   import { createAppDefaultDispatches } from '$lib/app/appDefaultDispatches';
-  import {
-    parseHashAppRoute,
-    refreshPackageMountedLibraries,
-    toggleDocumentFullscreen
-  } from '$lib/app/appRuntimeHelpers';
+  import { parseHashAppRoute, toggleDocumentFullscreen } from '$lib/app/appRuntimeHelpers';
   import type {
     AppProps,
     PlaylistPlaybackDispatch,
@@ -71,7 +60,6 @@
     withPackageDefaultCredentials
   } from '$lib/app/appPackageHost';
   import { refreshAppVideoDetailRoute } from '$lib/app/appVideoDetailRefresh';
-  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import { mainNavStore } from '$lib/stores/mainNav.svelte';
   import { videoMovieDetailStore } from '$lib/stores/videoMovieDetailStore.svelte';
   import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
@@ -83,6 +71,7 @@
     type AppRoute
   } from '$lib/app/appRouter';
   import { createAppNavigationItems } from '$lib/app-shell/appNavigation';
+  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import type { LocalPlaylistPageActions } from '$lib/app-pages/PlaylistsPage.svelte';
   import { getAppPageMetadata } from '$lib/app-pages/appPageMetadata';
   import type {
@@ -93,7 +82,7 @@
     AppShellPlaylistMenuAction
   } from '$lib/app-shell/appShellTypes';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
-  import { createTranslationContext } from '$lib/i18n';
+  import { createRuntimeTranslationState } from '$lib/i18n/runtimeTranslationState.svelte';
   import { handlePlaybackShortcut } from '$lib/app/playbackShortcuts';
   import { handleRemoteInputShortcut } from '$lib/app/remoteInputShortcuts';
   import type { VideoRoute } from '$lib/video/videoRouter';
@@ -188,28 +177,9 @@
     localPlaylistSnapshot ?? localPlaylistStore.snapshot
   );
   const currentQueueSnapshot = $derived(queueSnapshot ?? queueStore.snapshot);
-  const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
-  const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
-  const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
-  const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
-  const currentVideoMediaFilesSnapshot = $derived(
-    videoMediaFilesSnapshot ?? videoMediaFilesStore.snapshot
-  );
-  const currentMediaPlaylistsSnapshot = $derived(
-    mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
-  );
-  const currentPvrSnapshot = $derived(pvrSnapshot ?? pvrStore.snapshot);
-  const currentThumbsUpSnapshot = $derived(thumbsUpSnapshot ?? thumbsUpStore.snapshot);
-  const currentVideoMediaPlaylistsSnapshot = $derived(
-    videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
-  );
-  const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
-  const currentVideoMovieDetailSnapshot = $derived(
-    videoMovieDetailSnapshot ?? videoMovieDetailStore.snapshot
-  );
-  const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
   const currentLocaleSnapshot = $derived(localeSnapshot ?? localeStore.snapshot);
-  const currentI18n = $derived(createTranslationContext(currentLocaleSnapshot.locale));
+  const runtimeTranslationState = createRuntimeTranslationState(() => currentLocaleSnapshot.locale);
+  const currentI18n = $derived(runtimeTranslationState.context);
   const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
   const currentNowPlayingHostSummary = $derived(
     nowPlayingHostSummary === undefined
@@ -218,7 +188,6 @@
         : hostConnectionStore.snapshot.activeHostSummary
       : nowPlayingHostSummary
   );
-  const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
   const currentActiveKodiHost = $derived(configStore.activeHost);
   const isPackageMounted = $derived(packageMountedHost !== null);
   const currentPackageBasePath = $derived(
@@ -397,38 +366,35 @@
     localPlaylistActions: localPlaylistPageActions,
     queueSnapshot: currentQueueSnapshot,
     queueDispatch,
-    musicLibrarySnapshot: currentMusicLibrarySnapshot,
-    musicBrowseSnapshot: currentMusicBrowseSnapshot,
+    musicLibrarySnapshot,
+    musicBrowseSnapshot,
     musicBrowseDispatch,
     musicActionDispatch,
-    mediaSearchSnapshot: currentMediaSearchSnapshot,
+    mediaSearchSnapshot,
     mediaSearchDispatch,
     mediaSearchActionDispatch,
-    mediaFilesSnapshot: currentMediaFilesSnapshot,
+    mediaFilesSnapshot,
     mediaFilesDispatch,
     mediaFilesActionDispatch,
-    videoMediaFilesSnapshot: currentVideoMediaFilesSnapshot,
+    videoMediaFilesSnapshot,
     videoMediaFilesDispatch,
     videoMediaFilesActionDispatch,
-    mediaPlaylistsSnapshot: currentMediaPlaylistsSnapshot,
+    mediaPlaylistsSnapshot,
     mediaPlaylistsDispatch,
     mediaPlaylistsActionDispatch,
-    pvrSnapshot: currentPvrSnapshot,
+    pvrSnapshot,
     pvrDispatch: appDefaultDispatches.pvrDispatch,
-    thumbsUpSnapshot: currentThumbsUpSnapshot,
+    thumbsUpSnapshot,
     thumbsUpDispatch: thumbsUpStore,
-    videoMediaPlaylistsSnapshot: currentVideoMediaPlaylistsSnapshot,
-    videoMediaPlaylistsDispatch,
-    videoMediaPlaylistsActionDispatch,
-    videoLibrarySnapshot: currentVideoLibrarySnapshot,
-    settingsSnapshot: currentSettingsSnapshot,
+    videoLibrarySnapshot,
+    settingsSnapshot,
     settingsDispatch,
     addonsSnapshot: currentAddonsSnapshot,
     addonsDispatch,
     addonDetailDispatch,
-    videoMovieDetailSnapshot: currentVideoMovieDetailSnapshot,
+    videoMovieDetailSnapshot,
     videoMovieActionDispatch,
-    videoTvSnapshot: currentVideoTvSnapshot,
+    videoTvSnapshot,
     videoEpisodeActionDispatch,
     videoSeasonArtworkDispatch,
     videoSeasonWriteDispatch,
@@ -572,7 +538,11 @@
       } catch {
         // Polling is opportunistic; command-triggered refreshes still own diagnostics.
       }
-      void refreshPackageMountedLibraries();
+      void import('$lib/app/appPackageRefresh')
+        .then(({ refreshPackageMountedLibraries }) => refreshPackageMountedLibraries())
+        .catch(() => {
+          // Package startup refresh is best-effort; individual stores retain diagnostics.
+        });
     }
 
     const handleGlobalKeydown = (event: KeyboardEvent): void => {
@@ -882,17 +852,12 @@
   {nowPlayingEmbedQuery}
   {localBrowserPlayerActionDispatch}
   {currentHomeContext}
-  {currentMusicLibrarySnapshot}
-  {currentMusicBrowseSnapshot}
   {musicBrowseDispatch}
   {musicActionDispatch}
-  {currentMediaSearchSnapshot}
   {mediaSearchDispatch}
   {mediaSearchActionDispatch}
-  {currentMediaFilesSnapshot}
   {mediaFilesDispatch}
   {mediaFilesActionDispatch}
-  {currentMediaPlaylistsSnapshot}
   {mediaPlaylistsDispatch}
   {mediaPlaylistsActionDispatch}
   {isPackageMounted}
@@ -901,16 +866,16 @@
   {currentAddonsSnapshot}
   {addonsDispatch}
   {addonDetailDispatch}
-  {currentSettingsSnapshot}
+  {settingsSnapshot}
   {settingsDispatch}
-  {currentVideoLibrarySnapshot}
-  {currentVideoMediaPlaylistsSnapshot}
+  {videoLibrarySnapshot}
+  {videoMediaPlaylistsSnapshot}
   {videoMediaPlaylistsDispatch}
   {videoMediaPlaylistsActionDispatch}
   {videoMovieDetailSnapshot}
   {videoMovieActionDispatch}
   {videoMovieStreamActionDispatch}
-  {currentVideoTvSnapshot}
+  {videoTvSnapshot}
   {videoEpisodeActionDispatch}
   {videoSeasonArtworkDispatch}
   {videoSeasonWriteDispatch}

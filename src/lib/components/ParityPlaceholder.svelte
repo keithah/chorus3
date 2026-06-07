@@ -1,6 +1,7 @@
 <script lang="ts">
   import { type ParityRoutePlaceholder } from '$lib/app/appRouter';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
 
   interface Props {
     placeholder: ParityRoutePlaceholder;
@@ -11,7 +12,7 @@
   let {
     placeholder,
     packageBasePath = '',
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   const statusToneByStatus: Record<ParityRoutePlaceholder['status'], string> = {

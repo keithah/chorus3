@@ -41,7 +41,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { BuildAppRouteOptions } from '$lib/app/appRouter';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import {
     searchAddonsStore as defaultSearchAddonsStore,
     type SearchAddonsStore
@@ -53,6 +54,7 @@
   import { displayText, sanitizeUiText, textOrNull } from './textFormatting';
   import {
     resultSectionClass,
+    sectionEmptyCopy,
     resultSectionHeading,
     shouldShowResultSection,
     VISIBLE_RESULT_ORDER,
@@ -94,7 +96,7 @@
     snapshot,
     dispatch,
     actionDispatch,
-    i18n = createTranslationContext('en'),
+    i18n = createEnglishTranslationContext(),
     searchAddons = defaultSearchAddonsStore,
     buildOptions = {}
   }: Props = $props();
@@ -410,44 +412,6 @@
       : fallback;
   }
 
-  function sectionEmptyCopy(kind: ResultGroupKey): string {
-    if (snapshot.scope !== 'music') {
-      switch (kind) {
-        case 'artists':
-          return 'No matching artists.';
-        case 'albums':
-          return 'No matching albums.';
-        case 'songs':
-          return 'No matching songs.';
-        case 'genres':
-          return 'No matching genres.';
-        case 'movies':
-          return 'No matching movies.';
-        case 'tvShows':
-          return 'No matching TV shows.';
-        case 'musicVideos':
-          return 'No matching music videos.';
-      }
-    }
-
-    switch (kind) {
-      case 'artists':
-        return i18n.t('media.search.empty.artists');
-      case 'albums':
-        return i18n.t('media.search.empty.albums');
-      case 'songs':
-        return i18n.t('media.search.empty.songs');
-      case 'genres':
-        return i18n.t('media.search.empty.genres');
-      case 'movies':
-        return 'No matching movies.';
-      case 'tvShows':
-        return 'No matching TV shows.';
-      case 'musicVideos':
-        return 'No matching music videos.';
-    }
-  }
-
   function isActionDisabled(item: MediaSearchActionItem): boolean {
     if (isSearchLoading || pendingOperation) {
       return true;
@@ -584,7 +548,7 @@
             </div>
 
             {#if snapshot.results[kind].length === 0}
-              <p class="empty-copy">{sectionEmptyCopy(kind)}</p>
+              <p class="empty-copy">{sectionEmptyCopy(kind, i18n)}</p>
             {:else}
               <MediaSearchResultList
                 {kind}

@@ -1,4 +1,9 @@
-import { getFileDirectory, type FileDirectoryParams, type FileDirectoryResult } from '$lib/kodi';
+import {
+  getFileDirectory,
+  type FileDirectoryParams,
+  type FileDirectoryResult,
+  type KodiHttpCallOptions
+} from '$lib/kodi';
 import type { KodiJsonRpcHttpClient } from '$lib/kodi';
 
 export const MEDIA_DIRECTORY_PAGE_SIZE = 500;
@@ -11,9 +16,14 @@ type DirectoryPageRange = {
 
 export async function getPagedFileDirectory(
   client: KodiJsonRpcHttpClient,
-  params: FileDirectoryParams
+  params: FileDirectoryParams,
+  options?: KodiHttpCallOptions
 ): Promise<FileDirectoryResult> {
-  const first = await getFileDirectory(client, withLimits(params, 0, MEDIA_DIRECTORY_PAGE_SIZE));
+  const first = await getFileDirectory(
+    client,
+    withLimits(params, 0, MEDIA_DIRECTORY_PAGE_SIZE),
+    options
+  );
   const files = [...(Array.isArray(first.files) ? first.files : [])];
   const total = finiteLimit(first.limits?.total);
   const firstEnd = finiteLimit(first.limits?.end);
@@ -31,7 +41,7 @@ export async function getPagedFileDirectory(
   }
 
   const remainingRanges = directoryPageRanges(firstEnd, total);
-  const remainingPages = await getDirectoryPages(client, params, remainingRanges);
+  const remainingPages = await getDirectoryPages(client, params, remainingRanges, options);
   let end = firstEnd;
   for (const [index, next] of remainingPages.entries()) {
     const range = remainingRanges[index];
@@ -78,7 +88,8 @@ function directoryPageRanges(start: number, total: number): DirectoryPageRange[]
 async function getDirectoryPages(
   client: KodiJsonRpcHttpClient,
   params: FileDirectoryParams,
-  ranges: readonly DirectoryPageRange[]
+  ranges: readonly DirectoryPageRange[],
+  options?: KodiHttpCallOptions
 ): Promise<FileDirectoryResult[]> {
   const pages = new Array<FileDirectoryResult>(ranges.length);
   let nextIndex = 0;
@@ -91,7 +102,11 @@ async function getDirectoryPages(
       if (!range) {
         return;
       }
-      pages[index] = await getFileDirectory(client, withLimits(params, range.start, range.end));
+      pages[index] = await getFileDirectory(
+        client,
+        withLimits(params, range.start, range.end),
+        options
+      );
     }
   });
 

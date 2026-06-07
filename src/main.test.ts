@@ -340,7 +340,9 @@ describe('main entrypoint', () => {
 
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
-    expect(document.body.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    });
     expect(document.body.textContent).toContain('Safe Room Kodi');
     expect(document.body.textContent).toContain('Aurora Signal');
     expect(document.body.textContent).not.toContain('Now playing embed');
@@ -355,7 +357,9 @@ describe('main entrypoint', () => {
 
     await importMain();
 
-    expect(document.body.textContent).toContain('Einrichtung erforderlich');
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Einrichtung erforderlich');
+    });
     expect(document.body.textContent).toContain(
       'Einrichtung erforderlich, bevor die Aktuelle-Wiedergabe-Einbettung verbinden kann.'
     );

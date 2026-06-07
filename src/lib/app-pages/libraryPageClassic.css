@@ -282,6 +282,19 @@
   background: #fff;
 }
 
+.classic-library-page .classic-detail-back-link {
+  display: inline-block;
+  margin: 1rem 1rem 0;
+  color: #333;
+  font-weight: 700;
+  text-underline-offset: 0.18em;
+}
+
+.classic-library-page .classic-detail-back-link:hover,
+.classic-library-page .classic-detail-back-link:focus-visible {
+  color: #42a5dc;
+}
+
 .classic-library-page .classic-movie-hero {
   position: relative;
   display: grid;
@@ -344,7 +357,8 @@
   display: block;
   width: 100%;
   height: 405px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #222;
 }
 
 .classic-library-page .classic-movie-copy {
@@ -602,7 +616,8 @@
 
 .classic-library-page .art-poster .classic-card-art img {
   height: 235px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #cfcfcf;
 }
 
 .classic-library-page .compact .classic-card-art {

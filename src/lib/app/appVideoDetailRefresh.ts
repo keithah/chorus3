@@ -54,6 +54,14 @@ export async function refreshAppVideoDetailRoute({
       await tvStore.refreshSeasonEpisodes(videoRoute.tvshowid, videoRoute.season, 'manual');
       return;
     case 'videoEpisodeDetail':
+      await tvStore.refreshTvShow(videoRoute.tvshowid, 'manual');
+      if (currentRefreshKey() !== expectedRefreshKey) {
+        return;
+      }
+      await tvStore.refreshSeasonEpisodes(videoRoute.tvshowid, videoRoute.season, 'manual');
+      if (currentRefreshKey() !== expectedRefreshKey) {
+        return;
+      }
       await tvStore.refreshEpisodeDetail(videoRoute.episodeid, 'manual');
       return;
     default:

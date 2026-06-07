@@ -146,6 +146,7 @@ export class PlayerDispatch {
   readonly #afterSuccessfulCommand: (command: PlayerCommandName) => Promise<void> | void;
   readonly #now: () => string;
   readonly #localFiles = new LocalFilePlaylistState();
+  #postCommandRefreshTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   constructor(options: PlayerDispatchOptions = {}) {
     this.#snapshot = { ...DEFAULT_PLAYER_DISPATCH_SNAPSHOT, mode: options.mode ?? 'kodi' };
@@ -712,9 +713,16 @@ export class PlayerDispatch {
       return;
     }
 
+    if (this.#postCommandRefreshTimeout !== null) {
+      globalThis.clearTimeout(this.#postCommandRefreshTimeout);
+    }
+
     const timeout = globalThis.setTimeout(() => {
+      this.#postCommandRefreshTimeout = null;
       void this.#playerStore.refresh(reason);
     }, 750);
+
+    this.#postCommandRefreshTimeout = timeout;
 
     if (typeof timeout === 'object' && timeout && 'unref' in timeout) {
       (timeout as { unref: () => void }).unref();

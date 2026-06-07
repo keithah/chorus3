@@ -530,7 +530,8 @@
     width: 100%;
     height: 100%;
     min-height: inherit;
-    object-fit: cover;
+    object-fit: contain;
+    background: #d7d7d7;
   }
   .hero-copy {
     position: relative;

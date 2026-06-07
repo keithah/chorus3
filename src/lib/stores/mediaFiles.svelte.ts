@@ -5,6 +5,7 @@ import {
   type AddonSummary,
   type FileDirectoryPropertyName,
   type FileMediaType,
+  type KodiHttpCallOptions,
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
@@ -158,6 +159,7 @@ export class MediaFilesStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #abortController: AbortController | null = null;
   #sources = new Map<string, SourceRecord>();
   #entries = new Map<string, EntryRecord>();
   #entryCounter = 0;
@@ -175,7 +177,7 @@ export class MediaFilesStore {
   }
 
   async refreshSources(): Promise<void> {
-    const requestId = ++this.#requestId;
+    const requestId = this.#beginRequest();
     this.#snapshot = {
       ...this.#snapshot,
       refreshStatus: 'loading',
@@ -185,9 +187,10 @@ export class MediaFilesStore {
 
     try {
       const client = this.#resolveClient();
+      const callOptions = this.#callOptions();
       const [sourceResult, addonResult] = await Promise.all([
-        getFileSources(client, this.#media),
-        getBrowserAddons(client, this.#media).catch(() => ({ addons: [] }))
+        getFileSources(client, this.#media, callOptions),
+        getBrowserAddons(client, this.#media, callOptions).catch(() => ({ addons: [] }))
       ]);
 
       if (!this.#isCurrent(requestId)) {
@@ -327,7 +330,7 @@ export class MediaFilesStore {
   }
 
   clear(): void {
-    this.#requestId += 1;
+    this.#cancelRequest();
     this.#sources = new Map();
     this.#entries = new Map();
     this.#entryCounter = 0;
@@ -343,7 +346,7 @@ export class MediaFilesStore {
     reason: Extract<MediaFilesRefreshReason, `source:${string}` | `directory:${string}`>;
     breadcrumbs: MediaFilesBreadcrumbSnapshot[];
   }): Promise<void> {
-    const requestId = ++this.#requestId;
+    const requestId = this.#beginRequest();
     this.#snapshot = {
       ...this.#snapshot,
       refreshStatus: 'loading',
@@ -354,12 +357,16 @@ export class MediaFilesStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getPagedFileDirectory(client, {
-        directory: options.path,
-        media: this.#media,
-        properties: DIRECTORY_PROPERTIES,
-        sort: DIRECTORY_SORT
-      });
+      const result = await getPagedFileDirectory(
+        client,
+        {
+          directory: options.path,
+          media: this.#media,
+          properties: DIRECTORY_PROPERTIES,
+          sort: DIRECTORY_SORT
+        },
+        this.#callOptions()
+      );
 
       if (!this.#isCurrent(requestId)) {
         return;
@@ -482,6 +489,23 @@ export class MediaFilesStore {
   #isCurrent(requestId: number): boolean {
     return requestId === this.#requestId;
   }
+
+  #beginRequest(): number {
+    this.#abortController?.abort();
+    this.#abortController = null;
+    this.#abortController = new AbortController();
+    return ++this.#requestId;
+  }
+
+  #cancelRequest(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
+    this.#requestId += 1;
+  }
+
+  #callOptions(): KodiHttpCallOptions {
+    return { signal: this.#abortController?.signal };
+  }
 }
 
 function entryMediaKindForExtension(
@@ -544,15 +568,20 @@ function sourceSnapshot(source: SourceRecord): MediaFileSourceSnapshot {
 
 async function getBrowserAddons(
   client: KodiJsonRpcHttpClient,
-  media: MediaFilesMedia
+  media: MediaFilesMedia,
+  options?: KodiHttpCallOptions
 ): Promise<{ addons?: AddonSummary[] }> {
   const type = media === 'video' ? 'xbmc.addon.video' : 'xbmc.addon.audio';
-  return getAddons(client, {
-    type,
-    content: 'unknown',
-    enabled: true,
-    properties: ADDON_SOURCE_PROPERTIES
-  });
+  return getAddons(
+    client,
+    {
+      type,
+      content: 'unknown',
+      enabled: true,
+      properties: ADDON_SOURCE_PROPERTIES
+    },
+    options
+  );
 }
 
 function normalizeAddonSources(items: unknown): SourceRecord[] {

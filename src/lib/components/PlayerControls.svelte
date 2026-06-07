@@ -32,7 +32,8 @@
 
 <script lang="ts">
   import type { PlayerAudioStream, PlayerSubtitleStream } from '$lib/kodi';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
 
   interface Props {
     snapshot: PlayerStoreSnapshot;
@@ -45,7 +46,7 @@
     snapshot,
     dispatch,
     localPlayerSnapshot,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: import('$lib/stores').LocalPlayerStoreSnapshot = {

@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, isLocale, type Locale } from '$lib/i18n';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '$lib/i18n/localeCore';
 
 export { DEFAULT_LOCALE, type Locale };
 

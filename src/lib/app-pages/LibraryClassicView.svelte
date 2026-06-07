@@ -403,7 +403,9 @@
           {@const title = safe(movie.title ?? movie.label, 'Movie')}
           {@const duration = movieDuration(movie)}
           {@const rating = movieRating(movie)}
+          {@const moviesHref = hrefFor({ kind: 'movies' })}
           <article class="classic-movie-detail">
+            <a class="classic-detail-back-link" href={moviesHref}>Back to movies</a>
             <header class="classic-movie-hero">
               {#if fanart}
                 <img class="classic-movie-fanart" src={fanart} alt="" aria-hidden="true" />
@@ -576,10 +578,13 @@
                   <input
                     type="checkbox"
                     data-card-select={card.key}
+                    aria-label={`Select ${card.title}`}
                     checked={selectedCardKeys.has(card.key)}
                     onchange={() => toggleCardSelection(card)}
                   />
-                  <span class={section.compact ? 'sr-only' : undefined}>Select</span>
+                  {#if !section.compact}
+                    <span>Select</span>
+                  {/if}
                 </label>
                 {#if cardHref(card)}
                   <a class="classic-card-main" href={cardHref(card) ?? ''} aria-label={card.title}>

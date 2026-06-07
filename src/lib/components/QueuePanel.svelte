@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { QueueDispatchSnapshot, QueueStoreSnapshot } from '$lib/stores';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { redactDiagnosticText } from '$lib/safety/redaction';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
@@ -17,7 +18,7 @@
     i18n?: TranslationContext;
   }
 
-  let { snapshot, dispatch, i18n = createTranslationContext('en') }: Props = $props();
+  let { snapshot, dispatch, i18n = createEnglishTranslationContext() }: Props = $props();
   const itemVisibility = createIncrementalVisibility(200);
 
   const isDisabled = $derived(

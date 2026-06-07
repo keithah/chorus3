@@ -23,6 +23,8 @@ import type {
   AddonsWriteCountsSnapshot
 } from './addonsStoreTypes';
 
+const addonSearchTextCache = new WeakMap<AddonSnapshot, string>();
+
 export const ADDON_PROPERTIES: readonly AddonPropertyName[] = [
   'name',
   'version',
@@ -228,9 +230,9 @@ function optionalSanitizedString(value: unknown): string | null {
 }
 
 export function recomputeDerived(snapshot: AddonsStoreSnapshot): AddonsStoreSnapshot {
+  const visibleAddons = filterAddons(snapshot.addons, snapshot.searchQuery);
   const addons = snapshot.addons.map(cloneAddon);
   const detail = snapshot.detail ? cloneAddon(snapshot.detail) : null;
-  const visibleAddons = filterAddons(addons, snapshot.searchQuery);
   return {
     ...snapshot,
     addons,
@@ -254,20 +256,26 @@ function filterAddons(addons: readonly AddonSnapshot[], query: string): AddonSna
   if (terms.length === 0) return addons.map(cloneAddon);
   return addons
     .filter((addon) => {
-      const haystack = [
-        addon.addonid,
-        addon.name,
-        addon.summary,
-        addon.description,
-        addon.author,
-        addon.type
-      ]
-        .filter((value): value is string => typeof value === 'string')
-        .join(' ')
-        .toLowerCase();
+      const haystack = searchTextForAddon(addon);
       return terms.every((term) => haystack.includes(term));
     })
     .map(cloneAddon);
+}
+
+function searchTextForAddon(addon: AddonSnapshot): string {
+  const cached = addonSearchTextCache.get(addon);
+  if (cached !== undefined) return cached;
+
+  const searchText = addonSearchText(addon);
+  addonSearchTextCache.set(addon, searchText);
+  return searchText;
+}
+
+function addonSearchText(addon: AddonSnapshot): string {
+  return [addon.addonid, addon.name, addon.summary, addon.description, addon.author, addon.type]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
 }
 
 function groupAddons(

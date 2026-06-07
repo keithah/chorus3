@@ -16,7 +16,7 @@
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import type { BuildAppRouteOptions } from '$lib/app/appRouter';
-  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import LazyViewportRouteComponent from '$lib/app-pages/LazyViewportRouteComponent.svelte';
   import {
     bindLazyRoute,
     loadMediaFilesPanel,
@@ -85,13 +85,15 @@
   }: Props = $props();
 </script>
 
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="44rem"
   route={bindLazyRoute(loadMusicLibraryPanel, {
     snapshot: musicLibrarySnapshot,
     i18n
   })}
 />
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="48rem"
   route={bindLazyRoute(loadMusicBrowsePanel, {
     librarySnapshot: musicLibrarySnapshot,
     browseSnapshot: musicBrowseSnapshot,
@@ -100,7 +102,8 @@
     i18n
   })}
 />
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="36rem"
   route={bindLazyRoute(loadMediaSearchPanel, {
     snapshot: mediaSearchSnapshot,
     dispatch: mediaSearchDispatch,
@@ -109,7 +112,8 @@
     buildOptions
   })}
 />
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="36rem"
   route={bindLazyRoute(loadMediaFilesPanel, {
     snapshot: mediaFilesSnapshot,
     dispatch: mediaFilesDispatch,
@@ -117,7 +121,8 @@
     i18n
   })}
 />
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="36rem"
   route={bindLazyRoute(loadMediaPlaylistsPanel, {
     snapshot: mediaPlaylistsSnapshot,
     dispatch: mediaPlaylistsDispatch,
@@ -125,7 +130,8 @@
     i18n
   })}
 />
-<LazyRouteComponent
+<LazyViewportRouteComponent
+  minHeight="28rem"
   route={bindLazyRoute(loadNowPlayingPanel, {
     snapshot: playerSnapshot,
     dispatch: playerDispatch,

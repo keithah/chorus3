@@ -73,7 +73,8 @@
 </script>
 
 <script lang="ts">
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import type { PlayerControlsDispatch } from './PlayerControls.svelte';
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
 
@@ -91,7 +92,7 @@
     remoteInputDispatch,
     playerDispatch,
     backgroundUrl,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   const isRemoteRunning = $derived(remoteSnapshot.commandStatus === 'running');

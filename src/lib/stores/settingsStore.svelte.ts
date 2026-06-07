@@ -6,6 +6,7 @@ import {
   isKodiHttpClientError,
   setSettingValue,
   type KodiEndpointDescription,
+  type KodiHttpCallOptions,
   type KodiJsonRpcHttpClient,
   type KodiSettingsSetting,
   type SettingsGetCategoriesParams,
@@ -97,15 +98,18 @@ export interface SettingsStoreSnapshot {
 export interface SettingsStoreMethods {
   getSettingsSections(
     client: KodiJsonRpcHttpClient,
-    params?: SettingsGetSectionsParams
+    params?: SettingsGetSectionsParams,
+    options?: KodiHttpCallOptions
   ): Promise<SettingsGetSectionsResult>;
   getSettingsCategories(
     client: KodiJsonRpcHttpClient,
-    params?: SettingsGetCategoriesParams
+    params?: SettingsGetCategoriesParams,
+    options?: KodiHttpCallOptions
   ): Promise<SettingsGetCategoriesResult>;
   getSettings(
     client: KodiJsonRpcHttpClient,
-    params?: SettingsGetSettingsParams
+    params?: SettingsGetSettingsParams,
+    options?: KodiHttpCallOptions
   ): Promise<SettingsGetSettingsResult>;
   setSettingValue(
     client: KodiJsonRpcHttpClient,
@@ -164,6 +168,7 @@ export class SettingsStore {
   readonly #now: () => string;
   readonly #level: SettingsLevel;
   #requestId = 0;
+  #abortController: AbortController | null = null;
 
   constructor(options: SettingsStoreOptions = {}) {
     this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
@@ -177,7 +182,7 @@ export class SettingsStore {
   }
 
   reset(): void {
-    this.#requestId += 1;
+    this.#cancelLoad();
     this.#snapshot = cloneSnapshot(DEFAULT_SNAPSHOT);
   }
 
@@ -191,16 +196,26 @@ export class SettingsStore {
 
     try {
       const sections = normalizeSections(
-        (await this.#methods.getSettingsSections(client, { level: this.#level })).sections
+        (
+          await this.#methods.getSettingsSections(
+            client,
+            { level: this.#level },
+            this.#callOptions()
+          )
+        ).sections
       );
       const selectedSectionId = pickExistingId(sections, this.#snapshot.selectedSectionId);
       const categories = selectedSectionId
         ? normalizeCategories(
             (
-              await this.#methods.getSettingsCategories(client, {
-                section: selectedSectionId,
-                level: this.#level
-              })
+              await this.#methods.getSettingsCategories(
+                client,
+                {
+                  section: selectedSectionId,
+                  level: this.#level
+                },
+                this.#callOptions()
+              )
             ).categories
           )
         : [];
@@ -208,11 +223,15 @@ export class SettingsStore {
       const settings = selectedCategoryId
         ? normalizeSettings(
             (
-              await this.#methods.getSettings(client, {
-                section: selectedSectionId ?? undefined,
-                category: selectedCategoryId,
-                level: this.#level
-              })
+              await this.#methods.getSettings(
+                client,
+                {
+                  section: selectedSectionId ?? undefined,
+                  category: selectedCategoryId,
+                  level: this.#level
+                },
+                this.#callOptions()
+              )
             ).settings
           )
         : [];
@@ -246,21 +265,29 @@ export class SettingsStore {
     try {
       const categories = normalizeCategories(
         (
-          await this.#methods.getSettingsCategories(client, {
-            section: section.id,
-            level: this.#level
-          })
+          await this.#methods.getSettingsCategories(
+            client,
+            {
+              section: section.id,
+              level: this.#level
+            },
+            this.#callOptions()
+          )
         ).categories
       );
       const selectedCategoryId = categories[0]?.id ?? null;
       const settings = selectedCategoryId
         ? normalizeSettings(
             (
-              await this.#methods.getSettings(client, {
-                section: section.id,
-                category: selectedCategoryId,
-                level: this.#level
-              })
+              await this.#methods.getSettings(
+                client,
+                {
+                  section: section.id,
+                  category: selectedCategoryId,
+                  level: this.#level
+                },
+                this.#callOptions()
+              )
             ).settings
           )
         : [];
@@ -293,11 +320,15 @@ export class SettingsStore {
     try {
       const settings = normalizeSettings(
         (
-          await this.#methods.getSettings(client, {
-            section: this.#snapshot.selectedSectionId ?? undefined,
-            category: category.id,
-            level: this.#level
-          })
+          await this.#methods.getSettings(
+            client,
+            {
+              section: this.#snapshot.selectedSectionId ?? undefined,
+              category: category.id,
+              level: this.#level
+            },
+            this.#callOptions()
+          )
         ).settings
       );
       this.#commitLoad(requestId, {
@@ -419,6 +450,8 @@ export class SettingsStore {
   }
 
   #beginLoad(partial: Partial<SettingsStoreSnapshot> = {}): number {
+    this.#abortController?.abort();
+    this.#abortController = new AbortController();
     this.#requestId += 1;
     this.#snapshot = {
       ...this.#snapshot,
@@ -497,6 +530,16 @@ export class SettingsStore {
     } catch {
       return null;
     }
+  }
+
+  #cancelLoad(): void {
+    this.#abortController?.abort();
+    this.#abortController = null;
+    this.#requestId += 1;
+  }
+
+  #callOptions(): KodiHttpCallOptions {
+    return { signal: this.#abortController?.signal };
   }
 }
 

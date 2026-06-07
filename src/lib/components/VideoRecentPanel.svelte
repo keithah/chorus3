@@ -1,6 +1,7 @@
 <script lang="ts">
   import './videoRecentPanelClassic.css';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import type {
     VideoEpisodeSnapshot,
     VideoLibraryMovieSnapshot,
@@ -38,7 +39,7 @@
     initials: string;
   };
 
-  let { snapshot, i18n = createTranslationContext('en') }: Props = $props();
+  let { snapshot, i18n = createEnglishTranslationContext() }: Props = $props();
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));

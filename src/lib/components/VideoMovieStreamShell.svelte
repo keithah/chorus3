@@ -18,7 +18,8 @@
 
 <script lang="ts">
   import LocalMediaRuntime from '$lib/components/LocalMediaRuntime.svelte';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import type {
     VideoLibraryMovieSnapshot,
     VideoLibraryStoreSnapshot
@@ -58,7 +59,7 @@
     localPlayerSnapshot,
     dispatchSnapshot,
     actionDispatch = noopActionDispatch,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   let actionStatus = $state<ActionStatus>({

@@ -20,6 +20,11 @@
   import StatusCard from '$components/StatusCard.svelte';
   import AppHomeMediaPanels from '$lib/app-pages/AppHomeMediaPanels.svelte';
   import type { TranslationContext } from '$lib/i18n';
+  import { mediaFilesStore } from '$lib/stores/mediaFiles.svelte';
+  import { mediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
+  import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
+  import { musicBrowseStore } from '$lib/stores/musicBrowse.svelte';
+  import { musicLibraryStore } from '$lib/stores/musicLibrary.svelte';
   import type {
     LocalPlayerStoreSnapshot,
     MediaFilesStoreSnapshot,
@@ -44,17 +49,17 @@
     statusGridAria: string;
     connection: StatusCardProps;
     themeContract: StatusCardProps;
-    musicLibrarySnapshot: MusicLibraryStoreSnapshot;
-    musicBrowseSnapshot: MusicBrowseStoreSnapshot;
+    musicLibrarySnapshot?: MusicLibraryStoreSnapshot;
+    musicBrowseSnapshot?: MusicBrowseStoreSnapshot;
     musicBrowseDispatch: MusicBrowsePanelDispatch;
     musicActionDispatch: MusicBrowseActionDispatch;
-    mediaSearchSnapshot: MediaSearchStoreSnapshot;
+    mediaSearchSnapshot?: MediaSearchStoreSnapshot;
     mediaSearchDispatch: MediaSearchPanelDispatch;
     mediaSearchActionDispatch: MediaSearchActionDispatch;
-    mediaFilesSnapshot: MediaFilesStoreSnapshot;
+    mediaFilesSnapshot?: MediaFilesStoreSnapshot;
     mediaFilesDispatch: MediaFilesPanelDispatch;
     mediaFilesActionDispatch: MediaFilesActionDispatch;
-    mediaPlaylistsSnapshot: MediaPlaylistsStoreSnapshot;
+    mediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     mediaPlaylistsDispatch: MediaPlaylistsPanelDispatch;
     mediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch;
     playerSnapshot: PlayerStoreSnapshot;
@@ -91,6 +96,14 @@
     queueDispatch,
     i18n
   }: Props = $props();
+
+  const currentMusicLibrarySnapshot = $derived(musicLibrarySnapshot ?? musicLibraryStore.snapshot);
+  const currentMusicBrowseSnapshot = $derived(musicBrowseSnapshot ?? musicBrowseStore.snapshot);
+  const currentMediaSearchSnapshot = $derived(mediaSearchSnapshot ?? mediaSearchStore.snapshot);
+  const currentMediaFilesSnapshot = $derived(mediaFilesSnapshot ?? mediaFilesStore.snapshot);
+  const currentMediaPlaylistsSnapshot = $derived(
+    mediaPlaylistsSnapshot ?? mediaPlaylistsStore.snapshot
+  );
 </script>
 
 <div class="dashboard" aria-label={i18n.t('app.dashboard.aria')}>
@@ -111,17 +124,17 @@
   </section>
 
   <AppHomeMediaPanels
-    {musicLibrarySnapshot}
-    {musicBrowseSnapshot}
+    musicLibrarySnapshot={currentMusicLibrarySnapshot}
+    musicBrowseSnapshot={currentMusicBrowseSnapshot}
     {musicBrowseDispatch}
     {musicActionDispatch}
-    {mediaSearchSnapshot}
+    mediaSearchSnapshot={currentMediaSearchSnapshot}
     {mediaSearchDispatch}
     {mediaSearchActionDispatch}
-    {mediaFilesSnapshot}
+    mediaFilesSnapshot={currentMediaFilesSnapshot}
     {mediaFilesDispatch}
     {mediaFilesActionDispatch}
-    {mediaPlaylistsSnapshot}
+    mediaPlaylistsSnapshot={currentMediaPlaylistsSnapshot}
     {mediaPlaylistsDispatch}
     {mediaPlaylistsActionDispatch}
     {playerSnapshot}

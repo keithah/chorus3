@@ -35,7 +35,7 @@
   import AppDashboardSurface from '$lib/app-pages/AppDashboardSurface.svelte';
   import AppRuntimeShellFrame from '$lib/app-pages/AppRuntimeShellFrame.svelte';
   import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
-  import AppPageSurface from '$lib/app-pages/AppPageSurface.svelte';
+  import AppPageStoreSurface from '$lib/app-pages/AppPageStoreSurface.svelte';
   import {
     bindLazyRoute,
     loadAddonDetailShell,
@@ -63,13 +63,18 @@
     RemoteInputDispatchSnapshot,
     SettingsStoreSnapshot
   } from '$lib/stores';
+  import { videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
+  import { settingsStore } from '$lib/stores/settingsStore.svelte';
   import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
+  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
+  import { videoMovieDetailStore } from '$lib/stores/videoMovieDetailStore.svelte';
   import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
+  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import type { VideoRoute } from '$lib/video/videoRouter';
 
   type DashboardSurfaceProps = ComponentProps<typeof AppDashboardSurface>;
-  type PageSurfaceProps = ComponentProps<typeof AppPageSurface>;
+  type PageSurfaceProps = ComponentProps<typeof AppPageStoreSurface>;
 
   interface Props {
     currentRoute: AppRoute;
@@ -101,17 +106,12 @@
     localBrowserPlayerActionDispatch: LocalBrowserPlayerDispatch;
     currentHomeContext: Omit<
       DashboardSurfaceProps,
-      | 'musicLibrarySnapshot'
-      | 'musicBrowseSnapshot'
       | 'musicBrowseDispatch'
       | 'musicActionDispatch'
-      | 'mediaSearchSnapshot'
       | 'mediaSearchDispatch'
       | 'mediaSearchActionDispatch'
-      | 'mediaFilesSnapshot'
       | 'mediaFilesDispatch'
       | 'mediaFilesActionDispatch'
-      | 'mediaPlaylistsSnapshot'
       | 'mediaPlaylistsDispatch'
       | 'mediaPlaylistsActionDispatch'
       | 'playerSnapshot'
@@ -121,17 +121,12 @@
       | 'queueDispatch'
       | 'i18n'
     >;
-    currentMusicLibrarySnapshot: DashboardSurfaceProps['musicLibrarySnapshot'];
-    currentMusicBrowseSnapshot: DashboardSurfaceProps['musicBrowseSnapshot'];
     musicBrowseDispatch: DashboardSurfaceProps['musicBrowseDispatch'];
     musicActionDispatch: DashboardSurfaceProps['musicActionDispatch'];
-    currentMediaSearchSnapshot: DashboardSurfaceProps['mediaSearchSnapshot'];
     mediaSearchDispatch: DashboardSurfaceProps['mediaSearchDispatch'];
     mediaSearchActionDispatch: DashboardSurfaceProps['mediaSearchActionDispatch'];
-    currentMediaFilesSnapshot: DashboardSurfaceProps['mediaFilesSnapshot'];
     mediaFilesDispatch: DashboardSurfaceProps['mediaFilesDispatch'];
     mediaFilesActionDispatch: DashboardSurfaceProps['mediaFilesActionDispatch'];
-    currentMediaPlaylistsSnapshot: DashboardSurfaceProps['mediaPlaylistsSnapshot'];
     mediaPlaylistsDispatch: DashboardSurfaceProps['mediaPlaylistsDispatch'];
     mediaPlaylistsActionDispatch: DashboardSurfaceProps['mediaPlaylistsActionDispatch'];
     isPackageMounted: boolean;
@@ -140,16 +135,16 @@
     currentAddonsSnapshot: AddonsStoreSnapshot;
     addonsDispatch: AddonsPanelDispatch;
     addonDetailDispatch: AddonDetailDispatch;
-    currentSettingsSnapshot: SettingsStoreSnapshot;
+    settingsSnapshot?: SettingsStoreSnapshot;
     settingsDispatch: SettingsPanelDispatch;
-    currentVideoLibrarySnapshot: VideoLibraryStoreSnapshot;
-    currentVideoMediaPlaylistsSnapshot: MediaPlaylistsStoreSnapshot;
+    videoLibrarySnapshot?: VideoLibraryStoreSnapshot;
+    videoMediaPlaylistsSnapshot?: MediaPlaylistsStoreSnapshot;
     videoMediaPlaylistsDispatch: MediaPlaylistsPanelDispatch;
     videoMediaPlaylistsActionDispatch: MediaPlaylistsActionDispatch;
     videoMovieDetailSnapshot?: VideoMovieDetailStoreSnapshot;
     videoMovieActionDispatch: VideoMovieActionDispatch;
     videoMovieStreamActionDispatch: VideoMovieStreamDispatch;
-    currentVideoTvSnapshot: VideoTvStoreSnapshot;
+    videoTvSnapshot?: VideoTvStoreSnapshot;
     videoEpisodeActionDispatch: VideoEpisodeActionDispatch;
     videoSeasonArtworkDispatch: VideoSeasonArtworkDispatch;
     videoSeasonWriteDispatch: VideoSeasonWriteDispatch;
@@ -193,17 +188,12 @@
     nowPlayingEmbedQuery,
     localBrowserPlayerActionDispatch,
     currentHomeContext,
-    currentMusicLibrarySnapshot,
-    currentMusicBrowseSnapshot,
     musicBrowseDispatch,
     musicActionDispatch,
-    currentMediaSearchSnapshot,
     mediaSearchDispatch,
     mediaSearchActionDispatch,
-    currentMediaFilesSnapshot,
     mediaFilesDispatch,
     mediaFilesActionDispatch,
-    currentMediaPlaylistsSnapshot,
     mediaPlaylistsDispatch,
     mediaPlaylistsActionDispatch,
     isPackageMounted,
@@ -212,16 +202,16 @@
     currentAddonsSnapshot,
     addonsDispatch,
     addonDetailDispatch,
-    currentSettingsSnapshot,
+    settingsSnapshot,
     settingsDispatch,
-    currentVideoLibrarySnapshot,
-    currentVideoMediaPlaylistsSnapshot,
+    videoLibrarySnapshot,
+    videoMediaPlaylistsSnapshot,
     videoMediaPlaylistsDispatch,
     videoMediaPlaylistsActionDispatch,
     videoMovieDetailSnapshot,
     videoMovieActionDispatch,
     videoMovieStreamActionDispatch,
-    currentVideoTvSnapshot,
+    videoTvSnapshot,
     videoEpisodeActionDispatch,
     videoSeasonArtworkDispatch,
     videoSeasonWriteDispatch,
@@ -252,6 +242,15 @@
     openRemote:
       currentDrawerDestinationMode === 'kodi' ? () => toggleRemoteOverlayFromPlayer() : undefined
   });
+  const currentVideoMediaPlaylistsSnapshot = $derived(
+    videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
+  );
+  const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
+  const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
+  const currentVideoMovieDetailSnapshot = $derived(
+    videoMovieDetailSnapshot ?? videoMovieDetailStore.snapshot
+  );
+  const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
 
   const shellCallbacks = $derived({
     ...playlistDrawerCallbacks,
@@ -329,7 +328,7 @@
     {queueDispatch}
     {handleLocalMediaEnded}
   >
-    <AppPageSurface {...currentAppPageSurfaceProps} />
+    <AppPageStoreSurface {...currentAppPageSurfaceProps} />
   </AppRuntimeShellFrame>
 {:else}
   <AppRuntimeShellFrame
@@ -358,17 +357,12 @@
       {#if !isPackageMounted}
         <AppDashboardSurface
           {...currentHomeContext}
-          musicLibrarySnapshot={currentMusicLibrarySnapshot}
-          musicBrowseSnapshot={currentMusicBrowseSnapshot}
           {musicBrowseDispatch}
           {musicActionDispatch}
-          mediaSearchSnapshot={currentMediaSearchSnapshot}
           {mediaSearchDispatch}
           {mediaSearchActionDispatch}
-          mediaFilesSnapshot={currentMediaFilesSnapshot}
           {mediaFilesDispatch}
           {mediaFilesActionDispatch}
-          mediaPlaylistsSnapshot={currentMediaPlaylistsSnapshot}
           {mediaPlaylistsDispatch}
           {mediaPlaylistsActionDispatch}
           playerSnapshot={currentPlayerSnapshot}
@@ -550,7 +544,7 @@
           route={bindLazyRoute(loadVideoMovieDetailShell, {
             snapshot: currentVideoLibrarySnapshot,
             route: currentRenderableVideoRoute,
-            detailSnapshot: videoMovieDetailSnapshot,
+            detailSnapshot: currentVideoMovieDetailSnapshot,
             actionDispatch: videoMovieActionDispatch,
             i18n: currentI18n
           })}
@@ -565,7 +559,7 @@
           route={bindLazyRoute(loadVideoMovieStreamShell, {
             snapshot: currentVideoLibrarySnapshot,
             route: currentRenderableVideoRoute,
-            detailSnapshot: videoMovieDetailSnapshot,
+            detailSnapshot: currentVideoMovieDetailSnapshot,
             localPlayerSnapshot: currentLocalSnapshot,
             dispatchSnapshot: playerDispatch.snapshot,
             actionDispatch: videoMovieStreamActionDispatch,

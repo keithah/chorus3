@@ -1,28 +1,21 @@
+import { DEFAULT_LOCALE, DICTIONARIES, type Locale, type TranslationKey } from './dictionaries';
+import { isLocale, LOCALES } from './localeCore';
 import {
-  DEFAULT_LOCALE,
-  DICTIONARIES,
-  LOCALES,
-  type Locale,
-  type TranslationKey
-} from './dictionaries';
+  createTranslationContextFromDictionary,
+  translateFromDictionary,
+  type TranslationContext as CoreTranslationContext,
+  type TranslationContextSnapshot as CoreTranslationContextSnapshot,
+  type TranslationParams
+} from './translationCore';
 
-export { DEFAULT_LOCALE, DICTIONARIES, LOCALES, type Locale, type TranslationKey };
-
-export type TranslationParams = Record<string, string | number | boolean | null | undefined>;
+export { DEFAULT_LOCALE, DICTIONARIES, isLocale, LOCALES, type Locale, type TranslationKey };
+export type TranslationContext = CoreTranslationContext<Locale>;
+export type TranslationContextSnapshot = CoreTranslationContextSnapshot<Locale>;
+export type { TranslationParams };
 
 export interface TranslateOptions {
   locale: Locale;
   params?: TranslationParams;
-}
-
-export interface TranslationContext {
-  locale: Locale;
-  t: (key: TranslationKey | string, params?: TranslationParams) => string;
-  snapshot: TranslationContextSnapshot;
-}
-
-export interface TranslationContextSnapshot {
-  locale: Locale;
 }
 
 export type DictionaryByLocale<TLocale extends string = Locale> = Record<
@@ -48,29 +41,13 @@ export type DictionaryParityIssue =
 
 const PLACEHOLDER_PATTERN = /\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 
-export function isLocale(value: unknown): value is Locale {
-  return typeof value === 'string' && (LOCALES as readonly string[]).includes(value);
-}
-
 export function translate(key: TranslationKey | string, options: TranslateOptions): string {
   const dictionary = DICTIONARIES[options.locale] as Record<string, string>;
-  const value = dictionary[key];
-
-  if (value === undefined) {
-    return `[missing translation: ${key}]`;
-  }
-
-  return interpolate(value, options.params ?? {});
+  return translateFromDictionary(dictionary, key, options.params);
 }
 
 export function createTranslationContext(locale: Locale): TranslationContext {
-  return {
-    locale,
-    t: (key, params) => translate(key, { locale, params }),
-    get snapshot() {
-      return { locale };
-    }
-  };
+  return createTranslationContextFromDictionary(locale, DICTIONARIES[locale]);
 }
 
 export function getPlaceholders(value: string): string[] {
@@ -157,14 +134,6 @@ export function validateDictionaryParity<TLocale extends string>(
   }
 
   return issues;
-}
-
-function interpolate(value: string, params: TranslationParams): string {
-  return value.replace(PLACEHOLDER_PATTERN, (match, name: string) => {
-    const paramValue = params[name];
-
-    return paramValue === undefined || paramValue === null ? match : String(paramValue);
-  });
 }
 
 function findBlankValues(

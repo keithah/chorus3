@@ -1,4 +1,4 @@
-import { type KodiJsonRpcHttpClient } from '$lib/kodi';
+import { type KodiHttpCallOptions, type KodiJsonRpcHttpClient } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 
 import type {
@@ -69,6 +69,8 @@ export class AddonsStore {
   readonly #now: () => string;
   #listRequestId = 0;
   #detailRequestId = 0;
+  #listAbortController: AbortController | null = null;
+  #detailAbortController: AbortController | null = null;
 
   constructor(options: AddonsStoreOptions = {}) {
     this.#createClient =
@@ -82,8 +84,8 @@ export class AddonsStore {
   }
 
   reset(): void {
-    this.#listRequestId += 1;
-    this.#detailRequestId += 1;
+    this.#cancelListLoad();
+    this.#cancelDetailLoad();
     this.#snapshot = cloneSnapshot(DEFAULT_SNAPSHOT);
   }
 
@@ -131,7 +133,8 @@ export class AddonsStore {
 
     try {
       const addons = normalizeAddons(
-        (await this.#methods.getAddons(client, createGetAddonsParams())).addons
+        (await this.#methods.getAddons(client, createGetAddonsParams(), this.#listCallOptions()))
+          .addons
       );
       this.#commitListLoad(requestId, addons);
     } catch (error) {
@@ -152,6 +155,7 @@ export class AddonsStore {
 
   async loadAddonDetail(addonid: string): Promise<void> {
     if (!isSafeAddonId(addonid)) {
+      this.#cancelDetailLoad();
       this.#snapshot = {
         ...this.#snapshot,
         detailStatus: 'error',
@@ -170,10 +174,14 @@ export class AddonsStore {
     try {
       const detail = normalizeAddonDetail(
         getAddonDetailPayload(
-          await this.#methods.getAddonDetails(client, {
-            addonid,
-            properties: ADDON_PROPERTIES
-          })
+          await this.#methods.getAddonDetails(
+            client,
+            {
+              addonid,
+              properties: ADDON_PROPERTIES
+            },
+            this.#detailCallOptions()
+          )
         )
       );
       this.#commitDetailLoad(requestId, detail);
@@ -347,6 +355,8 @@ export class AddonsStore {
   }
 
   #beginListLoad(): number {
+    this.#listAbortController?.abort();
+    this.#listAbortController = new AbortController();
     this.#listRequestId += 1;
     this.#snapshot = { ...this.#snapshot, loadStatus: 'loading', lastError: null };
     return this.#listRequestId;
@@ -372,6 +382,8 @@ export class AddonsStore {
   }
 
   #beginDetailLoad(addonid: string): number {
+    this.#detailAbortController?.abort();
+    this.#detailAbortController = new AbortController();
     this.#detailRequestId += 1;
     this.#snapshot = {
       ...this.#snapshot,
@@ -432,6 +444,26 @@ export class AddonsStore {
     } catch {
       return null;
     }
+  }
+
+  #cancelListLoad(): void {
+    this.#listAbortController?.abort();
+    this.#listAbortController = null;
+    this.#listRequestId += 1;
+  }
+
+  #cancelDetailLoad(): void {
+    this.#detailAbortController?.abort();
+    this.#detailAbortController = null;
+    this.#detailRequestId += 1;
+  }
+
+  #listCallOptions(): KodiHttpCallOptions {
+    return { signal: this.#listAbortController?.signal };
+  }
+
+  #detailCallOptions(): KodiHttpCallOptions {
+    return { signal: this.#detailAbortController?.signal };
   }
 }
 

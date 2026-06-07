@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PlayerAudioStream, PlayerSubtitleStream } from '$lib/kodi';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
   import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
   import PlayerControls, { type PlayerControlsDispatch } from './PlayerControls.svelte';
@@ -16,7 +17,7 @@
     snapshot,
     dispatch,
     localPlayerSnapshot,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   const DEFAULT_LOCAL_SNAPSHOT: LocalPlayerStoreSnapshot = {

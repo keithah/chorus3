@@ -25,8 +25,10 @@
 
 <script lang="ts">
   import './mediaFilesPanelClassic.css';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { safeStableKey, stringOrNull } from './listKeyHelpers';
   import { displayText, sanitizeUiText, textOrNull } from './textFormatting';
   import type {
     MediaDirectoryEntrySnapshot,
@@ -61,7 +63,7 @@
     snapshot,
     dispatch,
     actionDispatch,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
@@ -375,15 +377,6 @@
     return media === 'video' ? 'video' : 'music';
   }
 
-  function stringOrNull(value: unknown): string | null {
-    return typeof value === 'string' && value.trim().length > 0 ? value : null;
-  }
-
-  function safeEachKey(prefix: string, id: unknown, index: number): string {
-    const value = stringOrNull(id);
-    return value ? `${prefix}:${value}` : `${prefix}:missing:${index}`;
-  }
-
   function plural(noun: string, count: number): string {
     if (count === 1) {
       return noun;
@@ -447,7 +440,7 @@
         <p class="empty-copy">No sources in this snapshot.</p>
       {:else}
         <ul class="choice-list">
-          {#each snapshot.sources as source, index (safeEachKey('source', source.id, index))}
+          {#each snapshot.sources as source, index (safeStableKey('source', source.id, index))}
             {@const label = safeSourceLabel(source, index)}
             {@const id = stringOrNull(source.id)}
             <li>
@@ -479,7 +472,7 @@
           <p class="empty-copy">No folder breadcrumbs yet.</p>
         {:else}
           <ol class="breadcrumb-list">
-            {#each snapshot.breadcrumbs as crumb, index (safeEachKey('breadcrumb', crumb.id, index))}
+            {#each snapshot.breadcrumbs as crumb, index (safeStableKey('breadcrumb', crumb.id, index))}
               {@const label = safeBreadcrumbLabel(crumb, index)}
               {@const id = stringOrNull(crumb.id)}
               <li>
@@ -502,7 +495,7 @@
         <p class="empty-copy">No directory entries in this snapshot.</p>
       {:else}
         <ul class="entry-list">
-          {#each visibleEntries as entry, index (safeEachKey('entry', entry.id, index))}
+          {#each visibleEntries as entry, index (safeStableKey('entry', entry.id, index))}
             {@const label = safeEntryLabel(entry, index)}
             {@const actionItem = fileActionFor(entry, index)}
             {@const id = stringOrNull(entry.id)}

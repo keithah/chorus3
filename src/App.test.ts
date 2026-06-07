@@ -1566,6 +1566,9 @@ describe('App shell', () => {
       });
 
       const stage = requirePrimaryShellStage(target);
+      expect(target.querySelectorAll('.chorus-app')).toHaveLength(1);
+      expect(target.querySelectorAll('header[aria-label="Chorus header"]')).toHaveLength(1);
+      expect(target.querySelectorAll('main.classic-stage')).toHaveLength(1);
       expect(stage.textContent).not.toContain('Route not found');
       requirePrimaryPageFrame(target, title);
       requireAppPageSurface(target, routeKind, surfaceKind);
@@ -2623,7 +2626,9 @@ describe('App shell', () => {
       localPlayerSnapshot: createLocalPlayerSnapshot()
     });
 
-    expect(target.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    await vi.waitFor(() => {
+      expect(target.textContent).toContain('Aktuelle Wiedergabe einbetten');
+    });
     expect(target.textContent).toContain('Safe Room Kodi');
     expect(target.textContent).toContain('Aurora Signal');
     expect(target.textContent).not.toContain('Music Library');

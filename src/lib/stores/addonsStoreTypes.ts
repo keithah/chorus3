@@ -8,6 +8,7 @@ import type {
   AddonsSetAddonEnabledParams,
   AddonsSetAddonEnabledResult,
   KodiEndpointDescription,
+  KodiHttpCallOptions,
   KodiJsonRpcHttpClient
 } from '$lib/kodi';
 
@@ -107,11 +108,13 @@ export interface AddonSearchSetting {
 export interface AddonsStoreMethods {
   getAddons(
     client: KodiJsonRpcHttpClient,
-    params?: AddonsGetAddonsParams
+    params?: AddonsGetAddonsParams,
+    options?: KodiHttpCallOptions
   ): Promise<AddonsGetAddonsResult>;
   getAddonDetails(
     client: KodiJsonRpcHttpClient,
-    params: AddonsGetAddonDetailsParams
+    params: AddonsGetAddonDetailsParams,
+    options?: KodiHttpCallOptions
   ): Promise<AddonsGetAddonDetailsResult>;
   setAddonEnabled(
     client: KodiJsonRpcHttpClient,

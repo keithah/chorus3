@@ -22,7 +22,8 @@
 </script>
 
 <script lang="ts">
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
   import {
     albumMusicBrowseDetailEmptyCopy,
@@ -81,7 +82,7 @@
     browseSnapshot,
     dispatch,
     actionDispatch,
-    i18n = createTranslationContext('en')
+    i18n = createEnglishTranslationContext()
   }: Props = $props();
 
   let pendingAction = $state<PendingMusicAction | null>(null);

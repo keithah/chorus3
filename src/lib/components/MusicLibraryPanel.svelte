@@ -1,6 +1,7 @@
 <script lang="ts">
   import './musicLibraryPanelClassic.css';
-  import { createTranslationContext, type TranslationContext } from '$lib/i18n';
+  import type { TranslationContext } from '$lib/i18n';
+  import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { displayText, sanitizeUiText, textOrNull } from './textFormatting';
   import type {
     MusicLibraryAlbumSnapshot,
@@ -22,7 +23,7 @@
   type DiscoveryListKind = 'recentlyAddedSongs' | 'recentlyPlayedSongs' | 'mostPlayedSongs';
   type DiscoveryMetadataKind = 'recentlyAdded' | 'recentlyPlayed' | 'mostPlayed';
 
-  let { snapshot, onRefresh, i18n = createTranslationContext('en') }: Props = $props();
+  let { snapshot, onRefresh, i18n = createEnglishTranslationContext() }: Props = $props();
   let isRefreshing = $state(false);
   const artistVisibility = createIncrementalVisibility(150);
   const albumVisibility = createIncrementalVisibility(150);

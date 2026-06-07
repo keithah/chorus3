@@ -1,10 +1,8 @@
 import { DE_DICTIONARY } from './locales/de';
 import { EN_DICTIONARY } from './locales/en';
+import { DEFAULT_LOCALE, type Locale } from './localeCore';
 
-export const LOCALES = ['en', 'de'] as const;
-export type Locale = (typeof LOCALES)[number];
-
-export const DEFAULT_LOCALE: Locale = 'en';
+export { DEFAULT_LOCALE, LOCALES, isLocale, type Locale } from './localeCore';
 
 export const DICTIONARIES = {
   en: EN_DICTIONARY,
