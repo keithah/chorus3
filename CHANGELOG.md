@@ -2,6 +2,33 @@
 
 All notable changes to Chorus 3 are tracked here.
 
+## 3.0.14 - 2026-06-08
+
+Patch release for the final Chorus2 parity sweep, Kodi v22 installed-package validation, and
+runtime loading cleanup.
+
+### Fixed
+
+- Restored full-library movie and TV navigation after installed-package checks, including TV show,
+  season, and episode drill-in hydration.
+- Kept poster artwork inside Chorus2-style frames without cropping posters in movie, TV, and
+  search surfaces.
+- Added package-aware back links on classic movie detail pages.
+- Cleaned up compact music genre rows so genre names render without visible Select prefixes while
+  keeping checkbox labels accessible.
+- Prevented PVR route refresh loops from freezing Kodi-facing screens and kept Play and Record
+  action feedback visible.
+- Preserved legacy thumbs-up routes such as `/thumbs-movie` and `/thumbs-song` with friendly
+  empty-state copy instead of route errors.
+
+### Changed
+
+- Split route and store surfaces so primary pages can lazy-load with fewer shell-level
+  dependencies.
+- Added explicit store chunk classification and lazy route guard coverage for package-safe builds.
+- Added abortable Kodi JSON-RPC reads for add-ons, media files, settings, and TV detail stores to
+  prevent stale route loads from winning.
+
 ## 3.0.13 - 2026-05-27
 
 Patch release for Kodi v22 compatibility and the remaining live Chorus2 parity fixes found during
