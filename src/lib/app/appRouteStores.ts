@@ -33,7 +33,10 @@ export const appRouteStores = {
 function lazyModule<TModule>(load: () => Promise<TModule>): () => Promise<TModule> {
   let promise: Promise<TModule> | null = null;
   return () => {
-    promise ??= load();
+    promise ??= load().catch((error: unknown) => {
+      promise = null;
+      throw error;
+    });
     return promise;
   };
 }

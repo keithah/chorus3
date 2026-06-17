@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from '$lib/testing/m005BrowserProofFixtures';
-import { isTextSecretSafe, redactDiagnosticText, redactJsonForDisplay } from './redaction';
+import {
+  isTextSecretSafe,
+  redactDiagnosticText,
+  redactJsonForDisplay,
+  redactStoreErrorMessage,
+  redactUiText
+} from './redaction';
 
 function expectSecretSafe(text: string): void {
   for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
@@ -36,6 +42,19 @@ describe('diagnostic redaction', () => {
 
     expectSecretSafe(redacted);
     expect(redacted).not.toMatch(/payload|Authorization|Basic|password|token|secret/i);
+  });
+
+  it('redacts nested JSON-RPC payload text from store and UI messages', () => {
+    const payload =
+      'failed with {"jsonrpc":"2.0","method":"Input.SendText","params":{"text":"CHORUS3_SENTINEL_SECRET admin:p@ssword"},"id":1} from localStorage';
+
+    const storeText = redactStoreErrorMessage(payload);
+    const uiText = redactUiText(payload);
+
+    expect(storeText).toContain('redacted payload');
+    expect(uiText).toContain('redacted payload');
+    expect(storeText).not.toMatch(/CHORUS3_SENTINEL_SECRET|admin:p@ssword|Input\.SendText/u);
+    expect(uiText).not.toMatch(/CHORUS3_SENTINEL_SECRET|admin:p@ssword|Input\.SendText/u);
   });
 
   it('redacts nested raw request-like objects for display', () => {

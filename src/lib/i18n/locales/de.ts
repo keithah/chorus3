@@ -18,6 +18,17 @@ export const DE_DICTIONARY = {
   'app.theme.toggle': 'Zum {theme} Theme wechseln',
   'app.theme.light': 'hellen',
   'app.theme.dark': 'dunklen',
+  'libraryQuickActions.kicker': 'Bibliothekswerkzeuge',
+  'libraryQuickActions.title': 'Bibliotheks-Schnellaktionen',
+  'libraryQuickActions.scanVideo.label': 'Videobibliothek scannen',
+  'libraryQuickActions.scanVideo.description':
+    'Kodi auffordern, konfigurierte Videoquellen neu zu scannen.',
+  'libraryQuickActions.scanAudio.label': 'Audiobibliothek scannen',
+  'libraryQuickActions.scanAudio.description':
+    'Kodi auffordern, konfigurierte Musikquellen neu zu scannen.',
+  'libraryQuickActions.status.started': '{action} gestartet.',
+  'libraryQuickActions.status.sent': '{action}-Anfrage gesendet.',
+  'libraryQuickActions.status.ready': 'Bereit, Bibliotheks-Scan-Anfragen zu senden.',
 
   'app.dashboard.aria': 'Kodi-Hostkonfiguration und Status',
   'app.mission.kicker': 'Runtime-Oberfläche',

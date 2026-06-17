@@ -95,15 +95,20 @@ function resolveHashRouteLocation(
   const pathname = location?.pathname;
   const packageBasePath = resolveKodiWebinterfacePackageBasePath(pathname);
   const hashRoute = parseHashRoute(location?.hash);
+
+  const normalizedPathname = normalizeEntrypointPath(pathname);
+  if (
+    packageBasePath &&
+    normalizedPathname !== packageBasePath &&
+    normalizedPathname !== `${packageBasePath}/index.html`
+  ) {
+    return { pathname, search: location?.search };
+  }
+
   if (packageBasePath && hashRoute) {
     return hashRoute;
   }
 
-  if (packageBasePath && normalizeEntrypointPath(pathname) !== packageBasePath) {
-    return { pathname, search: location?.search };
-  }
-
-  const normalizedPathname = normalizeEntrypointPath(pathname);
   if (hashRoute && (normalizedPathname === '/' || normalizedPathname === '/index.html')) {
     return hashRoute;
   }

@@ -32,7 +32,7 @@ export function redactDiagnosticText(value: unknown): string {
 }
 
 export function redactStoreErrorMessage(message: string): string {
-  return message
+  return redactJsonPayloadText(message)
     .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
     .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
     .replace(/authorization/gi, 'credentials')
@@ -47,17 +47,19 @@ export function redactStoreErrorMessage(message: string): string {
     .replace(/admin:p@ssword/gi, '[redacted-credentials]')
     .replace(/p@ssword/gi, '[redacted-password]')
     .replace(/localStorage|sessionStorage/gi, 'browser storage')
-    .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
+    .replace(
+      /CHORUS_SENTINEL_SECRET|CHORUS3_SENTINEL_SECRET|SENTINEL_SECRET/gi,
+      '[redacted-sentinel]'
+    )
     .replace(/raw[_\s-]*response[_\s-]*body/gi, 'response body [redacted]')
     .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
-    .replace(/\{[^{}]*(jsonrpc|Input\.SendText)[^{}]*\}/gi, 'redacted payload')
     .replace(/\bInput\.SendText\b/gi, 'redacted action')
     .replace(/\bjsonrpc\b/gi, 'redacted payload')
     .replace(/password/gi, 'credentials');
 }
 
 export function redactUiText(value: string): string {
-  return value
+  return redactJsonPayloadText(value)
     .replace(/raw response body/gi, 'response body [redacted]')
     .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
     .replace(/https?:\/\/[^\s]+/gi, '[url]')
@@ -96,7 +98,7 @@ export function isTextSecretSafe(value: string): boolean {
 }
 
 export function redactAddonText(value: string): string {
-  return value
+  return redactJsonPayloadText(value)
     .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
     .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
     .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, '[redacted-url]')
@@ -110,9 +112,19 @@ export function redactAddonText(value: string): string {
     .replace(/\/[\w./-]+/gi, '[redacted-path]')
     .replace(/localStorage/gi, 'browser storage')
     .replace(/sessionStorage/gi, 'browser storage')
-    .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
+    .replace(
+      /CHORUS_SENTINEL_SECRET|CHORUS3_SENTINEL_SECRET|SENTINEL_SECRET/gi,
+      '[redacted-sentinel]'
+    )
     .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
     .replace(/password/gi, 'credentials');
+}
+
+function redactJsonPayloadText(value: string): string {
+  return value.replace(
+    /\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*(?:"jsonrpc"|Input\.SendText)(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/gi,
+    'redacted payload'
+  );
 }
 
 function normalizeForDisplay(value: unknown, seen: WeakSet<object>, depth: number): unknown {

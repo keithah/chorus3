@@ -90,7 +90,7 @@
   }: Props = $props();
 </script>
 
-<LibraryQuickActions dispatch={libraryMaintenanceDispatch} />
+<LibraryQuickActions dispatch={libraryMaintenanceDispatch} {i18n} />
 <LazyViewportRouteComponent
   minHeight="44rem"
   route={bindLazyRoute(loadMusicLibraryPanel, {

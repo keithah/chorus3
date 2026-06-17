@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize, relative, sep } from 'node:path';
@@ -62,6 +63,11 @@ let assetFetchCache = new Map<string, Promise<{ ok: boolean; status: number; bod
 
 describe('M007 no-live packaged browser proof', () => {
   beforeAll(async () => {
+    if (!existsSync(packageRoot)) {
+      execFileSync('npm', ['run', 'build'], { stdio: 'inherit' });
+      execFileSync('npm', ['run', 'package:kodi:dist'], { stdio: 'inherit' });
+    }
+
     await preloadAppPageSurfaceRoutesForTest();
     expect(
       existsSync(packageRoot),

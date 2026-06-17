@@ -1,6 +1,7 @@
 import { mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createTranslationContext } from '$lib/i18n';
 import LibraryQuickActions, {
   type LibraryQuickActionsDispatch
 } from './LibraryQuickActions.svelte';
@@ -26,7 +27,7 @@ describe('LibraryQuickActions', () => {
     const dispatch = createDispatch();
     mounted = mount(LibraryQuickActions, {
       target: document.body,
-      props: { dispatch }
+      props: { dispatch, i18n: createTranslationContext('en') }
     });
 
     button('Scan video library').click();
@@ -41,6 +42,7 @@ describe('LibraryQuickActions', () => {
     mounted = mount(LibraryQuickActions, {
       target: document.body,
       props: {
+        i18n: createTranslationContext('en'),
         dispatch: createDispatch({
           commandStatus: 'failed',
           lastCommand: 'scanVideo',

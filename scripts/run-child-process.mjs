@@ -6,7 +6,8 @@ export function runChildProcess({
   command,
   args,
   cwd,
-  timeoutMs = DEFAULT_CHILD_PROCESS_TIMEOUT_MS
+  timeoutMs = DEFAULT_CHILD_PROCESS_TIMEOUT_MS,
+  killTimeoutMs = 2_000
 }) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -14,10 +15,16 @@ export function runChildProcess({
     const stderrChunks = [];
     let settled = false;
     let timedOut = false;
+    let terminated = false;
 
     const timeout = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!terminated) {
+          child.kill('SIGKILL');
+        }
+      }, killTimeoutMs).unref();
     }, timeoutMs);
 
     const settle = (fn, value) => {
@@ -39,6 +46,7 @@ export function runChildProcess({
       settle(reject, error);
     });
     child.on('close', (status) => {
+      terminated = true;
       if (timedOut) {
         settle(reject, new Error(`${command} timed out after ${timeoutMs}ms.`));
         return;

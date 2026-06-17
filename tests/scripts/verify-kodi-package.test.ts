@@ -153,6 +153,18 @@ function parsePackageFallbackRoute(routePath: string): AppRoute {
   );
 }
 
+function isKnownPackageFallbackRoute(route: AppRoute): boolean {
+  if (
+    route.kind === 'settingsUnknown' ||
+    route.kind === 'addonsUnknown' ||
+    route.kind === 'labUnknown'
+  ) {
+    return false;
+  }
+
+  return route.kind !== 'video' || route.route.kind !== 'videoUnknown';
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 
@@ -574,7 +586,7 @@ describe('Kodi package structural verification', () => {
       if (fallback.routePath === '/now-playing') {
         expect(actual, fallback.name).toEqual({ kind: 'nowPlaying' });
       } else {
-        expect(actual, fallback.name).toMatchObject({ kind: 'primary' });
+        expect(isKnownPackageFallbackRoute(actual), fallback.name).toBe(true);
       }
     }
   });

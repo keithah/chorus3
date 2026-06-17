@@ -3,6 +3,7 @@
     LibraryMaintenanceDispatchSnapshot,
     LibraryMaintenanceCommand
   } from '$lib/stores/libraryMaintenanceDispatch.svelte';
+  import type { TranslationContext } from '$lib/i18n';
 
   export interface LibraryQuickActionsDispatch {
     readonly snapshot: LibraryMaintenanceDispatchSnapshot;
@@ -12,22 +13,22 @@
 
   type QuickAction = {
     command: LibraryMaintenanceCommand;
-    label: string;
-    description: string;
+    labelKey: string;
+    descriptionKey: string;
     icon: string;
   };
 
   const QUICK_ACTIONS: readonly QuickAction[] = [
     {
       command: 'scanVideo',
-      label: 'Scan video library',
-      description: 'Ask Kodi to rescan configured video sources.',
+      labelKey: 'libraryQuickActions.scanVideo.label',
+      descriptionKey: 'libraryQuickActions.scanVideo.description',
       icon: 'mdi-av-my-library-video'
     },
     {
       command: 'scanAudio',
-      label: 'Scan audio library',
-      description: 'Ask Kodi to rescan configured music sources.',
+      labelKey: 'libraryQuickActions.scanAudio.label',
+      descriptionKey: 'libraryQuickActions.scanAudio.description',
       icon: 'mdi-av-my-library-music'
     }
   ];
@@ -36,14 +37,15 @@
 <script lang="ts">
   interface Props {
     dispatch: LibraryQuickActionsDispatch;
+    i18n: TranslationContext;
   }
 
-  let { dispatch }: Props = $props();
+  let { dispatch, i18n }: Props = $props();
 
   const snapshot = $derived(dispatch.snapshot);
   const isRunning = $derived(snapshot.commandStatus === 'running');
   const lastActionLabel = $derived(
-    QUICK_ACTIONS.find((action) => action.command === snapshot.lastCommand)?.label ?? null
+    QUICK_ACTIONS.find((action) => action.command === snapshot.lastCommand)?.labelKey ?? null
   );
 
   async function runAction(command: LibraryMaintenanceCommand): Promise<void> {
@@ -65,8 +67,8 @@
 
 <section class="library-quick-actions" aria-labelledby="library-quick-actions-title">
   <div class="quick-actions-header">
-    <p class="section-kicker">Library tools</p>
-    <h2 id="library-quick-actions-title">Library quick actions</h2>
+    <p class="section-kicker">{i18n.t('libraryQuickActions.kicker')}</p>
+    <h2 id="library-quick-actions-title">{i18n.t('libraryQuickActions.title')}</h2>
   </div>
 
   <div class="quick-action-grid">
@@ -75,13 +77,13 @@
         type="button"
         class="quick-action"
         disabled={isRunning}
-        aria-label={action.label}
+        aria-label={i18n.t(action.labelKey)}
         onclick={() => runAction(action.command)}
       >
         <span class={`mdi ${action.icon}`} aria-hidden="true"></span>
         <span>
-          <strong>{action.label}</strong>
-          <small>{action.description}</small>
+          <strong>{i18n.t(action.labelKey)}</strong>
+          <small>{i18n.t(action.descriptionKey)}</small>
         </span>
       </button>
     {/each}
@@ -89,13 +91,13 @@
 
   <p class="quick-action-status" role="status" aria-live="polite">
     {#if snapshot.commandStatus === 'running' && lastActionLabel}
-      {lastActionLabel} started.
+      {i18n.t('libraryQuickActions.status.started', { action: i18n.t(lastActionLabel) })}
     {:else if snapshot.commandStatus === 'success' && lastActionLabel}
-      {lastActionLabel} request sent.
+      {i18n.t('libraryQuickActions.status.sent', { action: i18n.t(lastActionLabel) })}
     {:else if snapshot.commandStatus === 'failed' && snapshot.lastError}
       {snapshot.lastError.message}
     {:else}
-      Ready to send library scan requests.
+      {i18n.t('libraryQuickActions.status.ready')}
     {/if}
   </p>
 </section>

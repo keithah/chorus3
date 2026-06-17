@@ -182,7 +182,12 @@ function cloneSnapshot(
 ): LibraryMaintenanceDispatchSnapshot {
   return {
     ...snapshot,
-    lastError: snapshot.lastError ? { ...snapshot.lastError } : null
+    lastError: snapshot.lastError
+      ? {
+          ...snapshot.lastError,
+          ...(snapshot.lastError.endpoint ? { endpoint: { ...snapshot.lastError.endpoint } } : {})
+        }
+      : null
   };
 }
 

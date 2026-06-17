@@ -90,6 +90,7 @@ describe('main entrypoint', () => {
     expect(
       resolveEntrypointRoute({
         pathname: '/addons/webinterface.chorus3/remote',
+        hash: '#now-playing',
         search: '?endpoint=http://user:pass@example/jsonrpc&token=Basic'
       })
     ).toEqual({ kind: 'primary', route: { kind: 'remote' } });
