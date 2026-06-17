@@ -74,4 +74,18 @@ describe('library route filters', () => {
       ).map((item) => item.label)
     ).toEqual(['Miles Davis']);
   });
+
+  it('preserves canonical movie collection precedence when duplicate ids exist', () => {
+    expect(
+      optionItemsForRoute(
+        { kind: 'movieDetail', movieid: '42' },
+        musicSnapshot as never,
+        {
+          ...videoSnapshot,
+          recentlyAddedMovies: [{ movieid: 42, title: 'Duplicate recently added' }],
+          recentlyPlayedMovies: [{ movieid: 42, title: 'Duplicate recently played' }]
+        } as never
+      ).map((item) => item.title)
+    ).toEqual(['Tomorrowland']);
+  });
 });

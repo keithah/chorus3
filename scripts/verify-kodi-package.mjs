@@ -3,9 +3,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
 import { packageKodiWebinterface } from './package-kodi-webinterface.mjs';
-import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getKodiPackageRouteFallbacks } from './kodi-package-route-contract.mjs';
+import { runChildProcess } from './run-child-process.mjs';
 import {
   isThumbsUpRoutePath,
   THUMBS_UP_CANONICAL_PATH,
@@ -446,28 +446,7 @@ export async function listZipEntries(zipPath, { runUnzip = runSystemUnzip } = {}
 }
 
 export function runSystemUnzip({ args }) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('unzip', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    const stdoutChunks = [];
-    const stderrChunks = [];
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdoutChunks.push(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      stderrChunks.push(chunk);
-    });
-    child.on('error', reject);
-    child.on('close', (status) => {
-      resolve({
-        status: status ?? 1,
-        stdout: stdoutChunks.join(''),
-        stderr: stderrChunks.join('')
-      });
-    });
-  });
+  return runChildProcess({ command: 'unzip', args });
 }
 
 export function validatePackageRouteSupport({

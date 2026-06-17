@@ -1,4 +1,4 @@
-import { normalizePathnameInput } from './appRoutePathSafety';
+import { normalizePathnameInput } from '$lib/routing/pathSafety';
 
 const ROOT_PATH = '/';
 const UNSAFE_SEGMENT = '[redacted]';

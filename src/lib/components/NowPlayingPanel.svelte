@@ -5,6 +5,7 @@
   import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
   import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
   import PlayerControls, { type PlayerControlsDispatch } from './PlayerControls.svelte';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
     snapshot: PlayerStoreSnapshot;
@@ -305,22 +306,6 @@
     }
 
     return textOrNull(value);
-  }
-
-  function textOrNull(value: unknown): string | null {
-    return typeof value === 'string' && value.trim() ? sanitizeUiText(value.trim()) : null;
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/localStorage/gi, 'browser storage');
   }
 
   function pad2(value: number): string {

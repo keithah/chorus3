@@ -68,6 +68,7 @@
   import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
   import type { VideoRoute } from '$lib/video/videoRouter';
   import type { AppPageMetadata } from './appPageMetadata';
+  import type { LibraryQuickActionsDispatch } from './LibraryQuickActions.svelte';
   import {
     isAddonsRoute,
     isBrowserRoute,
@@ -153,6 +154,7 @@
     localPlaylistActions: LocalPlaylistPageActions;
     queueSnapshot: QueueStoreSnapshot;
     queueDispatch: QueuePanelDispatch;
+    libraryMaintenanceDispatch: LibraryQuickActionsDispatch;
     musicLibrarySnapshot: MusicLibraryStoreSnapshot;
     musicBrowseSnapshot: MusicBrowseStoreSnapshot;
     musicBrowseDispatch: MusicBrowsePanelDispatch;
@@ -209,6 +211,7 @@
     localPlaylistActions,
     queueSnapshot,
     queueDispatch,
+    libraryMaintenanceDispatch,
     musicLibrarySnapshot,
     musicBrowseSnapshot,
     musicBrowseDispatch,
@@ -540,6 +543,7 @@
           {localPlayerSnapshot}
           {queueSnapshot}
           {queueDispatch}
+          {libraryMaintenanceDispatch}
           {i18n}
           buildOptions={routeBuildOptions}
         />

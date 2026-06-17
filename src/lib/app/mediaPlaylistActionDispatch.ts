@@ -27,7 +27,7 @@ type QueuePlaylistDispatchLike = {
 
 export type MediaPlaylistActionDispatchOptions = {
   expectedPlaylistMediaKind: 'music' | 'video';
-  store: MediaPlaylistStoreLike;
+  store: MediaPlaylistStoreLike | (() => Promise<MediaPlaylistStoreLike>);
   playerDispatch: PlayerPlaylistDispatchLike;
   queueDispatch: QueuePlaylistDispatchLike;
 };
@@ -38,17 +38,35 @@ export function createMediaPlaylistActionDispatch({
   playerDispatch,
   queueDispatch
 }: MediaPlaylistActionDispatchOptions): MediaPlaylistsActionDispatch {
-  const playlistItem = (item: MediaPlaylistsActionItem): PlaylistPlaybackItem & PlaylistQueueItem =>
-    toPlaylistItem(store, expectedPlaylistMediaKind, item);
-  const entryItem = (item: MediaPlaylistsEntryActionItem): FilePlaybackItem & FileQueueItem =>
-    toEntryItem(store, item);
-
   return {
-    playPlaylistItem: (item) => playerDispatch.playPlaylistItem(playlistItem(item)),
-    queuePlaylistItem: (item) => queueDispatch.queuePlaylistItem(playlistItem(item)),
-    playEntryItem: (item) => playerDispatch.playFileItem(entryItem(item)),
-    queueEntryItem: (item) => queueDispatch.queueFileItem(entryItem(item))
+    playPlaylistItem: (item) =>
+      withStore(store, (resolvedStore) =>
+        playerDispatch.playPlaylistItem(
+          toPlaylistItem(resolvedStore, expectedPlaylistMediaKind, item)
+        )
+      ),
+    queuePlaylistItem: (item) =>
+      withStore(store, (resolvedStore) =>
+        queueDispatch.queuePlaylistItem(
+          toPlaylistItem(resolvedStore, expectedPlaylistMediaKind, item)
+        )
+      ),
+    playEntryItem: (item) =>
+      withStore(store, (resolvedStore) =>
+        playerDispatch.playFileItem(toEntryItem(resolvedStore, item))
+      ),
+    queueEntryItem: (item) =>
+      withStore(store, (resolvedStore) =>
+        queueDispatch.queueFileItem(toEntryItem(resolvedStore, item))
+      )
   };
+}
+
+function withStore(
+  store: MediaPlaylistActionDispatchOptions['store'],
+  run: (store: MediaPlaylistStoreLike) => Promise<void> | void
+): Promise<void> | void {
+  return typeof store === 'function' ? store().then(run) : run(store);
 }
 
 function toPlaylistItem(

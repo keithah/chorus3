@@ -60,6 +60,7 @@ export interface LibrarySortState {
 
 type StoredFilters = Record<string, Array<string | number | boolean>>;
 type StoreBucket<T> = Record<string, T>;
+type FilterOptionValueCache = Map<string, Array<string | number | boolean>>;
 
 export type LibraryFilterPair<T> = {
   item: T;
@@ -67,6 +68,7 @@ export type LibraryFilterPair<T> = {
 };
 
 const FILTER_STORE_PREFIX = 'filter:store:';
+const FILTER_STORE_PATH_PREFIX = 'filter:store:path:';
 
 export const LIBRARY_SORT_FIELDS: readonly LibrarySortField[] = [
   { alias: 'title', type: 'string', defaultSort: true, defaultOrder: 'asc', key: 'title' },
@@ -172,6 +174,7 @@ const LIBRARY_FILTER_FIELD_BY_KEY = new Map(
 
 export class LibraryFilterStore {
   readonly #storage: StorageLike;
+  readonly #filterOptionValues = new WeakMap<readonly object[], FilterOptionValueCache>();
 
   constructor(storage: StorageLike = browserStorage()) {
     this.#storage = storage;
@@ -277,9 +280,7 @@ export class LibraryFilterStore {
       this.updateStoreFiltersKey(
         path,
         key,
-        values.map((value) =>
-          settings?.type === 'number' ? Number.parseInt(value, 10) : decodeURIComponent(value)
-        )
+        values.map((value) => (settings?.type === 'number' ? Number.parseInt(value, 10) : value))
       );
     }
   }
@@ -332,9 +333,7 @@ export class LibraryFilterStore {
     const values = this.getStoreFiltersKey(path, key);
     const activeValues = new Set(values);
     const settings = getFilterSettings(key, false);
-    const extracted = uniqueValues(
-      items.flatMap((item) => extractFilterValues(item, key, settings))
-    ).sort((left, right) => comparePrimitive(left, right, settings?.sortOrder ?? 'asc'));
+    const extracted = this.#getFilterOptionValues(items, key, settings?.sortOrder ?? 'asc');
 
     return extracted.map((value) => ({
       key,
@@ -342,6 +341,29 @@ export class LibraryFilterStore {
       title: String(value),
       active: activeValues.has(value)
     }));
+  }
+
+  #getFilterOptionValues<T extends Record<string, unknown>>(
+    items: readonly T[],
+    key: string,
+    sortOrder: LibrarySortOrder
+  ): Array<string | number | boolean> {
+    let cache = this.#filterOptionValues.get(items);
+    if (!cache) {
+      cache = new Map<string, Array<string | number | boolean>>();
+      this.#filterOptionValues.set(items, cache);
+    }
+
+    const cacheKey = `${key}:${sortOrder}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return cached;
+
+    const settings = getFilterSettings(key, false);
+    const extracted = uniqueValues(
+      items.flatMap((item) => extractFilterValues(item, key, settings))
+    ).sort((left, right) => comparePrimitive(left, right, sortOrder));
+    cache.set(cacheKey, extracted);
+    return extracted;
   }
 
   applyFilters<T extends Record<string, unknown>>(path: string, items: readonly T[]): T[] {
@@ -362,17 +384,24 @@ export class LibraryFilterStore {
   }
 
   #setStore<T>(path: string, value: T, type: string): void {
-    const bucket = this.#getBucket<T>(type);
-    bucket[path] = value;
-    this.#storage.setItem(`${FILTER_STORE_PREFIX}${type}`, JSON.stringify(bucket));
+    this.#storage.setItem(this.#pathStorageKey(type, path), JSON.stringify(value));
   }
 
   #getStore<T extends object>(path: string, type: string): T {
-    const bucket = this.#getBucket<T>(type);
-    return bucket[path] ?? ({} as T);
+    const raw = this.#storage.getItem(this.#pathStorageKey(type, path));
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        return isRecord(parsed) ? (parsed as T) : ({} as T);
+      } catch {
+        return {} as T;
+      }
+    }
+
+    return this.#getLegacyBucket<T>(type)[path] ?? ({} as T);
   }
 
-  #getBucket<T>(type: string): StoreBucket<T> {
+  #getLegacyBucket<T>(type: string): StoreBucket<T> {
     const raw = this.#storage.getItem(`${FILTER_STORE_PREFIX}${type}`);
     if (!raw) return {};
     try {
@@ -381,6 +410,10 @@ export class LibraryFilterStore {
     } catch {
       return {};
     }
+  }
+
+  #pathStorageKey(type: string, path: string): string {
+    return `${FILTER_STORE_PATH_PREFIX}${type}:${encodeURIComponent(path)}`;
   }
 }
 

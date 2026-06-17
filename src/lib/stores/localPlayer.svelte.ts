@@ -5,6 +5,7 @@ import {
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import type { PlayerItem } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 
 import { savedKodiHostToKodiHttpHost } from './kodiClient';
 import type { SavedKodiHost } from './config.svelte';
@@ -307,6 +308,10 @@ export class LocalPlayerStore {
     try {
       await adapter.play();
     } catch (error) {
+      if (this.#activeSource !== source || adapter.src !== source) {
+        return;
+      }
+
       this.#snapshot = {
         ...this.#snapshot,
         status: 'error',
@@ -527,15 +532,7 @@ function cloneSnapshot(snapshot: LocalPlayerStoreSnapshot): LocalPlayerStoreSnap
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]')
-    .replace(/localStorage|sessionStorage/gi, 'browser storage');
+  return redactStoreErrorMessage(message);
 }
 
 function sanitizeMediaSource(source: string): string {
@@ -612,6 +609,13 @@ export async function prepareLocalStreamUrl(
 
 function sanitizePlayableUrl(pathOrUrl: string, origin: string): string {
   const url = new URL(pathOrUrl, origin);
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new LocalStreamPrepareError(
+      'command/prepare-download-unsupported-scheme',
+      'Kodi returned a local playback URL with an unsupported scheme.'
+    );
+  }
 
   url.username = '';
   url.password = '';

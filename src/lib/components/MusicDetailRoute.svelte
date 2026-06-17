@@ -14,6 +14,10 @@
     MusicLibrarySongSnapshot,
     MusicLibraryStoreSnapshot
   } from '$lib/stores/musicLibrary.svelte';
+  import {
+    musicLibraryDetailIndexes,
+    normalizeMusicLibraryIndexKey
+  } from '$lib/stores/musicLibraryIndexes';
   import type { MusicDetailRouteSnapshot } from '$lib/stores/musicDetailRouteStore.svelte';
 
   type Card = LibraryCard;
@@ -77,16 +81,18 @@
   const albumDetail = $derived.by(() => {
     if (route.kind !== 'musicAlbumDetail') return null;
     const albumid = Number(route.albumid);
+    const indexes = musicLibraryDetailIndexes(music);
     const loadedAlbum = detailSnapshot.albumDetails[albumid];
     const loadedSongs = detailSnapshot.albumSongs[albumid];
     const album =
       (loadedAlbum?.status === 'ready' ? loadedAlbum.data : null) ??
-      music.albums.find((item) => item.albumid === albumid) ??
+      indexes.albumsById.get(albumid) ??
       null;
     const albumTitle = album ? safe(album.title ?? album.label, '') : '';
     const songs =
       (loadedSongs?.status === 'ready' ? loadedSongs.data : null) ??
-      music.songs.filter((item) => safe(item.album, '') === albumTitle);
+      indexes.songsByAlbumTitle.get(albumTitle) ??
+      [];
 
     return {
       album,
@@ -101,13 +107,15 @@
   const artistDetail = $derived.by(() => {
     if (route.kind !== 'musicArtistDetail') return null;
     const artistid = Number(route.artistid);
+    const indexes = musicLibraryDetailIndexes(music);
     const loadedArtist = detailSnapshot.artistDetails[artistid];
     const artist =
       (loadedArtist?.status === 'ready' ? loadedArtist.data : null) ??
-      music.artists.find((item) => item.artistid === artistid) ??
+      indexes.artistsById.get(artistid) ??
       null;
-    const songs = music.songs.filter((item) => hasArtist(item.artist, artist?.label));
-    const albums = music.albums.filter((item) => hasArtist(item.artist, artist?.label));
+    const artistKey = normalizeMusicLibraryIndexKey(artist?.label);
+    const songs = artistKey ? (indexes.songsByArtistName.get(artistKey) ?? []) : [];
+    const albums = artistKey ? (indexes.albumsByArtistName.get(artistKey) ?? []) : [];
 
     return {
       artist,
@@ -160,14 +168,6 @@
         ...(card ? { card } : {})
       };
     });
-  }
-
-  function hasArtist(value: unknown, expected: string | undefined): boolean {
-    if (!expected) return false;
-    if (Array.isArray(value)) {
-      return value.some((entry) => String(entry).toLowerCase() === expected.toLowerCase());
-    }
-    return String(value ?? '').toLowerCase() === expected.toLowerCase();
   }
 
   function formatNumeric(value: unknown): string {

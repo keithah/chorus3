@@ -97,6 +97,8 @@
 
   const isRemoteRunning = $derived(remoteSnapshot.commandStatus === 'running');
   const isPlayerRunning = $derived(playerDispatch.snapshot.commandStatus === 'running');
+  let textInput = $state('');
+
   async function handleRemoteCommand(command: RemoteInputCommand): Promise<void> {
     try {
       await remoteInputDispatch.sendInput(command);
@@ -112,6 +114,20 @@
       });
     } catch {
       // Keep the remote controller mounted if an injected action throws synchronously.
+    }
+  }
+
+  async function handleSendText(): Promise<void> {
+    const text = textInput.trim();
+    if (!text || isRemoteRunning || !remoteInputDispatch.sendText) {
+      return;
+    }
+
+    try {
+      await remoteInputDispatch.sendText(text);
+      textInput = '';
+    } catch {
+      // The dispatch snapshot is the only diagnostics surface. Do not render raw thrown values.
     }
   }
 </script>
@@ -198,6 +214,34 @@
         <span class={`mdi ${SECONDARY_INPUTS[1].iconClass}`} aria-hidden="true"></span>
       </button>
     </div>
+
+    <form
+      class="send-text"
+      aria-label={i18n.t('remote.text.aria')}
+      onsubmit={(event) => {
+        event.preventDefault();
+        void handleSendText();
+      }}
+    >
+      <label class="remote-visually-hidden" for="remote-send-text">
+        {i18n.t('remote.text.label')}
+      </label>
+      <input
+        id="remote-send-text"
+        name="remote-send-text"
+        bind:value={textInput}
+        type="text"
+        autocomplete="off"
+        placeholder={i18n.t('remote.text.placeholder')}
+        disabled={isRemoteRunning || !remoteInputDispatch.sendText}
+      />
+      <button
+        type="submit"
+        disabled={isRemoteRunning || !remoteInputDispatch.sendText || textInput.trim().length === 0}
+      >
+        {i18n.t('remote.text.submit')}
+      </button>
+    </form>
   </section>
 </article>
 
@@ -353,6 +397,41 @@
   .secondary-controls .ibut {
     height: 75px;
     font-size: 1.5em;
+  }
+
+  .send-text {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1px;
+    background: var(--remote-background);
+  }
+
+  .send-text input,
+  .send-text button {
+    min-height: 42px;
+    color: #c9d0d2;
+    background: var(--remote-button);
+    border: 0;
+  }
+
+  .send-text input {
+    min-width: 0;
+    padding: 0 12px;
+    font-size: 0.78rem;
+  }
+
+  .send-text button {
+    padding: 0 12px;
+    color: #fff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .send-text input:disabled,
+  .send-text button:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
   }
 
   .power-button {

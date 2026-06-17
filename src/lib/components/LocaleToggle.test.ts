@@ -41,6 +41,8 @@ describe('LocaleToggle', () => {
 
     const select = document.querySelector('select');
     expect(select).toBeInstanceOf(HTMLSelectElement);
+    expect(select?.id).toBe('chorus-locale-toggle');
+    expect(select?.getAttribute('name')).toBe('chorus-locale');
     expect(select?.getAttribute('aria-label')).toBe('Sprache');
     expect(select?.value).toBe('de');
     expect(document.body.textContent).toContain('Sprache');

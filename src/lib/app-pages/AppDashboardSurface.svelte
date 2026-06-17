@@ -20,6 +20,8 @@
   import StatusCard from '$components/StatusCard.svelte';
   import AppHomeMediaPanels from '$lib/app-pages/AppHomeMediaPanels.svelte';
   import type { TranslationContext } from '$lib/i18n';
+  import { libraryMaintenanceDispatch as defaultLibraryMaintenanceDispatch } from '$lib/stores/libraryMaintenanceDispatch.svelte';
+  import type { LibraryQuickActionsDispatch } from './LibraryQuickActions.svelte';
   import { mediaFilesStore } from '$lib/stores/mediaFiles.svelte';
   import { mediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
   import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
@@ -67,6 +69,7 @@
     localPlayerSnapshot: LocalPlayerStoreSnapshot;
     queueSnapshot: QueueStoreSnapshot;
     queueDispatch: QueuePanelDispatch;
+    libraryMaintenanceDispatch?: LibraryQuickActionsDispatch;
     i18n: TranslationContext;
   }
 
@@ -94,6 +97,7 @@
     localPlayerSnapshot,
     queueSnapshot,
     queueDispatch,
+    libraryMaintenanceDispatch = defaultLibraryMaintenanceDispatch,
     i18n
   }: Props = $props();
 
@@ -142,6 +146,7 @@
     {localPlayerSnapshot}
     {queueSnapshot}
     {queueDispatch}
+    {libraryMaintenanceDispatch}
     {i18n}
   />
 </div>

@@ -6,6 +6,7 @@
   } from '$lib/stores/settingsStore.svelte';
   import type { SettingsSettingValue } from '$lib/kodi';
   import type { TranslationContext } from '$lib/i18n';
+  import { redactStoreErrorMessage } from '$lib/safety/redaction';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
 
   export interface SettingsPanelDispatch {
@@ -18,13 +19,16 @@
 </script>
 
 <script lang="ts">
+  import { settingsStore } from '$lib/stores/settingsStore.svelte';
+
   interface Props {
-    snapshot: SettingsStoreSnapshot;
+    snapshot?: SettingsStoreSnapshot;
     dispatch: SettingsPanelDispatch;
     i18n: TranslationContext;
   }
 
-  let { snapshot, dispatch, i18n }: Props = $props();
+  let { snapshot: injectedSnapshot, dispatch, i18n }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? settingsStore.snapshot);
 
   const valueSeparator = '::';
 
@@ -164,25 +168,7 @@
   }
 
   function safeText(value: string): string {
-    return value
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-      .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-file')
-      .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-file')
-      .replace(/\{[^{}]*(jsonrpc|Input\.SendText)[^{}]*\}/gi, 'redacted payload')
-      .replace(/\bInput\.SendText\b/gi, 'redacted action')
-      .replace(/\bjsonrpc\b/gi, 'redacted payload')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
-      .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/password/gi, 'credentials');
+    return redactStoreErrorMessage(value);
   }
 </script>
 

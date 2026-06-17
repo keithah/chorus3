@@ -7,10 +7,12 @@
     VideoLibraryMovieSnapshot,
     VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import { buildVideoRoute } from '$lib/video/videoRouter';
+  import { looksLikePathOrUrl, sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoLibraryStoreSnapshot;
+    snapshot?: VideoLibraryStoreSnapshot;
     i18n?: TranslationContext;
   }
 
@@ -39,7 +41,8 @@
     initials: string;
   };
 
-  let { snapshot, i18n = createEnglishTranslationContext() }: Props = $props();
+  let { snapshot: injectedSnapshot, i18n = createEnglishTranslationContext() }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoLibraryStore.snapshot);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));
@@ -333,49 +336,8 @@
     return position !== null && total !== null && total > 0 && position > 0;
   }
 
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) {
-      return null;
-    }
-
-    return sanitizeUiText(trimmed);
-  }
-
   function isSafeArtworkReference(value: unknown): boolean {
     return typeof value === 'string' && value.length > 0 && !looksLikePathOrUrl(value);
-  }
-
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/|special:\/\/|file:\/\/)/i.test(value) ||
-      /^[a-z]:\\/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/special:\/\/[^\s]+/gi, '[path]')
-      .replace(/file:\/\/[^\s]+/gi, '[path]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/password/gi, 'credentials')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage');
   }
 
   function positiveSafeIntegerOrNull(value: unknown): number | null {

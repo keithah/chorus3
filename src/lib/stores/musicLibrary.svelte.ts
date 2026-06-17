@@ -24,6 +24,7 @@ import {
   type MusicLibraryStoreSnapshot
 } from './musicLibraryNormalization';
 import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type {
   MusicLibraryAlbumSnapshot,
@@ -126,6 +127,10 @@ const DEFAULT_SNAPSHOT: MusicLibraryStoreSnapshot = {
 
 export class MusicLibraryStore {
   #snapshot = $state<MusicLibraryStoreSnapshot>(cloneMusicLibrarySnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<MusicLibraryStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -142,7 +147,11 @@ export class MusicLibraryStore {
   }
 
   get snapshot(): MusicLibraryStoreSnapshot {
-    return cloneMusicLibrarySnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(
+      this.#publicSnapshot,
+      this.#snapshot,
+      cloneMusicLibrarySnapshot
+    );
   }
 
   async refresh(reason: MusicLibraryRefreshReason = 'manual'): Promise<void> {

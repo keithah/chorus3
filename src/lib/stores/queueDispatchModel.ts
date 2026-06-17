@@ -1,10 +1,5 @@
 import {
   KodiHttpClientError,
-  addEpisodePlaylistItem,
-  addFilePlaylistItem,
-  addMoviePlaylistItem,
-  addMusicVideoPlaylistItem,
-  addMusicPlaylistItem,
   isKodiHttpClientError,
   type KodiEpisodeLibraryItem,
   type KodiJsonRpcBatchCall,
@@ -14,6 +9,7 @@ import {
   type KodiMusicVideoLibraryItem
 } from '$lib/kodi';
 
+import { callOrderedBatch } from './kodiBatch';
 import { sanitizeErrorMessage } from './queueStoreSnapshots';
 import type {
   LibraryQueueItem,
@@ -197,14 +193,7 @@ export async function addNormalizedLibraryQueueItems(
     return;
   }
 
-  if (client.callBatch) {
-    await client.callBatch(items.map(playlistAddBatchCallForLibraryItem));
-    return;
-  }
-
-  for (const item of items) {
-    await addNormalizedLibraryQueueItem(client, item);
-  }
+  await callOrderedBatch(client, items.map(playlistAddBatchCallForLibraryItem));
 }
 
 function playlistAddBatchCallForLibraryItem(
@@ -217,28 +206,6 @@ function playlistAddBatchCallForLibraryItem(
       item: item.item
     }
   };
-}
-
-async function addNormalizedLibraryQueueItem(
-  client: KodiJsonRpcHttpClient,
-  item: NormalizedLibraryQueueItem
-): Promise<void> {
-  if (item.media === 'music') {
-    await addMusicPlaylistItem(client, item.item);
-    return;
-  }
-
-  if (item.media === 'movie') {
-    await addMoviePlaylistItem(client, item.item);
-    return;
-  }
-
-  if (item.media === 'episode') {
-    await addEpisodePlaylistItem(client, item.item);
-    return;
-  }
-
-  await addMusicVideoPlaylistItem(client, item.item);
 }
 
 export function normalizeFileQueueItem(
@@ -285,14 +252,7 @@ export async function addNormalizedFileQueueItems(
     return;
   }
 
-  if (client.callBatch) {
-    await client.callBatch(items.map(playlistAddBatchCallForFileItem));
-    return;
-  }
-
-  for (const item of items) {
-    await addFilePlaylistItem(client, item.playlistid, item.item);
-  }
+  await callOrderedBatch(client, items.map(playlistAddBatchCallForFileItem));
 }
 
 function playlistAddBatchCallForFileItem(item: NormalizedFileQueueItem): KodiJsonRpcBatchCall {

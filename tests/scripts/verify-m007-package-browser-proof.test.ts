@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize, relative, sep } from 'node:path';
 import { cwd } from 'node:process';
 
@@ -7,12 +7,17 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import App from '../../src/App.svelte';
-import { KODI_WEBINTERFACE_BASE_PATH } from '../../src/lib/app/appRouter';
-import { parseNowPlayingEmbedQuery } from '../../src/lib/app/nowPlayingEmbedQuery';
+import { preloadAppPageSurfaceRoutesForTest } from '../../src/lib/testing/appPageSurfacePreload';
+import { KODI_WEBINTERFACE_BASE_PATH, parseAppRoute } from '../../src/lib/app/appRouter';
+import { parseNowPlayingRouteQuery } from '../../src/lib/app/nowPlayingRouteQuery';
 import {
   M007_VISUAL_PROOF_FORBIDDEN_TEXT,
   createM007VisualProofAppProps
 } from '../../src/lib/testing/m007VisualProofFixtures';
+import {
+  collectReachableItemsWithConcurrency,
+  mapWithConcurrency
+} from '../../scripts/bounded-concurrency.mjs';
 import { getKodiPackageRouteFallbacks } from '../../scripts/kodi-package-route-contract.mjs';
 
 const projectRoot = cwd();
@@ -20,27 +25,30 @@ const packageRoot = join(projectRoot, 'dist/kodi/webinterface.chorus3');
 const secretProbeSearch =
   '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage';
 const routeFallbacks = getKodiPackageRouteFallbacks();
+const PROOF_ROUTE_CONCURRENCY = 4;
+const PROOF_ASSET_CONCURRENCY = 6;
+const PROOF_FETCH_TIMEOUT_MS = 10_000;
 
 const routeMatrix = [
-  { name: 'active-root', urlPath: '/', appPath: '/', expectedText: ['Recently Added Albums'] },
+  { name: 'active-root', urlPath: '/', appPath: '/', expectedRouteKind: 'home' },
   {
     name: 'package-root',
     urlPath: `${KODI_WEBINTERFACE_BASE_PATH}/`,
     appPath: `${KODI_WEBINTERFACE_BASE_PATH}/`,
-    expectedText: ['Recently Added Albums']
+    expectedRouteKind: 'home'
   },
   ...routeFallbacks.flatMap((fallback) => [
     {
       name: `active-root-${fallback.name}`,
       urlPath: fallback.routePath,
       appPath: fallback.routePath,
-      expectedText: expectedRouteText(fallback.routePath)
+      expectedRouteKind: expectedRenderedPageRouteKind(fallback.routePath)
     },
     {
       name: `package-mounted-${fallback.name}`,
       urlPath: `${KODI_WEBINTERFACE_BASE_PATH}${fallback.routePath}`,
       appPath: `${KODI_WEBINTERFACE_BASE_PATH}${fallback.routePath}`,
-      expectedText: expectedRouteText(fallback.routePath)
+      expectedRouteKind: expectedRenderedPageRouteKind(fallback.routePath)
     }
   ])
 ] as const;
@@ -50,9 +58,11 @@ let origin = '';
 let mountedComponent: Record<string, unknown> | undefined;
 let consoleErrorSpy: ReturnType<typeof vi.spyOn> | undefined;
 let consoleErrors: string[] = [];
+let assetFetchCache = new Map<string, Promise<{ ok: boolean; status: number; body: string }>>();
 
 describe('M007 no-live packaged browser proof', () => {
   beforeAll(async () => {
+    await preloadAppPageSurfaceRoutesForTest();
     expect(
       existsSync(packageRoot),
       `${packageRoot} must exist; run npm run package:kodi first.`
@@ -92,8 +102,9 @@ describe('M007 no-live packaged browser proof', () => {
 
   it('serves every active-root and package-mounted direct route with clean package assets', async () => {
     expect.assertions(routeMatrix.length * 8);
+    assetFetchCache = new Map();
 
-    for (const route of routeMatrix) {
+    await mapWithConcurrency(routeMatrix, PROOF_ROUTE_CONCURRENCY, async (route) => {
       const result = await fetchRouteAndAssets(route.urlPath);
 
       expect(result.status, `${route.name} route ${route.urlPath} should return HTML`).toBe(200);
@@ -122,25 +133,27 @@ describe('M007 no-live packaged browser proof', () => {
         result.assetCount,
         `${route.name} should prove at least one JS and one CSS asset`
       ).toBeGreaterThanOrEqual(2);
-    }
+    });
   }, 60_000);
 
   it('mounts every direct route with shell or now-playing anchors, clean console, and redacted visible DOM', async () => {
     for (const route of routeMatrix) {
-      const target = await renderRoute(route.appPath);
+      const target = await renderRoute(route);
       const text = target.textContent ?? '';
       const links = Array.from(target.querySelectorAll('a[href]'));
 
       const isNowPlayingRoute = stripPackageMount(route.appPath) === '/now-playing';
+      const pageSurface = target.querySelector('[data-app-page-surface]');
+      const shellSurface = target.querySelector('.chorus-app');
 
       expect(
-        target.querySelector('[data-app-page-surface], .embed-route'),
+        pageSurface ?? shellSurface,
         `${route.name} should render a primary shell surface or now-playing route`
       ).toBeInstanceOf(HTMLElement);
       if (isNowPlayingRoute) {
         expect(
-          target.querySelector('.embed-route [role="status"], .embed-route button'),
-          `${route.name} should render now-playing status or controls`
+          target.querySelector('.now-playing-panel [role="status"], .now-playing-panel button'),
+          `${route.name} should render Chorus now-playing status or controls`
         ).toBeInstanceOf(HTMLElement);
       } else {
         expect(links.length, `${route.name} should render navigable shell anchors`).toBeGreaterThan(
@@ -157,10 +170,12 @@ describe('M007 no-live packaged browser proof', () => {
         consoleErrors,
         `${route.name} should not emit console errors while mounting: ${consoleErrors.join('\n')}`
       ).toEqual([]);
-      for (const expected of route.expectedText) {
-        expect(text, `${route.name} should include route anchor text ${expected}`).toContain(
-          expected
-        );
+      if (isNowPlayingRoute) {
+        for (const expected of ['Now playing', 'M007 Safe Groove', 'Local player is ready']) {
+          expect(text, `${route.name} should include route anchor text ${expected}`).toContain(
+            expected
+          );
+        }
       }
       const redactionFailures = scanVisibleDomForRedactionCategories(text).filter((failure) => {
         if (stripPackageMount(route.appPath).startsWith('/help/')) {
@@ -182,6 +197,61 @@ describe('M007 no-live packaged browser proof', () => {
       consoleErrorSpy?.mockClear();
     }
   }, 60_000);
+
+  it('mounts local-player as the only standalone browser player surface with inert dispatches', async () => {
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const packageMountedHost = {
+      id: 'kodi-package-origin',
+      label: 'This Kodi',
+      host: '127.0.0.1',
+      port: Number(new URL(origin).port),
+      useTls: false,
+      useWebSocket: false
+    };
+    const actionDispatch = {
+      streamMovieItem: vi.fn().mockResolvedValue(undefined)
+    };
+
+    mountedComponent = mount(App, {
+      target,
+      props: {
+        route: { kind: 'localPlayer', media: 'movie', id: 1 },
+        packageMountedHost,
+        localPlayerSnapshot: {
+          status: 'idle',
+          mediaKind: 'video',
+          source: null,
+          item: null,
+          currentSeconds: 0,
+          durationSeconds: null,
+          volume: 100,
+          muted: false,
+          lastError: null,
+          kodiPausedForLocal: false,
+          resumeAvailable: false,
+          lastUpdatedAt: null
+        },
+        playerDispatch: createM007VisualProofAppProps({
+          pathname: '/now-playing',
+          search: secretProbeSearch
+        }).playerDispatch,
+        localBrowserPlayerActionDispatch: actionDispatch
+      }
+    }) as Record<string, unknown>;
+
+    flushSync();
+    await tick();
+
+    expect(actionDispatch.streamMovieItem).toHaveBeenCalledWith({ movieid: 1 });
+    expect(target.querySelector('.local-browser-player')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.local-media-runtime')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('#download')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('#stream')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('#switch-player')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.chorus-app')).toBeNull();
+    expect(target.querySelector('.classic-rail')).toBeNull();
+  });
 });
 
 function createPackageStaticServer(root: string): Server {
@@ -196,7 +266,7 @@ function createPackageStaticServer(root: string): Server {
     }
 
     response.writeHead(200, { 'content-type': contentTypeFor(resolved) });
-    response.end(readFileSync(resolved));
+    createReadStream(resolved).pipe(response);
   });
 }
 
@@ -271,7 +341,7 @@ async function fetchRouteAndAssets(urlPath: string): Promise<{
   preBaseFailedAssets: string[];
 }> {
   const routeUrl = new URL(urlPath, origin);
-  const routeResponse = await fetch(routeUrl);
+  const routeResponse = await fetchWithTimeout(routeUrl);
   const html = await routeResponse.text();
 
   if (!routeResponse.ok) {
@@ -286,54 +356,94 @@ async function fetchRouteAndAssets(urlPath: string): Promise<{
 
   const preBaseFailedAssets = await fetchPreBaseAssetFailures(html, routeUrl);
   const assetBaseUrl = resolveKodiBaseUrl(routeUrl);
-  const assetUrls = new Set<string>(extractHtmlAssetUrls(html, assetBaseUrl));
   const failedAssets: string[] = [];
+  const assetUrls = await collectReachableItemsWithConcurrency(
+    extractHtmlAssetUrls(html, assetBaseUrl),
+    PROOF_ASSET_CONCURRENCY,
+    async (assetUrl: string) => {
+      const assetLabel = classifyAsset(assetUrl);
+      const assetResponse = await fetchAssetWithCache(assetUrl);
 
-  for (const assetUrl of Array.from(assetUrls)) {
-    const assetResponse = await fetch(assetUrl);
-    const assetLabel = classifyAsset(assetUrl);
-
-    if (!assetResponse.ok) {
-      failedAssets.push(`${assetLabel}:${new URL(assetUrl).pathname}:${assetResponse.status}`);
-      continue;
-    }
-
-    const body = await assetResponse.text();
-
-    if (assetLabel === 'css') {
-      for (const nestedAssetUrl of extractCssAssetUrls(body, new URL(assetUrl))) {
-        assetUrls.add(nestedAssetUrl);
+      if (!assetResponse.ok) {
+        failedAssets.push(`${assetLabel}:${new URL(assetUrl).pathname}:${assetResponse.status}`);
+        return [];
       }
-    }
 
-    if (assetLabel === 'js') {
-      for (const nestedAssetUrl of extractImportMetaAssetUrls(body, new URL(assetUrl))) {
-        assetUrls.add(nestedAssetUrl);
+      if (assetLabel === 'css') {
+        return extractCssAssetUrls(assetResponse.body, new URL(assetUrl));
       }
+
+      if (assetLabel === 'js') {
+        return extractImportMetaAssetUrls(assetResponse.body, new URL(assetUrl));
+      }
+
+      return [];
     }
-  }
+  );
 
   return {
     status: routeResponse.status,
     html,
-    assetCount: assetUrls.size,
+    assetCount: assetUrls.length,
     failedAssets,
     preBaseFailedAssets
   };
 }
 
+function fetchAssetWithCache(
+  assetUrl: string
+): Promise<{ ok: boolean; status: number; body: string }> {
+  const cached = assetFetchCache.get(assetUrl);
+  if (cached) return cached;
+
+  const promise = fetchWithTimeout(assetUrl).then(async (response) => ({
+    ok: response.ok,
+    status: response.status,
+    body: response.ok ? await response.text() : ''
+  }));
+  assetFetchCache.set(assetUrl, promise);
+  return promise;
+}
+
+function fetchWithTimeout(input: URL | string): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutError = new Error(`Fetch timed out after ${PROOF_FETCH_TIMEOUT_MS}ms.`);
+  const timeout = setTimeout(() => {
+    controller.abort(timeoutError);
+  }, PROOF_FETCH_TIMEOUT_MS);
+  let fallbackTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<Response>((_, reject) => {
+    fallbackTimeout = setTimeout(() => reject(timeoutError), PROOF_FETCH_TIMEOUT_MS);
+  });
+
+  return fetch(input, { signal: controller.signal })
+    .catch((error: unknown) => {
+      if (error instanceof TypeError && String(error.message).includes('instance of AbortSignal')) {
+        return Promise.race([fetch(input), timeoutPromise]);
+      }
+      throw error;
+    })
+    .finally(() => {
+      clearTimeout(timeout);
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
+    });
+}
+
 async function fetchPreBaseAssetFailures(html: string, documentUrl: URL): Promise<string[]> {
-  const failures: string[] = [];
+  const results = await mapWithConcurrency(
+    extractHtmlAssetUrls(html, documentUrl),
+    PROOF_ASSET_CONCURRENCY,
+    async (assetUrl) => {
+      const response = await fetchAssetWithCache(assetUrl);
 
-  for (const assetUrl of extractHtmlAssetUrls(html, documentUrl)) {
-    const response = await fetch(assetUrl);
-
-    if (!response.ok) {
-      failures.push(`${classifyAsset(assetUrl)}:${new URL(assetUrl).pathname}:${response.status}`);
+      return response.ok
+        ? null
+        : `${classifyAsset(assetUrl)}:${new URL(assetUrl).pathname}:${response.status}`;
     }
-  }
+  );
 
-  return failures;
+  return results.filter((failure): failure is string => failure !== null);
 }
 
 function resolveKodiBaseUrl(documentUrl: URL): URL {
@@ -400,7 +510,7 @@ function classifyAsset(assetUrl: string): 'css' | 'font' | 'image' | 'js' {
   return 'image';
 }
 
-async function renderRoute(pathname: string): Promise<HTMLElement> {
+async function renderRoute(route: (typeof routeMatrix)[number]): Promise<HTMLElement> {
   consoleErrors = [];
   consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     consoleErrors.push(args.map((arg) => String(arg)).join(' '));
@@ -410,20 +520,23 @@ async function renderRoute(pathname: string): Promise<HTMLElement> {
     vi.fn(async () => new Response('{}', { status: 200 }))
   );
 
-  window.history.replaceState(null, '', `${pathname}${secretProbeSearch}`);
+  window.history.replaceState(null, '', `${route.appPath}${secretProbeSearch}`);
   const target = document.createElement('div');
   document.body.appendChild(target);
-  const props = createRouteProps(pathname);
+  const props = createRouteProps(route.appPath);
+  assertPackageProofRouteParsed(props.route, route.name);
 
   mountedComponent = mount(App, { target, props }) as Record<string, unknown>;
   flushSync();
   await tick();
+  assertInitialRouteIdentity(target, route);
 
   return target;
 }
 
 function createRouteProps(pathname: string): Record<string, unknown> {
   const rootRelativePathname = stripPackageMount(pathname);
+  const route = resolvePackageProofRoute(pathname);
   const baseProps = createM007VisualProofAppProps({ pathname, search: secretProbeSearch });
   const packageMountedHost = {
     id: 'kodi-package-origin',
@@ -437,15 +550,74 @@ function createRouteProps(pathname: string): Record<string, unknown> {
   if (rootRelativePathname === '/now-playing') {
     return {
       ...baseProps,
-      route: { kind: 'nowPlaying' },
+      route,
       packageMountedHost,
-      nowPlayingEmbedQuery: parseNowPlayingEmbedQuery('?theme=dark&locale=en'),
-      nowPlayingHostSummary: { label: 'This Kodi', hasCredentials: false },
-      nowPlayingRefreshDispatch: vi.fn()
+      nowPlayingRouteQuery: parseNowPlayingRouteQuery('?theme=dark&locale=en')
     };
   }
 
-  return { ...baseProps, packageMountedHost };
+  return {
+    ...baseProps,
+    route,
+    packageMountedHost
+  };
+}
+
+function assertInitialRouteIdentity(
+  target: HTMLElement,
+  route: (typeof routeMatrix)[number]
+): void {
+  if (route.expectedRouteKind === null) {
+    return;
+  }
+
+  expect(
+    target.querySelector('[data-app-page-surface]')?.getAttribute('data-app-page-route'),
+    `${route.name} should initially mount the expected app page route`
+  ).toBe(route.expectedRouteKind);
+}
+
+function resolvePackageProofRoute(routePath: string): unknown {
+  return parseAppRoute(routePath, secretProbeSearch, {
+    packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+  });
+}
+
+function expectedRenderedPageRouteKind(routePath: string): string | null {
+  const route = resolvePackageProofRoute(routePath);
+
+  if (!isRecord(route)) {
+    return null;
+  }
+
+  if (route.kind === 'nowPlaying') {
+    return null;
+  }
+
+  if (route.kind !== 'primary' || !isRecord(route.route) || typeof route.route.kind !== 'string') {
+    return null;
+  }
+
+  return route.route.kind === 'labScreenshot' ? 'lab' : route.route.kind;
+}
+
+function assertPackageProofRouteParsed(route: unknown, routeName: string): void {
+  expect(isRecord(route), `${routeName} should resolve through the package route parser`).toBe(
+    true
+  );
+
+  if (!isRecord(route)) {
+    return;
+  }
+
+  expect(
+    route.kind,
+    `${routeName} should resolve through the package route parser without falling back to an unknown route`
+  ).not.toMatch(/Unknown$/u);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 function unmountCurrentApp(): void {
@@ -463,53 +635,6 @@ function assertRequiredFallbackFilesExist(): void {
       `missing generated fallback for ${fallback.name}: ${fallback.stagedIndexPath}`
     ).toBe(true);
   }
-}
-
-function expectedRouteText(routePath: string): string[] {
-  if (routePath === '/now-playing') {
-    return ['Now playing', 'This Kodi'];
-  }
-
-  if (routePath === '/settings/kodi/interface') {
-    return ['Kodi settings section'];
-  }
-
-  if (routePath === '/addons/plugin.video.safe-demo') {
-    return ['Safe Video Demo'];
-  }
-
-  if (routePath === '/music/genres') {
-    return ['Genres'];
-  }
-
-  if (routePath === '/help/keyboard') {
-    return ['Keyboard'];
-  }
-
-  if (routePath.startsWith('/lab')) {
-    return ['Recently Added Albums'];
-  }
-
-  const firstSegment = routePath.split('/').filter(Boolean)[0] ?? 'home';
-  const labels: Record<string, string> = {
-    addons: 'Add-ons',
-    browser: 'Browser',
-    files: 'Browser',
-    help: 'Help',
-    localPlaylist: 'Playlists',
-    movies: 'Movies',
-    music: 'Music',
-    playlists: 'Playlists',
-    pvr: 'PVR',
-    remote: 'Remote',
-    search: 'Search',
-    settings: 'Web interface',
-    thumbsup: 'Thumbs up',
-    tvshows: 'TV shows',
-    video: routePath.startsWith('/video/tv') ? 'TV shows' : 'Movies'
-  };
-
-  return [labels[firstSegment] ?? 'Recently Added Albums'];
 }
 
 function scanVisibleDomForRedactionCategories(text: string): string[] {

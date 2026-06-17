@@ -24,6 +24,7 @@ import {
   type VideoLibraryStoreSnapshot
 } from './videoLibraryNormalization';
 import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type {
   VideoLibraryErrorSource,
@@ -143,6 +144,10 @@ const DEFAULT_SNAPSHOT: VideoLibraryStoreSnapshot = {
 
 export class VideoLibraryStore {
   #snapshot = $state<VideoLibraryStoreSnapshot>(cloneVideoLibrarySnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<VideoLibraryStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -159,7 +164,11 @@ export class VideoLibraryStore {
   }
 
   get snapshot(): VideoLibraryStoreSnapshot {
-    return cloneVideoLibrarySnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(
+      this.#publicSnapshot,
+      this.#snapshot,
+      cloneVideoLibrarySnapshot
+    );
   }
 
   async refresh(reason: VideoLibraryRefreshReason = 'manual'): Promise<void> {

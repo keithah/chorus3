@@ -42,15 +42,17 @@
     VideoSeasonSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
+  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import {
     defaultEpisodeCollectionActionDispatch,
     type EpisodeCollectionActionDispatch
   } from '$lib/stores/episodeCollectionActions';
   import type { VideoRoute } from '$lib/video/videoRouter';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoTvStoreSnapshot;
+    snapshot?: VideoTvStoreSnapshot;
     route: VideoRoute;
     artworkDispatch?: VideoSeasonArtworkDispatch;
     writeDispatch?: VideoSeasonWriteDispatch;
@@ -92,13 +94,14 @@
   };
 
   let {
-    snapshot,
+    snapshot: injectedSnapshot,
     route,
     artworkDispatch = noopArtworkDispatch,
     writeDispatch = noopWriteDispatch,
     actionDispatch = defaultEpisodeCollectionActionDispatch,
     buildOptions = {}
   }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoTvStore.snapshot);
   let artworkStatusOverride = $state<ArtworkStatus | null>(null);
   let writeStatus = $state<WriteStatus>({
     kind: 'idle',
@@ -481,39 +484,10 @@
   function numberOrNull(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) return null;
-    return sanitizeUiText(trimmed);
-  }
   function errorMessage(error: unknown): string {
     return error instanceof Error && error.message.trim()
       ? error.message
       : 'Season artwork refresh failed.';
-  }
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
-  }
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
   }
 </script>
 

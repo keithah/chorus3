@@ -80,6 +80,17 @@ class FakeMediaAdapter implements MediaElementAdapter {
   }
 }
 
+class DeferredRejectMediaAdapter extends FakeMediaAdapter {
+  readonly rejectPlayCalls: Array<(error: Error) => void> = [];
+
+  override play(): Promise<void> {
+    this.calls.push('play');
+    return new Promise((_, reject) => {
+      this.rejectPlayCalls.push(reject);
+    });
+  }
+}
+
 function expectCloneSafeSnapshot(getSnapshot: () => unknown): void {
   const first = getSnapshot();
   const second = getSnapshot();
@@ -191,6 +202,34 @@ describe('local player store', () => {
     store.stop();
 
     expect(store.snapshot.source).toBeNull();
+  });
+
+  it('ignores stale play rejections after a newer source becomes active', async () => {
+    const adapter = new DeferredRejectMediaAdapter();
+    const store = createLocalPlayerStore({ now: () => '2026-02-01T00:00:00.000Z' });
+    store.attach(adapter);
+
+    const first = store.loadAndPlay({
+      source: 'http://example.test/first',
+      item: { id: 1, label: 'First', type: 'song' },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+    void store.loadAndPlay({
+      source: 'http://example.test/second',
+      item: { id: 2, label: 'Second', type: 'song' },
+      mediaKind: 'audio',
+      kodiWasPaused: false
+    });
+
+    adapter.rejectPlayCalls[0]?.(new DOMException('interrupted', 'AbortError'));
+    await first;
+
+    expect(store.snapshot).toMatchObject({
+      status: 'loading',
+      source: 'http://example.test/second',
+      lastError: null
+    });
   });
 
   it('tracks time updates and duration updates', () => {
@@ -579,6 +618,22 @@ describe('prepareLocalStreamUrl', () => {
         activeHost: createActiveHost({ useTls: true })
       })
     ).resolves.toBe('http://kodi.local:8080/vfs/secret.mp3');
+  });
+
+  it('rejects prepared URLs with non-HTTP schemes', async () => {
+    const client = new FakeKodiClient();
+    client.response = {
+      details: { path: 'javascript:alert(localStorage.token)' },
+      mode: 'redirect'
+    };
+
+    await expect(
+      prepareLocalStreamUrl({
+        client,
+        file: 'plugin://malicious-addon/movie',
+        activeHost: createActiveHost()
+      })
+    ).rejects.toMatchObject({ code: 'command/prepare-download-unsupported-scheme' });
   });
 
   it('rejects missing file inputs', async () => {

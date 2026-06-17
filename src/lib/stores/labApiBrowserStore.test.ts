@@ -104,8 +104,14 @@ describe('LabApiBrowserStore', () => {
     expect(calls).toEqual([{ method: 'JSONRPC.Introspect' }]);
 
     const leaked = store.snapshot;
-    leaked.methods[0].name = 'Mutated.Outside';
-    leaked.namespaces[0].methods.length = 0;
+    expect(store.snapshot).toBe(leaked);
+    expect(Object.isFrozen(leaked.methods[0])).toBe(true);
+    expect(() => {
+      leaked.methods[0].name = 'Mutated.Outside';
+    }).toThrow(TypeError);
+    expect(() => {
+      leaked.namespaces[0].methods.length = 0;
+    }).toThrow(TypeError);
     expect(store.snapshot.methods[0].name).toBe('JSONRPC.Ping');
     expect(store.snapshot.namespaces[0].methods).toHaveLength(1);
     expectNoForbiddenText(store.snapshot);

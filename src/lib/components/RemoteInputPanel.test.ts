@@ -11,6 +11,7 @@ import type { PlayerDispatchSnapshot } from '$lib/stores/playerDispatch.svelte';
 type MountedComponent = ReturnType<typeof mount>;
 type FakeRemoteDispatch = RemoteInputPanelRemoteDispatch & {
   sendInput: ReturnType<typeof vi.fn>;
+  sendText: ReturnType<typeof vi.fn>;
 };
 type FakePlayerDispatch = PlayerControlsDispatch & {
   playPause: ReturnType<typeof vi.fn>;
@@ -100,6 +101,38 @@ describe('RemoteInputPanel', () => {
     expect(playerDispatch.stop).toHaveBeenCalledTimes(1);
   });
 
+  it('sends typed text to Kodi through the remote dispatch without leaking rejected errors', async () => {
+    const remoteDispatch = createRemoteDispatch();
+    mounted = mountPanel({ remoteDispatch });
+
+    const input = document.querySelector<HTMLInputElement>('#remote-send-text');
+    expect(input).toBeInstanceOf(HTMLInputElement);
+
+    input!.value = '  Search terms  ';
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    document
+      .querySelector<HTMLFormElement>('form[aria-label="Send text to Kodi"]')!
+      .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+
+    expect(remoteDispatch.sendText).toHaveBeenCalledWith('Search terms');
+    expect(input!.value).toBe('');
+
+    remoteDispatch.sendText.mockRejectedValueOnce(
+      new Error('raw secret admin:p@ssword Authorization: Basic verysecret')
+    );
+    input!.value = 'Do not leak';
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    document
+      .querySelector<HTMLFormElement>('form[aria-label="Send text to Kodi"]')!
+      .dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+
+    expect(screenText()).not.toContain('p@ssword');
+    expect(screenText()).not.toContain('verysecret');
+    expect(screenText()).not.toContain('Authorization: Basic');
+  });
+
   it('keeps the Chorus2 power affordance visible, disabled, and unable to call dispatches', () => {
     const remoteDispatch = createRemoteDispatch();
     const playerDispatch = createPlayerDispatch();
@@ -174,7 +207,8 @@ function mountPanel({
 function createRemoteDispatch(snapshot = createRemoteSnapshot()): FakeRemoteDispatch {
   return {
     snapshot,
-    sendInput: vi.fn().mockResolvedValue(undefined)
+    sendInput: vi.fn().mockResolvedValue(undefined),
+    sendText: vi.fn().mockResolvedValue(undefined)
   };
 }
 

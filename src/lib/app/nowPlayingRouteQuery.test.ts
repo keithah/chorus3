@@ -1,13 +1,13 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import { parseNowPlayingEmbedQuery } from './nowPlayingEmbedQuery';
+import { parseNowPlayingRouteQuery } from './nowPlayingRouteQuery';
 
 const FORBIDDEN_JSON_PATTERN =
   /CHORUS3_SENTINEL_SECRET|SENTINEL_SECRET|admin|p@ssword|Authorization: Basic|Bearer abc|https:\/\/kodi\.example|user@example\.com|raw-password|secret-value/i;
 
-describe('parseNowPlayingEmbedQuery', () => {
+describe('parseNowPlayingRouteQuery', () => {
   test('accepts valid non-secret theme and locale params', () => {
-    expect(parseNowPlayingEmbedQuery('?theme=light&locale=de')).toEqual({
+    expect(parseNowPlayingRouteQuery('?theme=light&locale=de')).toEqual({
       theme: 'light',
       locale: 'de',
       rejectedCredentialParams: [],
@@ -16,7 +16,7 @@ describe('parseNowPlayingEmbedQuery', () => {
   });
 
   test('does not let duplicate or conflicting theme and locale params choose unsafe data', () => {
-    expect(parseNowPlayingEmbedQuery('?theme=light&theme=dark&locale=de&locale=en')).toEqual({
+    expect(parseNowPlayingRouteQuery('?theme=light&theme=dark&locale=de&locale=en')).toEqual({
       theme: null,
       locale: null,
       rejectedCredentialParams: [],
@@ -25,7 +25,7 @@ describe('parseNowPlayingEmbedQuery', () => {
   });
 
   test('tracks unknown safe params by sanitized name only', () => {
-    expect(parseNowPlayingEmbedQuery('?m005-browser-proof=1&safe_flag=yes&empty=')).toEqual({
+    expect(parseNowPlayingRouteQuery('?m005-browser-proof=1&safe_flag=yes&empty=')).toEqual({
       theme: null,
       locale: null,
       rejectedCredentialParams: [],
@@ -34,7 +34,7 @@ describe('parseNowPlayingEmbedQuery', () => {
   });
 
   test('ignores invalid theme and locale values without reflecting values', () => {
-    const parsed = parseNowPlayingEmbedQuery('?theme=solarized&locale=fr&mode=compact');
+    const parsed = parseNowPlayingRouteQuery('?theme=solarized&locale=fr&mode=compact');
 
     expect(parsed).toEqual({
       theme: null,
@@ -46,7 +46,7 @@ describe('parseNowPlayingEmbedQuery', () => {
   });
 
   test('rejects credential-like names case-insensitively without reflecting values', () => {
-    const parsed = parseNowPlayingEmbedQuery(
+    const parsed = parseNowPlayingRouteQuery(
       '?USERNAME=admin&PASSWORD=CHORUS3_SENTINEL_SECRET&Authorization=Bearer abc&BASIC=1'
     );
 
@@ -60,7 +60,7 @@ describe('parseNowPlayingEmbedQuery', () => {
   });
 
   test('rejects credential-like values under harmless keys without reflecting those values', () => {
-    const parsed = parseNowPlayingEmbedQuery(
+    const parsed = parseNowPlayingRouteQuery(
       '?endpoint=https://kodi.example/jsonrpc&contact=user@example.com&header=Authorization:%20Basic&note=raw-password&api=secret-value'
     );
 
@@ -83,8 +83,8 @@ describe('parseNowPlayingEmbedQuery', () => {
     ];
 
     for (const input of malformedInputs) {
-      expect(() => parseNowPlayingEmbedQuery(input)).not.toThrow();
-      expect(JSON.stringify(parseNowPlayingEmbedQuery(input))).not.toMatch(/token=secret|%E0%A4%A/);
+      expect(() => parseNowPlayingRouteQuery(input)).not.toThrow();
+      expect(JSON.stringify(parseNowPlayingRouteQuery(input))).not.toMatch(/token=secret|%E0%A4%A/);
     }
   });
 
@@ -96,7 +96,7 @@ describe('parseNowPlayingEmbedQuery', () => {
 
     vi.stubGlobal('URLSearchParams', throwingSearchParams);
     try {
-      expect(parseNowPlayingEmbedQuery('?theme=light&password=secret')).toEqual({
+      expect(parseNowPlayingRouteQuery('?theme=light&password=secret')).toEqual({
         theme: null,
         locale: null,
         rejectedCredentialParams: [],
@@ -112,7 +112,7 @@ describe('parseNowPlayingEmbedQuery', () => {
       ...Array.from({ length: 30 }, (_, index) => `unknown${index}=safe`),
       ...Array.from({ length: 30 }, () => 'token=CHORUS3_SENTINEL_SECRET')
     ].join('&');
-    const parsed = parseNowPlayingEmbedQuery(`?${search}`);
+    const parsed = parseNowPlayingRouteQuery(`?${search}`);
 
     expect(parsed.ignoredParams).toHaveLength(20);
     expect(parsed.rejectedCredentialParams).toEqual(['token']);

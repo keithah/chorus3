@@ -49,7 +49,9 @@ export type AppShellPlaylistMenuAction =
   | 'clear'
   | 'refresh'
   | 'partyMode'
-  | 'saveKodiPlaylist';
+  | 'saveKodiPlaylist'
+  | 'scanVideoLibrary'
+  | 'scanAudioLibrary';
 
 export interface AppShellDrawerState {
   readonly label: string;

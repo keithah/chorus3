@@ -30,6 +30,18 @@ export {
 } from './config.svelte';
 
 export {
+  LibraryMaintenanceDispatch,
+  createLibraryMaintenanceDispatch,
+  libraryMaintenanceDispatch,
+  type LibraryMaintenanceCommand,
+  type LibraryMaintenanceCommandStatus,
+  type LibraryMaintenanceDispatchOptions,
+  type LibraryMaintenanceDispatchSnapshot,
+  type LibraryMaintenanceErrorSource,
+  type LibraryMaintenanceSafeErrorSnapshot
+} from './libraryMaintenanceDispatch.svelte';
+
+export {
   ConnectionStore,
   connectionStore,
   createConnectionStore,

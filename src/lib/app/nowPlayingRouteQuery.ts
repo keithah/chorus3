@@ -1,7 +1,7 @@
 import { isLocale, type Locale } from '../i18n/localeCore';
 import { isThemeName, type ThemeName } from '../theme/theme';
 
-export interface NowPlayingEmbedQuery {
+export interface NowPlayingRouteQuery {
   theme: ThemeName | null;
   locale: Locale | null;
   rejectedCredentialParams: string[];
@@ -9,7 +9,7 @@ export interface NowPlayingEmbedQuery {
 }
 
 const MAX_PARAM_NAMES = 20;
-const EMPTY_QUERY: NowPlayingEmbedQuery = Object.freeze({
+const EMPTY_QUERY: NowPlayingRouteQuery = Object.freeze({
   theme: null,
   locale: null,
   rejectedCredentialParams: [],
@@ -22,11 +22,11 @@ const CREDENTIAL_VALUE_PATTERN =
   /(:\/\/|@|authorization|basic|password|token|secret|sentinel_secret|chorus3_sentinel_secret)/i;
 const SAFE_PARAM_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-export function parseNowPlayingEmbedQuery(search: unknown): NowPlayingEmbedQuery {
+export function parseNowPlayingRouteQuery(search: unknown): NowPlayingRouteQuery {
   const params = createSearchParams(search);
 
   if (!params) {
-    return createEmbedQuery();
+    return createRouteQuery();
   }
 
   const rejectedCredentialParams = createCappedNameCollector();
@@ -77,7 +77,7 @@ export function parseNowPlayingEmbedQuery(search: unknown): NowPlayingEmbedQuery
     }
   }
 
-  return createEmbedQuery({
+  return createRouteQuery({
     theme,
     locale,
     rejectedCredentialParams: rejectedCredentialParams.values(),
@@ -147,7 +147,7 @@ function createCappedNameCollector(): { add: (name: string) => void; values: () 
   };
 }
 
-function createEmbedQuery(overrides: Partial<NowPlayingEmbedQuery> = {}): NowPlayingEmbedQuery {
+function createRouteQuery(overrides: Partial<NowPlayingRouteQuery> = {}): NowPlayingRouteQuery {
   return {
     theme: overrides.theme ?? null,
     locale: overrides.locale ?? null,

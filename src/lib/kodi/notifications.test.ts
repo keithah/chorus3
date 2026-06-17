@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isPlayerStateRefreshNotification,
   isQueueRefreshNotification,
+  parseKodiWebSocketMessage,
   parseKodiNotificationMessage,
   type KodiNotification,
   type MalformedKodiNotification
@@ -123,5 +124,39 @@ describe('parseKodiNotificationMessage', () => {
     expect(error.details).toEqual({ jsonrpc: '2.0', hasId: false, methodType: 'number' });
     expect(JSON.stringify(error)).not.toContain(secret);
     expect(JSON.stringify(error)).not.toContain('password');
+  });
+});
+
+describe('parseKodiWebSocketMessage', () => {
+  it('classifies notifications and JSON-RPC response frames separately', () => {
+    expect(
+      parseKodiWebSocketMessage(JSON.stringify({ jsonrpc: '2.0', method: 'Player.OnPlay' }))
+    ).toEqual({
+      ok: true,
+      message: {
+        kind: 'notification',
+        notification: { jsonrpc: '2.0', method: 'Player.OnPlay' }
+      }
+    });
+
+    expect(
+      parseKodiWebSocketMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, result: 'pong' }))
+    ).toEqual({
+      ok: true,
+      message: { kind: 'response' }
+    });
+  });
+
+  it('keeps genuinely malformed frames as parse errors', () => {
+    expect(parseKodiWebSocketMessage('{not-json')).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-json' }
+    });
+    expect(
+      parseKodiWebSocketMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 42 }))
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-method' }
+    });
   });
 });

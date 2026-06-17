@@ -27,10 +27,12 @@
     VideoEpisodeSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
+  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import type { VideoRoute } from '$lib/video/videoRouter';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoTvStoreSnapshot;
+    snapshot?: VideoTvStoreSnapshot;
     route: VideoRoute;
     actionDispatch?: VideoEpisodeActionDispatch;
     i18n?: TranslationContext;
@@ -61,12 +63,13 @@
   };
 
   let {
-    snapshot,
+    snapshot: injectedSnapshot,
     route,
     actionDispatch = noopActionDispatch,
     buildOptions = {},
     metadataSave = defaultMetadataSave
   }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoTvStore.snapshot);
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: 'Episode actions are ready.' });
   let editOpen = $state(false);
   let editPending = $state(false);
@@ -336,39 +339,10 @@
   function numberOrNull(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) return null;
-    return sanitizeUiText(trimmed);
-  }
   function errorMessage(error: unknown): string {
     return error instanceof Error && error.message.trim()
       ? error.message
       : 'Episode action failed.';
-  }
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
-  }
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
   }
 </script>
 

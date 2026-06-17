@@ -10,6 +10,12 @@ import {
 } from '$lib/kodi';
 import { redactDiagnosticText, redactJsonForDisplay } from '$lib/safety/redaction';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
+import {
+  cachedFrozenJsonSnapshot,
+  deepFreeze,
+  materializeSmallJsonSnapshot,
+  type JsonSnapshotCache
+} from './snapshotCache';
 
 export type LabApiBrowserIntrospectionStatus = 'idle' | 'loading' | 'success' | 'error';
 export type LabApiBrowserCallStatus =
@@ -158,6 +164,10 @@ const BLOCKED_VERB_PATTERN = /^(Quit|Suspend|Hibernate|Reboot|Shutdown|Restart|E
 
 export class LabApiBrowserStore {
   #snapshot = $state<LabApiBrowserStoreSnapshot>(cloneSnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<LabApiBrowserStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
   readonly #createClient: () =>
     | KodiJsonRpcHttpClient
     | null
@@ -175,7 +185,11 @@ export class LabApiBrowserStore {
   }
 
   get snapshot(): LabApiBrowserStoreSnapshot {
-    return cloneSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(
+      this.#publicSnapshot,
+      this.#snapshot,
+      materializeSmallJsonSnapshot
+    );
   }
 
   async loadIntrospection(): Promise<void> {
@@ -677,18 +691,6 @@ function cloneError(error: LabApiBrowserSafeErrorSnapshot): LabApiBrowserSafeErr
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function deepFreeze<T>(value: T): T {
-  if (!isRecord(value)) {
-    return value;
-  }
-
-  for (const child of Object.values(value)) {
-    deepFreeze(child);
-  }
-
-  return Object.freeze(value);
 }
 
 export function createLabApiBrowserStore(

@@ -8,9 +8,12 @@ import {
   KODI_PACKAGE_BASE_PATH,
   getKodiPackageRouteFallbacks
 } from './kodi-package-route-contract.mjs';
+import { mapWithConcurrency } from './bounded-concurrency.mjs';
 
 export const DEFAULT_LIVE_KODI_ORIGIN = 'http://localhost:8080';
 export const DEFAULT_LIVE_KODI_TIMEOUT_MS = 5000;
+const DEFAULT_LIVE_ROUTE_CONCURRENCY = 4;
+const DEFAULT_LIVE_ASSET_CONCURRENCY = 6;
 export const LIVE_KODI_MARKERS = Object.freeze([
   'chorus3:kodi-webinterface',
   'data-chorus3-kodi-base-resolver'
@@ -226,6 +229,12 @@ export async function runLiveKodiProof(options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const credentials = credentialsFromEnv(options.env ?? env);
   const routes = buildLiveRouteMatrix(origin);
+  const routeConcurrency = normalizeConcurrency(
+    options.routeConcurrency ?? DEFAULT_LIVE_ROUTE_CONCURRENCY
+  );
+  const assetConcurrency = normalizeConcurrency(
+    options.assetConcurrency ?? DEFAULT_LIVE_ASSET_CONCURRENCY
+  );
   const startedAt = new Date().toISOString();
 
   const probe = await probeRoot(origin, timeoutMs, fetchImpl, credentials);
@@ -234,10 +243,11 @@ export async function runLiveKodiProof(options = {}) {
   const browserDiagnostics = [];
 
   if (!['unavailable', 'auth-required', 'timeout'].includes(probe.statusClass)) {
-    for (const route of routes) {
-      const routeResult = await checkLiveRoute(route, timeoutMs, fetchImpl, credentials);
-      routeResults.push(routeResult);
-    }
+    routeResults.push(
+      ...(await mapWithConcurrency(routes, routeConcurrency, (route) =>
+        checkLiveRoute(route, timeoutMs, fetchImpl, credentials, assetConcurrency)
+      ))
+    );
   } else {
     for (const route of routes) {
       routeResults.push({
@@ -326,7 +336,7 @@ async function probeJsonRpc(origin, timeoutMs, fetchImpl, credentials) {
   }
 }
 
-async function checkLiveRoute(route, timeoutMs, fetchImpl, credentials) {
+async function checkLiveRoute(route, timeoutMs, fetchImpl, credentials, assetConcurrency) {
   if (route.liveProbeable === false) {
     return status('route', 'passed', {
       routeId: route.id,
@@ -347,7 +357,7 @@ async function checkLiveRoute(route, timeoutMs, fetchImpl, credentials) {
     const html = await safeText(response);
     const base = new URL(route.url);
     const assetFailures = response.ok
-      ? await collectAssetFailures(html, base, timeoutMs, fetchImpl, credentials)
+      ? await collectAssetFailures(html, base, timeoutMs, fetchImpl, credentials, assetConcurrency)
       : [];
     const visibleDomRedactionClass =
       scanVisibleTextForRedaction(html).length === 0 ? 'passed' : 'redaction-failed';
@@ -501,25 +511,36 @@ async function safeText(response) {
   }
 }
 
-async function collectAssetFailures(html, baseUrl, timeoutMs, fetchImpl, credentials) {
-  const failures = [];
-  for (const assetUrl of extractHtmlAssetUrls(html, baseUrl)) {
-    try {
-      const response = await fetchWithTimeout(
-        fetchImpl,
-        assetUrl,
-        { method: 'GET', headers: createHeaders(credentials) },
-        timeoutMs
-      );
-      if (!response.ok) {
-        failures.push(classifyAsset(assetUrl));
+async function collectAssetFailures(
+  html,
+  baseUrl,
+  timeoutMs,
+  fetchImpl,
+  credentials,
+  concurrency = DEFAULT_LIVE_ASSET_CONCURRENCY
+) {
+  const failures = await mapWithConcurrency(
+    extractHtmlAssetUrls(html, baseUrl),
+    concurrency,
+    async (assetUrl) => {
+      try {
+        const response = await fetchWithTimeout(
+          fetchImpl,
+          assetUrl,
+          { method: 'GET', headers: createHeaders(credentials) },
+          timeoutMs
+        );
+        if (!response.ok) {
+          return classifyAsset(assetUrl);
+        }
+      } catch (error) {
+        return isTimeoutError(error) ? 'asset-timeout' : 'asset-failed';
       }
-    } catch (error) {
-      failures.push(isTimeoutError(error) ? 'asset-timeout' : 'asset-failed');
+      return null;
     }
-  }
+  );
 
-  return failures;
+  return failures.filter(Boolean);
 }
 
 function extractHtmlAssetUrls(html, documentUrl) {
@@ -644,6 +665,11 @@ function parseTimeoutMs(value) {
     throw new Error('Kodi live proof timeout must be a positive integer.');
   }
   return parsed;
+}
+
+function normalizeConcurrency(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 export function createLiveKodiProofSummary(result) {

@@ -56,11 +56,20 @@ import {
   rollbackDetail,
   sanitizeScalar
 } from './addonsStoreModel';
+import {
+  cachedFrozenJsonSnapshot,
+  materializeSmallJsonSnapshot,
+  type JsonSnapshotCache
+} from './snapshotCache';
 
 export { getAddonExcludedPaths, getAddonSearchSettings } from './addonsStoreModel';
 
 export class AddonsStore {
   #snapshot = $state<AddonsStoreSnapshot>(cloneSnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<AddonsStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
   readonly #createClient: () =>
     | KodiJsonRpcHttpClient
     | null
@@ -80,7 +89,11 @@ export class AddonsStore {
   }
 
   get snapshot(): AddonsStoreSnapshot {
-    return cloneSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(
+      this.#publicSnapshot,
+      this.#snapshot,
+      materializeSmallJsonSnapshot
+    );
   }
 
   reset(): void {

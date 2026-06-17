@@ -90,11 +90,19 @@ export type KodiNotificationParseResult =
   | { ok: true; notification: KodiNotification }
   | { ok: false; error: MalformedKodiNotification };
 
+export type KodiWebSocketMessage =
+  | { kind: 'notification'; notification: KodiNotification }
+  | { kind: 'response' };
+
+export type KodiWebSocketMessageParseResult =
+  | { ok: true; message: KodiWebSocketMessage }
+  | { ok: false; error: MalformedKodiNotification };
+
 function malformed(
   code: MalformedKodiNotificationCode,
   message: string,
   details?: MalformedKodiNotificationDetails
-): KodiNotificationParseResult {
+): { ok: false; error: MalformedKodiNotification } {
   return details === undefined
     ? { ok: false, error: { code, message } }
     : { ok: false, error: { code, message, details } };
@@ -161,6 +169,67 @@ export function isQueueRefreshNotification(
 }
 
 export function parseKodiNotificationMessage(raw: string): KodiNotificationParseResult {
+  const parsed = parseKodiWebSocketRecord(raw);
+
+  return parsed.ok ? parseKodiNotificationRecord(parsed.value) : parsed;
+}
+
+export function parseKodiWebSocketMessage(raw: string): KodiWebSocketMessageParseResult {
+  const parsed = parseKodiWebSocketRecord(raw);
+
+  if (!parsed.ok) {
+    return parsed;
+  }
+
+  const { value: record } = parsed;
+  const jsonrpc = record.jsonrpc;
+  const hasId = Object.prototype.hasOwnProperty.call(record, 'id');
+
+  if (jsonrpc !== '2.0') {
+    return malformed('invalid-jsonrpc', 'Kodi WebSocket notification must use JSON-RPC 2.0.', {
+      jsonrpc,
+      hasId
+    });
+  }
+
+  if (hasId) {
+    if (
+      Object.prototype.hasOwnProperty.call(record, 'result') ||
+      Object.prototype.hasOwnProperty.call(record, 'error')
+    ) {
+      return { ok: true, message: { kind: 'response' } };
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(record, 'method') &&
+      typeof record.method !== 'string'
+    ) {
+      return malformed('invalid-method', 'Kodi WebSocket notification method must be a string.', {
+        jsonrpc,
+        hasId,
+        methodType: valueType(record.method)
+      });
+    }
+
+    return malformed('not-notification', 'Kodi WebSocket message is not a notification.', {
+      jsonrpc,
+      hasId,
+      methodType: valueType(record.method)
+    });
+  }
+
+  const notification = parseKodiNotificationRecord(record);
+
+  if (notification.ok) {
+    return { ok: true, message: { kind: 'notification', notification: notification.notification } };
+  }
+
+  return notification;
+}
+
+function parseKodiWebSocketRecord(
+  raw: string
+): { ok: true; value: Record<string, unknown> } | { ok: false; error: MalformedKodiNotification } {
   if (raw.trim() === '') {
     return malformed('empty', 'Kodi WebSocket notification message is empty.');
   }
@@ -177,6 +246,10 @@ export function parseKodiNotificationMessage(raw: string): KodiNotificationParse
     return malformed('not-object', 'Kodi WebSocket notification message must be a JSON object.');
   }
 
+  return { ok: true, value: parsed };
+}
+
+function parseKodiNotificationRecord(parsed: Record<string, unknown>): KodiNotificationParseResult {
   const jsonrpc = parsed.jsonrpc;
   const hasId = Object.prototype.hasOwnProperty.call(parsed, 'id');
 

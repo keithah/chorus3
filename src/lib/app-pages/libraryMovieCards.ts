@@ -8,6 +8,11 @@ import type { LibraryCard } from './libraryCards';
 export type LibraryDetailRow = { label: string; value: string };
 export type MovieDetailSource = VideoLibraryMovieSnapshot | VideoMovieDetailSnapshot;
 
+const movieSnapshotIndexCache = new WeakMap<
+  VideoLibraryStoreSnapshot,
+  Map<number, VideoLibraryMovieSnapshot>
+>();
+
 export function movieCard(item: MovieDetailSource): LibraryCard {
   return {
     key: `movie:${item.movieid}`,
@@ -25,11 +30,27 @@ export function findMovieSnapshot(
   video: VideoLibraryStoreSnapshot,
   movieid: number
 ): VideoLibraryMovieSnapshot | null {
+  const index = movieSnapshotIndex(video);
+  return index.get(movieid) ?? null;
+}
+
+function movieSnapshotIndex(
+  video: VideoLibraryStoreSnapshot
+): Map<number, VideoLibraryMovieSnapshot> {
+  const cached = movieSnapshotIndexCache.get(video);
+  if (cached) return cached;
+
+  const index = new Map<number, VideoLibraryMovieSnapshot>();
   for (const collection of [video.movies, video.recentlyAddedMovies, video.recentlyPlayedMovies]) {
-    const match = collection.find((item) => item.movieid === movieid);
-    if (match) return match;
+    for (const item of collection) {
+      if (!index.has(item.movieid)) {
+        index.set(item.movieid, item);
+      }
+    }
   }
-  return null;
+
+  movieSnapshotIndexCache.set(video, index);
+  return index;
 }
 
 export function movieDetailRows(item: MovieDetailSource): LibraryDetailRow[] {

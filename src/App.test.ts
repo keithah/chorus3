@@ -4,7 +4,7 @@ import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
-import { preloadAppPageSurfaceRoutesForTest } from './lib/app-pages/appPageSurfaceLazyRoutes';
+import { preloadAppPageSurfaceRoutesForTest } from './lib/testing/appPageSurfacePreload';
 import {
   createM007VisualProofAppProps,
   M007_VISUAL_PROOF_FORBIDDEN_TEXT
@@ -19,7 +19,6 @@ import {
   parseAppRoute,
   type AppRoute
 } from './lib/app/appRouter';
-import type { NowPlayingEmbedQuery } from './lib/app/nowPlayingEmbedQuery';
 import type {
   MusicBrowseActionDispatch,
   MusicBrowsePanelDispatch
@@ -87,8 +86,7 @@ import {
   type QueueStoreSnapshot,
   type AddonsStoreSnapshot,
   type LocalPlaylistDispatch,
-  type LocalPlaylistStoreSnapshot,
-  type ActiveHostSummary
+  type LocalPlaylistStoreSnapshot
 } from './lib/stores';
 import { DEFAULT_THEME } from './lib/theme/theme';
 
@@ -127,9 +125,6 @@ type AppProps = {
   addonsSnapshot?: AddonsStoreSnapshot;
   addonsDispatch?: AddonsPanelDispatch;
   addonDetailDispatch?: AddonDetailDispatch;
-  nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
-  nowPlayingHostSummary?: ActiveHostSummary | null;
-  nowPlayingRefreshDispatch?: () => Promise<void> | void;
   packageMountedHost?: import('./lib/stores').SavedKodiHost | null;
   localeSnapshot?: LocaleStoreSnapshot;
   localeDispatch?: { setLocale: (locale: unknown) => LocaleMutationResult };
@@ -1070,29 +1065,9 @@ function getLocalPlaylistsPanelText(target: HTMLElement): string {
   return getLocalPlaylistsPanel(target).textContent ?? '';
 }
 
-function createActiveHostSummary(overrides: Partial<ActiveHostSummary> = {}): ActiveHostSummary {
-  return {
-    id: 'host-safe-room',
-    label: 'Safe Room Kodi',
-    host: 'fixture-host',
-    port: 8080,
-    useTls: false,
-    useWebSocket: false,
-    hasCredentials: false,
-    ...overrides
-  };
-}
-
 function nowPlayingRouteProps(overrides: AppProps = {}): AppProps {
   return {
     route: { kind: 'nowPlaying' },
-    nowPlayingHostSummary: createActiveHostSummary(),
-    nowPlayingEmbedQuery: {
-      theme: null,
-      locale: null,
-      rejectedCredentialParams: [],
-      ignoredParams: []
-    },
     ...overrides
   };
 }
@@ -1449,7 +1424,7 @@ async function waitForText(target: HTMLElement, text: string): Promise<void> {
 }
 
 beforeEach(async () => {
-  await preloadAppPageSurfaceRoutesForTest();
+  await preloadAppPageSurfaceRoutesForTest({ scope: 'all' });
   vi.restoreAllMocks();
   window.history.pushState({}, '', '/');
   addonsStore.reset();
@@ -2602,18 +2577,9 @@ describe('App shell', () => {
     );
   });
 
-  it('renders the standalone now-playing embed route with injected safe host, query, player props, and refresh dispatch', async () => {
-    const refresh = vi.fn(async () => undefined);
+  it('renders the now-playing route inside the Chorus shell with injected player props', async () => {
     const target = renderApp({
       route: { kind: 'nowPlaying' },
-      nowPlayingHostSummary: createActiveHostSummary(),
-      nowPlayingEmbedQuery: {
-        theme: 'light',
-        locale: 'de',
-        rejectedCredentialParams: [],
-        ignoredParams: []
-      },
-      nowPlayingRefreshDispatch: refresh,
       localeSnapshot: { locale: 'de' },
       playerSnapshot: activeVideoSnapshot({
         item: {
@@ -2627,60 +2593,75 @@ describe('App shell', () => {
     });
 
     await vi.waitFor(() => {
-      expect(target.textContent).toContain('Aktuelle Wiedergabe einbetten');
+      expect(target.textContent).toContain('Aktuelle Wiedergabe');
     });
-    expect(target.textContent).toContain('Safe Room Kodi');
     expect(target.textContent).toContain('Aurora Signal');
-    expect(target.textContent).not.toContain('Music Library');
+    expect(target.textContent).toContain('Search Kodi');
+    expect(target.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.classic-rail')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.classic-player')).toBeInstanceOf(HTMLElement);
     expect(target.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('main[aria-labelledby="now-playing-embed-title"]')).toBeNull();
+    expect(target.textContent).not.toContain('Aktuelle Wiedergabe einbetten');
+    expect(target.textContent).not.toContain('Now playing embed');
+  });
 
-    const button = getButton(target, 'Player-Status aktualisieren');
-    button.click();
+  it('keeps local-player as the only intentional runtime shell bypass', async () => {
+    const runtimeSource = readFileSync('src/lib/app-pages/AppRuntimeSurface.svelte', 'utf8');
+    const firstBranchStart = runtimeSource.indexOf('{#if');
+    const shellBranchStart = runtimeSource.indexOf('{:else if isPrimaryShellRoute}');
+    const preShellBranch = runtimeSource.slice(firstBranchStart, shellBranchStart);
+
+    expect(preShellBranch).toContain('isLocalPlayerRoute');
+    expect(preShellBranch).toContain('loadLocalBrowserPlayerRoute');
+    expect(preShellBranch).not.toContain('isNowPlayingRoute');
+    expect(preShellBranch).not.toContain('loadNowPlayingPanel');
+
+    const localPlayerTarget = renderApp({
+      route: { kind: 'localPlayer', media: 'movie', id: 88 },
+      localPlayerSnapshot: createLocalPlayerSnapshot(),
+      playerDispatch: createPlayerDispatch()
+    });
     await tick();
 
-    expect(refresh).toHaveBeenCalledOnce();
+    expect(localPlayerTarget.querySelector('.local-browser-player')).toBeInstanceOf(HTMLElement);
+    expect(localPlayerTarget.querySelector('.chorus-app')).toBeNull();
+
+    unmountCurrentApp();
+    const nowPlayingTarget = renderApp(nowPlayingRouteProps());
+
+    expect(nowPlayingTarget.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(nowPlayingTarget.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
   });
 
-  it('renders now-playing setup guidance when no safe saved host is available', () => {
+  it('renders now-playing as a Chorus playback screen when no safe saved host is available', () => {
     const target = renderApp({
       route: { kind: 'nowPlaying' },
-      nowPlayingHostSummary: null,
-      nowPlayingEmbedQuery: {
-        theme: null,
-        locale: null,
-        rejectedCredentialParams: [],
-        ignoredParams: []
-      },
       playerSnapshot: createPlayerSnapshot(),
       playerDispatch: createPlayerDispatch(),
       localPlayerSnapshot: createLocalPlayerSnapshot()
     });
 
-    expect(target.textContent).toContain('Now playing embed');
-    expect(target.textContent).toContain(
+    expect(target.textContent).toContain('Now playing');
+    expect(target.textContent).toContain('No active Kodi player is available.');
+    expect(target.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
+    expect(target.textContent).not.toContain('Now playing embed');
+    expect(target.textContent).not.toContain(
       'Setup required before the Now Playing embed can connect.'
     );
-    expect(target.querySelector('.now-playing-panel')).toBeNull();
   });
 
-  it('renders now-playing credential-query rejection without forbidden visible values', () => {
+  it('renders now-playing without reflecting credential-like visible values', () => {
     const target = renderApp({
       route: { kind: 'nowPlaying' },
-      nowPlayingHostSummary: createActiveHostSummary(),
-      nowPlayingEmbedQuery: {
-        theme: null,
-        locale: null,
-        rejectedCredentialParams: ['username', 'password', 'token'],
-        ignoredParams: []
-      },
       playerSnapshot: createPlayerSnapshot(),
       playerDispatch: createPlayerDispatch(),
       localPlayerSnapshot: createLocalPlayerSnapshot()
     });
 
-    expect(target.querySelector('[role="alert"]')?.textContent).toContain(
-      '3 unsafe URL parameters'
-    );
+    expect(target.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(target.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
     expect(target.textContent).not.toMatch(
       /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password=|token=|username|password|token|localStorage|sessionStorage|https?:\/\//i
     );
@@ -2895,7 +2876,9 @@ describe('App shell', () => {
     });
     await tick();
 
-    expect(search).toHaveBeenCalledWith({ text: 'bunny', scope: 'movie' });
+    await vi.waitFor(() => {
+      expect(search).toHaveBeenCalledWith({ text: 'bunny', scope: 'movie' });
+    });
   });
 
   it('keeps primary add-ons category detail links package-safe under the package mount path', () => {
@@ -3024,9 +3007,11 @@ describe('App shell', () => {
     changeSelectValue(getSelect(browserTarget, '#addon-group-by'), 'enabled');
     await tick();
 
-    expect(loadAddons).toHaveBeenCalledTimes(1);
-    expect(setSearchQuery).toHaveBeenCalledWith('safe');
-    expect(setGroupBy).toHaveBeenCalledWith('enabled');
+    await vi.waitFor(() => {
+      expect(loadAddons).toHaveBeenCalledTimes(1);
+      expect(setSearchQuery).toHaveBeenCalledWith('safe');
+      expect(setGroupBy).toHaveBeenCalledWith('enabled');
+    });
 
     unmount(mountedComponent!);
     mountedComponent = undefined;
@@ -3041,8 +3026,10 @@ describe('App shell', () => {
     getButton(detailTarget, 'Confirm enable').click();
     await tick();
 
-    expect(loadAddonDetail).toHaveBeenCalledWith('plugin.video.safe-demo');
-    expect(setAddonEnabled).toHaveBeenCalledWith('plugin.video.safe-demo', true);
+    await vi.waitFor(() => {
+      expect(loadAddonDetail).toHaveBeenCalledWith('plugin.video.safe-demo');
+      expect(setAddonEnabled).toHaveBeenCalledWith('plugin.video.safe-demo', true);
+    });
   });
 
   it('automatically loads production add-on details for primary detail routes', async () => {
@@ -3061,7 +3048,9 @@ describe('App shell', () => {
     });
     await tick();
 
-    expect(loadAddonDetail).toHaveBeenCalledWith('audioencoder.kodi.builtin.aac');
+    await vi.waitFor(() => {
+      expect(loadAddonDetail).toHaveBeenCalledWith('audioencoder.kodi.builtin.aac');
+    });
   });
 
   it('renders safe add-ons unknown routes without injected fixture data or raw unsafe path text', () => {
@@ -3409,9 +3398,11 @@ describe('App shell', () => {
     await tick();
     await tick();
 
-    expect(markMovieWatched).toHaveBeenCalledWith({ movieid: 4402, label: 'Quiet Signal' }, true);
-    expect(refreshLibrary).toHaveBeenCalledWith('command:videoWrite');
-    expect(refreshMovieDetail).toHaveBeenCalledWith(4402, 'command:videoWrite');
+    await vi.waitFor(() => {
+      expect(markMovieWatched).toHaveBeenCalledWith({ movieid: 4402, label: 'Quiet Signal' }, true);
+      expect(refreshLibrary).toHaveBeenCalledWith('command:videoWrite');
+      expect(refreshMovieDetail).toHaveBeenCalledWith(4402, 'command:videoWrite');
+    });
     await waitForText(target, 'Marked Quiet Signal watched.');
   });
 
@@ -3748,11 +3739,13 @@ describe('App shell', () => {
     await tick();
     await tick();
 
-    expect(markEpisodeWatched).toHaveBeenCalledWith(
-      { episodeid: 6601, label: 'Signal Mirror' },
-      true
-    );
-    expect(refreshEpisodeDetail).toHaveBeenCalledWith(6601, 'command:videoWrite');
+    await vi.waitFor(() => {
+      expect(markEpisodeWatched).toHaveBeenCalledWith(
+        { episodeid: 6601, label: 'Signal Mirror' },
+        true
+      );
+      expect(refreshEpisodeDetail).toHaveBeenCalledWith(6601, 'command:videoWrite');
+    });
     await waitForText(target, 'Marked Signal Mirror watched.');
   }, 15_000);
 
@@ -3772,11 +3765,13 @@ describe('App shell', () => {
     await tick();
     await tick();
 
-    expect(markEpisodesWatched).toHaveBeenCalledWith(
-      [{ episodeid: 6601, label: 'Signal Mirror' }],
-      true
-    );
-    expect(refreshSeasonEpisodes).toHaveBeenCalledWith(5501, 1, 'command:videoWrite');
+    await vi.waitFor(() => {
+      expect(markEpisodesWatched).toHaveBeenCalledWith(
+        [{ episodeid: 6601, label: 'Signal Mirror' }],
+        true
+      );
+      expect(refreshSeasonEpisodes).toHaveBeenCalledWith(5501, 1, 'command:videoWrite');
+    });
   });
 
   it('preserves injected season write dispatches without touching the default video write store', async () => {
@@ -3919,10 +3914,12 @@ describe('App shell', () => {
     getButtonByAria(target, 'Open playlist Rain City Thrillers.xsp').click();
     await tick();
 
-    expect(refreshVideoPlaylists).toHaveBeenCalledTimes(1);
-    expect(openVideoPlaylist).toHaveBeenCalledWith('video-playlist:1');
-    expect(refreshMusicPlaylists).not.toHaveBeenCalled();
-    expect(openMusicPlaylist).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(refreshVideoPlaylists).toHaveBeenCalledTimes(1);
+      expect(openVideoPlaylist).toHaveBeenCalledWith('video-playlist:1');
+      expect(refreshMusicPlaylists).not.toHaveBeenCalled();
+      expect(openMusicPlaylist).not.toHaveBeenCalled();
+    });
   });
 
   it('renders sanitized recent-video and video-playlist error snapshots on video routes', () => {

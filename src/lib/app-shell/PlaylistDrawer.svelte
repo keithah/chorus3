@@ -23,7 +23,9 @@
     clear: 'Clear playlist',
     refresh: 'Refresh playlist',
     partyMode: 'Party mode',
-    saveKodiPlaylist: 'Save Kodi playlist'
+    saveKodiPlaylist: 'Save Kodi playlist',
+    scanVideoLibrary: 'Scan video library',
+    scanAudioLibrary: 'Scan audio library'
   };
 
   let {
@@ -38,7 +40,9 @@
     clear: 'Clear playlist needs a playlist action callback.',
     refresh: 'Refresh playlist needs a playlist action callback.',
     partyMode: 'Party mode needs a playlist action callback.',
-    saveKodiPlaylist: 'Save Kodi playlist needs a playlist action callback.'
+    saveKodiPlaylist: 'Save Kodi playlist needs a playlist action callback.',
+    scanVideoLibrary: 'Scan video library needs a library maintenance callback.',
+    scanAudioLibrary: 'Scan audio library needs a library maintenance callback.'
   } satisfies Record<AppShellPlaylistMenuAction, string>;
 
   let localMenuOpen = $state(false);
@@ -103,7 +107,15 @@
       saveKodiPlaylist:
         callbacks.onPlaylistMenuAction && reasons?.saveKodiPlaylist === undefined
           ? undefined
-          : (reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist)
+          : (reasons?.saveKodiPlaylist ?? DEFAULT_MENU_DISABLED_REASONS.saveKodiPlaylist),
+      scanVideoLibrary:
+        callbacks.onPlaylistMenuAction && reasons?.scanVideoLibrary === undefined
+          ? undefined
+          : (reasons?.scanVideoLibrary ?? DEFAULT_MENU_DISABLED_REASONS.scanVideoLibrary),
+      scanAudioLibrary:
+        callbacks.onPlaylistMenuAction && reasons?.scanAudioLibrary === undefined
+          ? undefined
+          : (reasons?.scanAudioLibrary ?? DEFAULT_MENU_DISABLED_REASONS.scanAudioLibrary)
     };
 
     return normalized;
@@ -258,6 +270,24 @@
       <button type="button" role="menuitem" class="selected" aria-disabled="true" disabled>
         Kodi
       </button>
+      <button
+        type="button"
+        role="menuitem"
+        aria-disabled={menuDisabledReasons.scanVideoLibrary ? 'true' : undefined}
+        title={menuDisabledReasons.scanVideoLibrary}
+        disabled={Boolean(menuDisabledReasons.scanVideoLibrary)}
+        onclick={() => selectMenuAction('scanVideoLibrary')}
+        >{MENU_ACTION_LABELS.scanVideoLibrary}</button
+      >
+      <button
+        type="button"
+        role="menuitem"
+        aria-disabled={menuDisabledReasons.scanAudioLibrary ? 'true' : undefined}
+        title={menuDisabledReasons.scanAudioLibrary}
+        disabled={Boolean(menuDisabledReasons.scanAudioLibrary)}
+        onclick={() => selectMenuAction('scanAudioLibrary')}
+        >{MENU_ACTION_LABELS.scanAudioLibrary}</button
+      >
       <button
         type="button"
         role="menuitem"

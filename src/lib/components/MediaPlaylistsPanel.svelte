@@ -26,15 +26,16 @@
     type PlaylistActionRun,
     type PlaylistActionVerb
   } from './mediaPlaylistsActionModel';
-  import type {
-    MediaPlaylistEntrySnapshot,
-    MediaPlaylistSnapshot,
-    MediaPlaylistsBreadcrumbSnapshot,
-    MediaPlaylistsStoreSnapshot
+  import {
+    mediaPlaylistsStore,
+    type MediaPlaylistEntrySnapshot,
+    type MediaPlaylistSnapshot,
+    type MediaPlaylistsBreadcrumbSnapshot,
+    type MediaPlaylistsStoreSnapshot
   } from '$lib/stores/mediaPlaylists.svelte';
 
   interface Props {
-    snapshot: MediaPlaylistsStoreSnapshot;
+    snapshot?: MediaPlaylistsStoreSnapshot;
     dispatch: MediaPlaylistsPanelDispatch;
     i18n?: TranslationContext;
     actionDispatch: MediaPlaylistsActionDispatch;
@@ -48,11 +49,12 @@
   };
 
   let {
-    snapshot,
+    snapshot: injectedSnapshot,
     dispatch,
     actionDispatch,
     i18n = createEnglishTranslationContext()
   }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? mediaPlaylistsStore.snapshot);
 
   let pendingBrowse = $state<PendingBrowseOperation | null>(null);
   let pendingAction = $state<PendingPlaylistAction | null>(null);

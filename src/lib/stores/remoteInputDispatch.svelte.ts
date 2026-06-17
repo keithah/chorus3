@@ -9,6 +9,7 @@ import {
   type RemoteInputAction,
   type RemoteInputCommand
 } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 import { configStore as defaultConfigStore, type ConfigStore } from './config.svelte.ts';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
 
@@ -333,19 +334,7 @@ function sanitizeKodiHttpErrorMessage(error: KodiHttpClientError): string {
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-    .replace(/special:\/\/[^\s]+/gi, 'redacted-file')
-    .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-file')
-    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]')
-    .replace(/localStorage|sessionStorage/gi, 'browser storage')
-    .replace(/raw[_\s-]*response[_\s-]*body/gi, 'redacted response');
+  return redactStoreErrorMessage(message);
 }
 
 function cloneSnapshot(snapshot: RemoteInputDispatchSnapshot): RemoteInputDispatchSnapshot {

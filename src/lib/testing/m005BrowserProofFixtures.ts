@@ -4,12 +4,11 @@ import type { SettingsPanelDispatch } from '$lib/components/SettingsPanel.svelte
 import type { PlayerControlsDispatch } from '$lib/components/PlayerControls.svelte';
 import { parseAppRoute, type AppRoute } from '$lib/app/appRouter';
 import {
-  parseNowPlayingEmbedQuery,
-  type NowPlayingEmbedQuery
-} from '$lib/app/nowPlayingEmbedQuery';
+  parseNowPlayingRouteQuery,
+  type NowPlayingRouteQuery
+} from '$lib/app/nowPlayingRouteQuery';
 import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
 import type { SettingsStoreSnapshot } from '$lib/stores/settingsStore.svelte';
-import type { ActiveHostSummary } from '$lib/stores/hostConnection.svelte';
 import type { LocalPlayerStoreSnapshot } from '$lib/stores/localPlayer.svelte';
 import type { PlayerDispatchSnapshot } from '$lib/stores/playerDispatch.svelte';
 import type { PlayerStoreSnapshot } from '$lib/stores/player.svelte';
@@ -31,9 +30,7 @@ export interface M005BrowserProofAppProps {
   playerSnapshot?: PlayerStoreSnapshot;
   playerDispatch?: PlayerControlsDispatch;
   localPlayerSnapshot?: LocalPlayerStoreSnapshot;
-  nowPlayingHostSummary?: ActiveHostSummary | null;
-  nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
-  nowPlayingRefreshDispatch?: () => Promise<void>;
+  nowPlayingRouteQuery?: NowPlayingRouteQuery;
   localeSnapshot?: LocaleStoreSnapshot;
 }
 
@@ -92,8 +89,8 @@ export function createM005BrowserProofAppProps(
   }
 
   if (route.kind === 'nowPlaying') {
-    const query = parseNowPlayingEmbedQuery(readSearch(location));
-    const setupMode = readNowPlayingEmbedState(location) === 'setup';
+    const query = parseNowPlayingRouteQuery(readSearch(location));
+    const setupMode = readNowPlayingRouteFixtureState(location) === 'setup';
 
     return {
       route,
@@ -102,9 +99,7 @@ export function createM005BrowserProofAppProps(
         : createNowPlayingPlayerSnapshot(),
       playerDispatch: createNowPlayingDispatch(),
       localPlayerSnapshot: createNowPlayingLocalPlayerSnapshot(),
-      nowPlayingHostSummary: setupMode ? null : createNowPlayingHostSummary(),
-      nowPlayingEmbedQuery: query,
-      nowPlayingRefreshDispatch: noop,
+      nowPlayingRouteQuery: query,
       ...(query.locale ? { localeSnapshot: { locale: query.locale } } : {})
     };
   }
@@ -173,7 +168,7 @@ function readLocaleQuery(location: M005BrowserProofLocation | null | undefined):
   }
 }
 
-function readNowPlayingEmbedState(
+function readNowPlayingRouteFixtureState(
   location: M005BrowserProofLocation | null | undefined
 ): 'active' | 'setup' {
   const search = readSearch(location);
@@ -182,22 +177,10 @@ function readNowPlayingEmbedState(
   }
 
   try {
-    return new URLSearchParams(search).get('embed-state') === 'setup' ? 'setup' : 'active';
+    return new URLSearchParams(search).get('player-state') === 'setup' ? 'setup' : 'active';
   } catch {
     return 'active';
   }
-}
-
-function createNowPlayingHostSummary(): ActiveHostSummary {
-  return {
-    id: 'm005-now-playing-host',
-    label: 'Safe Room Kodi',
-    host: 'fixture-host',
-    port: 8080,
-    useTls: false,
-    useWebSocket: false,
-    hasCredentials: false
-  };
 }
 
 function createNowPlayingPlayerSnapshot(): PlayerStoreSnapshot {
@@ -569,7 +552,12 @@ function createAddonDetailSnapshot(): AddonsStoreSnapshot {
 function createTypeGroups(addons: AddonSnapshot[]): AddonsStoreSnapshot['groups'] {
   const byType = new Map<string, AddonSnapshot[]>();
   for (const addon of addons) {
-    byType.set(addon.type, [...(byType.get(addon.type) ?? []), addon]);
+    const group = byType.get(addon.type);
+    if (group) {
+      group.push(addon);
+    } else {
+      byType.set(addon.type, [addon]);
+    }
   }
   return [...byType.entries()].map(([type, groupedAddons]) => ({
     key: type,

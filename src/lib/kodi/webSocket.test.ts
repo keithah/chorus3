@@ -16,6 +16,7 @@ class FakeWebSocket {
   readonly url: string;
   readyState = FakeWebSocket.CONNECTING;
   sent: string[] = [];
+  closeCalls: Array<{ code?: number; reason?: string }> = [];
   onopen: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent<string>) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
@@ -53,6 +54,7 @@ class FakeWebSocket {
   }
 
   close(code?: number, reason?: string): void {
+    this.closeCalls.push({ code, reason });
     this.readyState = FakeWebSocket.CLOSED;
     this.onclose?.(new CloseEvent('close', { code: code ?? 1000, reason, wasClean: true }));
   }
@@ -200,6 +202,19 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     ]);
   });
 
+  it('ignores JSON-RPC response frames without degrading the socket', () => {
+    const client = createClient();
+    const { listener, types } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    FakeWebSocket.instances[0]?.open();
+    FakeWebSocket.instances[0]?.message(JSON.stringify({ jsonrpc: '2.0', id: 1, result: 'pong' }));
+
+    expect(types()).toEqual(['connecting', 'open']);
+    expect(FakeWebSocket.instances[0]?.readyState).toBe(FakeWebSocket.OPEN);
+  });
+
   it('emits close and reconnecting after unexpected close with capped backoff progression', () => {
     const client = createClient({ reconnectDelaysMs: [100, 200, 30_000] });
     const { events, listener, types } = collectEvents();
@@ -214,17 +229,32 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     vi.advanceTimersByTime(100);
     expect(FakeWebSocket.instances).toHaveLength(2);
 
-    FakeWebSocket.instances[1]?.open();
     FakeWebSocket.instances[1]?.closeFromServer();
     expect(events.at(-1)).toMatchObject({ type: 'reconnecting', attempt: 2, delayMs: 200 });
     vi.advanceTimersByTime(200);
     expect(FakeWebSocket.instances).toHaveLength(3);
 
-    FakeWebSocket.instances[2]?.open();
     FakeWebSocket.instances[2]?.closeFromServer();
     expect(events.at(-1)).toMatchObject({ type: 'reconnecting', attempt: 3, delayMs: 30_000 });
     vi.advanceTimersByTime(30_000);
     expect(FakeWebSocket.instances).toHaveLength(4);
+  });
+
+  it('resets the reconnect attempt budget after a successful open', () => {
+    const client = createClient({ maxReconnectAttempts: 1, reconnectDelaysMs: [100] });
+    const { events, listener } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    FakeWebSocket.instances[0]?.open();
+    FakeWebSocket.instances[0]?.closeFromServer();
+    expect(events.at(-1)).toMatchObject({ type: 'reconnecting', attempt: 1, delayMs: 100 });
+
+    vi.advanceTimersByTime(100);
+    FakeWebSocket.instances[1]?.open();
+    FakeWebSocket.instances[1]?.closeFromServer();
+
+    expect(events.at(-1)).toMatchObject({ type: 'reconnecting', attempt: 1, delayMs: 100 });
   });
 
   it('stops reconnecting after the configured reconnect attempt limit', () => {
@@ -240,7 +270,7 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     vi.advanceTimersByTime(100);
     expect(FakeWebSocket.instances).toHaveLength(2);
 
-    FakeWebSocket.instances[1]?.open();
+    FakeWebSocket.instances[1]!.readyState = FakeWebSocket.CLOSED;
     FakeWebSocket.instances[1]?.closeFromServer();
 
     expect(types()).toEqual([
@@ -249,7 +279,6 @@ describe('createKodiJsonRpcWebSocketClient', () => {
       'close',
       'reconnecting',
       'connecting',
-      'open',
       'close',
       'error'
     ]);
@@ -281,6 +310,24 @@ describe('createKodiJsonRpcWebSocketClient', () => {
     firstSocket?.message(JSON.stringify({ jsonrpc: '2.0', method: 'Player.OnPlay' }));
 
     expect(types()).toEqual(['connecting', 'open', 'close', 'reconnecting', 'connecting']);
+  });
+
+  it('closes the previous socket before opening a reconnect replacement', () => {
+    const client = createClient({ reconnectDelaysMs: [100] });
+    const { listener } = collectEvents();
+    client.subscribe(listener);
+
+    client.connect();
+    const firstSocket = FakeWebSocket.instances[0]!;
+    firstSocket.open();
+    firstSocket.error();
+
+    vi.advanceTimersByTime(100);
+
+    expect(firstSocket.closeCalls).toEqual([
+      { code: 1000, reason: 'Kodi WebSocket reconnecting.' }
+    ]);
+    expect(FakeWebSocket.instances).toHaveLength(2);
   });
 
   it('emits error and schedules reconnect after socket error', () => {

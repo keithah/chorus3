@@ -35,22 +35,14 @@ import { createMediaSearchActionDispatch } from '$lib/app/appMediaSearchAdapters
 import { createMediaPlaylistActionDispatch } from '$lib/app/mediaPlaylistActionDispatch';
 import { startBrowserDownload } from '$lib/app/appDownloads';
 import { safePlaylistExportName } from '$lib/app/appPlaylistAdapters';
+import { appRouteStores } from '$lib/app/appRouteStores';
 import { getFileDirectory } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from '$lib/stores/kodiClient';
-import { addonsStore } from '$lib/stores/addonsStore.svelte';
 import { localeStore } from '$lib/stores/locale.svelte';
-import { mediaFilesStore, videoMediaFilesStore } from '$lib/stores/mediaFiles.svelte';
-import { mediaPlaylistsStore, videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
-import { mediaSearchStore } from '$lib/stores/mediaSearch.svelte';
-import { musicBrowseStore } from '$lib/stores/musicBrowse.svelte';
 import { playerDispatch as defaultPlayerDispatch } from '$lib/stores/defaultPlayerDispatch';
 import { prepareLocalStreamUrl } from '$lib/stores/localPlayer.svelte';
-import { pvrStore } from '$lib/stores/pvr.svelte';
 import { queueDispatch as defaultQueueDispatch } from '$lib/stores/queue.svelte';
-import { settingsStore } from '$lib/stores/settingsStore.svelte';
 import { configStore } from '$lib/stores/config.svelte';
-import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
-import { videoWriteStore } from '$lib/stores/videoWriteStore.svelte';
 import type { SearchAddonSetting } from '$lib/stores/searchAddons.svelte';
 
 interface AppDefaultDispatchCallbacks {
@@ -91,26 +83,28 @@ export function createAppDefaultDispatches(
   callbacks: AppDefaultDispatchCallbacks
 ): AppDefaultDispatches {
   const mediaFilesActionDispatch: MediaFilesActionDispatch = {
-    playFileItem: (item) => defaultPlayerDispatch.playFileItem(toFilePlaybackItem(item)),
-    queueFileItem: (item) => defaultQueueDispatch.queueFileItem(toFileQueueItem(item)),
-    queueFileItems: (items) => defaultQueueDispatch.queueFileItems(items.map(toFileQueueItem)),
-    downloadFileItem: (item) => downloadMediaFileItem(toFileDownloadItem(item))
+    playFileItem: async (item) =>
+      defaultPlayerDispatch.playFileItem(await toFilePlaybackItem(item)),
+    queueFileItem: async (item) => defaultQueueDispatch.queueFileItem(await toFileQueueItem(item)),
+    queueFileItems: async (items) =>
+      defaultQueueDispatch.queueFileItems(await Promise.all(items.map(toFileQueueItem))),
+    downloadFileItem: async (item) => downloadMediaFileItem(await toFileDownloadItem(item))
   };
 
   return {
     musicBrowseDispatch: {
-      browseArtist: (artist) => musicBrowseStore.browseArtist(artist),
-      browseAlbum: (album) => musicBrowseStore.browseAlbum(album),
-      browseGenre: (genre) => musicBrowseStore.browseGenre(genre),
-      clearSelection: () => musicBrowseStore.clearSelection()
+      browseArtist: async (artist) => (await musicBrowse()).browseArtist(artist),
+      browseAlbum: async (album) => (await musicBrowse()).browseAlbum(album),
+      browseGenre: async (genre) => (await musicBrowse()).browseGenre(genre),
+      clearSelection: async () => (await musicBrowse()).clearSelection()
     },
     musicActionDispatch: {
       playMusicItem: (item) => defaultPlayerDispatch.playMusicItem(item),
       queueMusicItem: (item) => defaultQueueDispatch.queueMusicItem(item)
     },
     mediaSearchDispatch: {
-      search: ({ query, scope }) => mediaSearchStore.search({ text: query, scope }),
-      clear: () => mediaSearchStore.clear(),
+      search: async ({ query, scope }) => (await mediaSearch()).search({ text: query, scope }),
+      clear: async () => (await mediaSearch()).clear(),
       searchAddon: async ({ row, query, pluginUrl }) => searchAddonInline(row, query, pluginUrl)
     },
     mediaSearchActionDispatch: createMediaSearchActionDispatch({
@@ -118,52 +112,52 @@ export function createAppDefaultDispatches(
       queueDispatch: defaultQueueDispatch
     }),
     mediaFilesDispatch: {
-      refresh: () => mediaFilesStore.refreshSources(),
-      openSource: (id) => mediaFilesStore.openSource(id),
-      openEntry: (id) => mediaFilesStore.openDirectory(id),
-      openPath: (path) => mediaFilesStore.openPath(path),
+      refresh: async () => (await mediaFiles()).refreshSources(),
+      openSource: async (id) => (await mediaFiles()).openSource(id),
+      openEntry: async (id) => (await mediaFiles()).openDirectory(id),
+      openPath: async (path) => (await mediaFiles()).openPath(path),
       openBreadcrumb: (id) => openMediaFilesBreadcrumb(id)
     },
     videoMediaFilesDispatch: {
-      refresh: () => videoMediaFilesStore.refreshSources(),
-      openSource: (id) => videoMediaFilesStore.openSource(id),
-      openEntry: (id) => videoMediaFilesStore.openDirectory(id),
-      openPath: (path) => videoMediaFilesStore.openPath(path),
+      refresh: async () => (await videoMediaFiles()).refreshSources(),
+      openSource: async (id) => (await videoMediaFiles()).openSource(id),
+      openEntry: async (id) => (await videoMediaFiles()).openDirectory(id),
+      openPath: async (path) => (await videoMediaFiles()).openPath(path),
       openBreadcrumb: (id) => openVideoMediaFilesBreadcrumb(id)
     },
     mediaFilesActionDispatch,
     videoMediaFilesActionDispatch: mediaFilesActionDispatch,
     mediaPlaylistsDispatch: {
-      refresh: () => mediaPlaylistsStore.refreshPlaylists(),
-      openPlaylist: (id) => mediaPlaylistsStore.openPlaylist(id),
-      openBreadcrumb: (id) => mediaPlaylistsStore.openPlaylist(id)
+      refresh: async () => (await mediaPlaylists()).refreshPlaylists(),
+      openPlaylist: async (id) => (await mediaPlaylists()).openPlaylist(id),
+      openBreadcrumb: async (id) => (await mediaPlaylists()).openPlaylist(id)
     },
     mediaPlaylistsActionDispatch: createMediaPlaylistActionDispatch({
       expectedPlaylistMediaKind: 'music',
-      store: mediaPlaylistsStore,
+      store: appRouteStores.mediaPlaylists,
       playerDispatch: defaultPlayerDispatch,
       queueDispatch: defaultQueueDispatch
     }),
     pvrDispatch: {
-      refreshChannels: (group) => pvrStore.refreshChannels(group),
-      refreshRecordings: () => pvrStore.refreshRecordings(),
-      refreshBroadcasts: (channelid) => pvrStore.refreshBroadcasts(channelid),
-      loadChannelDetail: (channelid) => pvrStore.loadChannelDetail(channelid),
-      toggleChannelRecording: (channelid) => pvrStore.toggleChannelRecording(channelid),
+      refreshChannels: async (group) => (await pvr()).refreshChannels(group),
+      refreshRecordings: async () => (await pvr()).refreshRecordings(),
+      refreshBroadcasts: async (channelid) => (await pvr()).refreshBroadcasts(channelid),
+      loadChannelDetail: async (channelid) => (await pvr()).loadChannelDetail(channelid),
+      toggleChannelRecording: async (channelid) => (await pvr()).toggleChannelRecording(channelid),
       toggleBroadcastTimer: (broadcastid, timerrule) =>
-        pvrStore.toggleBroadcastTimer(broadcastid, timerrule),
+        pvr().then((store) => store.toggleBroadcastTimer(broadcastid, timerrule)),
       addBroadcastTimer: (broadcastid, timerrule) =>
-        pvrStore.addBroadcastTimer(broadcastid, timerrule),
-      deleteTimer: (timerid) => pvrStore.deleteTimer(timerid)
+        pvr().then((store) => store.addBroadcastTimer(broadcastid, timerrule)),
+      deleteTimer: async (timerid) => (await pvr()).deleteTimer(timerid)
     },
     videoMediaPlaylistsDispatch: {
-      refresh: () => videoMediaPlaylistsStore.refreshPlaylists(),
-      openPlaylist: (id) => videoMediaPlaylistsStore.openPlaylist(id),
-      openBreadcrumb: (id) => videoMediaPlaylistsStore.openPlaylist(id)
+      refresh: async () => (await videoMediaPlaylists()).refreshPlaylists(),
+      openPlaylist: async (id) => (await videoMediaPlaylists()).openPlaylist(id),
+      openBreadcrumb: async (id) => (await videoMediaPlaylists()).openPlaylist(id)
     },
     videoMediaPlaylistsActionDispatch: createMediaPlaylistActionDispatch({
       expectedPlaylistMediaKind: 'video',
-      store: videoMediaPlaylistsStore,
+      store: appRouteStores.videoMediaPlaylists,
       playerDispatch: defaultPlayerDispatch,
       queueDispatch: defaultQueueDispatch
     }),
@@ -173,8 +167,9 @@ export function createAppDefaultDispatches(
         defaultPlayerDispatch.playMovieItem({ movieid, resume: true }),
       queueMovieItem: ({ movieid }) => defaultQueueDispatch.queueMovieItem({ movieid }),
       markMovieWatched: async ({ movieid, watched, label }) => {
-        await videoWriteStore.markMovieWatched({ movieid, label }, watched);
-        assertVideoWriteSucceeded(videoWriteStore.snapshot);
+        const store = await videoWrite();
+        await store.markMovieWatched({ movieid, label }, watched);
+        assertVideoWriteSucceeded(store.snapshot);
         await callbacks.refreshAfterMovieWrite(movieid);
       }
     },
@@ -196,25 +191,30 @@ export function createAppDefaultDispatches(
       queueEpisodeItem: ({ episodeid }) => defaultQueueDispatch.queueEpisodeItem({ episodeid }),
       streamEpisodeItem: ({ episodeid }) => defaultPlayerDispatch.streamEpisodeItem({ episodeid }),
       markEpisodeWatched: async ({ episodeid, watched, label }) => {
-        await videoWriteStore.markEpisodeWatched({ episodeid, label }, watched);
-        assertVideoWriteSucceeded(videoWriteStore.snapshot);
+        const store = await videoWrite();
+        await store.markEpisodeWatched({ episodeid, label }, watched);
+        assertVideoWriteSucceeded(store.snapshot);
         await callbacks.refreshAfterEpisodeWrite(episodeid);
       }
     },
     videoSeasonArtworkDispatch: {
       refreshSeasonArtwork: ({ tvshowid, season }) =>
-        videoTvStore.refreshSeasonArtwork(tvshowid, season, 'command:refreshSeasonArtwork')
+        videoTv().then((store) =>
+          store.refreshSeasonArtwork(tvshowid, season, 'command:refreshSeasonArtwork')
+        )
     },
     videoSeasonWriteDispatch: {
       markEpisodesWatched: async (items, watched) => {
-        await videoWriteStore.markEpisodesWatched(toVideoWriteEpisodeItems(items), watched);
-        const snapshot = videoWriteStore.snapshot;
+        const store = await videoWrite();
+        await store.markEpisodesWatched(toVideoWriteEpisodeItems(items), watched);
+        const snapshot = store.snapshot;
         await callbacks.refreshAfterSeasonWrite();
         return toSeasonWriteSummary(snapshot);
       },
       retryFailedVideoWrites: async (items) => {
-        await videoWriteStore.retryFailed();
-        const snapshot = videoWriteStore.snapshot;
+        const store = await videoWrite();
+        await store.retryFailed();
+        const snapshot = store.snapshot;
         await callbacks.refreshAfterSeasonWrite();
         return toSeasonWriteSummary(snapshot, items.length);
       }
@@ -223,28 +223,44 @@ export function createAppDefaultDispatches(
       setLocale: (locale) => localeStore.setLocale(locale)
     },
     settingsDispatch: {
-      load: () => settingsStore.load(),
-      retry: () => settingsStore.retry(),
-      selectSection: (sectionId) => settingsStore.selectSection(sectionId),
-      selectCategory: (categoryId) => settingsStore.selectCategory(categoryId),
-      setValue: (settingId, value) => settingsStore.writeSettingValue(settingId, value)
+      load: async () => (await settings()).load(),
+      retry: async () => (await settings()).retry(),
+      selectSection: async (sectionId) => (await settings()).selectSection(sectionId),
+      selectCategory: async (categoryId) => (await settings()).selectCategory(categoryId),
+      setValue: async (settingId, value) => (await settings()).writeSettingValue(settingId, value)
     },
     addonsDispatch: {
-      load: () => addonsStore.loadAddons(),
-      retry: () => addonsStore.loadAddons(),
-      setSearchQuery: (query) => addonsStore.setSearchQuery(query),
-      setGroupBy: (groupBy) => addonsStore.setGroupBy(groupBy),
-      setAddonEnabled: (addonid, enabled) => addonsStore.setAddonEnabled(addonid, enabled),
-      executeAddon: (addonid) => addonsStore.executeAddon(addonid)
+      load: async () => (await addons()).loadAddons(),
+      retry: async () => (await addons()).loadAddons(),
+      setSearchQuery: async (query) => (await addons()).setSearchQuery(query),
+      setGroupBy: async (groupBy) => (await addons()).setGroupBy(groupBy),
+      setAddonEnabled: async (addonid, enabled) =>
+        (await addons()).setAddonEnabled(addonid, enabled),
+      executeAddon: async (addonid) => (await addons()).executeAddon(addonid)
     },
     addonDetailDispatch: {
       load: () => callbacks.loadCurrentAddonDetail(),
       retry: () => callbacks.loadCurrentAddonDetail(),
-      setAddonEnabled: (addonid, enabled) => addonsStore.setAddonEnabled(addonid, enabled),
+      setAddonEnabled: async (addonid, enabled) =>
+        (await addons()).setAddonEnabled(addonid, enabled),
       back: () => callbacks.openAddonsRoute()
     }
   };
 }
+
+const {
+  addons,
+  mediaFiles,
+  videoMediaFiles,
+  mediaPlaylists,
+  videoMediaPlaylists,
+  mediaSearch,
+  musicBrowse,
+  pvr,
+  settings,
+  videoTv,
+  videoWrite
+} = appRouteStores;
 
 async function searchAddonInline(
   row: SearchAddonSetting,
@@ -288,22 +304,22 @@ async function searchAddonInline(
 
 function openMediaFilesBreadcrumb(id: string): Promise<void> {
   return id.startsWith('source:')
-    ? mediaFilesStore.openSource(id)
-    : mediaFilesStore.openDirectory(id);
+    ? mediaFiles().then((store) => store.openSource(id))
+    : mediaFiles().then((store) => store.openDirectory(id));
 }
 
 function openVideoMediaFilesBreadcrumb(id: string): Promise<void> {
   return id.startsWith('source:')
-    ? videoMediaFilesStore.openSource(id)
-    : videoMediaFilesStore.openDirectory(id);
+    ? videoMediaFiles().then((store) => store.openSource(id))
+    : videoMediaFiles().then((store) => store.openDirectory(id));
 }
 
-function toFilePlaybackItem(item: MediaFilesActionItem): {
+async function toFilePlaybackItem(item: MediaFilesActionItem): Promise<{
   file: string;
   mediaKind: 'audio' | 'video';
   itemType?: 'file' | 'directory';
-} {
-  const resolved = mediaFilesStoreForMedia(item.media).getPlayableEntry(item.id);
+}> {
+  const resolved = (await mediaFilesStoreForMedia(item.media)).getPlayableEntry(item.id);
 
   if (!resolved.ok) {
     throw new Error(resolved.error.message);
@@ -316,16 +332,18 @@ function toFilePlaybackItem(item: MediaFilesActionItem): {
   };
 }
 
-function toFileQueueItem(item: MediaFilesActionItem): {
+async function toFileQueueItem(item: MediaFilesActionItem): Promise<{
   file: string;
   mediaKind: 'audio' | 'video';
   itemType?: 'file' | 'directory';
-} {
+}> {
   return toFilePlaybackItem(item);
 }
 
-function toFileDownloadItem(item: MediaFilesActionItem): { file: string; label: string } {
-  const resolved = mediaFilesStoreForMedia(item.media).getDownloadableEntry(item.id);
+async function toFileDownloadItem(
+  item: MediaFilesActionItem
+): Promise<{ file: string; label: string }> {
+  const resolved = (await mediaFilesStoreForMedia(item.media)).getDownloadableEntry(item.id);
 
   if (!resolved.ok) {
     throw new Error(resolved.error.message);
@@ -350,5 +368,5 @@ async function downloadMediaFileItem(item: { file: string; label: string }): Pro
 }
 
 function mediaFilesStoreForMedia(media: string) {
-  return media === 'video' ? videoMediaFilesStore : mediaFilesStore;
+  return media === 'video' ? videoMediaFiles() : mediaFiles();
 }

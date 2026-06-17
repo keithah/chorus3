@@ -47,7 +47,10 @@ export function preloadTranslationLocale(locale: Locale): Promise<boolean> {
     });
 
   pendingDictionaries.set(locale, pending);
-  return pending.then(() => true);
+  return pending.then(
+    () => true,
+    () => false
+  );
 }
 
 async function loadTranslationLocale(locale: Locale): Promise<void> {

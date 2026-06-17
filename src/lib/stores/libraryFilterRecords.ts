@@ -2,6 +2,8 @@ export type LibraryFilterEnrichmentOptions = {
   thumbsUp?: boolean;
 };
 
+const recordCache = new WeakMap<object, Map<string, Record<string, unknown>>>();
+
 /** Normalize Kodi library snapshots so Chorus2 filter keys match local item shapes. */
 export function enrichLibraryFilterRecord(
   item: Record<string, unknown>,
@@ -37,7 +39,19 @@ export function libraryFilterRecordFrom(
   item: object,
   options: LibraryFilterEnrichmentOptions = {}
 ): Record<string, unknown> {
-  return enrichLibraryFilterRecord({ ...item }, options);
+  const cacheKey = options.thumbsUp === undefined ? 'base' : `thumbs:${options.thumbsUp}`;
+  let itemCache = recordCache.get(item);
+  if (!itemCache) {
+    itemCache = new Map<string, Record<string, unknown>>();
+    recordCache.set(item, itemCache);
+  }
+
+  const cached = itemCache.get(cacheKey);
+  if (cached) return cached;
+
+  const record = enrichLibraryFilterRecord({ ...item }, options);
+  itemCache.set(cacheKey, record);
+  return record;
 }
 
 export function normalizeLibrarySetValue(value: unknown): string | undefined {

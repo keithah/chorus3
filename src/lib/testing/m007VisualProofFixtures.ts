@@ -112,50 +112,11 @@ function normalizeVisualProofRoute(location: M007VisualProofLocation | null | un
     return { kind: 'primary', route: { kind: 'home' } };
   }
 
-  if (isSupportedVisualProofRoute(route)) {
+  if (route.kind === 'primary') {
     return route;
   }
 
   return { kind: 'primary', route: { kind: 'home' } };
-}
-
-function isSupportedVisualProofRoute(route: AppRoute): boolean {
-  if (route.kind === 'primary') {
-    return [
-      'home',
-      'music',
-      'movies',
-      'moviesRecent',
-      'movieDetail',
-      'tvshows',
-      'tvshowsRecent',
-      'tvshowDetail',
-      'tvshowSeasonDetail',
-      'tvshowEpisodeDetail',
-      'browser',
-      'browserItem',
-      'addonsAll',
-      'addonsVideo',
-      'addonDetail',
-      'playlists',
-      'playlistDetail',
-      'settingsWeb',
-      'settingsKodi',
-      'settingsKodiSection',
-      'help',
-      'helpOverview',
-      'helpPage',
-      'helpReadme',
-      'helpChangelog',
-      'helpTranslations',
-      'helpLicense',
-      'helpAddons',
-      'helpDevelopers',
-      'remote'
-    ].includes(route.route.kind);
-  }
-
-  return false;
 }
 
 function toSafeFixtureLocation(

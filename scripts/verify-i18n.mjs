@@ -215,11 +215,6 @@ export function validateDictionaryParity(dictionaries, baseLocale = DEFAULT_BASE
   return issues;
 }
 
-export function loadDictionaries(root = cwd()) {
-  const source = readFileSync(join(root, DICTIONARY_SOURCE_PATH), 'utf8');
-  return parseDictionaries(source, root);
-}
-
 function parseDictionaries(source, root = cwd()) {
   const sourceFile = createSourceFile(DICTIONARY_SOURCE_PATH, source);
   const imports = extractNamedImports(sourceFile);
@@ -237,13 +232,15 @@ function parseDictionaries(source, root = cwd()) {
     if (!locale) {
       throw new Error(`${DICTIONARY_SOURCE_PATH} DICTIONARIES contains an unsupported locale key.`);
     }
-    if (!ts.isIdentifier(property.initializer)) {
+    const initializer = unwrapSatisfiesExpression(property.initializer);
+
+    if (!ts.isIdentifier(initializer)) {
       throw new Error(
         `${DICTIONARY_SOURCE_PATH} DICTIONARIES locale ${locale} must reference an imported dictionary identifier.`
       );
     }
 
-    const constName = property.initializer.text;
+    const constName = initializer.text;
     const importPath = imports.get(constName);
     if (!importPath) {
       throw new Error(`${DICTIONARY_SOURCE_PATH} references unresolved dictionary ${constName}`);

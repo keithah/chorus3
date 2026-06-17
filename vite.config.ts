@@ -11,6 +11,7 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('/src/lib/kodi/')) return 'kodi';
           if (id.includes('/src/lib/stores/')) return storeChunkNameForId(id);
+          if (id.includes('/src/lib/routing/')) return 'route-core';
           if (id.includes('/src/lib/app/')) return 'app-core';
           if (id.includes('/src/lib/app-shell/')) return 'app-shell';
           if (id.includes('/src/lib/media/')) return 'media-core';
@@ -48,7 +49,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    fileParallelism: false,
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts']
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts']
   }
 });

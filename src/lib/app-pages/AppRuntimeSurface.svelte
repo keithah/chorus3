@@ -6,7 +6,6 @@
   import type { LocalBrowserPlayerDispatch } from '$components/LocalBrowserPlayerRoute.svelte';
   import type { MediaPlaylistsPanelDispatch } from '$components/MediaPlaylistsPanel.svelte';
   import type { MediaPlaylistsActionDispatch } from '$components/mediaPlaylistsActionModel';
-  import type NowPlayingEmbedRoute from '$components/NowPlayingEmbedRoute.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
@@ -22,7 +21,6 @@
     VideoSeasonWriteDispatch
   } from '$components/VideoSeasonDetailShell.svelte';
   import { buildAppRoute, type AppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
-  import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type {
     AppShellCallbacks,
@@ -32,17 +30,18 @@
     AppShellPlayerSnapshot,
     AppShellPlaylistDestinationMode
   } from '$lib/app-shell/appShellTypes';
-  import AppDashboardSurface from '$lib/app-pages/AppDashboardSurface.svelte';
   import AppRuntimeShellFrame from '$lib/app-pages/AppRuntimeShellFrame.svelte';
   import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
-  import AppPageStoreSurface from '$lib/app-pages/AppPageStoreSurface.svelte';
+  import type AppPageStoreSurface from '$lib/app-pages/AppPageStoreSurface.svelte';
   import {
     bindLazyRoute,
+    loadAppDashboardSurface,
+    loadAppPageStoreSurface,
     loadAddonDetailShell,
     loadAddonsPanel,
     loadLocalBrowserPlayerRoute,
     loadMediaPlaylistsPanel,
-    loadNowPlayingEmbedRoute,
+    loadNowPlayingPanel,
     loadSettingsPanel,
     loadVideoEpisodeDetailShell,
     loadVideoMovieDetailShell,
@@ -53,7 +52,9 @@
     loadVideoTvShowsPanel,
     loadVideoTvShowDetailShell
   } from '$lib/app-pages/appPageSurfaceLazyRoutes';
+  import type { LazyRouteComponentProps } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { TranslationContext } from '$lib/i18n';
+  import type { LibraryQuickActionsDispatch } from './LibraryQuickActions.svelte';
   import type {
     AddonsStoreSnapshot,
     LocalPlayerStoreSnapshot,
@@ -63,17 +64,12 @@
     RemoteInputDispatchSnapshot,
     SettingsStoreSnapshot
   } from '$lib/stores';
-  import { videoMediaPlaylistsStore } from '$lib/stores/mediaPlaylists.svelte';
-  import { settingsStore } from '$lib/stores/settingsStore.svelte';
   import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
-  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
-  import { videoMovieDetailStore } from '$lib/stores/videoMovieDetailStore.svelte';
   import type { VideoTvStoreSnapshot } from '$lib/stores/videoTvStore.svelte';
-  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import type { VideoRoute } from '$lib/video/videoRouter';
 
-  type DashboardSurfaceProps = ComponentProps<typeof AppDashboardSurface>;
+  type DashboardSurfaceProps = LazyRouteComponentProps<typeof loadAppDashboardSurface>;
   type PageSurfaceProps = ComponentProps<typeof AppPageStoreSurface>;
 
   interface Props {
@@ -94,6 +90,7 @@
     remoteOverlayOpen: boolean;
     currentRemoteSnapshot: RemoteInputDispatchSnapshot;
     remoteInputDispatch: RemoteInputPanelRemoteDispatch;
+    libraryMaintenanceDispatch: LibraryQuickActionsDispatch;
     currentPlayerSnapshot: PlayerStoreSnapshot;
     playerDispatch: PlayerControlsDispatch;
     remoteOverlayPlayerDispatch: PlayerControlsDispatch;
@@ -101,8 +98,6 @@
     currentQueueSnapshot: QueueStoreSnapshot;
     queueDispatch: QueuePanelDispatch;
     currentLocalSnapshot: LocalPlayerStoreSnapshot;
-    currentNowPlayingHostSummary: ComponentProps<typeof NowPlayingEmbedRoute>['hostSummary'];
-    nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
     localBrowserPlayerActionDispatch: LocalBrowserPlayerDispatch;
     currentHomeContext: Omit<
       DashboardSurfaceProps,
@@ -132,7 +127,7 @@
     isPackageMounted: boolean;
     currentParityPlaceholder: ComponentProps<typeof ParityPlaceholder>['placeholder'] | null;
     currentPackageBasePath: string;
-    currentAddonsSnapshot: AddonsStoreSnapshot;
+    currentAddonsSnapshot?: AddonsStoreSnapshot;
     addonsDispatch: AddonsPanelDispatch;
     addonDetailDispatch: AddonDetailDispatch;
     settingsSnapshot?: SettingsStoreSnapshot;
@@ -148,7 +143,6 @@
     videoEpisodeActionDispatch: VideoEpisodeActionDispatch;
     videoSeasonArtworkDispatch: VideoSeasonArtworkDispatch;
     videoSeasonWriteDispatch: VideoSeasonWriteDispatch;
-    refreshNowPlayingEmbed: () => Promise<void>;
     toggleLocalShuffle: () => Promise<void>;
     toggleAppFullscreen: () => void;
     stopPlaybackFromShell: () => void;
@@ -177,6 +171,7 @@
     remoteOverlayOpen,
     currentRemoteSnapshot,
     remoteInputDispatch,
+    libraryMaintenanceDispatch,
     currentPlayerSnapshot,
     playerDispatch,
     remoteOverlayPlayerDispatch,
@@ -184,8 +179,6 @@
     currentQueueSnapshot,
     queueDispatch,
     currentLocalSnapshot,
-    currentNowPlayingHostSummary,
-    nowPlayingEmbedQuery,
     localBrowserPlayerActionDispatch,
     currentHomeContext,
     musicBrowseDispatch,
@@ -215,7 +208,6 @@
     videoEpisodeActionDispatch,
     videoSeasonArtworkDispatch,
     videoSeasonWriteDispatch,
-    refreshNowPlayingEmbed,
     toggleLocalShuffle,
     toggleAppFullscreen,
     stopPlaybackFromShell,
@@ -242,15 +234,11 @@
     openRemote:
       currentDrawerDestinationMode === 'kodi' ? () => toggleRemoteOverlayFromPlayer() : undefined
   });
-  const currentVideoMediaPlaylistsSnapshot = $derived(
-    videoMediaPlaylistsSnapshot ?? videoMediaPlaylistsStore.snapshot
-  );
-  const currentSettingsSnapshot = $derived(settingsSnapshot ?? settingsStore.snapshot);
-  const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot ?? videoLibraryStore.snapshot);
-  const currentVideoMovieDetailSnapshot = $derived(
-    videoMovieDetailSnapshot ?? videoMovieDetailStore.snapshot
-  );
-  const currentVideoTvSnapshot = $derived(videoTvSnapshot ?? videoTvStore.snapshot);
+  const currentVideoMediaPlaylistsSnapshot = $derived(videoMediaPlaylistsSnapshot);
+  const currentSettingsSnapshot = $derived(settingsSnapshot);
+  const currentVideoLibrarySnapshot = $derived(videoLibrarySnapshot);
+  const currentVideoMovieDetailSnapshot = $derived(videoMovieDetailSnapshot);
+  const currentVideoTvSnapshot = $derived(videoTvSnapshot);
 
   const shellCallbacks = $derived({
     ...playlistDrawerCallbacks,
@@ -284,19 +272,7 @@
   const isVideoUnknownRoute = $derived(currentVideoRoute?.kind === 'videoUnknown');
 </script>
 
-{#if isNowPlayingRoute}
-  <LazyRouteComponent
-    route={bindLazyRoute(loadNowPlayingEmbedRoute, {
-      snapshot: currentPlayerSnapshot,
-      dispatch: playerDispatch,
-      localPlayerSnapshot: currentLocalSnapshot,
-      hostSummary: currentNowPlayingHostSummary,
-      query: nowPlayingEmbedQuery,
-      i18n: currentI18n,
-      onRefresh: refreshNowPlayingEmbed
-    })}
-  />
-{:else if isLocalPlayerRoute && currentRoute.kind === 'localPlayer'}
+{#if isLocalPlayerRoute && currentRoute.kind === 'localPlayer'}
   <LazyRouteComponent
     route={bindLazyRoute(loadLocalBrowserPlayerRoute, {
       route: currentRoute,
@@ -328,7 +304,9 @@
     {queueDispatch}
     {handleLocalMediaEnded}
   >
-    <AppPageStoreSurface {...currentAppPageSurfaceProps} />
+    <LazyRouteComponent
+      route={bindLazyRoute(loadAppPageStoreSurface, currentAppPageSurfaceProps)}
+    />
   </AppRuntimeShellFrame>
 {:else}
   <AppRuntimeShellFrame
@@ -353,24 +331,38 @@
     {queueDispatch}
     {handleLocalMediaEnded}
   >
-    {#if isDashboardRoute}
+    {#if isNowPlayingRoute}
+      <main class="now-playing-route" aria-label={currentI18n.t('nowPlaying.kicker')}>
+        <LazyRouteComponent
+          route={bindLazyRoute(loadNowPlayingPanel, {
+            snapshot: currentPlayerSnapshot,
+            dispatch: playerDispatch,
+            localPlayerSnapshot: currentLocalSnapshot,
+            i18n: currentI18n
+          })}
+        />
+      </main>
+    {:else if isDashboardRoute}
       {#if !isPackageMounted}
-        <AppDashboardSurface
-          {...currentHomeContext}
-          {musicBrowseDispatch}
-          {musicActionDispatch}
-          {mediaSearchDispatch}
-          {mediaSearchActionDispatch}
-          {mediaFilesDispatch}
-          {mediaFilesActionDispatch}
-          {mediaPlaylistsDispatch}
-          {mediaPlaylistsActionDispatch}
-          playerSnapshot={currentPlayerSnapshot}
-          {playerDispatch}
-          localPlayerSnapshot={currentLocalSnapshot}
-          queueSnapshot={currentQueueSnapshot}
-          {queueDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadAppDashboardSurface, {
+            ...currentHomeContext,
+            musicBrowseDispatch,
+            musicActionDispatch,
+            mediaSearchDispatch,
+            mediaSearchActionDispatch,
+            mediaFilesDispatch,
+            mediaFilesActionDispatch,
+            mediaPlaylistsDispatch,
+            mediaPlaylistsActionDispatch,
+            playerSnapshot: currentPlayerSnapshot,
+            playerDispatch,
+            localPlayerSnapshot: currentLocalSnapshot,
+            queueSnapshot: currentQueueSnapshot,
+            queueDispatch,
+            libraryMaintenanceDispatch,
+            i18n: currentI18n
+          })}
         />
       {/if}
     {:else if currentParityPlaceholder}

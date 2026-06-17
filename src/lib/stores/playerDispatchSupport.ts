@@ -4,6 +4,7 @@ import {
   type PlayerRepeatValue,
   type PlayerSeekStep
 } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 import type {
   PlayerDispatchErrorSource,
   PlayerDispatchSafeErrorSnapshot,
@@ -182,15 +183,5 @@ function isErrorWithCode(error: Error): error is Error & { code: string } {
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-    .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-file')
-    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]')
-    .replace(/localStorage/gi, 'browser storage');
+  return redactStoreErrorMessage(message);
 }

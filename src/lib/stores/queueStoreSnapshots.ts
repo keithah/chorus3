@@ -1,4 +1,5 @@
 import { KodiHttpClientError, isKodiHttpClientError } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 import type { PlayerStoreSnapshot } from './player.svelte.ts';
 import type {
   QueueItemSnapshot,
@@ -37,7 +38,14 @@ export function normalizeItems(items: unknown): QueueItemSnapshot[] {
     return [];
   }
 
-  return items.filter(isRecord).map((item, index) => normalizeItem(item, index));
+  const normalized: QueueItemSnapshot[] = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (isRecord(item)) {
+      normalized.push(normalizeItem(item, index));
+    }
+  }
+  return normalized;
 }
 
 function normalizeItem(item: Record<string, unknown>, index: number): QueueItemSnapshot {
@@ -65,7 +73,14 @@ export function normalizePlayableItems(items: unknown): QueuePlayableItemSnapsho
     return [];
   }
 
-  return items.filter(isRecord).flatMap((item, index) => normalizePlayableItem(item, index));
+  const normalized: QueuePlayableItemSnapshot[] = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    if (isRecord(item)) {
+      normalized.push(...normalizePlayableItem(item, index));
+    }
+  }
+  return normalized;
 }
 
 function normalizePlayableItem(
@@ -93,7 +108,7 @@ function normalizePlayableItem(
 }
 
 export function normalizeLimits(limits: unknown, items: unknown): QueueLimitsSnapshot {
-  const fallbackTotal = Array.isArray(items) ? items.filter(isRecord).length : 0;
+  const fallbackTotal = countRecords(items);
 
   if (!isRecord(limits)) {
     return { start: 0, end: fallbackTotal, total: fallbackTotal };
@@ -104,6 +119,16 @@ export function normalizeLimits(limits: unknown, items: unknown): QueueLimitsSna
   const total = finiteNumberOr(limits.total, fallbackTotal);
 
   return { start, end, total };
+}
+
+function countRecords(items: unknown): number {
+  if (!Array.isArray(items)) return 0;
+
+  let count = 0;
+  for (const item of items) {
+    if (isRecord(item)) count += 1;
+  }
+  return count;
 }
 
 export function createSafeError(error: unknown): QueueSafeErrorSnapshot {
@@ -134,16 +159,7 @@ export function createSafeError(error: unknown): QueueSafeErrorSnapshot {
 }
 
 export function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/https?:\/\/[^\s/@:]+:[^\s/@]+@/gi, 'http://credentials@')
-    .replace(/smb:\/\/[^\s]+/gi, 'redacted-file')
-    .replace(/localStorage/gi, 'browser storage')
-    .replace(/password/gi, 'credentials');
+  return redactStoreErrorMessage(message);
 }
 
 export function cloneQueueStoreSnapshot(snapshot: QueueStoreSnapshot): QueueStoreSnapshot {

@@ -15,6 +15,7 @@ import {
   type PlayerPropertiesResult,
   type PlayerPropertyName
 } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 import {
   isPlayerStateRefreshNotification,
   isQueueRefreshNotification
@@ -477,7 +478,7 @@ function createSafeError(error: unknown): PlayerSafeErrorSnapshot {
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message.replace(/username or password/gi, 'credentials');
+  return redactStoreErrorMessage(message);
 }
 
 function cloneSnapshot(snapshot: PlayerStoreSnapshot): PlayerStoreSnapshot {

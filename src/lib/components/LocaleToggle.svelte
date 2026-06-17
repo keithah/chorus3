@@ -26,6 +26,8 @@
 <label class="locale-toggle">
   <span>{i18n.t('app.locale.switchLabel')}</span>
   <select
+    id="chorus-locale-toggle"
+    name="chorus-locale"
     aria-label={i18n.t('app.locale.switchLabel')}
     value={locale}
     onchange={handleLocaleChange}

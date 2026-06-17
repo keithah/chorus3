@@ -1,5 +1,6 @@
 import type { KodiJsonRpcHttpClient } from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
+import { callOrderedBatch } from './kodiBatch';
 
 export interface EpisodeCollectionActionRequest {
   tvshowid: number;
@@ -102,17 +103,11 @@ async function addEpisodesToPlaylist(
     return;
   }
 
-  if (client.callBatch) {
-    await client.callBatch(
-      episodeIds.map((episodeid) => ({
-        method: 'Playlist.Add',
-        params: { playlistid: 1, item: { episodeid } }
-      }))
-    );
-    return;
-  }
-
-  for (const episodeid of episodeIds) {
-    await client.call('Playlist.Add', { playlistid: 1, item: { episodeid } });
-  }
+  await callOrderedBatch(
+    client,
+    episodeIds.map((episodeid) => ({
+      method: 'Playlist.Add',
+      params: { playlistid: 1, item: { episodeid } }
+    }))
+  );
 }

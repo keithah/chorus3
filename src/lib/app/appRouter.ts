@@ -14,7 +14,7 @@ import {
   normalizePathnameInput,
   normalizeSearch,
   parseSafeIntegerSegment
-} from './appRoutePathSafety';
+} from '$lib/routing/pathSafety';
 
 import type {
   AppRoute,

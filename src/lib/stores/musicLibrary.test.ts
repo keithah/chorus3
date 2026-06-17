@@ -621,7 +621,9 @@ describe('music library store', () => {
     });
     expectSecretSafe(firstSnapshot);
 
-    firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    expect(() => {
+      firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    }).toThrow(TypeError);
     expect(store.snapshot.lastError!.endpoint!.host).toBe('kodi.local');
   });
 
@@ -674,21 +676,41 @@ describe('music library store', () => {
     });
   });
 
-  it('returns cloned snapshots so callers cannot mutate store internals', async () => {
+  it('returns frozen cached snapshots so callers cannot mutate store internals', async () => {
     const { client, store } = createHarness();
     enqueueSuccessfulLibrary(client);
     await store.refresh('manual');
 
     const snapshot = store.snapshot;
-    snapshot.artists[0].label = 'Mutated artist';
-    snapshot.artists[0].genre!.push('Mutated genre');
-    snapshot.albums[0].artist!.push('Mutated album artist');
-    snapshot.songs[0].artist!.push('Mutated song artist');
-    snapshot.recentlyAddedSongs[0].label = 'Mutated recent';
-    snapshot.recentlyPlayedSongs[0].label = 'Mutated played';
-    snapshot.mostPlayedSongs[0].label = 'Mutated top';
-    snapshot.limits.artists.total = 999;
-    snapshot.limits.recentlyAddedSongs.total = 999;
+    expect(store.snapshot).toBe(snapshot);
+    expect(Object.isFrozen(snapshot.artists[0])).toBe(true);
+    expect(() => {
+      snapshot.artists[0].label = 'Mutated artist';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.artists[0].genre!.push('Mutated genre');
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.albums[0].artist!.push('Mutated album artist');
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.songs[0].artist!.push('Mutated song artist');
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.recentlyAddedSongs[0].label = 'Mutated recent';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.recentlyPlayedSongs[0].label = 'Mutated played';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.mostPlayedSongs[0].label = 'Mutated top';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.limits.artists.total = 999;
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.limits.recentlyAddedSongs.total = 999;
+    }).toThrow(TypeError);
 
     expect(store.snapshot.artists[0]).toEqual({
       artistid: 1,

@@ -45,8 +45,8 @@ describe('GitHub workflow verification', () => {
     expectWorkflowToUseNode22(workflow);
     expect(workflow).toContain('run: npm ci');
     expect(workflow).toContain('run: npm run verify');
-    expect(workflow).toContain('run: npm run package:kodi');
-    expect(workflow).toContain('run: npm run verify:kodi-package');
+    expect(workflow).not.toContain('run: npm run package:kodi');
+    expect(workflow).not.toContain('run: npm run verify:kodi-package');
     expect(workflow).toContain('uses: actions/upload-artifact@v4');
     expect(workflow).toContain(`path: ${KODI_ZIP_GLOB}`);
     expect(workflow).toContain('if-no-files-found: error');

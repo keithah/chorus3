@@ -7,8 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   KODI_WEBINTERFACE_BASE_PATH,
   buildPrimaryAppRoute,
-  parseAppRoute
+  parseAppRoute,
+  type AppRoute
 } from '../../src/lib/app/appRouter';
+import { createM007VisualProofAppProps } from '../../src/lib/testing/m007VisualProofFixtures';
 import { getKodiPackageRouteFallbacks } from '../../scripts/kodi-package-route-contract.mjs';
 import {
   DEFAULT_PACKAGE_ROOT,
@@ -19,6 +21,8 @@ import {
 } from '../../scripts/verify-kodi-package.mjs';
 
 const testRoots: string[] = [];
+const SECRET_SEARCH =
+  '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage';
 
 function createFixture(files: Record<string, string>): string {
   const root = join(tmpdir(), `chorus3-kodi-verify-${randomUUID()}`);
@@ -61,6 +65,28 @@ function fallbackFiles(html = validPackageHtml()): Record<string, string> {
       html
     ])
   );
+}
+
+function fallbackByName(name: string) {
+  const fallback = getKodiPackageRouteFallbacks().find((entry) => entry.name === name);
+
+  if (!fallback) {
+    throw new Error(`Missing package route fallback fixture ${name}.`);
+  }
+
+  return fallback;
+}
+
+function fallbackStagePath(name: string): string {
+  return fallbackByName(name).stagedIndexPath;
+}
+
+function stagedFallbackFile(name: string): string {
+  return `dist/kodi/${DEFAULT_PACKAGE_ROOT}/${fallbackStagePath(name)}`;
+}
+
+function zippedFallbackFile(name: string): string {
+  return `${DEFAULT_PACKAGE_ROOT}/${fallbackStagePath(name)}`;
 }
 
 function validPackageHtml() {
@@ -113,6 +139,18 @@ function validZipEntries(extra: string[] = []) {
     ),
     ...extra
   ];
+}
+
+function comparableRoute(route: AppRoute): AppRoute {
+  return route.kind === 'dashboard' ? { kind: 'primary', route: { kind: 'home' } } : route;
+}
+
+function parsePackageFallbackRoute(routePath: string): AppRoute {
+  return comparableRoute(
+    parseAppRoute(routePath, SECRET_SEARCH, {
+      packageBasePath: KODI_WEBINTERFACE_BASE_PATH
+    })
+  );
 }
 
 afterEach(() => {
@@ -191,13 +229,13 @@ describe('Kodi package structural verification', () => {
 
   it('rejects missing nested route fallback files with route-specific diagnostics', async () => {
     const root = createFixture(baseFiles());
-    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`));
+    rmSync(join(root, stagedFallbackFile('settings-kodi-interface')));
 
     const result = await validateKodiPackage({ root, zipEntries: validZipEntries() });
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html is missing from staged package.'
+      `[route-fallback] settings-kodi-interface ${stagedFallbackFile('settings-kodi-interface')} is missing from staged package.`
     );
   });
 
@@ -206,21 +244,19 @@ describe('Kodi package structural verification', () => {
 
     const result = await validateKodiPackage({
       root,
-      zipEntries: validZipEntries().filter(
-        (entry) => entry !== `${DEFAULT_PACKAGE_ROOT}/help/keyboard/index.html`
-      )
+      zipEntries: validZipEntries().filter((entry) => entry !== zippedFallbackFile('help-keyboard'))
     });
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] help-keyboard webinterface.chorus3/help/keyboard/index.html is missing from zip.'
+      `[route-fallback] help-keyboard ${zippedFallbackFile('help-keyboard')} is missing from zip.`
     );
   });
 
   it('rejects route fallback HTML with missing or reordered base resolver before assets', async () => {
     const root = createFixture(
       baseFiles({
-        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`]: [
+        [stagedFallbackFile('settings-kodi-interface')]: [
           '<!doctype html><html><head>',
           '<meta name="chorus3:kodi-webinterface" content="webinterface.chorus3">',
           '<script type="module" src="./assets/app.js"></script>',
@@ -234,14 +270,14 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html places the Kodi package base resolver after asset tags.'
+      `[route-fallback] settings-kodi-interface ${stagedFallbackFile('settings-kodi-interface')} places the Kodi package base resolver after asset tags.`
     );
   });
 
   it('rejects static root-absolute asset references in route fallback HTML without echoing raw paths', async () => {
     const root = createFixture(
       baseFiles({
-        [`dist/kodi/${DEFAULT_PACKAGE_ROOT}/help/keyboard/index.html`]: validPackageHtml().replace(
+        [stagedFallbackFile('help-keyboard')]: validPackageHtml().replace(
           './assets/app.js',
           '/assets/app.js?token=secret-value'
         )
@@ -252,31 +288,31 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] help-keyboard dist/kodi/webinterface.chorus3/help/keyboard/index.html must not reference root-absolute /assets URLs.'
+      `[route-fallback] help-keyboard ${stagedFallbackFile('help-keyboard')} must not reference root-absolute /assets URLs.`
     );
     expect(result.lines.join('\n')).not.toContain('secret-value');
   });
 
   it('keeps high-risk now-playing and settings route fallbacks mechanically checked', async () => {
     const root = createFixture(baseFiles());
-    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`));
-    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`));
+    rmSync(join(root, stagedFallbackFile('now-playing')));
+    rmSync(join(root, stagedFallbackFile('settings-kodi-interface')));
 
     const result = await validateKodiPackage({
       root,
       zipEntries: validZipEntries().filter(
         (entry) =>
-          entry !== `${DEFAULT_PACKAGE_ROOT}/now-playing/index.html` &&
-          entry !== `${DEFAULT_PACKAGE_ROOT}/settings/kodi/interface/index.html`
+          entry !== zippedFallbackFile('now-playing') &&
+          entry !== zippedFallbackFile('settings-kodi-interface')
       )
     });
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] now-playing dist/kodi/webinterface.chorus3/now-playing/index.html is missing from staged package.'
+      `[route-fallback] now-playing ${stagedFallbackFile('now-playing')} is missing from staged package.`
     );
     expect(result.lines.join('\n')).toContain(
-      '[route-fallback] settings-kodi-interface dist/kodi/webinterface.chorus3/settings/kodi/interface/index.html is missing from staged package.'
+      `[route-fallback] settings-kodi-interface ${stagedFallbackFile('settings-kodi-interface')} is missing from staged package.`
     );
   });
 
@@ -459,7 +495,7 @@ describe('Kodi package structural verification', () => {
 
   it('rejects missing now-playing package output and missing route support', async () => {
     const root = createFixture(baseFiles());
-    rmSync(join(root, `dist/kodi/${DEFAULT_PACKAGE_ROOT}/now-playing/index.html`));
+    rmSync(join(root, stagedFallbackFile('now-playing')));
 
     const result = await validateKodiPackage({
       root,
@@ -469,7 +505,7 @@ describe('Kodi package structural verification', () => {
 
     expect(result.ok).toBe(false);
     expect(result.lines.join('\n')).toContain(
-      '[now-playing] webinterface.chorus3/now-playing/index.html is missing from zip'
+      `[now-playing] ${zippedFallbackFile('now-playing')} is missing from zip`
     );
     expect(result.lines.join('\n')).toContain(
       '[route] now-playing-package /addons/webinterface.chorus3/now-playing must resolve to nowPlaying; got addonDetail.'
@@ -514,6 +550,33 @@ describe('Kodi package structural verification', () => {
 
     expect(buildPrimaryAppRoute({ kind: 'browser' })).toBe('/browser');
     expect(buildPrimaryAppRoute({ kind: 'browser' })).not.toBe('/lab/api-browser');
+  });
+
+  it('keeps visual proof fixtures aligned with every packaged fallback route', () => {
+    for (const fallback of getKodiPackageRouteFallbacks()) {
+      if (fallback.routePath === '/now-playing') {
+        continue;
+      }
+
+      const props = createM007VisualProofAppProps({
+        pathname: fallback.routePath,
+        search: SECRET_SEARCH
+      });
+
+      expect(props.route, fallback.name).toEqual(parsePackageFallbackRoute(fallback.routePath));
+    }
+  });
+
+  it('keeps every packaged fallback route parseable by the real app route parser', () => {
+    for (const fallback of getKodiPackageRouteFallbacks()) {
+      const actual = parsePackageFallbackRoute(fallback.routePath);
+
+      if (fallback.routePath === '/now-playing') {
+        expect(actual, fallback.name).toEqual({ kind: 'nowPlaying' });
+      } else {
+        expect(actual, fallback.name).toMatchObject({ kind: 'primary' });
+      }
+    }
   });
 
   it('names route-specific expected and actual identities when a packaged route resolves incorrectly', () => {

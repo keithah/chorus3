@@ -3,10 +3,8 @@
 
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import AppRuntimeSurface from '$lib/app-pages/AppRuntimeSurface.svelte';
-  import { addonsStore } from '$lib/stores/addonsStore.svelte';
   import { configStore } from '$lib/stores/config.svelte';
   import { connectionStore } from '$lib/stores/connection.svelte';
-  import { hostConnectionStore } from '$lib/stores/hostConnection.svelte';
   import { localPlayerStore } from '$lib/stores/localPlayer.svelte';
   import { localPlaylistStore } from '$lib/stores/localPlaylist.svelte';
   import { localeStore } from '$lib/stores/locale.svelte';
@@ -18,12 +16,11 @@
     type QueuePlayableItemSnapshot
   } from '$lib/stores/queue.svelte';
   import { remoteInputDispatch as defaultRemoteInputDispatch } from '$lib/stores/remoteInputDispatch.svelte';
-  import { thumbsUpStore } from '$lib/stores/thumbsUp.svelte';
+  import { libraryMaintenanceDispatch as defaultLibraryMaintenanceDispatch } from '$lib/stores/libraryMaintenanceDispatch.svelte';
   import {
     connectionDescription,
     connectionStatusText,
     connectionTone,
-    createActiveHostSummary,
     toAppShellLocalPlayerSnapshot,
     toAppShellPlayerSnapshot
   } from '$lib/app/appShellAdapters';
@@ -61,8 +58,6 @@
   } from '$lib/app/appPackageHost';
   import { refreshAppVideoDetailRoute } from '$lib/app/appVideoDetailRefresh';
   import { mainNavStore } from '$lib/stores/mainNav.svelte';
-  import { videoMovieDetailStore } from '$lib/stores/videoMovieDetailStore.svelte';
-  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import {
     buildAppRoute,
     createKodiPackageRouteBuildOptions,
@@ -71,9 +66,9 @@
     type AppRoute
   } from '$lib/app/appRouter';
   import { createAppNavigationItems } from '$lib/app-shell/appNavigation';
-  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import type { LocalPlaylistPageActions } from '$lib/app-pages/PlaylistsPage.svelte';
   import { getAppPageMetadata } from '$lib/app-pages/appPageMetadata';
+  import { appRouteStores } from '$lib/app/appRouteStores';
   import type {
     AppShellCallbacks,
     AppShellDrawerState,
@@ -102,6 +97,7 @@
     playerDispatch = defaultPlayerDispatch,
     remoteSnapshot,
     remoteInputDispatch = defaultRemoteInputDispatch,
+    libraryMaintenanceDispatch = defaultLibraryMaintenanceDispatch,
     localPlayerSnapshot,
     localPlaylistSnapshot,
     localPlaylistDispatch = localPlaylistStore,
@@ -138,9 +134,6 @@
     addonsSnapshot,
     addonsDispatch = appDefaultDispatches.addonsDispatch,
     addonDetailDispatch = appDefaultDispatches.addonDetailDispatch,
-    nowPlayingEmbedQuery,
-    nowPlayingHostSummary,
-    nowPlayingRefreshDispatch,
     localBrowserPlayerActionDispatch = appDefaultDispatches.localBrowserPlayerActionDispatch,
     packageMountedHost = null,
     packageBasePath = '',
@@ -172,6 +165,7 @@
   const currentRenderableVideoRoute = $derived(currentVideoRoute ?? dashboardVideoRoute);
   const currentPlayerSnapshot = $derived(playerSnapshot ?? playerStore.snapshot);
   const currentRemoteSnapshot = $derived(remoteSnapshot ?? remoteInputDispatch.snapshot);
+  const currentLibraryMaintenanceSnapshot = $derived(libraryMaintenanceDispatch.snapshot);
   const currentLocalSnapshot = $derived(localPlayerSnapshot ?? localPlayerStore.snapshot);
   const currentLocalPlaylistSnapshot = $derived(
     localPlaylistSnapshot ?? localPlaylistStore.snapshot
@@ -180,14 +174,6 @@
   const currentLocaleSnapshot = $derived(localeSnapshot ?? localeStore.snapshot);
   const runtimeTranslationState = createRuntimeTranslationState(() => currentLocaleSnapshot.locale);
   const currentI18n = $derived(runtimeTranslationState.context);
-  const currentAddonsSnapshot = $derived(addonsSnapshot ?? addonsStore.snapshot);
-  const currentNowPlayingHostSummary = $derived(
-    nowPlayingHostSummary === undefined
-      ? packageMountedHost
-        ? createActiveHostSummary(packageMountedHost)
-        : hostConnectionStore.snapshot.activeHostSummary
-      : nowPlayingHostSummary
-  );
   const currentActiveKodiHost = $derived(configStore.activeHost);
   const isPackageMounted = $derived(packageMountedHost !== null);
   const currentPackageBasePath = $derived(
@@ -272,7 +258,9 @@
     clear: getPlaylistClearDisabledReason(),
     refresh: getPlaylistRefreshDisabledReason(),
     partyMode: getPlaylistPartyModeDisabledReason(),
-    saveKodiPlaylist: getSaveKodiPlaylistDisabledReason()
+    saveKodiPlaylist: getSaveKodiPlaylistDisabledReason(),
+    scanVideoLibrary: getLibraryMaintenanceDisabledReason(),
+    scanAudioLibrary: getLibraryMaintenanceDisabledReason()
   });
   const currentPlaylistDrawer = $derived<AppShellDrawerState>({
     label: 'Current playlist',
@@ -360,6 +348,7 @@
     playerDispatch,
     remoteSnapshot: currentRemoteSnapshot,
     remoteInputDispatch,
+    libraryMaintenanceDispatch,
     localPlayerSnapshot: currentLocalSnapshot,
     localPlaylistSnapshot: currentLocalPlaylistSnapshot,
     localPlaylistDispatch,
@@ -385,11 +374,10 @@
     pvrSnapshot,
     pvrDispatch: appDefaultDispatches.pvrDispatch,
     thumbsUpSnapshot,
-    thumbsUpDispatch: thumbsUpStore,
     videoLibrarySnapshot,
     settingsSnapshot,
     settingsDispatch,
-    addonsSnapshot: currentAddonsSnapshot,
+    addonsSnapshot,
     addonsDispatch,
     addonDetailDispatch,
     videoMovieDetailSnapshot,
@@ -439,21 +427,30 @@
     }
 
     const detailLoadKey = `${activeHostId}:${addonid}`;
-    if (
-      currentAddonsSnapshot.detailStatus === 'success' &&
-      currentAddonsSnapshot.detail?.addonid === addonid
-    ) {
-      lastAddonDetailAutoloadKey = detailLoadKey;
-      return;
-    }
-
     if (detailLoadKey === lastAddonDetailAutoloadKey) {
       return;
     }
 
     lastAddonDetailAutoloadKey = detailLoadKey;
-    void addonsStore.loadAddonDetail(addonid);
+    void loadAddonDetailIfNeeded(addonid, detailLoadKey);
   });
+
+  async function loadAddonDetailIfNeeded(addonid: string, expectedLoadKey: string): Promise<void> {
+    const addonsStore = await appRouteStores.addons();
+
+    if (expectedLoadKey !== lastAddonDetailAutoloadKey) {
+      return;
+    }
+
+    if (
+      addonsStore.snapshot.detailStatus === 'success' &&
+      addonsStore.snapshot.detail?.addonid === addonid
+    ) {
+      return;
+    }
+
+    await addonsStore.loadAddonDetail(addonid);
+  }
 
   async function refreshCurrentVideoDetailRoute(
     videoRoute: VideoRoute,
@@ -466,8 +463,8 @@
       hasInjectedVideoMovieDetailSnapshot: videoMovieDetailSnapshot !== undefined,
       hasInjectedVideoLibrarySnapshot: videoLibrarySnapshot !== undefined,
       currentRefreshKey: () => videoDetailRefreshKey(currentVideoRoute, currentActiveKodiHost),
-      movieDetailStore: videoMovieDetailStore,
-      tvStore: videoTvStore
+      movieDetailStore: await appRouteStores.videoMovieDetail(),
+      tvStore: await appRouteStores.videoTv()
     });
   }
 
@@ -595,15 +592,6 @@
     };
   });
 
-  async function refreshNowPlayingEmbed(): Promise<void> {
-    if (nowPlayingRefreshDispatch) {
-      await nowPlayingRefreshDispatch();
-      return;
-    }
-
-    await playerStore.refresh('manual');
-  }
-
   async function handlePlaylistDestinationModeChange(
     mode: AppShellPlaylistDestinationMode
   ): Promise<void> {
@@ -682,6 +670,24 @@
       }
 
       await localPlaylistDispatch.addItems(playlistId, items);
+      return;
+    }
+
+    if (action === 'scanVideoLibrary') {
+      if (getLibraryMaintenanceDisabledReason()) {
+        return;
+      }
+
+      await libraryMaintenanceDispatch.scanVideo();
+      return;
+    }
+
+    if (action === 'scanAudioLibrary') {
+      if (getLibraryMaintenanceDisabledReason()) {
+        return;
+      }
+
+      await libraryMaintenanceDispatch.scanAudio();
     }
   }
 
@@ -701,6 +707,12 @@
     return saveKodiPlaylistDisabledReason(playlistDisabledReasonContext);
   }
 
+  function getLibraryMaintenanceDisabledReason(): string | undefined {
+    return currentLibraryMaintenanceSnapshot.commandStatus === 'running'
+      ? 'Library maintenance command is already running.'
+      : undefined;
+  }
+
   const toggleAppFullscreen = (): void => toggleDocumentFullscreen(document);
 
   function currentAddonId(): string | null {
@@ -718,6 +730,7 @@
       return;
     }
 
+    const addonsStore = await appRouteStores.addons();
     await addonsStore.loadAddonDetail(addonid);
   }
 
@@ -765,14 +778,16 @@
 
   async function refreshAfterMovieWrite(movieid: number): Promise<void> {
     await bestEffortRefresh([
-      () => videoLibraryStore.refresh('command:videoWrite'),
-      () => videoMovieDetailStore.refreshMovieDetail(movieid, 'command:videoWrite')
+      async () => (await appRouteStores.videoLibrary()).refresh('command:videoWrite'),
+      async () =>
+        (await appRouteStores.videoMovieDetail()).refreshMovieDetail(movieid, 'command:videoWrite')
     ]);
   }
 
   async function refreshAfterEpisodeWrite(episodeid: number): Promise<void> {
     await bestEffortRefresh([
-      () => videoTvStore.refreshEpisodeDetail(episodeid, 'command:videoWrite')
+      async () =>
+        (await appRouteStores.videoTv()).refreshEpisodeDetail(episodeid, 'command:videoWrite')
     ]);
   }
 
@@ -782,8 +797,8 @@
     }
 
     await bestEffortRefresh([
-      () =>
-        videoTvStore.refreshSeasonEpisodes(
+      async () =>
+        (await appRouteStores.videoTv()).refreshSeasonEpisodes(
           currentVideoRoute.tvshowid,
           currentVideoRoute.season,
           'command:videoWrite'
@@ -841,6 +856,7 @@
   {remoteOverlayOpen}
   {currentRemoteSnapshot}
   {remoteInputDispatch}
+  {libraryMaintenanceDispatch}
   {currentPlayerSnapshot}
   {playerDispatch}
   {remoteOverlayPlayerDispatch}
@@ -848,8 +864,6 @@
   {currentQueueSnapshot}
   {queueDispatch}
   {currentLocalSnapshot}
-  {currentNowPlayingHostSummary}
-  {nowPlayingEmbedQuery}
   {localBrowserPlayerActionDispatch}
   {currentHomeContext}
   {musicBrowseDispatch}
@@ -863,7 +877,7 @@
   {isPackageMounted}
   {currentParityPlaceholder}
   {currentPackageBasePath}
-  {currentAddonsSnapshot}
+  currentAddonsSnapshot={addonsSnapshot}
   {addonsDispatch}
   {addonDetailDispatch}
   {settingsSnapshot}
@@ -879,7 +893,6 @@
   {videoEpisodeActionDispatch}
   {videoSeasonArtworkDispatch}
   {videoSeasonWriteDispatch}
-  {refreshNowPlayingEmbed}
   {toggleLocalShuffle}
   {toggleAppFullscreen}
   {stopPlaybackFromShell}

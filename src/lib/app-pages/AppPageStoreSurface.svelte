@@ -25,6 +25,7 @@
     | 'mediaPlaylistsSnapshot'
     | 'pvrSnapshot'
     | 'thumbsUpSnapshot'
+    | 'thumbsUpDispatch'
     | 'videoLibrarySnapshot'
     | 'settingsSnapshot'
     | 'addonsSnapshot'
@@ -55,6 +56,7 @@
     localPlaylistActions,
     queueSnapshot,
     queueDispatch,
+    libraryMaintenanceDispatch,
     musicLibrarySnapshot: injectedMusicLibrarySnapshot,
     musicBrowseSnapshot: injectedMusicBrowseSnapshot,
     musicBrowseDispatch,
@@ -74,7 +76,7 @@
     pvrSnapshot: injectedPvrSnapshot,
     pvrDispatch,
     thumbsUpSnapshot: injectedThumbsUpSnapshot,
-    thumbsUpDispatch,
+    thumbsUpDispatch: injectedThumbsUpDispatch,
     videoLibrarySnapshot: injectedVideoLibrarySnapshot,
     settingsSnapshot: injectedSettingsSnapshot,
     settingsDispatch,
@@ -102,6 +104,7 @@
   );
   const pvrSnapshot = $derived(injectedPvrSnapshot ?? pvrStore.snapshot);
   const thumbsUpSnapshot = $derived(injectedThumbsUpSnapshot ?? thumbsUpStore.snapshot);
+  const thumbsUpDispatch = $derived(injectedThumbsUpDispatch ?? thumbsUpStore);
   const videoLibrarySnapshot = $derived(injectedVideoLibrarySnapshot ?? videoLibraryStore.snapshot);
   const settingsSnapshot = $derived(injectedSettingsSnapshot ?? settingsStore.snapshot);
   const addonsSnapshot = $derived(injectedAddonsSnapshot ?? addonsStore.snapshot);
@@ -132,6 +135,7 @@
   {localPlaylistActions}
   {queueSnapshot}
   {queueDispatch}
+  {libraryMaintenanceDispatch}
   {musicLibrarySnapshot}
   {musicBrowseSnapshot}
   {musicBrowseDispatch}

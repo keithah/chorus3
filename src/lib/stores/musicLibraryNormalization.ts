@@ -4,6 +4,7 @@ import {
   type KodiEndpointDescription,
   type KodiLimits
 } from '$lib/kodi';
+import { redactStoreErrorMessage } from '$lib/safety/redaction';
 
 export type MusicLibraryRefreshStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type MusicLibraryRefreshReason =
@@ -372,18 +373,7 @@ function normalizeRecordList(items: unknown): Record<string, unknown>[] {
 }
 
 function sanitizeErrorMessage(message: string): string {
-  return message
-    .replace(/raw response body/gi, 'response body [redacted]')
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, 'redacted-url')
-    .replace(/authorization\s*:\s*basic\s+[^\s,]+/gi, 'credentials [redacted]')
-    .replace(/authorization\s+basic\s+[^\s,]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/smb:\/\/[^\s,]+/gi, 'redacted-path')
-    .replace(/localStorage/gi, 'browser storage')
-    .replace(/p@ssword/gi, 'credentials')
-    .replace(/password/gi, 'credentials');
+  return redactStoreErrorMessage(message);
 }
 
 function finiteId(value: unknown): number | null {

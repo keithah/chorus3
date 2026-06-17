@@ -16,6 +16,9 @@
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import QueuePanel, { type QueuePanelDispatch } from '$components/QueuePanel.svelte';
   import type { BuildAppRouteOptions } from '$lib/app/appRouter';
+  import LibraryQuickActions, {
+    type LibraryQuickActionsDispatch
+  } from './LibraryQuickActions.svelte';
   import LazyViewportRouteComponent from '$lib/app-pages/LazyViewportRouteComponent.svelte';
   import {
     bindLazyRoute,
@@ -57,6 +60,7 @@
     localPlayerSnapshot: LocalPlayerStoreSnapshot;
     queueSnapshot: QueueStoreSnapshot;
     queueDispatch: QueuePanelDispatch;
+    libraryMaintenanceDispatch: LibraryQuickActionsDispatch;
     i18n: TranslationContext;
     buildOptions?: BuildAppRouteOptions;
   }
@@ -80,11 +84,13 @@
     localPlayerSnapshot,
     queueSnapshot,
     queueDispatch,
+    libraryMaintenanceDispatch,
     i18n,
     buildOptions
   }: Props = $props();
 </script>
 
+<LibraryQuickActions dispatch={libraryMaintenanceDispatch} />
 <LazyViewportRouteComponent
   minHeight="44rem"
   route={bindLazyRoute(loadMusicLibraryPanel, {

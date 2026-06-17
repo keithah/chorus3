@@ -1,6 +1,4 @@
-<script lang="ts">
-  import { onMount } from 'svelte';
-
+<script module lang="ts">
   type IconDictionary = Record<string, string>;
 
   interface IconEntry {
@@ -8,26 +6,34 @@
     label: string;
   }
 
-  let materialIconEntries = $state<IconEntry[]>([]);
-  let customIconEntries = $state<IconEntry[]>([]);
-  let iconStatus = $state<'loading' | 'ready' | 'error'>('loading');
+  interface IconCatalogs {
+    material: IconEntry[];
+    custom: IconEntry[];
+  }
 
-  onMount(() => {
-    void loadIconCatalogs();
-  });
+  let iconCatalogPromise: Promise<IconCatalogs> | null = null;
 
-  async function loadIconCatalogs(): Promise<void> {
+  async function loadIconCatalogs(): Promise<IconCatalogs | null> {
+    iconCatalogPromise ??= loadIconCatalogModules();
+
     try {
-      const [materialIcons, customIcons] = await Promise.all([
-        import('$lib/assets/classic/icons/mdi.json'),
-        import('$lib/assets/classic/icons/icomoon.json')
-      ]);
-      materialIconEntries = toIconEntries(materialIcons.default as IconDictionary);
-      customIconEntries = toIconEntries(customIcons.default as IconDictionary);
-      iconStatus = 'ready';
+      return await iconCatalogPromise;
     } catch {
-      iconStatus = 'error';
+      iconCatalogPromise = null;
+      return null;
     }
+  }
+
+  async function loadIconCatalogModules(): Promise<IconCatalogs> {
+    const [materialIcons, customIcons] = await Promise.all([
+      import('$lib/assets/classic/icons/mdi.json'),
+      import('$lib/assets/classic/icons/icomoon.json')
+    ]);
+
+    return {
+      material: toIconEntries(materialIcons.default as IconDictionary),
+      custom: toIconEntries(customIcons.default as IconDictionary)
+    };
   }
 
   function toIconEntries(value: IconDictionary): IconEntry[] {
@@ -35,6 +41,36 @@
       .map(([className, label]) => ({ className, label }))
       .sort((a, b) => a.className.localeCompare(b.className));
   }
+</script>
+
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  let materialIconEntries = $state<IconEntry[]>([]);
+  let customIconEntries = $state<IconEntry[]>([]);
+  let iconStatus = $state<'loading' | 'ready' | 'error'>('loading');
+
+  onMount(() => {
+    let mounted = true;
+    void loadIconCatalogs().then((catalogs) => {
+      if (!mounted) {
+        return;
+      }
+
+      if (!catalogs) {
+        iconStatus = 'error';
+        return;
+      }
+
+      materialIconEntries = catalogs.material;
+      customIconEntries = catalogs.custom;
+      iconStatus = 'ready';
+    });
+
+    return () => {
+      mounted = false;
+    };
+  });
 </script>
 
 <section class="classic-icon-browser" aria-labelledby="icon-browser-title">

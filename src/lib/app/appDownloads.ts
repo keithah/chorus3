@@ -14,11 +14,16 @@ export function exportLocalPlaylistM3u(
     return;
   }
 
-  const lines = exportable.flatMap((item) => [
-    `#EXTINF:${Math.trunc(item.durationSeconds ?? -1)},${item.label}`,
-    item.file
-  ]);
-  const blob = new Blob([`#EXTCPlayListM3U::M3U\n${lines.join('\n')}\n`], {
+  const parts: BlobPart[] = ['#EXTCPlayListM3U::M3U\n'];
+  for (const item of exportable) {
+    parts.push(
+      `#EXTINF:${Math.trunc(item.durationSeconds ?? -1)},${item.label}\n`,
+      item.file,
+      '\n'
+    );
+  }
+
+  const blob = new Blob(parts, {
     type: 'audio/x-mpegurl;charset=utf-8'
   });
   const url = urlApi.createObjectURL(blob);

@@ -7,6 +7,7 @@
   import SettingsPanel, { type SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import type { TranslationContext } from '$lib/i18n';
+  import { redactAddonText } from '$lib/safety/redaction';
   import type { SettingsStoreSnapshot } from '$lib/stores';
   import type { AddonSnapshot, AddonsStoreSnapshot } from '$lib/stores/addonsStore.svelte';
   import {
@@ -511,22 +512,7 @@
   }
 
   function safeText(value: string): string {
-    return value
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
-      .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=._-]+/gi, 'credentials [redacted]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/admin:p@ssword/gi, '[redacted-secret]')
-      .replace(/p@ssword/gi, '[redacted-secret]')
-      .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-file')
-      .replace(/\/[\w./-]+/gi, '[redacted-path]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
-      .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
-      .replace(/password/gi, 'credentials');
+    return redactAddonText(value);
   }
 
   function settingsPageMode(

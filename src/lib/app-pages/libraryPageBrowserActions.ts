@@ -1,17 +1,12 @@
 import { startBrowserDownload as startBrowserDownloadWithFilename } from '$lib/app/appDownloads';
+import { safeBrowserFilename } from '$lib/app/browserFilename';
 
 export function startBrowserDownload(document: Document, url: string, label: string): void {
   startBrowserDownloadWithFilename(document, url, safeFilename(label));
 }
 
 export function safeFilename(label: string): string {
-  return (
-    label
-      .trim()
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80) || 'download'
-  );
+  return safeBrowserFilename(label, 'download');
 }
 
 export function safeLibraryActionErrorMessage(error: unknown): string {

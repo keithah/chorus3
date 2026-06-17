@@ -197,4 +197,14 @@ describe('LibraryFilterStore', () => {
       { key: 'year', value: 2020, title: '2020', active: false }
     ]);
   });
+
+  it('keeps URLSearchParams filter values that are already decoded', () => {
+    const store = createStore();
+    const params = new URLSearchParams();
+    params.set('genre', '100% Dance Hits');
+
+    store.initFromParams('music/top', available, params);
+
+    expect(store.getStoreFilters('music/top')).toEqual({ genre: ['100% Dance Hits'] });
+  });
 });

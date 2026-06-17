@@ -3,6 +3,7 @@ import type { LibraryAvailableFilters } from '$lib/stores/libraryFilter';
 import { libraryFilterRecordFrom } from '$lib/stores/libraryFilterRecords';
 import type { MusicLibraryStoreSnapshot } from '$lib/stores/musicLibrary.svelte';
 import type { VideoLibraryStoreSnapshot } from '$lib/stores/videoLibrary.svelte';
+import { videoLibraryDetailIndexes } from '$lib/stores/videoLibraryIndexes';
 import { findMovieSnapshot } from './libraryMovieCards';
 
 export type LibraryRouteFamily = 'music' | 'movies' | 'tv';
@@ -271,7 +272,7 @@ function optionSourceForRoute(
 
   if (value.kind === 'tvshowDetail') {
     const tvshowid = Number(value.tvshowid);
-    const show = video.tvShows.find((item) => item.tvshowid === tvshowid);
+    const show = videoLibraryDetailIndexes(video).tvShowsById.get(tvshowid);
     return show ? [show] : [];
   }
 

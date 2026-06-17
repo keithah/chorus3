@@ -249,16 +249,5 @@ export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
 ]);
 
 export function getKodiPackageRouteFallbacks() {
-  return KODI_PACKAGE_ROUTE_FALLBACKS.map((fallback) => ({
-    ...fallback,
-    stagedIndexPath: routeHasChildren(fallback.routePath)
-      ? fallback.stagedIndexPath
-      : fallback.routePath.replace(/^\//u, '')
-  }));
-}
-
-function routeHasChildren(routePath) {
-  return KODI_PACKAGE_ROUTE_FALLBACKS.some(
-    (fallback) => fallback.routePath !== routePath && fallback.routePath.startsWith(`${routePath}/`)
-  );
+  return KODI_PACKAGE_ROUTE_FALLBACKS.map((fallback) => ({ ...fallback }));
 }

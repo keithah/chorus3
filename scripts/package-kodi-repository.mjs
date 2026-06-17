@@ -3,9 +3,9 @@ import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } 
 import { createHash } from 'node:crypto';
 import { basename, dirname, join, relative } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
-import { spawn } from 'node:child_process';
 
 import { packageKodiWebinterface, renderAddonXml } from './package-kodi-webinterface.mjs';
+import { runChildProcess } from './run-child-process.mjs';
 
 const REPOSITORY_ID = 'repository.keithah.kodi';
 const REPOSITORY_NAME = 'Keithah Kodi Add-ons';
@@ -73,6 +73,7 @@ export async function packageKodiRepository({ root = cwd(), runZip = runSystemZi
   const addonsXml = renderAddonsXml([repositoryAddonXml, webinterfaceAddonXml]);
   const addonsXmlPath = join(repositoryRoot, 'addons.xml');
   writeFileSync(addonsXmlPath, addonsXml);
+  // Kodi repository clients expect addons.xml.md5; this is compatibility metadata, not strong integrity.
   writeFileSync(join(repositoryRoot, 'addons.xml.md5'), `${md5(addonsXml)}\n`);
   writeFileSync(join(repositoryRoot, 'README.md'), renderRepositoryReadme());
   rmSync(stageRoot, { force: true, recursive: true });
@@ -143,28 +144,7 @@ function md5(value) {
 }
 
 function runSystemZip({ cwd, args }) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('zip', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-    const stdoutChunks = [];
-    const stderrChunks = [];
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdoutChunks.push(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      stderrChunks.push(chunk);
-    });
-    child.on('error', reject);
-    child.on('close', (status) => {
-      resolve({
-        status: status ?? 1,
-        stdout: stdoutChunks.join(''),
-        stderr: stderrChunks.join('')
-      });
-    });
-  });
+  return runChildProcess({ command: 'zip', args, cwd });
 }
 
 function toPosixPath(value) {

@@ -30,12 +30,6 @@ jobs:
       - name: Verify project
         run: npm run verify
 
-      - name: Rebuild Kodi package artifact
-        run: npm run package:kodi
-
-      - name: Verify Kodi package artifact
-        run: npm run verify:kodi-package
-
       - name: Upload Kodi package artifact
         uses: actions/upload-artifact@v4
         with:

@@ -1,3 +1,10 @@
+import {
+  normalizePathLabel as normalizeSafePathLabel,
+  normalizePathnameInputWithInfo,
+  normalizeSearch,
+  parseSafeIntegerSegment
+} from '$lib/routing/pathSafety';
+
 export type DashboardRoute = { kind: 'dashboard' };
 export type VideoMoviesRoute = { kind: 'videoMovies' };
 export type VideoMovieDetailRoute = { kind: 'videoMovieDetail'; movieid: number };
@@ -40,14 +47,14 @@ const ROOT_PATH = '/';
 const MOVIES_PATH = '/video/movies';
 const TV_PATH = '/video/tv';
 const UNKNOWN_VIDEO_PATH = '/video/unknown';
-const UNSAFE_SEGMENT = '[redacted]';
-const FORBIDDEN_SEGMENT_PATTERN =
-  /(authorization|basic|sentinel_secret|chorus3_sentinel_secret|localstorage|sessionstorage|admin:p@ssword|secret|token|password|smb:|special:|:\/\/|@)/i;
 
 export function parseVideoRoute(pathname: unknown, search?: unknown): VideoRoute {
   void normalizeSearch(search);
 
-  const path = normalizePathnameInput(pathname);
+  const { path, hadTrailingSlash } = normalizePathnameInputWithInfo(pathname);
+  if (hadTrailingSlash && (path === MOVIES_PATH || path === TV_PATH)) {
+    return { kind: 'videoUnknown', pathLabel: normalizePathLabel(path) };
+  }
 
   if (path === ROOT_PATH) {
     return { kind: 'dashboard' };
@@ -274,45 +281,8 @@ function parseVideoPath(path: string): VideoRoute {
   return { kind: 'videoUnknown', pathLabel: normalizePathLabel(path) };
 }
 
-function normalizePathnameInput(pathname: unknown): string {
-  if (pathname === null || pathname === undefined || pathname === '') {
-    return ROOT_PATH;
-  }
-
-  if (typeof pathname !== 'string') {
-    return UNKNOWN_VIDEO_PATH;
-  }
-
-  const pathOnly = pathname.split(/[?#]/, 1)[0]?.trim() ?? '';
-
-  if (!pathOnly) {
-    return ROOT_PATH;
-  }
-
-  const withLeadingSlash = pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`;
-  const compacted = withLeadingSlash.replace(/\/{2,}/g, '/');
-
-  return compacted === '' ? ROOT_PATH : compacted;
-}
-
-function normalizeSearch(search: unknown): URLSearchParams | null {
-  if (typeof search !== 'string' || search.length === 0) {
-    return null;
-  }
-
-  try {
-    return new URLSearchParams(search);
-  } catch {
-    return null;
-  }
-}
-
 function isPositiveSafeIntegerSegment(segment: string): boolean {
-  if (!/^\d+$/.test(segment)) {
-    return false;
-  }
-
-  return isFinitePositiveSafeInteger(Number(segment));
+  return parseSafeIntegerSegment(segment) !== null;
 }
 
 function isFinitePositiveSafeInteger(value: unknown): value is number {
@@ -324,32 +294,5 @@ function isRouteLike(route: unknown): route is VideoRoute {
 }
 
 function normalizePathLabel(pathname: string): string {
-  const normalized = normalizePathnameInput(pathname);
-  const segments = normalized.split('/').filter(Boolean);
-  const safeSegments = segments.map(sanitizePathSegment).slice(0, 5);
-  const pathLabel = `/${safeSegments.join('/')}`;
-
-  return pathLabel === '/' ? UNKNOWN_VIDEO_PATH : pathLabel;
-}
-
-function sanitizePathSegment(segment: string): string {
-  const decoded = safeDecode(segment).trim();
-
-  if (!decoded || FORBIDDEN_SEGMENT_PATTERN.test(decoded) || decoded.includes('/')) {
-    return UNSAFE_SEGMENT;
-  }
-
-  if (!/^[a-z0-9._-]+$/i.test(decoded)) {
-    return UNSAFE_SEGMENT;
-  }
-
-  return decoded;
-}
-
-function safeDecode(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
+  return normalizeSafePathLabel(pathname, UNKNOWN_VIDEO_PATH);
 }

@@ -176,12 +176,19 @@ describe('AddonsStore', () => {
     ]);
 
     const leakedSnapshot = store.snapshot;
-    leakedSnapshot.addons[0].name = 'Mutated outside';
-    leakedSnapshot.visibleAddons.length = 0;
+    expect(store.snapshot).toBe(leakedSnapshot);
+    expect(Object.isFrozen(leakedSnapshot.addons[0])).toBe(true);
+    expect(() => {
+      leakedSnapshot.addons[0].name = 'Mutated outside';
+    }).toThrow(TypeError);
+    expect(() => {
+      leakedSnapshot.visibleAddons.length = 0;
+    }).toThrow(TypeError);
     expect(store.snapshot.addons[0].name).toBe('Alpha Video');
     expect(store.snapshot.visibleAddons).toHaveLength(2);
 
     store.setSearchQuery(' ALPHA http://admin:p@ssword@example.test ');
+    expect(store.snapshot).not.toBe(leakedSnapshot);
     expect(store.snapshot.searchQuery).toBe('ALPHA [redacted-url]');
     expect(store.snapshot.visibleAddons.map((addon) => addon.addonid)).toEqual([
       'plugin.video.alpha'

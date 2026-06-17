@@ -1,15 +1,21 @@
 import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
 import type {
+  MusicLibraryArtistSnapshot,
   MusicLibraryGenreSnapshot,
   MusicLibrarySongSnapshot,
   MusicLibraryStoreSnapshot
 } from '$lib/stores/musicLibrary.svelte';
+import {
+  musicLibraryArtistsByGenreIndex,
+  musicLibraryGenreIndex
+} from '$lib/stores/musicLibraryIndexes';
 import type { VideoMovieDetailStoreSnapshot } from '$lib/stores/videoMovieDetailStore.svelte';
 import type {
   VideoEpisodeSnapshot,
   VideoLibraryStoreSnapshot,
   VideoMusicVideoSnapshot
 } from '$lib/stores/videoLibrary.svelte';
+import { videoLibraryDetailIndexes } from '$lib/stores/videoLibraryIndexes';
 import { albumCards, artistCards, type LibraryCard } from '$lib/app-pages/libraryCards';
 import {
   findMovieSnapshot,
@@ -153,7 +159,7 @@ export function libraryContentSections({
       return [{ cards: tvShowCards(filters.tvShows(video.tvShows)), empty: 'No TV shows found.' }];
     case 'tvshowDetail': {
       const tvshowid = Number(route.tvshowid);
-      const show = video.tvShows.find((item) => item.tvshowid === tvshowid);
+      const show = videoLibraryDetailIndexes(video).tvShowsById.get(tvshowid);
 
       return [
         {
@@ -243,7 +249,7 @@ function musicVideoDetailSections({
   const musicvideoid = Number(route.musicvideoid);
   const musicVideo =
     musicVideoDetailsById[musicvideoid] ??
-    (video.musicVideos ?? []).find((item) => item.musicvideoid === musicvideoid);
+    videoLibraryDetailIndexes(video).musicVideosById.get(musicvideoid);
 
   return [
     {
@@ -269,9 +275,7 @@ function musicGenreSections(
   const genre = resolveMusicGenre(genreid, music.genres);
   const genreLabel = resolveMusicGenreLabel(genreid, genre);
   const normalizedGenreLabel = normalizeComparableText(genreLabel);
-  const artists = music.artists.filter((item) =>
-    hasNormalizedArtist(item.genre, normalizedGenreLabel)
-  );
+  const artists = artistsForGenre(music, normalizedGenreLabel);
 
   return [
     {
@@ -405,11 +409,14 @@ function join(values: unknown): string | undefined {
     : undefined;
 }
 
-function hasNormalizedArtist(values: unknown, normalizedLabel: string): boolean {
-  if (!normalizedLabel) return false;
-  return Array.isArray(values)
-    ? values.some((entry) => normalizeComparableText(safe(entry, '')) === normalizedLabel)
-    : false;
+function artistsForGenre(
+  music: MusicLibraryStoreSnapshot,
+  normalizedGenreLabel: string
+): readonly MusicLibraryArtistSnapshot[] {
+  if (!normalizedGenreLabel) return [];
+
+  const index = musicLibraryArtistsByGenreIndex(music);
+  return index.get(normalizedGenreLabel) ?? [];
 }
 
 function normalizeComparableText(value: string): string {
@@ -420,19 +427,14 @@ function resolveMusicGenre(
   genreid: string,
   genres: readonly MusicLibraryGenreSnapshot[]
 ): MusicLibraryGenreSnapshot | null {
+  const index = musicLibraryGenreIndex(genres);
   const numericGenreId = Number(genreid);
   if (Number.isInteger(numericGenreId)) {
-    return genres.find((item) => item.genreid === numericGenreId) ?? null;
+    return index.byId.get(numericGenreId) ?? null;
   }
 
   const normalized = normalizeComparableText(genreid);
-  return (
-    genres.find((item) =>
-      [item.title, item.label].some(
-        (entry) => normalizeComparableText(safe(entry, '')) === normalized
-      )
-    ) ?? null
-  );
+  return index.byName.get(normalized) ?? null;
 }
 
 function resolveMusicGenreLabel(genreid: string, genre: MusicLibraryGenreSnapshot | null): string {

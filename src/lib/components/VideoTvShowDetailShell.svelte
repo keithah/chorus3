@@ -18,11 +18,13 @@
     VideoTvShowDetailSnapshot,
     VideoTvStoreSnapshot
   } from '$lib/stores/videoTvStore.svelte';
+  import { videoTvStore } from '$lib/stores/videoTvStore.svelte';
   import { firstOptionalKodiImageUrl, optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import type { VideoRoute } from '$lib/video/videoRouter';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoTvStoreSnapshot;
+    snapshot?: VideoTvStoreSnapshot;
     route: VideoRoute;
     i18n?: TranslationContext;
     buildOptions?: BuildAppRouteOptions;
@@ -31,12 +33,13 @@
   }
 
   let {
-    snapshot,
+    snapshot: injectedSnapshot,
     route,
     buildOptions = {},
     metadataSave = defaultMetadataSave,
     actionDispatch = defaultEpisodeCollectionActionDispatch
   }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoTvStore.snapshot);
   let editOpen = $state(false);
   let editPending = $state(false);
   let editError = $state<string | null>(null);
@@ -294,40 +297,8 @@
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
   }
 
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) return null;
-    return sanitizeUiText(trimmed);
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
-  }
-
   function errorMessage(error: unknown): string {
     return error instanceof Error && error.message.trim() ? error.message : 'Metadata save failed.';
-  }
-
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
   }
 </script>
 

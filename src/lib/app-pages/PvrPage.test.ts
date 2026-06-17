@@ -168,6 +168,25 @@ describe('PvrPage', () => {
     expect(dispatch.refreshChannels).not.toHaveBeenCalled();
   });
 
+  it('offers to show more channels on channel-list routes', async () => {
+    const tvChannels = Array.from({ length: 241 }, (_, index) => ({
+      channelid: index + 1,
+      label: `Channel ${index + 1}`,
+      channel: `${index + 1}`,
+      channeltype: 'tv' as const
+    }));
+
+    renderPage({ kind: 'pvrTv' }, createSnapshot({ tvChannels }));
+    await tick();
+
+    const showMore = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Show more channels'
+    );
+    expect(showMore).toBeTruthy();
+    expect(document.body.textContent).toContain('Channel 240');
+    expect(document.body.textContent).not.toContain('Channel 241');
+  });
+
   it('renders the global Chorus2 EPG route across TV channels', async () => {
     const dispatch = createDispatch();
     const playerDispatch = createPlayerDispatch();

@@ -7,11 +7,27 @@ import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProo
 import { M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofFixtures';
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
-async function importMain(): Promise<typeof import('./main')> {
-  const { preloadAppPageSurfaceRoutesForTest } =
-    await import('./lib/app-pages/appPageSurfaceLazyRoutes');
-  await preloadAppPageSurfaceRoutesForTest();
+type ImportMainOptions = {
+  preloadRoutes?: 'all' | 'dashboard';
+};
+
+async function importMain(options: ImportMainOptions = {}): Promise<typeof import('./main')> {
+  if (options.preloadRoutes) {
+    const { preloadAppPageSurfaceRoutesForTest } =
+      await import('./lib/testing/appPageSurfacePreload');
+    await preloadAppPageSurfaceRoutesForTest(
+      options.preloadRoutes ? { scope: options.preloadRoutes } : undefined
+    );
+  }
   return import('./main');
+}
+
+async function importEntrypoint(): Promise<typeof import('./lib/app/entrypoint')> {
+  return import('./lib/app/entrypoint');
+}
+
+async function importEntrypointAppProps(): Promise<typeof import('./lib/app/entrypointAppProps')> {
+  return import('./lib/app/entrypointAppProps');
 }
 
 function setSearch(search: string): void {
@@ -39,7 +55,7 @@ describe('main entrypoint', () => {
   });
 
   it('resolves Kodi package-mounted entrypoint routes to in-app routes', async () => {
-    const { resolveEntrypointRoute } = await importMain();
+    const { resolveEntrypointRoute } = await importEntrypoint();
 
     expect(
       resolveEntrypointRoute({ pathname: '/addons/webinterface.chorus3', search: '' })
@@ -68,7 +84,8 @@ describe('main entrypoint', () => {
   }, 30_000);
 
   it('resolves package-mounted Chorus2 parity URLs to typed routes without reflecting unsafe input', async () => {
-    const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
+    const { resolveEntrypointRoute } = await importEntrypoint();
+    const { resolveEntrypointAppProps } = await importEntrypointAppProps();
 
     expect(
       resolveEntrypointRoute({
@@ -124,7 +141,7 @@ describe('main entrypoint', () => {
       '?password=CHORUS3_SENTINEL_SECRET&token=Basic&next=smb://admin:p@ssword@nas/private'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('PVR');
     expect(document.body.textContent).toContain('TV Channels');
@@ -138,7 +155,8 @@ describe('main entrypoint', () => {
   }, 15000);
 
   it('derives a local-only Kodi host from package-mounted entrypoint origins', async () => {
-    const { resolveEntrypointAppProps, resolveEntrypointRoute } = await importMain();
+    const { resolveEntrypointRoute } = await importEntrypoint();
+    const { resolveEntrypointAppProps } = await importEntrypointAppProps();
 
     expect(
       resolveEntrypointAppProps({
@@ -259,7 +277,7 @@ describe('main entrypoint', () => {
   });
 
   it('supplies package host props only for package-mounted paths or marker-backed root', async () => {
-    const { resolveEntrypointAppProps } = await importMain();
+    const { resolveEntrypointAppProps } = await importEntrypointAppProps();
     const expectedHost = {
       id: 'kodi-package-origin',
       label: 'This Kodi',
@@ -318,17 +336,17 @@ describe('main entrypoint', () => {
   });
 
   it('mounts the Svelte app into the root element', async () => {
-    await importMain();
+    await importMain({ preloadRoutes: 'dashboard' });
 
     expect(document.body.textContent).toContain('Search Kodi');
     expect(document.body.textContent).toContain('Recently Added Albums');
     expect(document.body.textContent).toContain('Recently Played Albums');
-  });
+  }, 60_000);
 
   it('applies the stored root theme before rendering', async () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'light');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'dashboard' });
 
     expect(document.documentElement.dataset.theme).toBe('light');
   });
@@ -336,40 +354,41 @@ describe('main entrypoint', () => {
   it('mounts direct now-playing M005 browser-proof fixtures with query theme and German locale without persisting theme or exposing forbidden text', async () => {
     setPathAndSearch('/now-playing', '?m005-browser-proof=1&theme=light&locale=de');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     await vi.waitFor(() => {
-      expect(document.body.textContent).toContain('Aktuelle Wiedergabe einbetten');
+      expect(document.body.textContent).toContain('Aktuelle Wiedergabe');
     });
-    expect(document.body.textContent).toContain('Safe Room Kodi');
     expect(document.body.textContent).toContain('Aurora Signal');
+    expect(document.body.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.classic-rail')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
     expect(document.body.textContent).not.toContain('Now playing embed');
-    expect(document.body.textContent).not.toContain('Music Library');
     for (const forbidden of M005_BROWSER_PROOF_FORBIDDEN_TEXT) {
       expect(document.body.textContent).not.toContain(forbidden);
     }
   });
 
   it('mounts direct now-playing setup fixtures and keeps M005 now-playing fixtures off unrelated routes', async () => {
-    setPathAndSearch('/now-playing', '?m005-browser-proof=1&embed-state=setup&locale=de');
+    setPathAndSearch('/now-playing', '?m005-browser-proof=1&player-state=setup&locale=de');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     await vi.waitFor(() => {
-      expect(document.body.textContent).toContain('Einrichtung erforderlich');
+      expect(document.body.textContent).toContain('Aktuelle Wiedergabe');
     });
-    expect(document.body.textContent).toContain(
-      'Einrichtung erforderlich, bevor die Aktuelle-Wiedergabe-Einbettung verbinden kann.'
-    );
+    expect(document.body.textContent).toContain('Kein aktiver Kodi-Player ist verfügbar.');
+    expect(document.body.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
     expect(document.body.textContent).not.toContain('Aurora Signal');
 
     vi.resetModules();
     document.body.innerHTML = '<div id="app"></div>';
-    setPathAndSearch('/settings', '?m005-browser-proof=1&embed-state=setup');
+    setPathAndSearch('/settings', '?m005-browser-proof=1&player-state=setup');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Kodi Settings');
     expect(document.body.textContent).not.toContain('Aurora Signal');
@@ -382,17 +401,18 @@ describe('main entrypoint', () => {
       '?m005-browser-proof=1&username=admin&password=CHORUS3_SENTINEL_SECRET&token=Basic'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
-    expect(document.body.textContent).toContain('unsafe URL parameters were blocked');
     expect(document.body.textContent).toContain('Aurora Signal');
+    expect(document.body.querySelector('.chorus-app')).toBeInstanceOf(HTMLElement);
+    expect(document.body.querySelector('.now-playing-panel')).toBeInstanceOf(HTMLElement);
     expect(document.body.textContent).not.toMatch(
       /Authorization|Basic|CHORUS3_SENTINEL_SECRET|password=|token=|username|password|token|localStorage|sessionStorage|https?:\/\//i
     );
   });
 
   it('keeps default and disabled fixture query modes on the live/default app props', async () => {
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Recently Added Albums');
     expect(document.body.textContent).not.toContain('Nina Simone');
@@ -410,7 +430,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setSearch('?m003-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Recently Added Albums');
     expect(document.body.textContent).not.toContain('Nina Simone');
@@ -428,7 +448,7 @@ describe('main entrypoint', () => {
   it('mounts populated M003 browser-proof fixtures in test mode when explicitly requested', async () => {
     setSearch('?m003-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Nina Simone');
     expect(document.body.textContent).toContain('Pastel Blues');
@@ -446,7 +466,7 @@ describe('main entrypoint', () => {
   it('mounts populated M005 browser-proof fixtures for the direct settings route', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).toContain('Web interface');
@@ -466,7 +486,7 @@ describe('main entrypoint', () => {
   it('mounts M005 Settings browser-proof fixtures through the real entrypoint without route reload or forbidden tokens', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     const beforePath = window.location.pathname;
     const beforeSearch = window.location.search;
@@ -485,7 +505,7 @@ describe('main entrypoint', () => {
   it('mounts M005 German settings fixture only when the locale query is valid', async () => {
     setPathAndSearch('/settings', '?m005-browser-proof=1&locale=de');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).toContain('Web interface');
@@ -497,7 +517,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/settings', '?m005-browser-proof=1&locale=fr');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).not.toContain('Kodi-Einstellungen');
@@ -507,7 +527,7 @@ describe('main entrypoint', () => {
   it('mounts populated M005 browser-proof fixtures for direct add-ons routes only', async () => {
     setPathAndSearch('/addons', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Kodi Add-ons');
     expect(document.body.textContent).toContain('Safe Video Demo');
@@ -523,7 +543,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/addons/plugin.video.safe-demo', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Safe Video Demo');
     expect(document.body.textContent).toContain('Add-on detail loaded.');
@@ -535,7 +555,7 @@ describe('main entrypoint', () => {
   it('keeps unknown M005 browser-proof Lab routes non-routable while allowing real Lab routes', async () => {
     setPathAndSearch('/lab/shortcuts', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Lab route not found');
     expect(document.body.textContent).toContain('/lab/shortcuts');
@@ -545,7 +565,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/lab/api-browser', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
@@ -557,7 +577,7 @@ describe('main entrypoint', () => {
   it('does not expose M005 Lab API fixtures when the flag is absent, disabled, production-like, or route is unsafe', async () => {
     setPathAndSearch('/lab/api-browser', '');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
@@ -567,12 +587,12 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/lab/api-browser', '?m005-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Lab API browser');
     expect(document.body.textContent).not.toContain('Player.Open');
 
-    const { resolveEntrypointAppProps } = await importMain();
+    const { resolveEntrypointAppProps } = await importEntrypointAppProps();
     expect(
       resolveEntrypointAppProps(
         { pathname: '/lab/api-browser', search: '?m005-browser-proof=1' },
@@ -587,7 +607,7 @@ describe('main entrypoint', () => {
       '?m005-browser-proof=1&token=Basic'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Lab route not found');
     expect(document.body.textContent).toContain('/lab/[redacted]');
@@ -601,7 +621,7 @@ describe('main entrypoint', () => {
   it('does not expose M005 add-ons fixtures when the flag is absent, disabled, or route is unsafe', async () => {
     setPathAndSearch('/addons', '');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Kodi Add-ons');
     expect(document.body.textContent).not.toContain('Safe Video Demo');
@@ -611,7 +631,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/addons', '?m005-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Kodi Add-ons');
     expect(document.body.textContent).not.toContain('Safe Video Demo');
@@ -623,7 +643,7 @@ describe('main entrypoint', () => {
       '?m005-browser-proof=1&token=Basic'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Add-ons route not found');
     expect(document.body.textContent).not.toContain('Safe Video Demo');
@@ -636,7 +656,7 @@ describe('main entrypoint', () => {
   it('does not expose M005 settings fixtures on unrelated routes or disabled fixture mode', async () => {
     setPathAndSearch('/video/movies', '?m005-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Movies');
     expect(document.body.textContent).toContain('All movies');
@@ -647,7 +667,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/settings', '?m005-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('General options');
     expect(document.body.textContent).not.toContain('Autoplay next item');
@@ -660,7 +680,7 @@ describe('main entrypoint', () => {
       '?m005-browser-proof=1&token=Basic'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Settings route not found');
     expect(document.body.textContent).toContain('/settings/[redacted]/[redacted]');
@@ -675,7 +695,7 @@ describe('main entrypoint', () => {
   it('mounts populated M004 browser-proof fixtures for direct video grid recent sections and playlists', async () => {
     setPathAndSearch('/video/movies', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Video Movies');
     expect(document.body.textContent).toContain('2 of 503 movies');
@@ -695,7 +715,7 @@ describe('main entrypoint', () => {
   it('mounts populated M004 browser-proof fixtures for direct video grid and detail routes in test mode', async () => {
     setPathAndSearch('/video/movies/4401', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Neon Harbor');
     expect(document.body.textContent).toContain(
@@ -712,7 +732,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/movies/4402', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Quiet Signal');
     expect(document.body.textContent).toContain('Movie ID 4402');
@@ -723,7 +743,7 @@ describe('main entrypoint', () => {
   it('mounts populated M004 browser-proof fixtures for direct TV routes in test mode', async () => {
     setPathAndSearch('/video/tv', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('TV Shows');
     expect(document.body.textContent).toContain('Aurora Files');
@@ -735,7 +755,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/tv/5501', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Aurora Files');
     expect(document.body.textContent).toContain('Season 1');
@@ -745,7 +765,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/tv/5501/seasons/1', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Season 1');
     expect(document.body.textContent).toContain('Signal Mirror');
@@ -759,7 +779,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/tv/5501/seasons/1/episodes/6601', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Signal Mirror');
     expect(document.body.textContent).toContain('Episode ID 6601');
@@ -774,7 +794,7 @@ describe('main entrypoint', () => {
   it('does not expose M004 TV fixture labels in default or disabled rendering', async () => {
     setPathAndSearch('/video/tv', '');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).not.toContain('Aurora Files');
     expect(document.body.textContent).not.toContain('Signal Mirror');
@@ -783,7 +803,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/tv', '?m004-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).not.toContain('Aurora Files');
     expect(document.body.textContent).not.toContain('Signal Mirror');
@@ -792,7 +812,7 @@ describe('main entrypoint', () => {
   it('mounts safe M004 browser stream fixtures only when explicitly requested', async () => {
     setPathAndSearch('/video/movies/4401/stream', '?m004-browser-proof=1');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Browser stream');
     expect(document.body.textContent).toContain('Neon Harbor');
@@ -813,7 +833,7 @@ describe('main entrypoint', () => {
     document.body.innerHTML = '<div id="app"></div>';
     setPathAndSearch('/video/movies/4401/stream', '?m004-browser-proof=0');
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).not.toContain('Neon Harbor');
     expect(document.body.textContent).not.toContain('Local browser playback is paused.');
@@ -825,7 +845,7 @@ describe('main entrypoint', () => {
       '?m004-browser-proof=1&token=Basic'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.textContent).toContain('Video route not found');
     expect(document.body.textContent).toContain('Movies');
@@ -837,7 +857,7 @@ describe('main entrypoint', () => {
   });
 
   it('exposes M005 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
-    const { resolveEntrypointRoute, shouldUseM005BrowserProofFixtures } = await importMain();
+    const { resolveEntrypointRoute, shouldUseM005BrowserProofFixtures } = await importEntrypoint();
 
     expect(resolveEntrypointRoute({ pathname: '/settings', search: '?ignored=1' })).toEqual({
       kind: 'primary',
@@ -912,7 +932,7 @@ describe('main entrypoint', () => {
   });
 
   it('exposes M004 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
-    const { resolveEntrypointRoute, shouldUseM004BrowserProofFixtures } = await importMain();
+    const { resolveEntrypointRoute, shouldUseM004BrowserProofFixtures } = await importEntrypoint();
 
     expect(
       resolveEntrypointRoute({ pathname: '/video/movies/4401/stream', search: '?ignored=1' })
@@ -995,7 +1015,8 @@ describe('main entrypoint', () => {
   });
 
   it('exposes M007 pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
-    const { resolveEntrypointAppProps, shouldUseM007VisualProofFixtures } = await importMain();
+    const { shouldUseM007VisualProofFixtures } = await importEntrypoint();
+    const { resolveEntrypointAppProps } = await importEntrypointAppProps();
 
     expect(
       shouldUseM007VisualProofFixtures(
@@ -1048,7 +1069,7 @@ describe('main entrypoint', () => {
       '?m007-visual-proof=1&token=Basic&password=CHORUS3_SENTINEL_SECRET&next=smb://admin:p@ssword@nas/private&storage=localStorage'
     );
 
-    await importMain();
+    await importMain({ preloadRoutes: 'all' });
 
     expect(document.body.querySelector('[aria-label="Chorus media controller"]')).toBeInstanceOf(
       HTMLElement
@@ -1064,7 +1085,7 @@ describe('main entrypoint', () => {
   });
 
   it('exposes pure gate helpers that reject malformed, absent, disabled, and production requests', async () => {
-    const { shouldUseM003BrowserProofFixtures } = await importMain();
+    const { shouldUseM003BrowserProofFixtures } = await importEntrypoint();
 
     expect(
       shouldUseM003BrowserProofFixtures(

@@ -21,18 +21,21 @@
     VideoLibraryMovieSnapshot,
     VideoLibraryStoreSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import type {
     VideoMovieDetailSnapshot,
     VideoMovieDetailStoreSnapshot,
     VideoMovieVersionsSnapshot
   } from '$lib/stores/videoMovieDetailStore.svelte';
+  import { videoMovieDetailStore } from '$lib/stores/videoMovieDetailStore.svelte';
   import type { TranslationContext } from '$lib/i18n';
   import { createEnglishTranslationContext } from '$lib/i18n/runtimeTranslationContext';
   import { firstOptionalKodiImageUrl, optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute, type VideoRoute } from '$lib/video/videoRouter';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoLibraryStoreSnapshot;
+    snapshot?: VideoLibraryStoreSnapshot;
     route: VideoRoute;
     detailSnapshot?: VideoMovieDetailStoreSnapshot;
     actionDispatch?: VideoMovieActionDispatch;
@@ -56,13 +59,15 @@
 
   const defaultI18n = createEnglishTranslationContext();
   let {
-    snapshot,
+    snapshot: injectedSnapshot,
     route,
-    detailSnapshot,
+    detailSnapshot: injectedDetailSnapshot,
     actionDispatch = noopActionDispatch,
     i18n = defaultI18n,
     backHref
   }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoLibraryStore.snapshot);
+  const detailSnapshot = $derived(injectedDetailSnapshot ?? videoMovieDetailStore.snapshot);
   let actionStatus = $state<ActionStatus>({ kind: 'idle', message: '' });
   $effect.pre(() => {
     if (actionStatus.kind === 'idle') {
@@ -412,46 +417,6 @@
     return error instanceof Error && error.message.trim()
       ? error.message
       : i18n.t('video.movie.actionFailed');
-  }
-
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) {
-      return null;
-    }
-
-    return sanitizeUiText(trimmed);
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/\b[a-z]:\\[^\s]+/gi, '[path]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage');
-  }
-
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
-      /^[a-z]:\\/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
   }
 
   function pad2(value: number): string {

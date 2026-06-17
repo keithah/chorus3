@@ -40,17 +40,17 @@ export async function readPagedKodiLibraryList<
     return firstResult;
   }
 
-  const remainingPages = pageRanges(safePageSize, total, safePageSize);
-  const remainingItems = await readRemainingPages(
+  const allItems = [...firstItems];
+  await readRemainingPages(
     readPage,
     params,
     itemsKey,
     total,
-    remainingPages,
+    pageRanges(safePageSize, total, safePageSize),
+    allItems,
     options,
     DEFAULT_FULL_LIBRARY_PAGE_CONCURRENCY
   );
-  const allItems = [...firstItems, ...remainingItems.flat()];
 
   return withPagedItems(firstResult, itemsKey, allItems, {
     start: 0,
@@ -70,10 +70,10 @@ async function readRemainingPages<
   itemsKey: TKey,
   total: number,
   ranges: readonly PageRange[],
+  items: TItem[],
   options: KodiHttpCallOptions | undefined,
   concurrency: number
-): Promise<TItem[][]> {
-  const results: TItem[][] = Array.from({ length: ranges.length }, () => []);
+): Promise<void> {
   let nextIndex = 0;
   const workerCount = Math.min(normalizeConcurrency(concurrency), ranges.length);
 
@@ -84,12 +84,13 @@ async function readRemainingPages<
         nextIndex += 1;
         const range = ranges[index];
         const result = await readPage(withPageLimits(params, range.start, range.end), options);
-        results[index] = pagedArrayValue<TItem>(result[itemsKey], itemsKey, total);
+        const pageItems = pagedArrayValue<TItem>(result[itemsKey], itemsKey, total);
+        for (let itemIndex = 0; itemIndex < pageItems.length; itemIndex += 1) {
+          items[range.start + itemIndex] = pageItems[itemIndex];
+        }
       }
     })
   );
-
-  return results;
 }
 
 type PageRange = {
@@ -127,7 +128,7 @@ function withPagedItems<
 >(result: TResult, itemsKey: TKey, items: readonly TItem[], limits: KodiLimits): TResult {
   return {
     ...result,
-    [itemsKey]: [...items],
+    [itemsKey]: items,
     limits
   };
 }

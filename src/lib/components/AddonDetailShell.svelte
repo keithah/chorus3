@@ -12,14 +12,16 @@
 
 <script lang="ts">
   import { redactAddonText } from '$lib/safety/redaction';
+  import { addonsStore } from '$lib/stores/addonsStore.svelte';
 
   interface Props {
-    snapshot: AddonsStoreSnapshot;
+    snapshot?: AddonsStoreSnapshot;
     dispatch: AddonDetailDispatch;
     i18n: TranslationContext;
   }
   type PendingConfirmation = { addonid: string; enabled: boolean } | null;
-  let { snapshot, dispatch, i18n }: Props = $props();
+  let { snapshot: injectedSnapshot, dispatch, i18n }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? addonsStore.snapshot);
   let pendingConfirmation = $state<PendingConfirmation>(null);
 
   const detail = $derived(snapshot.detail);

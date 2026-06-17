@@ -4,6 +4,9 @@ import type { BoundLazyRoute, LazyRouteLoader, LazyRouteModule } from './LazyRou
 
 export type { LazyRouteLoader };
 
+export const loadAppDashboardSurface = lazyRoute(
+  () => import('$lib/app-pages/AppDashboardSurface.svelte')
+);
 export const loadLibraryPage = lazyRoute(() => import('$lib/app-pages/LibraryPage.svelte'));
 export const loadBrowserFilesPage = lazyRoute(
   () => import('$lib/app-pages/BrowserFilesPage.svelte')
@@ -44,9 +47,6 @@ export const loadLabScreenshotPage = lazyRoute(
 export const loadLabIconBrowserPage = lazyRoute(
   () => import('$components/LabIconBrowserPage.svelte')
 );
-export const loadNowPlayingEmbedRoute = lazyRoute(
-  () => import('$components/NowPlayingEmbedRoute.svelte')
-);
 export const loadLocalBrowserPlayerRoute = lazyRoute(
   () => import('$components/LocalBrowserPlayerRoute.svelte')
 );
@@ -63,56 +63,9 @@ export const loadMusicLibraryPanel = lazyRoute(
 );
 export const loadMusicBrowsePanel = lazyRoute(() => import('$components/MusicBrowsePanel.svelte'));
 export const loadNowPlayingPanel = lazyRoute(() => import('$components/NowPlayingPanel.svelte'));
-
-const lazyRouteLoaders = [
-  loadLibraryPage,
-  loadBrowserFilesPage,
-  loadPlaylistsPage,
-  loadAddonsPage,
-  loadSettingsPage,
-  loadHelpPage,
-  loadPvrPage,
-  loadThumbsUpPage,
-  loadVideoTvShowDetailShell,
-  loadVideoSeasonDetailShell,
-  loadVideoEpisodeDetailShell,
-  loadVideoMoviesPanel,
-  loadVideoRecentPanel,
-  loadVideoTvShowsPanel,
-  loadVideoMovieDetailShell,
-  loadVideoMovieStreamShell,
-  loadLabLandingPage,
-  loadLabApiBrowserPage,
-  loadLabScreenshotPage,
-  loadLabIconBrowserPage,
-  loadNowPlayingEmbedRoute,
-  loadLocalBrowserPlayerRoute,
-  loadAddonsPanel,
-  loadAddonDetailShell,
-  loadSettingsPanel,
-  loadMediaPlaylistsPanel,
-  loadMediaSearchPanel,
-  loadMediaFilesPanel,
-  loadMusicLibraryPanel,
-  loadMusicBrowsePanel,
-  loadNowPlayingPanel
-] as const;
-
-type AppPageSurfaceLazyRouteLoader = (typeof lazyRouteLoaders)[number];
-
-export async function preloadAppPageSurfaceRoutesForTest(): Promise<void> {
-  // Vitest resets modules between entrypoint scenarios; preloading keeps Svelte rune-bearing
-  // lazy components synchronous and avoids orphaned-effect failures from late dynamic imports.
-  await preloadLazyRouteLoaders(lazyRouteLoaders);
-}
-
-async function preloadLazyRouteLoaders(
-  loaders: readonly AppPageSurfaceLazyRouteLoader[]
-): Promise<void> {
-  for (const load of loaders) {
-    await load();
-  }
-}
+export const loadAppPageStoreSurface = lazyRoute(
+  () => import('$lib/app-pages/AppPageStoreSurface.svelte')
+);
 
 export type LazyRouteComponentProps<TLoader> =
   TLoader extends LazyRouteLoader<infer TComponent>

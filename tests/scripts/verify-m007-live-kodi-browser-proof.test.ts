@@ -171,4 +171,42 @@ describe('M007 live Kodi proof runner helpers', () => {
     );
     expect(createLiveKodiProofSummary(result)).not.toMatch(/not json|\/home\/me|jsonrpc/u);
   });
+
+  it('checks live routes with bounded concurrency', async () => {
+    let jsonRpcPassed = false;
+    let activeRouteFetches = 0;
+    let maxActiveRouteFetches = 0;
+
+    const fetchImpl = async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/jsonrpc') {
+        jsonRpcPassed = true;
+        return Response.json({ jsonrpc: '2.0', id: 1, result: 'pong' }, { status: 200 });
+      }
+
+      if (jsonRpcPassed) {
+        activeRouteFetches += 1;
+        maxActiveRouteFetches = Math.max(maxActiveRouteFetches, activeRouteFetches);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        activeRouteFetches -= 1;
+      }
+
+      return new Response(
+        '<html data-chorus3-kodi-base-resolver><meta name="chorus3:kodi-webinterface"></html>',
+        { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
+      );
+    };
+
+    const result = await runLiveKodiProof({
+      origin: 'http://127.0.0.1:8080',
+      dryRun: true,
+      timeoutMs: 500,
+      fetchImpl,
+      routeConcurrency: 3
+    });
+
+    expect(result.routes.length).toBeGreaterThan(3);
+    expect(maxActiveRouteFetches).toBeGreaterThan(1);
+    expect(maxActiveRouteFetches).toBeLessThanOrEqual(3);
+  });
 });

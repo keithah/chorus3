@@ -461,6 +461,10 @@ export const DE_DICTIONARY = {
   'remote.input.help':
     'Berührungsfreundliche Tasten senden die begrenzten Kodi-Eingabebefehle, die Chorus unterstützt.',
   'remote.input.aria': 'Fernbedienungs-Eingabesteuerung',
+  'remote.text.aria': 'Text an Kodi senden',
+  'remote.text.label': 'Text, der an Kodi gesendet wird',
+  'remote.text.placeholder': 'Text an Kodi',
+  'remote.text.submit': 'Senden',
   'remote.command.none': 'keiner',
   'remote.command.left': 'Links',
   'remote.command.leftAria': 'Nach links bewegen',
@@ -599,30 +603,6 @@ export const DE_DICTIONARY = {
   'nowPlaying.label.queue': 'Warteschlange',
   'nowPlaying.label.subtitle': 'Untertitel',
   'nowPlaying.label.audio': 'Audio',
-  'nowPlayingEmbed.kicker': 'Iframe: Aktuelle Wiedergabe',
-  'nowPlayingEmbed.title': 'Aktuelle Wiedergabe einbetten',
-  'nowPlayingEmbed.description':
-    'Eine kompakte, iframe-sichere Ansicht des aktuellen Kodi-Players, die nur gespeicherte Chorus-Konfiguration nutzt.',
-  'nowPlayingEmbed.refresh.label': 'Player-Status aktualisieren',
-  'nowPlayingEmbed.refresh.aria': 'Player-Status aktualisieren',
-  'nowPlayingEmbed.host.kicker': 'Gespeicherter Host',
-  'nowPlayingEmbed.host.title': 'Gespeicherten Host verwenden',
-  'nowPlayingEmbed.host.status':
-    'Gespeicherter Host {label} wird verwendet. Zugangsdaten gespeichert: {credentials}.',
-  'nowPlayingEmbed.host.fallback': 'Gespeicherter Kodi-Host',
-  'nowPlayingEmbed.host.factsAria': 'Host-Zusammenfassung für die Aktuelle-Wiedergabe-Einbettung',
-  'nowPlayingEmbed.host.label': 'Host-Label',
-  'nowPlayingEmbed.host.credentials': 'Zugangsdaten',
-  'nowPlayingEmbed.host.credentialsValue': 'Zugangsdaten gespeichert: {value}',
-  'nowPlayingEmbed.setup.title': 'Einrichtung erforderlich',
-  'nowPlayingEmbed.setup.status':
-    'Einrichtung erforderlich, bevor die Aktuelle-Wiedergabe-Einbettung verbinden kann.',
-  'nowPlayingEmbed.setup.description':
-    'Speichere zuerst einen vertrauenswürdigen Kodi-Host in den Chorus-Einstellungen, bevor du diese Ansicht einbettest.',
-  'nowPlayingEmbed.queryRejected.singular': '{count} unsicherer URL-Parameter wurde blockiert.',
-  'nowPlayingEmbed.queryRejected.plural': '{count} unsichere URL-Parameter wurden blockiert.',
-  'nowPlayingEmbed.queryRejected.description':
-    'Aus Sicherheitsgründen können zugangsdatenähnliche Daten nicht in der URL konfiguriert werden. Nutze stattdessen gespeicherte Host-Einstellungen.',
   'shortcuts.eyebrow': 'Labor-Werkzeug',
   'shortcuts.panel.title': 'Wiedergabe-Kurzbefehle',
   'shortcuts.panel.description':

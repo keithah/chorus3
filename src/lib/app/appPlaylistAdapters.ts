@@ -11,6 +11,7 @@ import type {
 } from '$lib/stores';
 import { isTextSecretSafe } from '$lib/safety/redaction';
 import type { AppShellPlaylistDestinationMode } from '$lib/app-shell/appShellTypes';
+import { safeBrowserFilename } from '$lib/app/browserFilename';
 
 export type PlaylistDisabledReasonContext = {
   destinationMode: AppShellPlaylistDestinationMode;
@@ -40,13 +41,7 @@ export function exportableLocalPlaylistItems(
 }
 
 export function safePlaylistExportName(label: string): string {
-  return (
-    label
-      .trim()
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80) || 'playlist'
-  );
+  return safeBrowserFilename(label, 'playlist');
 }
 
 export function playlistClearDisabledReason(

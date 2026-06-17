@@ -21,8 +21,17 @@ function createFixture(files: Record<string, string>): string {
   return root;
 }
 
-function dictionarySource(source: string): string {
-  return `export const DICTIONARIES = ${source} as const;\n`;
+function dictionarySource(): string {
+  return [
+    `import { DE_DICTIONARY } from './locales/de';`,
+    `import { EN_DICTIONARY } from './locales/en';`,
+    ``,
+    `export const DICTIONARIES = {`,
+    `  en: EN_DICTIONARY,`,
+    `  de: DE_DICTIONARY`,
+    `} as const;`,
+    ``
+  ].join('\n');
 }
 
 afterEach(() => {
@@ -34,18 +43,17 @@ afterEach(() => {
 describe('i18n verification diagnostics', () => {
   it('reports dictionary parity, placeholders, and blank values with file/key diagnostics', () => {
     const root = createFixture({
-      'src/lib/i18n/dictionaries.ts': dictionarySource(`{
-        en: {
+      'src/lib/i18n/dictionaries.ts': dictionarySource(),
+      'src/lib/i18n/locales/en.ts': `export const EN_DICTIONARY = {
           'example.greeting': 'Hello {name}',
           'example.blank': 'Fallback',
           'example.onlyEnglish': 'Only English'
-        },
-        de: {
+        } as const;`,
+      'src/lib/i18n/locales/de.ts': `export const DE_DICTIONARY = {
           'example.greeting': 'Hallo {person}',
           'example.blank': '',
           'example.onlyGerman': 'Nur Deutsch'
-        }
-      }`),
+        } as const;`,
       'src/App.svelte': '<main>{i18n.t("app.title")}</main>'
     });
 
@@ -71,10 +79,9 @@ describe('i18n verification diagnostics', () => {
 
   it('reports unapproved hardcoded visible copy with concise file and line diagnostics', () => {
     const root = createFixture({
-      'src/lib/i18n/dictionaries.ts': dictionarySource(`{
-        en: { 'app.title': 'chorus3' },
-        de: { 'app.title': 'chorus3' }
-      }`),
+      'src/lib/i18n/dictionaries.ts': dictionarySource(),
+      'src/lib/i18n/locales/en.ts': `export const EN_DICTIONARY = { 'app.title': 'chorus3' } as const;`,
+      'src/lib/i18n/locales/de.ts': `export const DE_DICTIONARY = { 'app.title': 'chorus3' } as const;`,
       'src/lib/components/Nested/UnsafePanel.svelte':
         '<section title="Unsafe Title">Visible unsafe copy</section>'
     });
@@ -87,5 +94,18 @@ describe('i18n verification diagnostics', () => {
         'src/lib/components/Nested/UnsafePanel.svelte:1 visible-attribute "Unsafe Title"'
       ]
     });
+  });
+
+  it('rejects inline dictionaries so locale files stay the canonical boundary', () => {
+    const root = createFixture({
+      'src/lib/i18n/dictionaries.ts': `export const DICTIONARIES = {
+        en: { 'app.title': 'chorus3' },
+        de: { 'app.title': 'chorus3' }
+      } as const;`
+    });
+
+    expect(() => runI18nVerification(root)).toThrow(
+      /DICTIONARIES locale en must reference an imported dictionary identifier/u
+    );
   });
 });

@@ -83,7 +83,9 @@ describe('PlaylistDrawer', () => {
       'Clear playlist',
       'Refresh playlist',
       'Party mode',
-      'Save Kodi playlist'
+      'Save Kodi playlist',
+      'Scan video library',
+      'Scan audio library'
     ]) {
       const title = getButtonByText(target, label).title;
       expect(title).not.toMatch(/deferred|future|not yet|persistence work/i);
@@ -141,14 +143,18 @@ describe('PlaylistDrawer', () => {
     click(getButtonByText(target, 'Refresh playlist'));
     click(getButtonByText(target, 'Party mode'));
     click(getButtonByText(target, 'Save Kodi playlist'));
+    click(getButtonByText(target, 'Scan video library'));
+    click(getButtonByText(target, 'Scan audio library'));
     expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(2, 'refresh');
     expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(3, 'partyMode');
     expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(4, 'saveKodiPlaylist');
+    expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(5, 'scanVideoLibrary');
+    expect(onPlaylistMenuAction).toHaveBeenNthCalledWith(6, 'scanAudioLibrary');
 
     const currentPlaylist = getButtonByText(target, 'Current playlist');
     expect(currentPlaylist.disabled).toBe(true);
     click(currentPlaylist);
-    expect(onPlaylistMenuAction).toHaveBeenCalledTimes(4);
+    expect(onPlaylistMenuAction).toHaveBeenCalledTimes(6);
 
     click(getButtonByText(target, 'Video'));
     expect(getButtonByText(target, 'Video').getAttribute('aria-selected')).toBe('true');

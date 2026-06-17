@@ -474,11 +474,21 @@ describe('video library store', () => {
       isEmpty: false
     });
 
-    snapshot.recentlyAddedMovies[0].art!.poster = 'mutated.jpg';
-    snapshot.recentlyPlayedMovies[0].resume!.position = 99;
-    snapshot.recentlyPlayedEpisodes[0].art!.thumb = 'mutated.jpg';
-    snapshot.recentlyPlayedEpisodes[0].resume!.position = 99;
-    snapshot.limits.recentlyAddedMovies.total = 99;
+    expect(() => {
+      snapshot.recentlyAddedMovies[0].art!.poster = 'mutated.jpg';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.recentlyPlayedMovies[0].resume!.position = 99;
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.recentlyPlayedEpisodes[0].art!.thumb = 'mutated.jpg';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.recentlyPlayedEpisodes[0].resume!.position = 99;
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.limits.recentlyAddedMovies.total = 99;
+    }).toThrow(TypeError);
 
     expect(store.snapshot.recentlyAddedMovies[0].art!.poster).toBe('poster.jpg');
     expect(store.snapshot.recentlyPlayedMovies[0].resume!.position).toBe(4);
@@ -579,17 +589,27 @@ describe('video library store', () => {
     expectSecretSafe(store.snapshot);
   });
 
-  it('clones snapshots on read so callers cannot mutate store state', async () => {
+  it('returns frozen cached snapshots so callers cannot mutate store state', async () => {
     const { client, store } = createHarness();
     enqueueSuccessfulMovies(client);
 
     await store.refresh('manual');
 
     const snapshot = store.snapshot;
-    snapshot.movies[0].label = 'Mutated';
-    snapshot.movies[0].art!.poster = 'mutated.jpg';
-    snapshot.movies[0].resume!.position = 99;
-    snapshot.limits.movies.total = 999;
+    expect(store.snapshot).toBe(snapshot);
+    expect(Object.isFrozen(snapshot.movies[0])).toBe(true);
+    expect(() => {
+      snapshot.movies[0].label = 'Mutated';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.movies[0].art!.poster = 'mutated.jpg';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.movies[0].resume!.position = 99;
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.limits.movies.total = 999;
+    }).toThrow(TypeError);
 
     expect(store.snapshot.movies[0]).toMatchObject({
       label: 'Alien',

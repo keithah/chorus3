@@ -20,6 +20,7 @@
 <script lang="ts">
   import type { LocalPlayerRoute } from '$lib/app/appRouter';
   import LocalMediaRuntime from '$lib/components/LocalMediaRuntime.svelte';
+  import { sanitizeUiText } from './textFormatting';
 
   interface Props {
     route: LocalPlayerRoute;
@@ -153,16 +154,6 @@
     return error instanceof Error && error.message.trim()
       ? sanitizeUiText(error.message)
       : 'Playback failed.';
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage');
   }
 </script>
 

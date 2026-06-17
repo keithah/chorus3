@@ -12,12 +12,12 @@ import {
 } from 'node:fs';
 import { basename, dirname, extname, join, relative, sep } from 'node:path';
 import { argv, cwd, exit } from 'node:process';
-import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   KODI_PACKAGE_BASE_PATH,
   getKodiPackageRouteFallbacks
 } from './kodi-package-route-contract.mjs';
+import { runChildProcess } from './run-child-process.mjs';
 
 export const DEFAULT_ADDON_ID = 'webinterface.chorus3';
 export const PACKAGE_ROOT = 'dist/kodi';
@@ -165,6 +165,7 @@ export function stageKodiWebinterfacePackage({
 
   const buildFiles = collectBuildFiles(join(root, 'dist'), paths.packageRoot, root);
   const entries = [`${addonId}/addon.xml`];
+  const entrySet = new Set(entries);
 
   for (const file of buildFiles) {
     const relativeToDist = toPosixPath(relative(join(root, 'dist'), file));
@@ -172,13 +173,16 @@ export function stageKodiWebinterfacePackage({
     const target = join(paths.stageDir, relativeToDist);
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(file, target);
-    entries.push(`${addonId}/${relativeToDist}`);
+    const entry = `${addonId}/${relativeToDist}`;
+    entries.push(entry);
+    entrySet.add(entry);
   }
 
   injectKodiWebinterfaceMarker({ addonId, stageDir: paths.stageDir });
   stageRouteFallbackEntrypoints({
     addonId,
     entries,
+    entrySet,
     routeFallbacks,
     sourceHtml: readFileSync(join(paths.stageDir, 'index.html'), 'utf8'),
     stageDir: paths.stageDir
@@ -266,28 +270,7 @@ export async function packageKodiWebinterface({ root = cwd(), runZip = runSystem
 }
 
 export function runSystemZip({ cwd, args }) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('zip', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-    const stdoutChunks = [];
-    const stderrChunks = [];
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdoutChunks.push(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      stderrChunks.push(chunk);
-    });
-    child.on('error', reject);
-    child.on('close', (status) => {
-      resolve({
-        status: status ?? 1,
-        stdout: stdoutChunks.join(''),
-        stderr: stderrChunks.join('')
-      });
-    });
-  });
+  return runChildProcess({ command: 'zip', args, cwd });
 }
 
 function validateMetadata(metadata) {
@@ -397,7 +380,14 @@ function collectBuildFiles(distDir, packageRoot, root) {
   );
 }
 
-function stageRouteFallbackEntrypoints({ addonId, entries, routeFallbacks, sourceHtml, stageDir }) {
+function stageRouteFallbackEntrypoints({
+  addonId,
+  entries,
+  entrySet = new Set(entries),
+  routeFallbacks,
+  sourceHtml,
+  stageDir
+}) {
   for (const fallback of routeFallbacks) {
     validateRouteFallback(fallback);
     const target = join(stageDir, fallback.stagedIndexPath);
@@ -405,8 +395,9 @@ function stageRouteFallbackEntrypoints({ addonId, entries, routeFallbacks, sourc
     writeFileSync(target, sourceHtml);
 
     const entry = `${addonId}/${fallback.stagedIndexPath}`;
-    if (!entries.includes(entry)) {
+    if (!entrySet.has(entry)) {
       entries.push(entry);
+      entrySet.add(entry);
     }
   }
 }

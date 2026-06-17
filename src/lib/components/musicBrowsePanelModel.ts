@@ -9,6 +9,7 @@ import type {
   MusicLibraryLimitsSnapshot,
   MusicLibrarySongSnapshot
 } from '$lib/stores/musicLibrary.svelte';
+import { sanitizeUiText } from './textFormatting';
 
 export type MusicBrowseActionItem =
   | { kind: 'song'; songid: number }
@@ -204,18 +205,7 @@ export function musicBrowseEachKey(prefix: string, id: unknown, index: number): 
 }
 
 export function sanitizeMusicBrowseUiText(value: string): string {
-  return value
-    .replace(/raw response body/gi, 'response body [redacted]')
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/https?:\/\/[^\s]+/gi, '[url]')
-    .replace(/smb:\/\/[^\s]+/gi, '[path]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/localStorage/gi, 'browser storage');
+  return sanitizeUiText(value);
 }
 
 export function capitalizeMusicBrowseText(value: string): string {

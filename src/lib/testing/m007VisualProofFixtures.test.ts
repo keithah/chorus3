@@ -61,6 +61,15 @@ describe('M007 visual proof fixtures', () => {
     );
   });
 
+  it('preserves primary lab proof route identity', () => {
+    const props = createM007VisualProofAppProps({
+      pathname: '/lab/screenshot',
+      search: SECRET_SEARCH
+    });
+
+    expect(props.route).toEqual({ kind: 'primary', route: { kind: 'labScreenshot' } });
+  });
+
   it('falls back to safe app routes for unknown proof routes without setup or not-found fixture copy', () => {
     const props = createM007VisualProofAppProps({
       pathname: '/missing-proof-route',

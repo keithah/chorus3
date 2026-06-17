@@ -19,6 +19,7 @@ import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
 import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
 import type { RemoteInputPanelRemoteDispatch } from '$components/RemoteInputPanel.svelte';
 import type { SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
+import type { LibraryQuickActionsDispatch } from '$lib/app-pages/LibraryQuickActions.svelte';
 import type { VideoEpisodeActionDispatch } from '$components/VideoEpisodeDetailShell.svelte';
 import type { VideoMovieActionDispatch } from '$components/VideoMovieDetailShell.svelte';
 import type { VideoMovieStreamDispatch } from '$components/VideoMovieStreamShell.svelte';
@@ -27,11 +28,9 @@ import type {
   VideoSeasonWriteDispatch
 } from '$components/VideoSeasonDetailShell.svelte';
 import type { AppRoute } from '$lib/app/appRouter';
-import type { NowPlayingEmbedQuery } from '$lib/app/nowPlayingEmbedQuery';
 import type { LocaleToggleDispatch } from '$components/LocaleToggle.svelte';
 import type {
   AddonsStoreSnapshot,
-  ActiveHostSummary,
   LocalPlayerStoreSnapshot,
   LocalPlaylistDispatch,
   LocalPlaylistPlayableItem,
@@ -102,6 +101,7 @@ export interface AppProps {
   playerDispatch?: PlayerControlsDispatch;
   remoteSnapshot?: RemoteInputDispatchSnapshot;
   remoteInputDispatch?: RemoteInputPanelRemoteDispatch;
+  libraryMaintenanceDispatch?: LibraryQuickActionsDispatch;
   localPlayerSnapshot?: LocalPlayerStoreSnapshot;
   localPlaylistSnapshot?: LocalPlaylistStoreSnapshot;
   localPlaylistDispatch?: LocalPlaylistDispatch;
@@ -139,9 +139,6 @@ export interface AppProps {
   addonsSnapshot?: AddonsStoreSnapshot;
   addonsDispatch?: AddonsPanelDispatch;
   addonDetailDispatch?: AddonDetailDispatch;
-  nowPlayingEmbedQuery?: NowPlayingEmbedQuery;
-  nowPlayingHostSummary?: ActiveHostSummary | null;
-  nowPlayingRefreshDispatch?: () => Promise<void> | void;
   localBrowserPlayerActionDispatch?: LocalBrowserPlayerDispatch;
   packageMountedHost?: SavedKodiHost | null;
   packageBasePath?: string;

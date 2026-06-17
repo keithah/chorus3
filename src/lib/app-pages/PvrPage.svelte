@@ -12,6 +12,7 @@
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { createIncrementalVisibility } from '$components/incrementalVisibility.svelte';
+  import PvrBroadcastList from './PvrBroadcastList.svelte';
 
   export interface PvrPageDispatch {
     refreshChannels(group: PvrChannelGroup): Promise<void> | void;
@@ -44,6 +45,7 @@
   let globalEpgRunId = 0;
   let pendingAction = $state<string | null>(null);
   let localStatusText = $state<string | null>(null);
+  const GLOBAL_EPG_BROADCAST_LIMIT = 24;
   const channelVisibility = createIncrementalVisibility(240);
   const guideChannelVisibility = createIncrementalVisibility(50);
   const selectedBroadcastVisibility = createIncrementalVisibility(150);
@@ -106,13 +108,13 @@
       return;
     }
 
-    const key = snapshot.tvChannels.map((channel) => channel.channelid).join(',');
+    const key = visibleGuideChannels.map((channel) => channel.channelid).join(',');
     if (!key || key === lastGlobalEpgKey) {
       return;
     }
 
     lastGlobalEpgKey = key;
-    void refreshBroadcastsForChannels(snapshot.tvChannels);
+    void refreshBroadcastsForChannels(visibleGuideChannels);
   });
 
   $effect(() => {
@@ -223,7 +225,7 @@
 
   async function refreshGlobalEpg(): Promise<void> {
     await dispatch.refreshChannels('alltv');
-    await refreshBroadcastsForChannels(snapshot.tvChannels);
+    await refreshBroadcastsForChannels(visibleGuideChannels);
   }
 
   async function refreshBroadcastsForChannels(
@@ -265,6 +267,10 @@
 
   function broadcastsFor(channel: PvrChannelSnapshot): readonly PvrBroadcastSnapshot[] {
     return snapshot.broadcastsByChannelId[channel.channelid] ?? [];
+  }
+
+  function visibleGuideBroadcasts(channel: PvrChannelSnapshot): readonly PvrBroadcastSnapshot[] {
+    return broadcastsFor(channel).slice(0, GLOBAL_EPG_BROADCAST_LIMIT);
   }
 
   async function toggleRecording(channel: PvrChannelSnapshot): Promise<void> {
@@ -430,12 +436,13 @@
         <div class="broadcast-list programmes global-epg" aria-label="TV Guide">
           {#each visibleGuideChannels as channel (channel.channelid)}
             {@const broadcasts = broadcastsFor(channel)}
+            {@const visibleBroadcasts = visibleGuideBroadcasts(channel)}
             <section class="global-epg-channel" aria-labelledby={`pvr-guide-${channel.channelid}`}>
               <h3 id={`pvr-guide-${channel.channelid}`}>{channel.label}</h3>
               {#if broadcasts.length === 0}
                 <p class="empty-state">No broadcasts found.</p>
               {:else}
-                {#each broadcasts as broadcast (broadcast.broadcastid)}
+                {#each visibleBroadcasts as broadcast (broadcast.broadcastid)}
                   <article
                     class:active={broadcast.isactive}
                     class:aired={broadcast.wasactive}
@@ -466,6 +473,11 @@
                     </button>
                   </article>
                 {/each}
+                {#if broadcasts.length > visibleBroadcasts.length}
+                  <p class="empty-state">
+                    Showing {visibleBroadcasts.length} of {broadcasts.length} broadcasts.
+                  </p>
+                {/if}
               {/if}
             </section>
           {/each}
@@ -490,52 +502,18 @@
             {selectedChannel.isrecording ? 'Stop record' : 'Record'}
           </button>
         </section>
-        {#if selectedBroadcasts.length === 0}
-          <p class="empty-state">No broadcasts found.</p>
-        {:else}
-          <div class="broadcast-list programmes" aria-label={`${selectedChannel.label} EPG`}>
-            {#each visibleSelectedBroadcasts as broadcast (broadcast.broadcastid)}
-              <article
-                class:active={broadcast.isactive}
-                class:aired={broadcast.wasactive}
-                class:airing={broadcast.isactive}
-                class:hasTimer={broadcast.hastimer || broadcast.hastimerrule}
-                class="broadcast-row pvr-card"
-              >
-                <span class="broadcast-time">
-                  {formatClock(broadcast.starttime) || broadcast.starttime || ''}
-                  {#if broadcast.endtime}
-                    <small>{formatClock(broadcast.endtime) || broadcast.endtime}</small>
-                  {/if}
-                </span>
-                <span class="pvr-card__text">
-                  <strong>{broadcast.title ?? broadcast.label}</strong>
-                  {#if broadcast.plot}
-                    <span>{broadcast.plot}</span>
-                  {/if}
-                </span>
-                <button type="button" class="pvr-play" onclick={() => playSelectedBroadcast()}>
-                  Play
-                </button>
-                <button type="button" class="pvr-play" onclick={() => recordSelectedBroadcast()}>
-                  Record
-                </button>
-                <button type="button" class="pvr-play" onclick={() => toggleTimer(broadcast)}>
-                  {broadcast.hastimer || broadcast.hastimerrule ? 'Timer on' : 'Timer'}
-                </button>
-              </article>
-            {/each}
-          </div>
-          {#if selectedBroadcastVisibility.hasMore(selectedBroadcasts.length)}
-            <button
-              type="button"
-              class="pvr-show-more"
-              onclick={selectedBroadcastVisibility.showMore}
-            >
-              Show more broadcasts
-            </button>
-          {/if}
-        {/if}
+        <PvrBroadcastList
+          broadcasts={selectedBroadcasts}
+          visibleBroadcasts={visibleSelectedBroadcasts}
+          ariaLabel={`${selectedChannel.label} EPG`}
+          hasMore={selectedBroadcastVisibility.hasMore(selectedBroadcasts.length)}
+          showMore={selectedBroadcastVisibility.showMore}
+          play={playSelectedBroadcast}
+          record={recordSelectedBroadcast}
+          {toggleTimer}
+          {formatClock}
+          cardRows
+        />
       {/if}
     {:else if isChannelPage}
       {#if channelStatus === 'loading' && channels.length === 0}
@@ -580,49 +558,24 @@
             </article>
           {/each}
         </div>
+        {#if channelVisibility.hasMore(channels.length)}
+          <button type="button" class="pvr-show-more" onclick={channelVisibility.showMore}>
+            Show more channels
+          </button>
+        {/if}
         {#if selectedChannel}
           <section class="broadcast-panel" aria-label={`${selectedChannel.label} broadcasts`}>
             <h3>{selectedChannel.label}</h3>
-            {#if selectedBroadcasts.length === 0}
-              <p class="empty-state">No broadcasts found.</p>
-            {:else}
-              <div class="broadcast-list">
-                {#each selectedBroadcasts as broadcast (broadcast.broadcastid)}
-                  <article class:active={broadcast.isactive} class="broadcast-row">
-                    <span class="broadcast-time">
-                      {broadcast.starttime ?? ''}
-                      {#if broadcast.endtime}
-                        <small>{broadcast.endtime}</small>
-                      {/if}
-                    </span>
-                    <span class="pvr-card__text">
-                      <strong>{broadcast.title ?? broadcast.label}</strong>
-                      {#if broadcast.plot}
-                        <span>{broadcast.plot}</span>
-                      {/if}
-                    </span>
-                    <button type="button" class="pvr-play" onclick={() => playSelectedBroadcast()}>
-                      Play
-                    </button>
-                    <button
-                      type="button"
-                      class="pvr-play"
-                      onclick={() => recordSelectedBroadcast()}
-                    >
-                      Record
-                    </button>
-                    <button type="button" class="pvr-play" onclick={() => toggleTimer(broadcast)}>
-                      {broadcast.hastimer || broadcast.hastimerrule ? 'Timer on' : 'Timer'}
-                    </button>
-                  </article>
-                {/each}
-              </div>
-              {#if channelVisibility.hasMore(channels.length)}
-                <button type="button" class="pvr-show-more" onclick={channelVisibility.showMore}>
-                  Show more channels
-                </button>
-              {/if}
-            {/if}
+            <PvrBroadcastList
+              broadcasts={selectedBroadcasts}
+              visibleBroadcasts={visibleSelectedBroadcasts}
+              ariaLabel={`${selectedChannel.label} broadcasts`}
+              hasMore={selectedBroadcastVisibility.hasMore(selectedBroadcasts.length)}
+              showMore={selectedBroadcastVisibility.showMore}
+              play={playSelectedBroadcast}
+              record={recordSelectedBroadcast}
+              {toggleTimer}
+            />
           </section>
         {/if}
       {/if}

@@ -9,6 +9,7 @@ import {
   type AddonsGetAddonDetailsResult,
   type AddonsGetAddonsParams
 } from '$lib/kodi';
+import { redactAddonText } from '$lib/safety/redaction';
 
 import type {
   AddonEntityFilter,
@@ -435,23 +436,7 @@ function sanitizeLabel(label: string, fallback: string): string {
 }
 
 export function sanitizeScalar(value: string): string {
-  return value
-    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-    .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
-    .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s]+/gi, '[redacted-url]')
-    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-    .replace(/authorization/gi, 'credentials')
-    .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-    .replace(/username or password/gi, 'credentials')
-    .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-file')
-    .replace(/\/[\w./-]+/gi, '[redacted-path]')
-    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-    .replace(/p@ssword/gi, '[redacted-password]')
-    .replace(/localStorage/gi, 'browser storage')
-    .replace(/sessionStorage/gi, 'browser storage')
-    .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
-    .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
-    .replace(/password/gi, 'credentials');
+  return redactAddonText(value);
 }
 
 export function isSafeAddonId(value: unknown): value is string {

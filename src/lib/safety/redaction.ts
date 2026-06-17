@@ -31,6 +31,56 @@ export function redactDiagnosticText(value: unknown): string {
   return redactText(toDiagnosticText(value));
 }
 
+export function redactStoreErrorMessage(message: string): string {
+  return message
+    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
+    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
+    .replace(/authorization/gi, 'credentials')
+    .replace(/basic\s+[a-z0-9+/=._-]+/gi, 'credentials [redacted]')
+    .replace(/username or password/gi, 'credentials')
+    .replace(/https?:\/\/[^\s/@:]+:[^\s/@]+@/gi, 'http://credentials@')
+    .replace(/https?:\/\/[^\s]+/gi, '[redacted-url]')
+    .replace(/smb:\/\/[^\s]+/gi, 'redacted-path')
+    .replace(/special:\/\/[^\s]+/gi, 'redacted-path')
+    .replace(/\b[a-z]:\\[^\s]+/gi, 'redacted-path')
+    .replace(/\/[^\s]+\.(mkv|mp4|mp3|flac|m4a|avi|mov)\b/gi, 'redacted-path')
+    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
+    .replace(/p@ssword/gi, '[redacted-password]')
+    .replace(/localStorage|sessionStorage/gi, 'browser storage')
+    .replace(/CHORUS_SENTINEL_SECRET|SENTINEL_SECRET/gi, '[redacted-sentinel]')
+    .replace(/raw[_\s-]*response[_\s-]*body/gi, 'response body [redacted]')
+    .replace(/raw\s+(body|response|payload)/gi, 'redacted payload')
+    .replace(/\{[^{}]*(jsonrpc|Input\.SendText)[^{}]*\}/gi, 'redacted payload')
+    .replace(/\bInput\.SendText\b/gi, 'redacted action')
+    .replace(/\bjsonrpc\b/gi, 'redacted payload')
+    .replace(/password/gi, 'credentials');
+}
+
+export function redactUiText(value: string): string {
+  return value
+    .replace(/raw response body/gi, 'response body [redacted]')
+    .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
+    .replace(/https?:\/\/[^\s]+/gi, '[url]')
+    .replace(/file:\/\/[^\s]+/gi, '[path]')
+    .replace(/smb:\/\/[^\s]+/gi, '[path]')
+    .replace(/image:\/\/[^\s]+/gi, '[artwork]')
+    .replace(/special:\/\/(?:music|video)playlists[^\s]*/gi, '[playlist-path]')
+    .replace(/special:\/\/[^\s]+/gi, '[path]')
+    .replace(/\/vfs\/[^\s]+/gi, '[path]')
+    .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
+    .replace(/authorization/gi, 'credentials')
+    .replace(/basic\s+[a-z0-9+/=]{6,}/gi, 'credentials [redacted]')
+    .replace(/sentinel_secret/gi, '[redacted-secret]')
+    .replace(/admin:p@ssword/gi, '[redacted-credentials]')
+    .replace(/p@ssword/gi, '[redacted-password]')
+    .replace(/password/gi, 'credentials')
+    .replace(/\b[a-z]:\\[^\s]+/gi, '[path]')
+    .replace(/username or password/gi, 'credentials')
+    .replace(/localStorage/gi, 'browser storage')
+    .replace(/sessionStorage/gi, 'browser storage')
+    .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
+}
+
 export function redactJsonForDisplay(value: unknown): string {
   const normalized = normalizeForDisplay(value, new WeakSet<object>(), 0);
 

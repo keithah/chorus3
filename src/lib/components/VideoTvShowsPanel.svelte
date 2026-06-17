@@ -3,11 +3,13 @@
     VideoLibraryStoreSnapshot,
     VideoTvShowSnapshot
   } from '$lib/stores/videoLibrary.svelte';
+  import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import { buildVideoRoute } from '$lib/video/videoRouter';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
-    snapshot: VideoLibraryStoreSnapshot;
+    snapshot?: VideoLibraryStoreSnapshot;
   }
 
   type ArtworkPresentation = {
@@ -16,7 +18,8 @@
     initials: string;
   };
 
-  let { snapshot }: Props = $props();
+  let { snapshot: injectedSnapshot }: Props = $props();
+  const snapshot = $derived(injectedSnapshot ?? videoLibraryStore.snapshot);
   const tvShowVisibility = createIncrementalVisibility(240);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
@@ -199,44 +202,6 @@
       .join('')
       .padEnd(2, fallback)
       .slice(0, 2);
-  }
-
-  function textOrNull(value: unknown): string | null {
-    if (typeof value !== 'string') {
-      return null;
-    }
-    const trimmed = value.trim();
-    if (!trimmed || looksLikePathOrUrl(trimmed)) {
-      return null;
-    }
-    return sanitizeUiText(trimmed);
-  }
-
-  function sanitizeUiText(value: string): string {
-    return value
-      .replace(/raw response body/gi, 'response body [redacted]')
-      .replace(/https?:\/\/[^\s/@]+:[^\s/@]+@[^\s]+/gi, '[redacted-url]')
-      .replace(/https?:\/\/[^\s]+/gi, '[url]')
-      .replace(/smb:\/\/[^\s]+/gi, '[path]')
-      .replace(/image:\/\/[^\s]+/gi, '[artwork]')
-      .replace(/authorization\s*:\s*basic\s+[^\s]+/gi, 'credentials [redacted]')
-      .replace(/authorization/gi, 'credentials')
-      .replace(/basic\s+[a-z0-9+/=]+/gi, 'credentials [redacted]')
-      .replace(/sentinel_secret/gi, '[redacted-secret]')
-      .replace(/admin:p@ssword/gi, '[redacted-credentials]')
-      .replace(/p@ssword/gi, '[redacted-password]')
-      .replace(/username or password/gi, 'credentials')
-      .replace(/localStorage|sessionStorage/gi, 'browser storage')
-      .replace(/\/(mnt|media|home|users|volumes|var|tmp)\/[^\s]+/gi, '[path]');
-  }
-
-  function looksLikePathOrUrl(value: string): boolean {
-    return (
-      /^(?:https?:\/\/|smb:\/\/|image:\/\/)/i.test(value) ||
-      /^[a-z]:\\/i.test(value) ||
-      /^\/(?:mnt|media|home|users|volumes|var|tmp)\//i.test(value) ||
-      /\\/.test(value)
-    );
   }
 </script>
 

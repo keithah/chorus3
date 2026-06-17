@@ -370,8 +370,8 @@ describe('video write store', () => {
       lastOperation: 'episodes-batch-watched',
       summary: { total: 103, succeeded: 101, failed: 2 },
       failedItems: [
-        { kind: 'episode', id: 2, label: 'Episode 2 redacted-file' },
-        { kind: 'episode', id: 101, label: 'Episode 101 redacted-file' }
+        { kind: 'episode', id: 2, label: 'Episode 2 redacted-path' },
+        { kind: 'episode', id: 101, label: 'Episode 101 redacted-path' }
       ],
       writeCounts: { episodesWatched: 101 }
     });

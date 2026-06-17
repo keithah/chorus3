@@ -1,5 +1,5 @@
 import type { LocalPlayerRoute } from './appRouteTypes';
-import { parseSafeIntegerSegment } from './appRoutePathSafety';
+import { parseSafeIntegerSegment } from '$lib/routing/pathSafety';
 
 const ROOT_PATH = '/';
 const LOCAL_PLAYER_PATH = '/local-player';

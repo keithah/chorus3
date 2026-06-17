@@ -67,6 +67,7 @@
   let lastRouteItemKey = $state('');
   const fileVisibility = createIncrementalVisibility(250);
   const folderVisibility = createIncrementalVisibility(250);
+  const randomHashByEntry = new WeakMap<MediaDirectoryEntrySnapshot, number>();
 
   const activeMedia = $derived(
     route.kind === 'browserItem' && route.media === 'video' ? 'video' : snapshot.media
@@ -282,12 +283,21 @@
 
   function stableRandomSort(entries: MediaDirectoryEntrySnapshot[]): MediaDirectoryEntrySnapshot[] {
     return entries
-      .map((entry) => ({ entry, hash: hashText(routeIdForEntry(entry)) }))
+      .map((entry) => ({ entry, hash: randomHashForEntry(entry) }))
       .sort((a, b) => {
         if (a.hash !== b.hash) return a.hash - b.hash;
         return a.entry.label.localeCompare(b.entry.label, undefined, { sensitivity: 'base' });
       })
       .map(({ entry }) => entry);
+  }
+
+  function randomHashForEntry(entry: MediaDirectoryEntrySnapshot): number {
+    const cached = randomHashByEntry.get(entry);
+    if (cached !== undefined) return cached;
+
+    const hash = hashText(routeIdForEntry(entry));
+    randomHashByEntry.set(entry, hash);
+    return hash;
   }
 
   function hashText(value: string): number {

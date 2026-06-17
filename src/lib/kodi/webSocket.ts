@@ -5,7 +5,7 @@ import {
   type KodiWebSocketHost
 } from './host';
 import {
-  parseKodiNotificationMessage,
+  parseKodiWebSocketMessage,
   type KodiNotification,
   type MalformedKodiNotification
 } from './notifications';
@@ -222,6 +222,13 @@ export function createKodiJsonRpcWebSocketClient(
     socket = null;
   }
 
+  function closeSocketForReconnect(reason: string): void {
+    const currentSocket = socket;
+    socket = null;
+    detachSocketHandlers(currentSocket);
+    currentSocket?.close(1000, reason);
+  }
+
   function startConnectTimeout(currentSessionId: number): void {
     clearConnectTimeout();
     connectTimer = setTimeout(() => {
@@ -271,7 +278,9 @@ export function createKodiJsonRpcWebSocketClient(
     dispatch({ type: 'reconnecting', endpoint, attempt, delayMs });
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      cleanupSocket();
+      clearConnectTimeout();
+      clearHeartbeat();
+      closeSocketForReconnect('Kodi WebSocket reconnecting.');
       connect();
     }, delayMs);
   }
@@ -309,6 +318,7 @@ export function createKodiJsonRpcWebSocketClient(
     }
 
     clearConnectTimeout();
+    reconnectAttempt = 0;
     dispatch({ type: 'open', endpoint, lastConnectedAt: new Date().toISOString() });
     startHeartbeat(currentSessionId);
   }
@@ -318,9 +328,13 @@ export function createKodiJsonRpcWebSocketClient(
       return;
     }
 
-    const result = parseKodiNotificationMessage(String(event.data));
+    const result = parseKodiWebSocketMessage(String(event.data));
     if (result.ok) {
-      dispatch({ type: 'notification', endpoint, notification: result.notification });
+      if (result.message.kind === 'response') {
+        return;
+      }
+
+      dispatch({ type: 'notification', endpoint, notification: result.message.notification });
       return;
     }
 
