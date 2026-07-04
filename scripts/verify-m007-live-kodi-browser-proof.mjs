@@ -699,7 +699,7 @@ export function createLiveKodiProofSummary(result) {
   return redactForLiveKodiProof(lines.join('\n'));
 }
 
-export function renderProofDocEvidenceBlock(result) {
+function renderProofDocEvidenceBlock(result) {
   const summary = createLiveKodiProofSummary(result);
   return [
     '<!-- S09_LIVE_KODI_RUNNER_EVIDENCE_START -->',
@@ -781,7 +781,7 @@ export async function runLiveKodiProofCli(args = argv.slice(2)) {
     console.log(`Proof document updated with sanitized ${result.statusClass} classification.`);
   }
 
-  return { exitCode: 0, result };
+  return { exitCode: result.statusClass === 'passed' ? 0 : 1, result };
 }
 
 const invokedPath = argv[1] ? pathToFileURL(argv[1]).href : undefined;

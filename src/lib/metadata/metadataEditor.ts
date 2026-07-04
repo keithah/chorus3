@@ -408,6 +408,35 @@ export function createMetadataEditorInitialValues(
   return values;
 }
 
+export function metadataEditorSourceKey(
+  definition: MetadataEditorDefinition,
+  source: Record<string, unknown> | null | undefined
+): string {
+  const record = source ?? {};
+  const id = record[definition.idActionKey];
+  const stableId =
+    typeof id === 'number' || typeof id === 'string'
+      ? String(id)
+      : displayTitleForMetadataEditor(definition, record, definition.title);
+
+  return `${definition.kind}:${stableId}`;
+}
+
+export function reconcileMetadataEditorValues(
+  currentValues: MetadataEditorValues,
+  nextValues: MetadataEditorValues,
+  dirtyKeys: ReadonlySet<string>
+): MetadataEditorValues {
+  if (dirtyKeys.size === 0) return nextValues;
+
+  return Object.fromEntries(
+    Object.entries(nextValues).map(([key, value]) => [
+      key,
+      dirtyKeys.has(key) ? (currentValues[key] ?? '') : value
+    ])
+  );
+}
+
 export function createMetadataEditorSavePayload(
   definition: MetadataEditorDefinition,
   values: MetadataEditorValues,

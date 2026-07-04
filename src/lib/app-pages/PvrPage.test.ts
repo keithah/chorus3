@@ -183,8 +183,14 @@ describe('PvrPage', () => {
       (button) => button.textContent?.trim() === 'Show more channels'
     );
     expect(showMore).toBeTruthy();
-    expect(document.body.textContent).toContain('Channel 240');
-    expect(document.body.textContent).not.toContain('Channel 241');
+    expect(document.body.textContent).toContain('Channel 96');
+    expect(document.body.textContent).not.toContain('Channel 97');
+
+    showMore?.click();
+    await tick();
+
+    expect(document.body.textContent).toContain('Channel 192');
+    expect(document.body.textContent).not.toContain('Channel 193');
   });
 
   it('renders the global Chorus2 EPG route across TV channels', async () => {

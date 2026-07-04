@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 
 import {
   LibraryFilterStore,
@@ -7,6 +6,7 @@ import {
   type LibraryAvailableFilters
 } from './libraryFilter';
 import { enrichLibraryFilterRecord } from './libraryFilterRecords';
+import { readCachedSource } from '$lib/testing/readCachedSource';
 
 const available: LibraryAvailableFilters = {
   sort: ['title', 'year', 'dateadded', 'random'],
@@ -19,7 +19,7 @@ function createStore(): LibraryFilterStore {
 
 describe('LibraryFilterStore', () => {
   it('keeps Kodi record enrichment out of the generic filter store', () => {
-    const source = readFileSync('src/lib/stores/libraryFilter.ts', 'utf8');
+    const source = readCachedSource('src/lib/stores/libraryFilter.ts');
     expect(source).not.toContain('libraryFilterRecords');
     expect(source).not.toContain('normalizeLibrarySetValue');
   });
@@ -206,5 +206,42 @@ describe('LibraryFilterStore', () => {
     store.initFromParams('music/top', available, params);
 
     expect(store.getStoreFilters('music/top')).toEqual({ genre: ['100% Dance Hits'] });
+  });
+
+  it('caches filter option values by mapper identity instead of mapper function name', () => {
+    const store = createStore();
+    const items = [{ firstGenre: ['Jazz'], secondGenre: ['Rock'] }];
+    const firstMapper = {
+      map(item: (typeof items)[number]): Record<string, unknown> {
+        return { genre: item.firstGenre };
+      }
+    }.map;
+    const secondMapper = {
+      map(item: (typeof items)[number]): Record<string, unknown> {
+        return { genre: item.secondGenre };
+      }
+    }.map;
+
+    expect(store.getFilterOptionsFrom('music/top', 'genre', items, firstMapper)).toEqual([
+      { key: 'genre', value: 'Jazz', title: 'Jazz', active: false }
+    ]);
+    expect(store.getFilterOptionsFrom('music/top', 'genre', items, secondMapper)).toEqual([
+      { key: 'genre', value: 'Rock', title: 'Rock', active: false }
+    ]);
+  });
+
+  it('keeps in-memory filters usable when persistence throws', () => {
+    const store = new LibraryFilterStore({
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException('quota exceeded', 'QuotaExceededError');
+      }
+    });
+
+    expect(() => store.setAvailable('movies', available)).not.toThrow();
+    expect(() => store.setStoreFilters('movies', { genre: ['Drama'] })).not.toThrow();
+
+    expect(store.getAvailable('movies')).toEqual(available);
+    expect(store.getStoreFilters('movies')).toEqual({ genre: ['Drama'] });
   });
 });

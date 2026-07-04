@@ -144,7 +144,7 @@
       <h3>{relatedTitle}</h3>
       {#if relatedCards.length}
         <div class="classic-card-grid">
-          {#each relatedCards as card}
+          {#each relatedCards as card (card.key)}
             <article class="classic-card art-square" data-artwork-shape="square">
               <a class="classic-card-main" href={cardHref(card) ?? ''} aria-label={card.title}>
                 <div class="classic-card-art" class:has-artwork={Boolean(card.thumbnail)}>
@@ -170,7 +170,7 @@
     <h3>{trackTitle}</h3>
     {#if tracks.length}
       <ol>
-        {#each tracks as track}
+        {#each tracks as track (track.key)}
           <li>
             <span class="track-number">{track.track ?? ''}</span>
             <span class="track-title">{track.title}</span>

@@ -34,7 +34,7 @@ export const STORE_CHUNK_BY_MODULE = {
   musicLibraryIndexes: 'stores-route',
   musicLibrary: 'stores-route',
   musicLibraryNormalization: 'stores-route',
-  pagedKodiLibrary: 'stores-route',
+  pagedKodiLibrary: 'stores-shell',
   player: 'stores-shell',
   playerDispatch: 'stores-shell',
   playerDispatchCodecs: 'stores-shell',

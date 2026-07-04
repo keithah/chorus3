@@ -60,12 +60,16 @@ export interface LibrarySortState {
 
 type StoredFilters = Record<string, Array<string | number | boolean>>;
 type StoreBucket<T> = Record<string, T>;
-type FilterOptionValueCache = Map<string, Array<string | number | boolean>>;
+type FilterOptionValueCache = WeakMap<object, Map<string, Array<string | number | boolean>>>;
 
 export type LibraryFilterPair<T> = {
   item: T;
   record: Record<string, unknown>;
 };
+
+function identityFilterRecord<T extends Record<string, unknown>>(item: T): Record<string, unknown> {
+  return item;
+}
 
 const FILTER_STORE_PREFIX = 'filter:store:';
 const FILTER_STORE_PATH_PREFIX = 'filter:store:path:';
@@ -174,6 +178,7 @@ const LIBRARY_FILTER_FIELD_BY_KEY = new Map(
 
 export class LibraryFilterStore {
   readonly #storage: StorageLike;
+  readonly #memoryStore = new Map<string, string>();
   readonly #filterOptionValues = new WeakMap<readonly object[], FilterOptionValueCache>();
 
   constructor(storage: StorageLike = browserStorage()) {
@@ -330,10 +335,24 @@ export class LibraryFilterStore {
     key: string,
     items: readonly T[]
   ): LibraryFilterOption[] {
+    return this.getFilterOptionsFrom(path, key, items, identityFilterRecord);
+  }
+
+  getFilterOptionsFrom<TItem extends object>(
+    path: string,
+    key: string,
+    items: readonly TItem[],
+    recordFromItem: (item: TItem) => Record<string, unknown>
+  ): LibraryFilterOption[] {
     const values = this.getStoreFiltersKey(path, key);
     const activeValues = new Set(values);
     const settings = getFilterSettings(key, false);
-    const extracted = this.#getFilterOptionValues(items, key, settings?.sortOrder ?? 'asc');
+    const extracted = this.#getFilterOptionValues(
+      items,
+      key,
+      settings?.sortOrder ?? 'asc',
+      recordFromItem
+    );
 
     return extracted.map((value) => ({
       key,
@@ -343,26 +362,33 @@ export class LibraryFilterStore {
     }));
   }
 
-  #getFilterOptionValues<T extends Record<string, unknown>>(
-    items: readonly T[],
+  #getFilterOptionValues<TItem extends object>(
+    items: readonly TItem[],
     key: string,
-    sortOrder: LibrarySortOrder
+    sortOrder: LibrarySortOrder,
+    recordFromItem: (item: TItem) => Record<string, unknown>
   ): Array<string | number | boolean> {
     let cache = this.#filterOptionValues.get(items);
     if (!cache) {
-      cache = new Map<string, Array<string | number | boolean>>();
+      cache = new WeakMap<object, Map<string, Array<string | number | boolean>>>();
       this.#filterOptionValues.set(items, cache);
     }
 
+    let mapperCache = cache.get(recordFromItem);
+    if (!mapperCache) {
+      mapperCache = new Map<string, Array<string | number | boolean>>();
+      cache.set(recordFromItem, mapperCache);
+    }
+
     const cacheKey = `${key}:${sortOrder}`;
-    const cached = cache.get(cacheKey);
+    const cached = mapperCache.get(cacheKey);
     if (cached) return cached;
 
     const settings = getFilterSettings(key, false);
     const extracted = uniqueValues(
-      items.flatMap((item) => extractFilterValues(item, key, settings))
+      items.flatMap((item) => extractFilterValues(recordFromItem(item), key, settings))
     ).sort((left, right) => comparePrimitive(left, right, sortOrder));
-    cache.set(cacheKey, extracted);
+    mapperCache.set(cacheKey, extracted);
     return extracted;
   }
 
@@ -384,11 +410,24 @@ export class LibraryFilterStore {
   }
 
   #setStore<T>(path: string, value: T, type: string): void {
-    this.#storage.setItem(this.#pathStorageKey(type, path), JSON.stringify(value));
+    const key = this.#pathStorageKey(type, path);
+    const serialized = JSON.stringify(value);
+    this.#memoryStore.set(key, serialized);
+
+    try {
+      this.#storage.setItem(key, serialized);
+    } catch {
+      // Browser storage can be disabled or full; keep in-memory filters usable.
+    }
   }
 
   #getStore<T extends object>(path: string, type: string): T {
-    const raw = this.#storage.getItem(this.#pathStorageKey(type, path));
+    const key = this.#pathStorageKey(type, path);
+    let raw = this.#memoryStore.get(key) ?? null;
+    if (raw === null) {
+      raw = this.#getStorageItem(key);
+    }
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -402,13 +441,21 @@ export class LibraryFilterStore {
   }
 
   #getLegacyBucket<T>(type: string): StoreBucket<T> {
-    const raw = this.#storage.getItem(`${FILTER_STORE_PREFIX}${type}`);
+    const raw = this.#getStorageItem(`${FILTER_STORE_PREFIX}${type}`);
     if (!raw) return {};
     try {
       const parsed = JSON.parse(raw);
       return isRecord(parsed) ? (parsed as StoreBucket<T>) : {};
     } catch {
       return {};
+    }
+  }
+
+  #getStorageItem(key: string): string | null {
+    try {
+      return this.#storage.getItem(key);
+    } catch {
+      return null;
     }
   }
 

@@ -9,7 +9,7 @@ import {
   type KodiMusicVideoLibraryItem
 } from '$lib/kodi';
 
-import { callOrderedBatch } from './kodiBatch';
+import { callKodiCallsSequentially } from './kodiBatch';
 import { sanitizeErrorMessage } from './queueStoreSnapshots';
 import type {
   LibraryQueueItem,
@@ -193,7 +193,7 @@ export async function addNormalizedLibraryQueueItems(
     return;
   }
 
-  await callOrderedBatch(client, items.map(playlistAddBatchCallForLibraryItem));
+  await callKodiCallsSequentially(client, items.map(playlistAddBatchCallForLibraryItem));
 }
 
 function playlistAddBatchCallForLibraryItem(
@@ -252,7 +252,7 @@ export async function addNormalizedFileQueueItems(
     return;
   }
 
-  await callOrderedBatch(client, items.map(playlistAddBatchCallForFileItem));
+  await callKodiCallsSequentially(client, items.map(playlistAddBatchCallForFileItem));
 }
 
 function playlistAddBatchCallForFileItem(item: NormalizedFileQueueItem): KodiJsonRpcBatchCall {

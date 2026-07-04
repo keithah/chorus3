@@ -116,4 +116,27 @@ describe('createTvShowMetadataSourceResolver', () => {
     await expect(resolver.resolve(11)).resolves.toMatchObject({ title: 'Atlanta Updated' });
     expect(client.call).toHaveBeenCalledTimes(2);
   });
+
+  it('does not cache transient fetch errors as missing TV details', async () => {
+    const client = {
+      call: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('network interrupted'))
+        .mockResolvedValueOnce({
+          tvshowdetails: {
+            tvshowid: 11,
+            title: 'Atlanta',
+            label: 'Atlanta'
+          }
+        })
+    };
+    const resolver = createTvShowMetadataSourceResolver({
+      snapshot: () => snapshot(),
+      createClient: () => client as unknown as KodiJsonRpcHttpClient
+    });
+
+    await expect(resolver.resolve(11)).rejects.toThrow('network interrupted');
+    await expect(resolver.resolve(11)).resolves.toMatchObject({ title: 'Atlanta' });
+    expect(client.call).toHaveBeenCalledTimes(2);
+  });
 });

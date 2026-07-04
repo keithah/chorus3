@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   LOCAL_PLAYLIST_STORAGE_KEY,
   createLocalPlaylistStore,
   type LocalPlaylistStorage
 } from './localPlaylist.svelte';
+import { cryptoRandomToken } from './localPlaylistModel';
 
 function createStorage(initial: Record<string, string> = {}): LocalPlaylistStorage {
   const values = new Map(Object.entries(initial));
@@ -92,6 +93,10 @@ function expectNoUnsafeText(value: unknown): void {
 }
 
 describe('local playlist store', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('starts with clone-safe empty defaults and no storage warning', () => {
     const { store } = createHarness();
 
@@ -454,5 +459,11 @@ describe('local playlist store', () => {
     expect(store.snapshot.playlists[0].items[0].label).toBe('Safe Label');
     expect(store.snapshot.selectedItemCount).toBe(1);
     expectNoUnsafeText(store.snapshot);
+  });
+
+  it('fails closed when cryptographic randomness is unavailable', () => {
+    vi.stubGlobal('crypto', undefined);
+
+    expect(() => cryptoRandomToken()).toThrow('Cryptographic randomness is unavailable.');
   });
 });

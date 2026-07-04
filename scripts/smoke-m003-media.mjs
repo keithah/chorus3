@@ -394,23 +394,34 @@ export async function runM003MediaSmoke(config, { fetchImpl = fetch } = {}) {
     `JSONRPC.Ping: ok (${String(ping.result)}).`
   ].filter(Boolean);
 
-  for (const probe of MEDIA_PROBES) {
-    const result = await postJsonRpc(
-      config,
-      probe.method,
-      probe.params,
-      requestId.next(),
-      fetchImpl
-    );
+  const probeResults = await Promise.all(
+    MEDIA_PROBES.map(async (probe) => {
+      const result = await postJsonRpc(
+        config,
+        probe.method,
+        probe.params,
+        requestId.next(),
+        fetchImpl
+      );
+      if (!result.ok) {
+        return result;
+      }
+
+      const validation = validateProbeResult(probe.method, result.result, probe.resultKey);
+      if (!validation.ok) {
+        return validation;
+      }
+
+      return { ok: true, probe, validation };
+    })
+  );
+
+  for (const result of probeResults) {
     if (!result.ok) {
       return result;
     }
 
-    const validation = validateProbeResult(probe.method, result.result, probe.resultKey);
-    if (!validation.ok) {
-      return validation;
-    }
-
+    const { probe, validation } = result;
     lines.push(formatProbeLine(probe.method, validation));
     if (probe.successLine) {
       lines.push(probe.successLine);

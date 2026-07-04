@@ -1290,10 +1290,6 @@ describe('player dispatch', () => {
       details: { path: '/vfs/second.mp3' },
       mode: 'redirect'
     });
-    client.enqueue('Files.PrepareDownload', {
-      details: { path: '/vfs/first.mp3' },
-      mode: 'redirect'
-    });
 
     await fileDispatch.playFileItem({
       file: 'smb://nas/music/first.mp3',
@@ -1304,8 +1300,7 @@ describe('player dispatch', () => {
 
     expect(client.calls).toEqual([
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/first.mp3' } },
-      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/second.mp3' } },
-      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/first.mp3' } }
+      { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/second.mp3' } }
     ]);
     expect(playerStore.refreshReasons).toEqual([]);
     expect(localPlayerStore.calls).toEqual([

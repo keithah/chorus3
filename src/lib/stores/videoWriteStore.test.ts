@@ -293,6 +293,47 @@ describe('video write store', () => {
     });
   });
 
+  it('records per-entry JSON-RPC batch failures without retrying successful batch items', async () => {
+    const client: KodiJsonRpcHttpClient = {
+      call: vi.fn(),
+      callBatch: vi.fn(),
+      async callBatchSettled<TResult = unknown>() {
+        return [
+          { ok: true as const, result: 'OK' as TResult },
+          {
+            ok: false as const,
+            error: new Error(
+              'Authorization: Basic token failed for http://admin:p@ssword@kodi.local/jsonrpc /mnt/private/episode2.mkv localStorage CHORUS_SENTINEL_SECRET'
+            ) as never
+          },
+          { ok: true as const, result: 'OK' as TResult }
+        ];
+      }
+    };
+    const store = createVideoWriteStore({
+      createClient: () => client,
+      now: () => '2026-05-01T10:20:30.000Z'
+    });
+
+    await store.markEpisodesWatched(
+      [1, 2, 3].map((episodeid) => ({
+        episodeid,
+        label: `Episode ${episodeid} smb://nas/private/episode${episodeid}.mkv`
+      })),
+      true
+    );
+
+    expect(store.snapshot).toMatchObject({
+      status: 'partial',
+      summary: { total: 3, succeeded: 2, failed: 1 },
+      failedItems: [{ kind: 'episode', id: 2, label: 'Episode 2 redacted-path' }],
+      writeCounts: { episodesWatched: 2 }
+    });
+    expect(serializeSnapshot(store.snapshot)).not.toMatch(
+      /Authorization|Basic|admin:p@ssword|localStorage|CHORUS_SENTINEL_SECRET|\/mnt\/private|smb:\/\//i
+    );
+  });
+
   it('keeps custom write method batches on the per-target path', async () => {
     const { store, writeMethods } = createHarness();
 

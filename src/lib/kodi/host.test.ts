@@ -48,6 +48,22 @@ describe('Kodi HTTP host primitives', () => {
     expect(url.password).toBe('');
   });
 
+  it('uses the TLS default HTTP port when no explicit port is configured', () => {
+    expect(buildKodiJsonRpcHttpUrl({ host: 'kodi.example.test', useTls: true }).toString()).toBe(
+      'https://kodi.example.test/jsonrpc'
+    );
+  });
+
+  it('splits a bare host:port HTTP host instead of treating the port as part of the hostname', () => {
+    expect(normalizeKodiHttpHost({ host: 'kodi.local:18080' })).toMatchObject({
+      host: 'kodi.local',
+      port: 18080
+    });
+    expect(buildKodiJsonRpcHttpUrl({ host: 'kodi.local:18080' }).toString()).toBe(
+      'http://kodi.local:18080/jsonrpc'
+    );
+  });
+
   it.each([
     ['jsonrpc', '/jsonrpc'],
     ['/jsonrpc', '/jsonrpc'],
@@ -83,6 +99,13 @@ describe('Kodi HTTP host primitives', () => {
     expect(unauthenticated.has('Authorization')).toBe(false);
     expect(authenticated.get('Authorization')).toMatch(/^Basic /);
     expect(authenticated.get('Authorization')).not.toContain('p@ss word');
+  });
+
+  it('encodes non-Latin-1 Basic Auth credentials without throwing', () => {
+    expect(() => buildBasicAuthHeader('media-user', 'pässwörd')).not.toThrow();
+    expect(buildBasicAuthHeader('media-user', 'pässwörd')).toBe(
+      'Basic bWVkaWEtdXNlcjpww6Rzc3fDtnJk'
+    );
   });
 
   it('describes endpoints without credentials or authorization values', () => {
@@ -176,6 +199,18 @@ describe('Kodi WebSocket host primitives', () => {
     expect(
       buildKodiJsonRpcWebSocketUrl({ host: 'wss://kodi.example.test:9443/kodi/jsonrpc' }).toString()
     ).toBe('wss://kodi.example.test:9443/kodi/jsonrpc');
+  });
+
+  it('splits a bare host:port WebSocket host', () => {
+    expect(normalizeKodiWebSocketHost({ host: 'kodi.local:19090' })).toEqual({
+      host: 'kodi.local',
+      port: 19090,
+      useTls: false,
+      path: DEFAULT_KODI_WEBSOCKET_PATH
+    });
+    expect(buildKodiJsonRpcWebSocketUrl({ host: 'kodi.local:19090' }).toString()).toBe(
+      'ws://kodi.local:19090/jsonrpc'
+    );
   });
 
   it('rejects invalid WebSocket ports and query paths with deterministic non-secret messages', () => {

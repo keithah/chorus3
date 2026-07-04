@@ -323,7 +323,9 @@ describe('AddonsPage', () => {
       addonid: 'plugin.video.safe-demo'
     });
 
-    expect(document.querySelector('.addon-detail')).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(document.querySelector('.addon-detail')).not.toBeNull();
+    });
     expect(document.querySelector('#addons-page-title')?.textContent).toBe('Add-on details');
     expect(text()).toContain('Safe Video Demo');
     expect(text()).toContain('Add-on write failed.');

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import RemoteInputPanel, {
-    type RemoteInputPanelRemoteDispatch
-  } from '$components/RemoteInputPanel.svelte';
+  import type { RemoteInputPanelRemoteDispatch } from '$components/RemoteInputPanel.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import { bindLazyRoute, loadRemoteInputPanel } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import type { PlayerStoreSnapshot, RemoteInputDispatchSnapshot } from '$lib/stores';
 
@@ -44,13 +44,15 @@
     >
       <span class="mdi mdi-navigation-close" aria-hidden="true"></span>
     </button>
-    <RemoteInputPanel
-      {remoteSnapshot}
-      {remoteInputDispatch}
-      {playerSnapshot}
-      {playerDispatch}
-      {backgroundUrl}
-      {i18n}
+    <LazyRouteComponent
+      route={bindLazyRoute(loadRemoteInputPanel, {
+        remoteSnapshot,
+        remoteInputDispatch,
+        playerSnapshot,
+        playerDispatch,
+        backgroundUrl,
+        i18n
+      })}
     />
   </div>
 </div>

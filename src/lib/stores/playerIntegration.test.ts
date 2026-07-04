@@ -166,6 +166,7 @@ describe('integrated player loop store contracts', () => {
       details: { path: '/vfs/special.flac' },
       mode: 'redirect'
     });
+    client.enqueue('AudioLibrary.GetSongDetails', { songdetails: { songid: 42, playcount: 0 } });
     client.enqueue('AudioLibrary.SetSongDetails', 'OK');
     client.enqueue('Playlist.Remove', 'OK');
 
@@ -198,6 +199,10 @@ describe('integrated player loop store contracts', () => {
     expect(client.calls).toEqual([
       { method: 'Player.PlayPause', params: { playerid: 0 } },
       { method: 'Files.PrepareDownload', params: { path: 'smb://nas/music/special.flac' } },
+      {
+        method: 'AudioLibrary.GetSongDetails',
+        params: { songid: 42, properties: ['playcount'] }
+      },
       {
         method: 'AudioLibrary.SetSongDetails',
         params: { songid: 42, playcount: 1, lastplayed: '2026-04-29 20:11:00' }

@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs';
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KODI_WEBINTERFACE_BASE_PATH } from './lib/app/appRouter';
 import { M005_BROWSER_PROOF_FORBIDDEN_TEXT } from './lib/testing/m005BrowserProofFixtures';
 import { M007_VISUAL_PROOF_FORBIDDEN_TEXT } from './lib/testing/m007VisualProofFixtures';
+import { readCachedSource } from './lib/testing/readCachedSource';
 import { THEME_STORAGE_KEY } from './lib/theme/theme';
 
 type ImportMainOptions = {
@@ -49,7 +48,7 @@ describe('main entrypoint', () => {
   });
 
   it('keeps Vite production assets relative for Kodi package installs', () => {
-    const viteConfigSource = readFileSync('vite.config.ts', 'utf8');
+    const viteConfigSource = readCachedSource('vite.config.ts');
 
     expect(viteConfigSource).toMatch(/base:\s*['"]\.\/['"]/);
   });
@@ -337,11 +336,13 @@ describe('main entrypoint', () => {
   });
 
   it('mounts the Svelte app into the root element', async () => {
-    await importMain({ preloadRoutes: 'dashboard' });
+    await importMain();
 
     expect(document.body.textContent).toContain('Search Kodi');
-    expect(document.body.textContent).toContain('Recently Added Albums');
-    expect(document.body.textContent).toContain('Recently Played Albums');
+    await vi.waitFor(() => {
+      expect(document.body.textContent).toContain('Recently Added Albums');
+      expect(document.body.textContent).toContain('Recently Played Albums');
+    });
   }, 60_000);
 
   it('applies the stored root theme before rendering', async () => {

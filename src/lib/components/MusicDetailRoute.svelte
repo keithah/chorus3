@@ -99,6 +99,7 @@
       songs: filterSongs(songs),
       loading: Boolean(loadedAlbum?.status === 'loading' || loadedSongs?.status === 'loading'),
       missing: loadedAlbum?.status === 'missing',
+      error: loadedAlbum?.status === 'error' || loadedSongs?.status === 'error',
       empty:
         loadedSongs?.status === 'loading' ? 'Loading songs...' : 'No songs found for this album.'
     };
@@ -123,6 +124,7 @@
       songs: filterSongs(songs),
       loading: loadedArtist?.status === 'loading',
       missing: loadedArtist?.status === 'missing',
+      error: loadedArtist?.status === 'error',
       empty: 'No albums found for this artist.'
     };
   });
@@ -231,9 +233,11 @@
     <p class="classic-empty">
       {albumDetail.loading
         ? 'Loading album...'
-        : albumDetail.missing
-          ? 'Album not found.'
-          : albumDetail.empty}
+        : albumDetail.error
+          ? 'Unable to load album details.'
+          : albumDetail.missing
+            ? 'Album not found.'
+            : albumDetail.empty}
     </p>
   {/if}
 {:else if artistDetail}
@@ -270,9 +274,11 @@
     <p class="classic-empty">
       {artistDetail.loading
         ? 'Loading artist...'
-        : artistDetail.missing
-          ? 'Artist not found.'
-          : artistDetail.empty}
+        : artistDetail.error
+          ? 'Unable to load artist details.'
+          : artistDetail.missing
+            ? 'Artist not found.'
+            : artistDetail.empty}
     </p>
   {/if}
 {/if}

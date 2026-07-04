@@ -32,14 +32,25 @@ export type LibraryRoute = Extract<
 >;
 
 type LibraryRouteKind = LibraryRoute['kind'];
-type LibraryRoutePolicy = {
+type LibraryOptionSourceOwner = 'music' | 'video';
+type LibraryRoutePolicyBase = {
   family: LibraryRouteFamily;
   filters: LibraryAvailableFilters;
-  optionSource?: (
-    music: MusicLibraryStoreSnapshot,
-    video: VideoLibraryStoreSnapshot
-  ) => readonly object[];
 };
+type LibraryRoutePolicy =
+  | (LibraryRoutePolicyBase & {
+      optionSource?: undefined;
+      optionSourceOwner?: undefined;
+    })
+  | (LibraryRoutePolicyBase & {
+      optionSourceOwner: LibraryOptionSourceOwner;
+      optionSource: (
+        music: MusicLibraryStoreSnapshot,
+        video: VideoLibraryStoreSnapshot
+      ) => readonly object[];
+    });
+
+const optionSourceCache = new WeakMap<object, Map<LibraryRouteKind, readonly object[]>>();
 
 const MUSIC_ALBUM_FILTERS: LibraryAvailableFilters = {
   sort: ['label', 'year', 'rating', 'artist', 'dateadded', 'random'],
@@ -90,26 +101,31 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
   home: {
     family: 'music',
     filters: MUSIC_ALBUM_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.albums
   },
   music: {
     family: 'music',
     filters: MUSIC_ALBUM_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.albums
   },
   musicTop: {
     family: 'music',
     filters: MUSIC_SONG_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.songs
   },
   musicArtists: {
     family: 'music',
     filters: { sort: ['label', 'random'], filter: ['mood', 'genre', 'style', 'thumbsUp'] },
+    optionSourceOwner: 'music',
     optionSource: (music) => music.artists
   },
   musicAlbums: {
     family: 'music',
     filters: MUSIC_ALBUM_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.albums
   },
   musicGenres: { family: 'music', filters: { sort: ['title'], filter: [] } },
@@ -119,6 +135,7 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
       sort: ['label', 'year', 'artist', 'album'],
       filter: ['studio', 'director', 'artist', 'album', 'year']
     },
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => video.musicVideos ?? []
   },
   musicVideoDetail: {
@@ -127,16 +144,19 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
       sort: ['label', 'year', 'artist', 'album'],
       filter: ['studio', 'director', 'artist', 'album', 'year']
     },
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => video.musicVideos ?? []
   },
   musicAlbumDetail: {
     family: 'music',
     filters: MUSIC_SONG_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.songs
   },
   musicArtistDetail: {
     family: 'music',
     filters: MUSIC_SONG_FILTERS,
+    optionSourceOwner: 'music',
     optionSource: (music) => music.songs
   },
   musicGenreDetail: {
@@ -146,11 +166,13 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
   movies: {
     family: 'movies',
     filters: MOVIE_FILTERS,
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => [...video.movies, ...video.recentlyPlayedMovies]
   },
   moviesRecent: {
     family: 'movies',
     filters: MOVIE_FILTERS,
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => video.recentlyAddedMovies
   },
   movieDetail: {
@@ -160,6 +182,7 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
   tvshows: {
     family: 'tv',
     filters: TV_SHOW_FILTERS,
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => video.tvShows
   },
   tvshowsRecent: {
@@ -168,6 +191,7 @@ const ROUTE_POLICIES: Record<LibraryRouteKind, LibraryRoutePolicy> = {
       sort: ['title', 'dateadded', 'random'],
       filter: ['unwatched', 'watched', 'inprogress', 'thumbsUp']
     },
+    optionSourceOwner: 'video',
     optionSource: (_music, video) => [
       ...video.recentlyAddedEpisodes,
       ...video.recentlyPlayedEpisodes
@@ -259,7 +283,7 @@ export function optionItemsForRoute(
   return source.map((item) => libraryFilterRecordFrom(item));
 }
 
-function optionSourceForRoute(
+export function optionSourceForRoute(
   value: LibraryRoute,
   music: MusicLibraryStoreSnapshot,
   video: VideoLibraryStoreSnapshot
@@ -276,7 +300,30 @@ function optionSourceForRoute(
     return show ? [show] : [];
   }
 
-  return policyFor(value).optionSource?.(music, video) ?? [];
+  return cachedOptionSource(value.kind, music, video);
+}
+
+function cachedOptionSource(
+  kind: LibraryRouteKind,
+  music: MusicLibraryStoreSnapshot,
+  video: VideoLibraryStoreSnapshot
+): readonly object[] {
+  const policy = ROUTE_POLICIES[kind];
+  if (!policy.optionSource) return [];
+
+  const sourceOwner = policy.optionSourceOwner === 'music' ? music : video;
+  let cache = optionSourceCache.get(sourceOwner);
+  if (!cache) {
+    cache = new Map();
+    optionSourceCache.set(sourceOwner, cache);
+  }
+
+  const cached = cache.get(kind);
+  if (cached) return cached;
+
+  const source = policy.optionSource(music, video);
+  cache.set(kind, source);
+  return source;
 }
 
 function policyFor(route: LibraryRoute): LibraryRoutePolicy {

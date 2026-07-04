@@ -72,6 +72,7 @@ import {
   getAudioLibraryAlbums,
   getAudioLibraryArtists,
   getAudioLibraryGenres,
+  getAudioLibrarySongDetails,
   getAudioLibrarySongs,
   getFileDirectory,
   getFileDetails,
@@ -996,6 +997,26 @@ describe('Kodi curated method wrappers', () => {
       {
         method: 'AudioLibrary.SetSongDetails',
         params: { songid: 42, playcount: 3, lastplayed: '2026-04-29 20:00:00' }
+      }
+    ]);
+  });
+
+  it('gets audio library song details with narrow playcount properties', async () => {
+    const client = createFakeClient([
+      { songdetails: { songid: 42, label: 'Track', playcount: 3 } }
+    ]);
+
+    await expect(
+      getAudioLibrarySongDetails(client, {
+        songid: 42,
+        properties: ['playcount', 'lastplayed']
+      })
+    ).resolves.toEqual({ songdetails: { songid: 42, label: 'Track', playcount: 3 } });
+
+    expect(client.calls).toEqual([
+      {
+        method: 'AudioLibrary.GetSongDetails',
+        params: { songid: 42, properties: ['playcount', 'lastplayed'] }
       }
     ]);
   });

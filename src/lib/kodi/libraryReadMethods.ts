@@ -5,6 +5,8 @@ import type {
   VideoLibraryTvShowPropertyName,
   AudioLibraryArtistsResult,
   AudioLibraryAlbumsResult,
+  AudioLibrarySongDetailsParams,
+  AudioLibrarySongDetailsResult,
   AudioLibrarySongsResult,
   AudioLibraryGenresResult,
   VideoLibraryMoviesResult,
@@ -96,6 +98,19 @@ export function getAudioLibrarySongs(
   return callKodi<AudioLibrarySongsResult, AudioLibrarySongsParams>(
     client,
     'AudioLibrary.GetSongs',
+    params,
+    options
+  );
+}
+
+export function getAudioLibrarySongDetails(
+  client: KodiJsonRpcHttpClient,
+  params: AudioLibrarySongDetailsParams,
+  options?: KodiHttpCallOptions
+): Promise<AudioLibrarySongDetailsResult> {
+  return callKodi<AudioLibrarySongDetailsResult, AudioLibrarySongDetailsParams>(
+    client,
+    'AudioLibrary.GetSongDetails',
     params,
     options
   );

@@ -270,6 +270,11 @@ export interface AudioLibrarySongsResult {
   [key: string]: unknown;
 }
 
+export interface AudioLibrarySongDetailsResult {
+  songdetails?: AudioLibrarySong;
+  [key: string]: unknown;
+}
+
 export interface AudioLibraryGenresResult {
   genres?: AudioLibraryGenre[];
   limits?: KodiLimits;
@@ -379,6 +384,11 @@ export type AudioLibraryArtistsParams = KodiListParams<AudioLibraryArtistPropert
 export type AudioLibraryAlbumsParams = KodiListParams<AudioLibraryAlbumPropertyName>;
 
 export type AudioLibrarySongsParams = KodiListParams<AudioLibrarySongPropertyName>;
+
+export type AudioLibrarySongDetailsParams = {
+  songid: number;
+  properties?: readonly AudioLibrarySongPropertyName[];
+};
 
 export type AudioLibraryGenresParams = KodiListParams<AudioLibraryGenrePropertyName>;
 

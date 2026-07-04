@@ -197,7 +197,7 @@ export class AddonsStore {
           )
         )
       );
-      this.#commitDetailLoad(requestId, detail);
+      this.#commitDetailLoad(requestId, addonid, detail);
     } catch (error) {
       this.#failDetailLoad(requestId, createSafeError(error, 'addons'));
     }
@@ -338,12 +338,17 @@ export class AddonsStore {
         addons = this.#snapshot.addons;
       }
       addons = replaceAddon(addons, detail);
+      const detailIsSelected = this.#snapshot.selectedAddonId === detail.addonid;
       this.#snapshot = recomputeDerived({
         ...this.#snapshot,
-        detailStatus: 'success',
-        selectedAddonId: detail.addonid,
-        detail,
-        addons
+        addons,
+        ...(detailIsSelected
+          ? {
+              detailStatus: 'success' as const,
+              selectedAddonId: detail.addonid,
+              detail
+            }
+          : {})
       });
       return null;
     } catch (error) {
@@ -407,8 +412,14 @@ export class AddonsStore {
     return this.#detailRequestId;
   }
 
-  #commitDetailLoad(requestId: number, detail: AddonSnapshot): void {
+  #commitDetailLoad(requestId: number, requestedAddonId: string, detail: AddonSnapshot): void {
     if (requestId !== this.#detailRequestId) return;
+    if (
+      this.#snapshot.selectedAddonId !== requestedAddonId ||
+      detail.addonid !== requestedAddonId
+    ) {
+      return;
+    }
     this.#snapshot = recomputeDerived({
       ...this.#snapshot,
       detailStatus: 'success',

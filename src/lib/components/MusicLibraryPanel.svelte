@@ -395,10 +395,11 @@
         {:else}
           <ul>
             {#each snapshot.recentlyAddedSongs as song (song.songid)}
+              {@const discoveryMeta = formatDiscoveryMeta(song, 'recentlyAdded')}
               <li>
                 <span class="item-title">{safeSongLabel(song)}</span>
-                {#if formatDiscoveryMeta(song, 'recentlyAdded')}
-                  <span class="item-meta">{formatDiscoveryMeta(song, 'recentlyAdded')}</span>
+                {#if discoveryMeta}
+                  <span class="item-meta">{discoveryMeta}</span>
                 {/if}
               </li>
             {/each}
@@ -416,10 +417,11 @@
         {:else}
           <ul>
             {#each snapshot.recentlyPlayedSongs as song (song.songid)}
+              {@const discoveryMeta = formatDiscoveryMeta(song, 'recentlyPlayed')}
               <li>
                 <span class="item-title">{safeSongLabel(song)}</span>
-                {#if formatDiscoveryMeta(song, 'recentlyPlayed')}
-                  <span class="item-meta">{formatDiscoveryMeta(song, 'recentlyPlayed')}</span>
+                {#if discoveryMeta}
+                  <span class="item-meta">{discoveryMeta}</span>
                 {/if}
               </li>
             {/each}
@@ -437,10 +439,11 @@
         {:else}
           <ul>
             {#each snapshot.mostPlayedSongs as song (song.songid)}
+              {@const discoveryMeta = formatDiscoveryMeta(song, 'mostPlayed')}
               <li>
                 <span class="item-title">{safeSongLabel(song)}</span>
-                {#if formatDiscoveryMeta(song, 'mostPlayed')}
-                  <span class="item-meta">{formatDiscoveryMeta(song, 'mostPlayed')}</span>
+                {#if discoveryMeta}
+                  <span class="item-meta">{discoveryMeta}</span>
                 {/if}
               </li>
             {/each}

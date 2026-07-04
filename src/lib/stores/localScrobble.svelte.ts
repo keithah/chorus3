@@ -1,5 +1,6 @@
 import {
   KodiHttpClientError,
+  getAudioLibrarySongDetails,
   isKodiHttpClientError,
   setEpisodeDetails,
   setMovieDetails,
@@ -7,6 +8,7 @@ import {
   type KodiEndpointDescription,
   type KodiJsonRpcHttpClient,
   type KodiLibraryWriteResult,
+  type AudioLibrarySongDetailsResult,
   type VideoResumePosition
 } from '$lib/kodi';
 import { redactStoreErrorMessage } from '$lib/safety/redaction';
@@ -88,7 +90,11 @@ export interface LocalScrobbleLocalPlayerSource {
   readonly snapshot: LocalPlayerStoreSnapshot;
 }
 
-export interface LocalScrobbleWriteMethods {
+export interface LocalScrobbleLibraryMethods {
+  getSongDetails(
+    client: KodiJsonRpcHttpClient,
+    params: { songid: number; properties?: readonly ['playcount'] }
+  ): Promise<AudioLibrarySongDetailsResult>;
   setSongDetails(
     client: KodiJsonRpcHttpClient,
     params: { songid: number; playcount?: number; lastplayed?: string }
@@ -117,7 +123,7 @@ export interface LocalScrobbleStoreOptions {
   localPlayerStore?: LocalScrobbleLocalPlayerSource;
   createClient?: () => KodiJsonRpcHttpClient | null;
   now?: () => string;
-  writeMethods?: LocalScrobbleWriteMethods;
+  libraryMethods?: LocalScrobbleLibraryMethods;
 }
 
 export interface LocalPlaybackProgressEvaluator {
@@ -149,7 +155,8 @@ const DEFAULT_SNAPSHOT: LocalScrobbleStoreSnapshot = {
   writeCounts: DEFAULT_WRITE_COUNTS
 };
 
-const DEFAULT_WRITE_METHODS: LocalScrobbleWriteMethods = {
+const DEFAULT_LIBRARY_METHODS: LocalScrobbleLibraryMethods = {
+  getSongDetails: getAudioLibrarySongDetails,
   setSongDetails,
   setMovieDetails,
   setEpisodeDetails
@@ -161,14 +168,15 @@ export class LocalScrobbleStore {
   readonly #localPlayerStore: LocalScrobbleLocalPlayerSource;
   readonly #createClient: () => KodiJsonRpcHttpClient | null;
   readonly #now: () => string;
-  readonly #writeMethods: LocalScrobbleWriteMethods;
+  readonly #libraryMethods: LocalScrobbleLibraryMethods;
   readonly #completedWriteKeys = new Set<string>();
+  readonly #pendingWriteKeys = new Set<string>();
 
   constructor(options: LocalScrobbleStoreOptions = {}) {
     this.#localPlayerStore = options.localPlayerStore ?? defaultLocalPlayerStore;
     this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
     this.#now = options.now ?? (() => new Date().toISOString());
-    this.#writeMethods = options.writeMethods ?? DEFAULT_WRITE_METHODS;
+    this.#libraryMethods = options.libraryMethods ?? DEFAULT_LIBRARY_METHODS;
   }
 
   get snapshot(): LocalScrobbleStoreSnapshot {
@@ -190,7 +198,7 @@ export class LocalScrobbleStore {
     }
 
     const writeKey = createWriteKey(decision);
-    if (this.#completedWriteKeys.has(writeKey)) {
+    if (this.#completedWriteKeys.has(writeKey) || this.#pendingWriteKeys.has(writeKey)) {
       this.#skip('write/duplicate', decision);
       return;
     }
@@ -214,13 +222,16 @@ export class LocalScrobbleStore {
       lastError: null
     };
 
+    this.#pendingWriteKeys.add(writeKey);
     try {
       await this.#writeDecision(client, decision);
     } catch (error) {
+      this.#pendingWriteKeys.delete(writeKey);
       this.#fail(createSafeError(error));
       return;
     }
 
+    this.#pendingWriteKeys.delete(writeKey);
     this.#completedWriteKeys.add(writeKey);
     this.#snapshot = {
       ...this.#snapshot,
@@ -236,6 +247,7 @@ export class LocalScrobbleStore {
 
   resetDuplicateTracking(): void {
     this.#completedWriteKeys.clear();
+    this.#pendingWriteKeys.clear();
   }
 
   async #writeDecision(
@@ -245,16 +257,26 @@ export class LocalScrobbleStore {
     const lastplayed = formatKodiDateTime(this.#now());
 
     if (decision.action === 'audio-scrobble') {
-      await this.#writeMethods.setSongDetails(client, {
+      const details = await this.#libraryMethods.getSongDetails(client, {
         songid: decision.item.id,
-        playcount: 1,
+        properties: ['playcount']
+      });
+      const currentPlaycount =
+        typeof details.songdetails?.playcount === 'number' &&
+        Number.isFinite(details.songdetails.playcount) &&
+        details.songdetails.playcount >= 0
+          ? Math.floor(details.songdetails.playcount)
+          : 0;
+      await this.#libraryMethods.setSongDetails(client, {
+        songid: decision.item.id,
+        playcount: currentPlaycount + 1,
         lastplayed
       });
       return;
     }
 
     if (decision.item.kind === 'movie') {
-      await this.#writeMethods.setMovieDetails(client, {
+      await this.#libraryMethods.setMovieDetails(client, {
         movieid: decision.item.id,
         ...(decision.action === 'video-watched' ? { playcount: 1, lastplayed } : {}),
         ...(decision.action === 'video-resume' && decision.resume
@@ -264,7 +286,7 @@ export class LocalScrobbleStore {
       return;
     }
 
-    await this.#writeMethods.setEpisodeDetails(client, {
+    await this.#libraryMethods.setEpisodeDetails(client, {
       episodeid: decision.item.id,
       ...(decision.action === 'video-watched' ? { playcount: 1, lastplayed } : {}),
       ...(decision.action === 'video-resume' && decision.resume ? { resume: decision.resume } : {})
@@ -433,6 +455,10 @@ function evaluateVideoPolicy(snapshot: LocalPlayerStoreSnapshot): LocalScrobbleP
 function createWriteKey(
   decision: Extract<LocalScrobblePolicyDecision, { shouldWrite: true }>
 ): string {
+  if (decision.action === 'video-resume' && decision.resume) {
+    return `${decision.action}:${decision.item.kind}:${decision.item.id}:${decision.resume.position}`;
+  }
+
   return `${decision.action}:${decision.item.kind}:${decision.item.id}`;
 }
 

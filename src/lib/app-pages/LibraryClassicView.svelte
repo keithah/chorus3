@@ -1,6 +1,10 @@
 <script lang="ts">
-  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
-  import MusicDetailRoute from '$components/MusicDetailRoute.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import {
+    bindLazyRoute,
+    loadMetadataEditDialog,
+    loadMusicDetailRoute
+  } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import {
@@ -200,7 +204,8 @@
   }
 
   function sectionKey(section: LibraryContentSection, index: number): string {
-    return [route.kind, index, section.title ?? '', section.cards.length].join(':');
+    if (section.movieDetail) return `movie:${section.movieDetail.movieid}`;
+    return section.title ? `${route.kind}:${section.title}` : `${route.kind}:${index}`;
   }
 
   function visibleCardsForSection(section: LibraryContentSection, index: number): readonly Card[] {
@@ -376,25 +381,27 @@
     {/if}
     {#if route.kind === 'musicAlbumDetail' || route.kind === 'musicArtistDetail'}
       <section class="classic-card-section">
-        <MusicDetailRoute
-          {route}
-          {musicLibrarySnapshot}
-          detailSnapshot={musicDetailRouteStore.snapshot}
-          detailDispatch={musicDetailRouteStore}
-          filterAlbums={libraryPageFilters.albums}
-          filterSongs={libraryPageFilters.songs}
-          onPlayCard={playCard}
-          onQueueCard={queueCard}
-          onStreamCard={playCardInBrowser}
-          onAddToPlaylist={addCardToLocalPlaylist}
-          onToggleThumbsUp={toggleThumbsUp}
-          onEdit={openMetadataEditor}
-          {isThumbedUp}
-          {cardHref}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadMusicDetailRoute, {
+            route,
+            musicLibrarySnapshot,
+            detailSnapshot: musicDetailRouteStore.snapshot,
+            detailDispatch: musicDetailRouteStore,
+            filterAlbums: libraryPageFilters.albums,
+            filterSongs: libraryPageFilters.songs,
+            onPlayCard: playCard,
+            onQueueCard: queueCard,
+            onStreamCard: playCardInBrowser,
+            onAddToPlaylist: addCardToLocalPlaylist,
+            onToggleThumbsUp: toggleThumbsUp,
+            onEdit: openMetadataEditor,
+            isThumbedUp,
+            cardHref
+          })}
         />
       </section>
     {/if}
-    {#each sections as section, sectionIndex}
+    {#each sections as section, sectionIndex (sectionKey(section, sectionIndex))}
       <section class="classic-card-section" class:compact={section.compact}>
         {#if section.movieDetail}
           {@const movie = section.movieDetail}
@@ -565,7 +572,7 @@
             </div>
           {/if}
           <div class="classic-card-grid">
-            {#each visibleCards as card}
+            {#each visibleCards as card (card.key)}
               {@const artworkShape = card.artworkShape ?? (card.poster ? 'poster' : 'square')}
               <article
                 class="classic-card"
@@ -689,13 +696,15 @@
       </section>
     {/each}
     {#if metadataEditTarget}
-      <MetadataEditDialog
-        definition={metadataEditTarget.definition}
-        source={metadataEditTarget.source}
-        pending={pendingEditKey === metadataEditTarget.key}
-        error={metadataEditError}
-        onSave={saveMetadataEdit}
-        onCancel={cancelMetadataEdit}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadMetadataEditDialog, {
+          definition: metadataEditTarget.definition,
+          source: metadataEditTarget.source,
+          pending: pendingEditKey === metadataEditTarget.key,
+          error: metadataEditError,
+          onSave: saveMetadataEdit,
+          onCancel: cancelMetadataEdit
+        })}
       />
     {/if}
     {#if actionStatus}

@@ -1,9 +1,11 @@
 <script lang="ts">
-  import AddonDetailShell, { type AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
+  import type { AddonDetailDispatch } from '$components/AddonDetailShell.svelte';
   import AddonsPanel, {
     type AddonsPanelDispatch,
     type AddonsTypeFilter
   } from '$components/AddonsPanel.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import { bindLazyRoute, loadAddonDetailShell } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import {
     buildKodiPackageSafePrimaryAppRoute,
     createKodiPackageRouteBuildOptions,
@@ -125,7 +127,13 @@
   <section class="addons-content" aria-labelledby="addons-page-title">
     <h2 id="addons-page-title">{addonsTitle(route)}</h2>
     {#if route.kind === 'addonDetail'}
-      <AddonDetailShell {snapshot} dispatch={addonDetailDispatch} {i18n} />
+      <LazyRouteComponent
+        route={bindLazyRoute(loadAddonDetailShell, {
+          snapshot,
+          dispatch: addonDetailDispatch,
+          i18n
+        })}
+      />
     {:else if route.kind === 'addonExecute'}
       <section class="addon-execute-status" aria-labelledby="addon-execute-title">
         <p class="subnav-kicker">Executable add-on</p>

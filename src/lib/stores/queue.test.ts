@@ -865,7 +865,7 @@ describe('queue dispatch', () => {
     });
   });
 
-  it('queues multiple file browser items with one JSON-RPC batch when available', async () => {
+  it('queues multiple file browser items with ordered Playlist.Add calls when batch is available', async () => {
     const client = new BatchFakeKodiClient();
     const queueStore = new FakeQueueDispatchStore();
     const playerStore = new FakePlayerStore();
@@ -875,6 +875,9 @@ describe('queue dispatch', () => {
       createClient: () => client,
       now: () => '2026-01-02T00:00:00.000Z'
     });
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
 
     await asFileItemsDispatch(dispatch).queueFileItems([
       { file: 'smb://nas/music/special.mp3', mediaKind: 'audio' },
@@ -882,23 +885,21 @@ describe('queue dispatch', () => {
       { file: 'smb://nas/music/Albums/', mediaKind: 'audio', itemType: 'directory' }
     ]);
 
-    expect(client.calls).toEqual([]);
-    expect(client.batches).toEqual([
-      [
-        {
-          method: 'Playlist.Add',
-          params: { playlistid: 0, item: { file: 'smb://nas/music/special.mp3' } }
-        },
-        {
-          method: 'Playlist.Add',
-          params: { playlistid: 1, item: { file: 'smb://nas/videos/Big Buck Bunny.mkv' } }
-        },
-        {
-          method: 'Playlist.Add',
-          params: { playlistid: 0, item: { directory: 'smb://nas/music/Albums/' } }
-        }
-      ]
+    expect(client.calls).toEqual([
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { file: 'smb://nas/music/special.mp3' } }
+      },
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 1, item: { file: 'smb://nas/videos/Big Buck Bunny.mkv' } }
+      },
+      {
+        method: 'Playlist.Add',
+        params: { playlistid: 0, item: { directory: 'smb://nas/music/Albums/' } }
+      }
     ]);
+    expect(client.batches).toEqual([]);
     expect(queueStore.refreshReasons).toEqual(['command:queueFileItems']);
     expect(playerStore.refreshReasons).toEqual(['command:queueFileItems']);
     expect(dispatch.snapshot).toMatchObject({
@@ -1083,7 +1084,7 @@ describe('queue dispatch', () => {
     });
   });
 
-  it('queues mixed library selections with one JSON-RPC batch when available', async () => {
+  it('queues mixed library selections with ordered Playlist.Add calls when batch is available', async () => {
     const client = new BatchFakeKodiClient();
     const queueStore = new FakeQueueDispatchStore();
     const playerStore = new FakePlayerStore();
@@ -1099,6 +1100,9 @@ describe('queue dispatch', () => {
       now: () => '2026-01-02T00:00:00.000Z'
     });
     const libraryDispatch = asLibraryItemsDispatch(dispatch);
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
+    client.enqueue('Playlist.Add', 'OK');
 
     await libraryDispatch.queueLibraryItems([
       { media: 'music', item: { kind: 'album', albumid: 7 } },
@@ -1106,14 +1110,12 @@ describe('queue dispatch', () => {
       { media: 'episode', item: { episodeid: 8801 } }
     ]);
 
-    expect(client.calls).toEqual([]);
-    expect(client.batches).toEqual([
-      [
-        { method: 'Playlist.Add', params: { playlistid: 0, item: { albumid: 7 } } },
-        { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } },
-        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } }
-      ]
+    expect(client.calls).toEqual([
+      { method: 'Playlist.Add', params: { playlistid: 0, item: { albumid: 7 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { movieid: 4401 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 8801 } } }
     ]);
+    expect(client.batches).toEqual([]);
     expect(queueStore.refreshReasons).toEqual(['command:queueLibraryItems']);
     expect(playerStore.refreshReasons).toEqual(['command:queueLibraryItems']);
   });
@@ -1489,7 +1491,7 @@ describe('queue store', () => {
         method: 'Playlist.GetItems',
         params: {
           playlistid: 7,
-          limits: { start: 0, end: 1000 },
+          limits: { start: 0, end: 500 },
           properties: expect.arrayContaining(['title', 'artist', 'duration', 'file', 'thumbnail'])
         }
       }
@@ -1705,7 +1707,7 @@ describe('queue store', () => {
         method: 'Playlist.GetItems',
         params: {
           playlistid: 7,
-          limits: { start: 0, end: 1000 },
+          limits: { start: 0, end: 500 },
           properties: expect.any(Array)
         }
       }

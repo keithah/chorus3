@@ -70,7 +70,7 @@
   let pendingAction = $state<PendingFileAction | null>(null);
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
-  const entryVisibility = createIncrementalVisibility(250);
+  const entryVisibility = createIncrementalVisibility(96);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(localStatusText ?? formatStatus(snapshot));
@@ -265,7 +265,8 @@
       !id ||
       entry.kind !== 'file' ||
       (!entry.capabilities.canDownload &&
-        (!entry.capabilities.canPlay || !entry.capabilities.canQueue))
+        !entry.capabilities.canPlay &&
+        !entry.capabilities.canQueue)
     ) {
       return null;
     }

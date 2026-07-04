@@ -378,7 +378,7 @@ export {
   type LocalScrobbleStoreOptions,
   type LocalScrobbleStoreSnapshot,
   type LocalScrobbleWriteCountsSnapshot,
-  type LocalScrobbleWriteMethods
+  type LocalScrobbleLibraryMethods
 } from './localScrobble.svelte';
 
 export {

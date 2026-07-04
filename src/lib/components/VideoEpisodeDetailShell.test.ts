@@ -192,9 +192,10 @@ describe('VideoEpisodeDetailShell', () => {
     );
 
     getButton('Edit episode Hello, Ms. Cobel').click();
-    await tick();
 
-    expect(screenText()).toContain('Edit Episode: Hello, Ms. Cobel');
+    await vi.waitFor(() => {
+      expect(screenText()).toContain('Edit Episode: Hello, Ms. Cobel');
+    });
     expect(screenText()).toContain('General');
     expect(screenText()).toContain('Information');
 

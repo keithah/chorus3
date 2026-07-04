@@ -564,7 +564,10 @@ describe('media search store', () => {
     });
     expectSecretSafe(firstSnapshot);
 
-    firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    expect(Object.isFrozen(firstSnapshot.lastError!.endpoint)).toBe(true);
+    expect(() => {
+      firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    }).toThrow(TypeError);
     expect(store.snapshot.lastError!.endpoint!.host).toBe('kodi.local');
   });
 
@@ -607,18 +610,26 @@ describe('media search store', () => {
     });
   });
 
-  it('returns cloned snapshots so callers cannot mutate search internals', async () => {
+  it('returns cached frozen snapshots so callers cannot mutate search internals', async () => {
     const { client, store } = createHarness();
     enqueueMusicResults(client);
     await store.search({ scope: 'music', text: 'ae' });
 
     const snapshot = store.snapshot;
-    snapshot.results.artists[0].label = 'Mutated artist';
-    snapshot.results.artists[0].genre!.push('Mutated genre');
-    snapshot.results.albums[0].artist!.push('Mutated album artist');
-    snapshot.results.songs[0].artist!.push('Mutated song artist');
-    snapshot.limits.artists.total = 999;
-    snapshot.resultCounts.total = 999;
+    expect(store.snapshot).toBe(snapshot);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.results.artists[0])).toBe(true);
+    expect(Object.isFrozen(snapshot.results.artists[0].genre)).toBe(true);
+    expect(Object.isFrozen(snapshot.limits.artists)).toBe(true);
+    expect(() => {
+      snapshot.results.artists[0].label = 'Mutated artist';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.results.artists[0].genre!.push('Mutated genre');
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.limits.artists.total = 999;
+    }).toThrow(TypeError);
 
     expect(store.snapshot.results.artists[0]).toEqual({
       kind: 'artist',

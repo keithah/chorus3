@@ -69,6 +69,7 @@ interface VideoWriteExecutionResult {
 }
 
 const METHOD_WRITE_CONCURRENCY = 6;
+const JSON_RPC_BATCH_CONCURRENCY = 3;
 const JSON_RPC_WRITE_BATCH_SIZE = 50;
 
 export async function executeVideoWriteTargets({
@@ -98,14 +99,33 @@ async function executeJsonRpcBatches(
   const succeededTargets: VideoWriteTarget[] = [];
   const failures: VideoWriteExecutionFailure[] = [];
 
-  for (const chunk of chunks(targets, JSON_RPC_WRITE_BATCH_SIZE)) {
-    try {
-      await client.callBatch?.(chunk.map((target) => createWriteBatchCall(target, now())));
-      succeededTargets.push(...chunk);
-    } catch (error) {
-      failures.push(...chunk.map((target) => ({ target, error })));
+  await runWithConcurrency(
+    chunks(targets, JSON_RPC_WRITE_BATCH_SIZE),
+    JSON_RPC_BATCH_CONCURRENCY,
+    async (chunk) => {
+      try {
+        const calls = chunk.map((target) => createWriteBatchCall(target, now()));
+        if (client.callBatchSettled) {
+          const results = await client.callBatchSettled(calls);
+          results.forEach((result, index) => {
+            const target = chunk[index];
+            if (!target) return;
+            if (result.ok) {
+              succeededTargets.push(target);
+            } else {
+              failures.push({ target, error: result.error });
+            }
+          });
+          return;
+        }
+
+        await client.callBatch?.(calls);
+        succeededTargets.push(...chunk);
+      } catch (error) {
+        failures.push(...chunk.map((target) => ({ target, error })));
+      }
     }
-  }
+  );
 
   return { succeededTargets, failures };
 }

@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
-
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { readCachedSource } from '$lib/testing/readCachedSource';
 import PlaylistDrawer from './PlaylistDrawer.svelte';
 import AppShell from './AppShell.svelte';
 
@@ -246,7 +245,7 @@ describe('PlaylistDrawer', () => {
       HTMLButtonElement
     );
 
-    const source = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
+    const source = readCachedSource('src/lib/app-shell/appShellClassic.css');
     expect(source).toMatch(/\.classic-stage[\s\S]*right:\s*var\(--classic-playlist-width/u);
     expect(source).toMatch(/\.classic-search[\s\S]*right:\s*var\(--classic-search-right/u);
   });
@@ -257,7 +256,7 @@ describe('PlaylistDrawer', () => {
       'src/lib/app-shell/PlaylistDrawer.svelte',
       'src/lib/app-shell/appNavigation.ts'
     ]) {
-      const source = readFileSync(file, 'utf8');
+      const source = readCachedSource(file);
       expect(source, `${file} must not import stores`).not.toMatch(
         /['"]\$lib\/stores|['"]\.\.\/stores|['"]\.\/stores/u
       );
@@ -266,7 +265,7 @@ describe('PlaylistDrawer', () => {
       );
     }
 
-    const playlistDrawerSource = readFileSync('src/lib/app-shell/PlaylistDrawer.svelte', 'utf8');
+    const playlistDrawerSource = readCachedSource('src/lib/app-shell/PlaylistDrawer.svelte');
     expect(playlistDrawerSource).not.toMatch(/Chorus2|reference-shell/u);
   });
 });

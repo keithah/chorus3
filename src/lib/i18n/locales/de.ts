@@ -525,7 +525,7 @@ export const DE_DICTIONARY = {
   'player.controls.transportAria': 'Transportsteuerung',
   'player.controls.relativeSeekAria': 'Relative Suchsteuerung',
   'player.controls.disabled.running':
-    'Ein Kodi-Befehl läuft. Steuerungen sind deaktiviert, bis er abgeschlossen ist.',
+    'Ein anderer Player-Befehl läuft. Einige Steuerungen pausieren, bis er abgeschlossen ist.',
   'player.controls.disabled.multiple':
     'Mehrere Kodi-Player sind aktiv. Steuerungen sind deaktiviert, bis ein aktiver Player übrig ist.',
   'player.controls.disabled.noActive':

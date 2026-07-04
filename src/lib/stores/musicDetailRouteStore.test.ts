@@ -43,4 +43,28 @@ describe('MusicDetailRouteStore', () => {
     expect(loadArtistDetail).toHaveBeenCalledTimes(1);
     expect(store.snapshot.artistDetails[12]).toEqual({ status: 'missing' });
   });
+
+  it('keeps transient load failures retryable instead of caching them as missing', async () => {
+    const loadArtistDetail = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network interrupted'))
+      .mockResolvedValueOnce({ artistid: 12, label: 'Nina Simone' });
+    const store = new MusicDetailRouteStore({
+      createClient: () => ({ call: vi.fn() }),
+      loadAlbumDetail: vi.fn(),
+      loadAlbumSongs: vi.fn(),
+      loadArtistDetail
+    });
+
+    await store.loadArtist(12);
+    expect(store.snapshot.artistDetails[12]).toEqual({ status: 'error' });
+
+    await store.loadArtist(12);
+
+    expect(loadArtistDetail).toHaveBeenCalledTimes(2);
+    expect(store.snapshot.artistDetails[12]).toEqual({
+      status: 'ready',
+      data: { artistid: 12, label: 'Nina Simone' }
+    });
+  });
 });

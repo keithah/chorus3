@@ -176,7 +176,11 @@ describe('PvrStore', () => {
     });
 
     const leaked = store.snapshot;
-    leaked.recordings[0].title = 'Mutated outside';
+    expect(store.snapshot).toBe(leaked);
+    expect(Object.isFrozen(leaked.recordings[0])).toBe(true);
+    expect(() => {
+      leaked.recordings[0].title = 'Mutated outside';
+    }).toThrow(TypeError);
     expect(store.snapshot.recordings[0].title).toBe('Newest show');
   });
 
@@ -294,7 +298,11 @@ describe('PvrStore', () => {
     expect(store.snapshot.lastUpdatedAt).toBe(new Date(4_000).toISOString());
 
     const leaked = store.snapshot;
-    leaked.broadcastsByChannelId[101][0].title = 'Mutated outside';
+    expect(store.snapshot).toBe(leaked);
+    expect(Object.isFrozen(leaked.broadcastsByChannelId[101][0])).toBe(true);
+    expect(() => {
+      leaked.broadcastsByChannelId[101][0].title = 'Mutated outside';
+    }).toThrow(TypeError);
     expect(store.snapshot.broadcastsByChannelId[101][0].title).toBe('Evening News');
   });
 

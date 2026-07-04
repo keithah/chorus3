@@ -91,6 +91,13 @@ const DEFAULT_SNAPSHOT: LocalPlayerStoreSnapshot = {
   lastUpdatedAt: null
 };
 
+const PREPARED_STREAM_CACHE_LIMIT = 100;
+const preparedStreamUrlsByClient = new WeakMap<KodiJsonRpcHttpClient, Map<string, string>>();
+const pendingPreparedStreamUrlsByClient = new WeakMap<
+  KodiJsonRpcHttpClient,
+  Map<string, Promise<string>>
+>();
+
 type LoadAndPlayInput = {
   source: string;
   item: LocalPlayerItemSnapshot;
@@ -578,9 +585,58 @@ export async function prepareLocalStreamUrl(
   const endpoint = describeKodiEndpoint(savedKodiHostToKodiHttpHost(options.activeHost));
   const origin = `${endpoint.protocol}//${endpoint.host}:${endpoint.port}`;
 
+  return prepareCachedLocalStreamUrl({
+    client: options.client,
+    file,
+    origin,
+    cacheKey: `${origin}\n${file}`
+  });
+}
+
+async function prepareCachedLocalStreamUrl({
+  client,
+  file,
+  origin,
+  cacheKey
+}: {
+  client: KodiJsonRpcHttpClient;
+  file: string;
+  origin: string;
+  cacheKey: string;
+}): Promise<string> {
+  const preparedStreamUrls = cacheForClient(preparedStreamUrlsByClient, client);
+  const pendingPreparedStreamUrls = cacheForClient(pendingPreparedStreamUrlsByClient, client);
+  const cached = preparedStreamUrls.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const pending = pendingPreparedStreamUrls.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+
+  const request = prepareUncachedLocalStreamUrl(client, file, origin)
+    .then((url) => {
+      rememberPreparedStreamUrl(preparedStreamUrls, cacheKey, url);
+      return url;
+    })
+    .finally(() => {
+      pendingPreparedStreamUrls.delete(cacheKey);
+    });
+  pendingPreparedStreamUrls.set(cacheKey, request);
+
+  return request;
+}
+
+async function prepareUncachedLocalStreamUrl(
+  client: KodiJsonRpcHttpClient,
+  file: string,
+  origin: string
+): Promise<string> {
   let prepared: unknown;
   try {
-    prepared = await prepareFileDownload(options.client, file);
+    prepared = await prepareFileDownload(client, file);
   } catch (error) {
     if (isKodiHttpClientError(error)) {
       throw error;
@@ -605,6 +661,37 @@ export async function prepareLocalStreamUrl(
   }
 
   return sanitizePlayableUrl(path, origin);
+}
+
+function cacheForClient<TValue>(
+  cache: WeakMap<KodiJsonRpcHttpClient, Map<string, TValue>>,
+  client: KodiJsonRpcHttpClient
+): Map<string, TValue> {
+  const existing = cache.get(client);
+  if (existing) {
+    return existing;
+  }
+
+  const next = new Map<string, TValue>();
+  cache.set(client, next);
+  return next;
+}
+
+function rememberPreparedStreamUrl(
+  preparedStreamUrls: Map<string, string>,
+  cacheKey: string,
+  url: string
+): void {
+  if (preparedStreamUrls.has(cacheKey)) {
+    preparedStreamUrls.delete(cacheKey);
+  }
+  preparedStreamUrls.set(cacheKey, url);
+
+  while (preparedStreamUrls.size > PREPARED_STREAM_CACHE_LIMIT) {
+    const oldestKey = preparedStreamUrls.keys().next().value;
+    if (typeof oldestKey !== 'string') return;
+    preparedStreamUrls.delete(oldestKey);
+  }
 }
 
 function sanitizePlayableUrl(pathOrUrl: string, origin: string): string {

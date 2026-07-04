@@ -13,7 +13,8 @@
 </script>
 
 <script lang="ts">
-  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import { bindLazyRoute, loadMetadataEditDialog } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import type { TranslationContext } from '$lib/i18n';
   import {
@@ -239,6 +240,7 @@
         action: 'edit',
         message: `Could not save ${currentTitle}. ${message}`
       };
+      throw error;
     } finally {
       editPending = false;
     }
@@ -444,25 +446,28 @@
         <dd>{hasResumeState ? 'Resume available' : 'No resume point available'}</dd>
       </div>
     </dl>
-    {#if detailFields(episode).length > 0}
+    {@const fields = detailFields(episode)}
+    {#if fields.length > 0}
       <dl class="detail-list rich-fields">
-        {#each detailFields(episode) as field}<div>
+        {#each fields as field}<div>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>
           </div>{/each}
       </dl>
     {/if}
     {#if editOpen}
-      <MetadataEditDialog
-        definition={METADATA_EDITOR_DEFINITIONS.episode}
-        source={episodeEditSource(episode)}
-        pending={editPending}
-        error={editError}
-        onSave={saveMetadata}
-        onCancel={() => {
-          editOpen = false;
-          editError = null;
-        }}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadMetadataEditDialog, {
+          definition: METADATA_EDITOR_DEFINITIONS.episode,
+          source: episodeEditSource(episode),
+          pending: editPending,
+          error: editError,
+          onSave: saveMetadata,
+          onCancel: () => {
+            editOpen = false;
+            editError = null;
+          }
+        })}
       />
     {/if}
   {:else}

@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs';
-
 import { flushSync, mount, unmount } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildAppRoute } from '$lib/app/appRouter';
 import type { PrimaryRoute } from '$lib/app/primaryRoutes';
+import { readCachedSource } from '$lib/testing/readCachedSource';
 import AppShell from './AppShell.svelte';
 import { createAppNavigationItems } from './appNavigation';
 import type { AppShellNavigationItem } from './appShellTypes';
@@ -327,8 +326,8 @@ describe('AppShell navigation DOM', () => {
   });
 
   it('keeps rail icons focusable without exposing hover flyout menus', () => {
-    const componentSource = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
-    const styleSource = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
+    const componentSource = readCachedSource('src/lib/app-shell/AppShell.svelte');
+    const styleSource = readCachedSource('src/lib/app-shell/appShellClassic.css');
     const defaultRailIcons = [
       'mdi-av-my-library-music',
       'mdi-image-movie-creation',

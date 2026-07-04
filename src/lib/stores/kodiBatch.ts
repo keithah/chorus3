@@ -5,17 +5,12 @@ import type {
   KodiJsonRpcHttpClient
 } from '$lib/kodi';
 
-export async function callOrderedBatch(
+export async function callKodiCallsSequentially(
   client: KodiJsonRpcHttpClient,
   calls: readonly KodiJsonRpcBatchCall[],
   options?: KodiHttpCallOptions
 ): Promise<void> {
   if (calls.length === 0) {
-    return;
-  }
-
-  if (client.callBatch) {
-    await client.callBatch(calls, options);
     return;
   }
 

@@ -82,7 +82,7 @@
     <button disabled>{i18n.t('queue.panel.clear')}</button>
   {:else}
     <ol>
-      {#each visibleItems as item (item.position)}
+      {#each visibleItems as item, index (item.position)}
         {@const isActive = item.position === snapshot.activePosition}
         {@const isFirst = item.position === snapshot.items[0].position}
         {@const isLast = item.position === snapshot.items[snapshot.items.length - 1].position}
@@ -97,17 +97,15 @@
             aria-label={i18n.t('queue.panel.moveUp', { label })}
             disabled={isDisabled || isFirst}
             onclick={() => {
-              const idx = snapshot.items.findIndex((x) => x.position === item.position);
-              if (idx > 0) dispatch.swap(snapshot.items[idx - 1].position, item.position);
+              if (index > 0) dispatch.swap(snapshot.items[index - 1].position, item.position);
             }}>↑</button
           >
           <button
             aria-label={i18n.t('queue.panel.moveDown', { label })}
             disabled={isDisabled || isLast}
             onclick={() => {
-              const idx = snapshot.items.findIndex((x) => x.position === item.position);
-              if (idx < snapshot.items.length - 1)
-                dispatch.swap(item.position, snapshot.items[idx + 1].position);
+              if (index < snapshot.items.length - 1)
+                dispatch.swap(item.position, snapshot.items[index + 1].position);
             }}>↓</button
           >
           <button

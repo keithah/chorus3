@@ -51,6 +51,7 @@ import {
   type VideoMusicVideoSnapshot,
   type VideoTvShowSnapshot
 } from './videoLibraryNormalization';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type MediaSearchStatus = MusicLibraryRefreshStatus;
 export type MediaSearchScope =
@@ -219,6 +220,10 @@ const DEFAULT_SNAPSHOT: MediaSearchStoreSnapshot = {
 
 export class MediaSearchStore {
   #snapshot = $state<MediaSearchStoreSnapshot>(cloneMediaSearchSnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<MediaSearchStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -234,7 +239,7 @@ export class MediaSearchStore {
   }
 
   get snapshot(): MediaSearchStoreSnapshot {
-    return cloneMediaSearchSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(this.#publicSnapshot, this.#snapshot, cloneMediaSearchSnapshot);
   }
 
   async search(query: string | MediaSearchQuery): Promise<void> {

@@ -46,7 +46,7 @@
   let pendingAction = $state<string | null>(null);
   let localStatusText = $state<string | null>(null);
   const GLOBAL_EPG_BROADCAST_LIMIT = 24;
-  const channelVisibility = createIncrementalVisibility(240);
+  const channelVisibility = createIncrementalVisibility(96);
   const guideChannelVisibility = createIncrementalVisibility(50);
   const selectedBroadcastVisibility = createIncrementalVisibility(150);
   const recordingVisibility = createIncrementalVisibility(100);

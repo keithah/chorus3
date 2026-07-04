@@ -101,6 +101,10 @@ export interface KodiJsonRpcBatchCall<TParams extends JsonRpcParams = JsonRpcPar
   params?: TParams;
 }
 
+export type KodiJsonRpcBatchResult<TResult = unknown> =
+  | { ok: true; result: TResult }
+  | { ok: false; error: KodiHttpClientError };
+
 export interface KodiJsonRpcHttpClient {
   call<TResult, TParams extends JsonRpcParams = JsonRpcParams>(
     method: string,
@@ -111,6 +115,10 @@ export interface KodiJsonRpcHttpClient {
     calls: readonly KodiJsonRpcBatchCall[],
     options?: KodiHttpCallOptions
   ): Promise<TResult[]>;
+  callBatchSettled?<TResult = unknown>(
+    calls: readonly KodiJsonRpcBatchCall[],
+    options?: KodiHttpCallOptions
+  ): Promise<Array<KodiJsonRpcBatchResult<TResult>>>;
 }
 
 const TIMEOUT_SENTINEL = Symbol('kodi-timeout');
@@ -182,6 +190,38 @@ export function createKodiJsonRpcHttpClient(
       );
 
       return unwrapJsonRpcBatchEnvelope<TResult>(envelope, requestIds, calls, endpoint, method);
+    },
+    async callBatchSettled<TResult = unknown>(
+      calls: readonly KodiJsonRpcBatchCall[],
+      callOptions: KodiHttpCallOptions = {}
+    ): Promise<Array<KodiJsonRpcBatchResult<TResult>>> {
+      if (calls.length === 0) {
+        return [];
+      }
+
+      const requestIds = calls.map(() => nextId++);
+      const requests = calls.map((call, index) =>
+        buildJsonRpcRequest(call.method, requestIds[index], call.params)
+      );
+      const method = batchMethodName(calls);
+      const envelope = await postJsonRpcRequest(
+        fetchImpl,
+        url,
+        buildKodiRequestHeaders(host),
+        requests,
+        endpoint,
+        method,
+        callOptions,
+        host.timeoutMs
+      );
+
+      return unwrapJsonRpcBatchEnvelopeSettled<TResult>(
+        envelope,
+        requestIds,
+        calls,
+        endpoint,
+        method
+      );
     }
   };
 }
@@ -448,6 +488,46 @@ function unwrapJsonRpcBatchEnvelope<TResult>(
       calls[index]?.method ?? method
     )
   );
+}
+
+function unwrapJsonRpcBatchEnvelopeSettled<TResult>(
+  envelope: unknown,
+  requestIds: readonly JsonRpcId[],
+  calls: readonly KodiJsonRpcBatchCall[],
+  endpoint: KodiEndpointDescription,
+  method: string
+): Array<KodiJsonRpcBatchResult<TResult>> {
+  if (!Array.isArray(envelope) || envelope.length !== requestIds.length) {
+    throw createClientError({ code: 'malformed-response', endpoint, method });
+  }
+
+  const byId = new Map<JsonRpcId, unknown>();
+  const expectedIds = new Set(requestIds);
+  for (const entry of envelope) {
+    if (!isRecord(entry)) {
+      throw createClientError({ code: 'malformed-response', endpoint, method });
+    }
+    const entryId = entry.id as JsonRpcId;
+    if (!expectedIds.has(entryId) || byId.has(entryId)) {
+      throw createClientError({ code: 'malformed-response', endpoint, method });
+    }
+    byId.set(entryId, entry);
+  }
+
+  return requestIds.map((requestId, index) => {
+    const callMethod = calls[index]?.method ?? method;
+    try {
+      return {
+        ok: true,
+        result: unwrapJsonRpcEnvelope<TResult>(byId.get(requestId), requestId, endpoint, callMethod)
+      };
+    } catch (error) {
+      if (isKodiHttpClientError(error)) {
+        return { ok: false, error };
+      }
+      throw error;
+    }
+  });
 }
 
 function parseJsonRpcError(error: unknown): JsonRpcError | null {

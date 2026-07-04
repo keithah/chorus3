@@ -128,9 +128,7 @@ function cloneVideoTvShowDetailSnapshot(
     : null;
 }
 
-export function cloneVideoSeasonSnapshots(
-  seasons: readonly VideoSeasonSnapshot[]
-): VideoSeasonSnapshot[] {
+function cloneVideoSeasonSnapshots(seasons: readonly VideoSeasonSnapshot[]): VideoSeasonSnapshot[] {
   return seasons.map((season) => ({
     ...season,
     ...(season.art ? { art: { ...season.art } } : {})
@@ -162,7 +160,7 @@ export function cloneVideoMusicVideoSnapshots(
   }));
 }
 
-export function cloneVideoEpisodeDetailSnapshot(
+function cloneVideoEpisodeDetailSnapshot(
   detail: VideoEpisodeDetailSnapshot | null
 ): VideoEpisodeDetailSnapshot | null {
   return detail
@@ -178,7 +176,7 @@ export function cloneVideoEpisodeDetailSnapshot(
     : null;
 }
 
-export function cloneSeasonArtworkRefreshCapabilitySnapshot(
+function cloneSeasonArtworkRefreshCapabilitySnapshot(
   capability: VideoSeasonArtworkRefreshCapabilitySnapshot
 ): VideoSeasonArtworkRefreshCapabilitySnapshot {
   return capability.status === 'supported'

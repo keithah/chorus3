@@ -345,7 +345,7 @@ export function cryptoRandomToken(): string {
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
   }
 
-  return Math.random().toString(36).slice(2, 12);
+  throw new Error('Cryptographic randomness is unavailable.');
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

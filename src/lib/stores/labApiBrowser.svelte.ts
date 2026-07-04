@@ -177,6 +177,7 @@ export class LabApiBrowserStore {
   #introspectionRequestId = 0;
   #callRequestId = 0;
   #hasLoadedIntrospection = false;
+  #methodsByName = new Map<string, LabApiBrowserMethodSnapshot>();
 
   constructor(options: LabApiBrowserStoreOptions = {}) {
     this.#createClient = options.createClient ?? createActiveKodiJsonRpcHttpClient;
@@ -214,7 +215,7 @@ export class LabApiBrowserStore {
 
   selectMethod(methodName: string): void {
     const normalizedName = methodName.trim();
-    const selectedMethod = this.#snapshot.methods.find((method) => method.name === normalizedName);
+    const selectedMethod = this.#methodsByName.get(normalizedName) ?? null;
     const guardDecision = selectedMethod?.guard ?? classifyMethodGuard(normalizedName);
     this.#snapshot = {
       ...this.#snapshot,
@@ -269,7 +270,7 @@ export class LabApiBrowserStore {
       return;
     }
 
-    const selectedMethod = this.#snapshot.methods.find((method) => method.name === methodName);
+    const selectedMethod = this.#methodsByName.get(methodName) ?? null;
     if (this.#hasLoadedIntrospection && !selectedMethod) {
       this.#setCallValidationError(
         'validation/unknown-method',
@@ -356,9 +357,10 @@ export class LabApiBrowserStore {
   ): void {
     if (requestId !== this.#introspectionRequestId) return;
     this.#hasLoadedIntrospection = true;
-    const selectedMethod = data.methods.find(
-      (method) => method.name === this.#snapshot.selectedMethodName
-    );
+    this.#methodsByName = new Map(data.methods.map((method) => [method.name, cloneMethod(method)]));
+    const selectedMethod = this.#snapshot.selectedMethodName
+      ? (this.#methodsByName.get(this.#snapshot.selectedMethodName) ?? null)
+      : null;
     this.#snapshot = {
       ...this.#snapshot,
       introspectionStatus: 'success',

@@ -24,6 +24,7 @@ import {
   type MusicLibraryRefreshStatus,
   type MusicLibrarySafeErrorSnapshot
 } from './musicLibraryNormalization';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type PvrChannelGroup = 'alltv' | 'allradio';
 export type PvrRefreshStatus = MusicLibraryRefreshStatus;
@@ -157,6 +158,10 @@ const DEFAULT_SNAPSHOT: PvrStoreSnapshot = {
 
 export class PvrStore {
   #snapshot = $state<PvrStoreSnapshot>(clonePvrSnapshot(DEFAULT_SNAPSHOT));
+  #publicSnapshot: JsonSnapshotCache<PvrStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: () => KodiJsonRpcHttpClient | null;
   readonly #now: () => string;
@@ -164,6 +169,9 @@ export class PvrStore {
   #radioRequestId = 0;
   #recordingsRequestId = 0;
   #broadcastRequestIds = new Map<number, number>();
+  #channelGroups = new Map<number, 'tv' | 'radio'>();
+  #channelsById = new Map<number, PvrChannelSnapshot>();
+  #recordingsById = new Map<number, PvrRecordingSnapshot>();
 
   constructor(options: PvrStoreOptions = {}) {
     this.#client = options.client ?? null;
@@ -172,7 +180,7 @@ export class PvrStore {
   }
 
   get snapshot(): PvrStoreSnapshot {
-    return clonePvrSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(this.#publicSnapshot, this.#snapshot, clonePvrSnapshot);
   }
 
   async refreshChannels(group: PvrChannelGroup): Promise<void> {
@@ -193,6 +201,8 @@ export class PvrStore {
         return;
       }
 
+      this.#replaceChannelIndexGroup(group === 'alltv' ? 'tv' : 'radio', channels);
+      this.#replaceChannelGroup(group === 'alltv' ? 'tv' : 'radio', channels);
       this.#snapshot = {
         ...this.#snapshot,
         [statusKey]: 'ready',
@@ -230,10 +240,12 @@ export class PvrStore {
         return;
       }
 
+      const recordings = normalizePvrRecordings(result.recordings);
+      this.#recordingsById = indexById(recordings, 'recordingid');
       this.#snapshot = {
         ...this.#snapshot,
         recordingsStatus: 'ready',
-        recordings: normalizePvrRecordings(result.recordings),
+        recordings,
         lastUpdatedAt: this.#now(),
         lastError: null
       };
@@ -255,10 +267,7 @@ export class PvrStore {
       return null;
     }
 
-    const channel =
-      this.#snapshot.tvChannels.find((candidate) => candidate.channelid === channelid) ??
-      this.#snapshot.radioChannels.find((candidate) => candidate.channelid === channelid) ??
-      null;
+    const channel = this.#channelsById.get(channelid) ?? null;
     return channel ? { ...channel } : null;
   }
 
@@ -286,11 +295,23 @@ export class PvrStore {
         );
       }
 
-      const detailGroup = channelGroupForDetail(detail, this.#snapshot);
+      const detailGroup = this.#channelGroupForDetail(detail);
+      const tvChannels =
+        detailGroup === 'tv'
+          ? replaceChannelInGroup(this.#snapshot.tvChannels, detail)
+          : removeChannelFromGroup(this.#snapshot.tvChannels, detail.channelid);
+      const radioChannels =
+        detailGroup === 'radio'
+          ? replaceChannelInGroup(this.#snapshot.radioChannels, detail)
+          : removeChannelFromGroup(this.#snapshot.radioChannels, detail.channelid);
+      if (detailGroup) {
+        this.#channelGroups.set(detail.channelid, detailGroup);
+        this.#channelsById.set(detail.channelid, { ...detail });
+      }
       this.#snapshot = {
         ...this.#snapshot,
-        tvChannels: replaceChannel(this.#snapshot.tvChannels, detail, 'tv', detailGroup),
-        radioChannels: replaceChannel(this.#snapshot.radioChannels, detail, 'radio', detailGroup),
+        tvChannels,
+        radioChannels,
         lastUpdatedAt: this.#now(),
         lastError: null
       };
@@ -309,8 +330,7 @@ export class PvrStore {
       return null;
     }
 
-    const recording =
-      this.#snapshot.recordings.find((candidate) => candidate.recordingid === recordingid) ?? null;
+    const recording = this.#recordingsById.get(recordingid) ?? null;
     return recording ? { ...recording } : null;
   }
 
@@ -341,9 +361,11 @@ export class PvrStore {
         );
       }
 
+      const recordings = replaceRecording(this.#snapshot.recordings, detail);
+      this.#recordingsById.set(detail.recordingid, { ...detail });
       this.#snapshot = {
         ...this.#snapshot,
-        recordings: replaceRecording(this.#snapshot.recordings, detail),
+        recordings,
         lastUpdatedAt: this.#now(),
         lastError: null
       };
@@ -424,6 +446,35 @@ export class PvrStore {
         )
       )
     };
+  }
+
+  #replaceChannelGroup(group: 'tv' | 'radio', channels: readonly PvrChannelSnapshot[]): void {
+    for (const [channelid, existingGroup] of this.#channelGroups) {
+      if (existingGroup === group) {
+        this.#channelGroups.delete(channelid);
+      }
+    }
+    for (const channel of channels) {
+      this.#channelGroups.set(channel.channelid, group);
+    }
+  }
+
+  #replaceChannelIndexGroup(group: 'tv' | 'radio', channels: readonly PvrChannelSnapshot[]): void {
+    for (const [channelid, existingGroup] of this.#channelGroups) {
+      if (existingGroup === group) {
+        this.#channelsById.delete(channelid);
+      }
+    }
+    for (const channel of channels) {
+      this.#channelsById.set(channel.channelid, { ...channel });
+    }
+  }
+
+  #channelGroupForDetail(detail: PvrChannelSnapshot): 'tv' | 'radio' | null {
+    if (detail.channeltype === 'tv' || detail.channeltype === 'radio') {
+      return detail.channeltype;
+    }
+    return this.#channelGroups.get(detail.channelid) ?? null;
   }
 
   async toggleChannelRecording(channelid: number): Promise<void> {
@@ -614,11 +665,16 @@ function replaceRecording(
   return next.sort((a, b) => (b.starttime ?? '').localeCompare(a.starttime ?? ''));
 }
 
-function replaceChannel(
+function indexById<TItem extends Record<TKey, number>, TKey extends keyof TItem>(
+  items: readonly TItem[],
+  key: TKey
+): Map<number, TItem> {
+  return new Map(items.map((item) => [item[key], { ...item }]));
+}
+
+function replaceChannelInGroup(
   channels: readonly PvrChannelSnapshot[],
-  detail: PvrChannelSnapshot,
-  group: 'tv' | 'radio',
-  detailGroup: 'tv' | 'radio' | null
+  detail: PvrChannelSnapshot
 ): PvrChannelSnapshot[] {
   let replaced = false;
   const next = channels.map((channel) => {
@@ -628,26 +684,19 @@ function replaceChannel(
     replaced = true;
     return { ...channel, ...detail };
   });
-  if (!replaced && detailGroup === group) {
+  if (!replaced) {
     next.push({ ...detail });
   }
   return next.sort((a, b) => (a.channel ?? a.label).localeCompare(b.channel ?? b.label));
 }
 
-function channelGroupForDetail(
-  detail: PvrChannelSnapshot,
-  snapshot: PvrStoreSnapshot
-): 'tv' | 'radio' | null {
-  if (detail.channeltype === 'tv' || detail.channeltype === 'radio') {
-    return detail.channeltype;
-  }
-  if (snapshot.tvChannels.some((channel) => channel.channelid === detail.channelid)) {
-    return 'tv';
-  }
-  if (snapshot.radioChannels.some((channel) => channel.channelid === detail.channelid)) {
-    return 'radio';
-  }
-  return null;
+function removeChannelFromGroup(
+  channels: readonly PvrChannelSnapshot[],
+  channelid: number
+): PvrChannelSnapshot[] {
+  return channels
+    .filter((channel) => channel.channelid !== channelid)
+    .map((channel) => ({ ...channel }));
 }
 
 function recordList(value: unknown): Record<string, unknown>[] {

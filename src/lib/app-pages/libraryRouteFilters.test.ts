@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availableFiltersForRoute,
   optionItemsForRoute,
+  optionSourceForRoute,
   routeFamily,
   routeFilterPath,
   sectionNav
@@ -87,5 +88,31 @@ describe('library route filters', () => {
         } as never
       ).map((item) => item.title)
     ).toEqual(['Tomorrowland']);
+  });
+
+  it('caches music-video option sources against the video snapshot, not the music route family', () => {
+    const firstVideoSnapshot = {
+      ...videoSnapshot,
+      musicVideos: [{ musicvideoid: 12, title: 'First Video', artist: ['Artist'] }]
+    };
+    const secondVideoSnapshot = {
+      ...videoSnapshot,
+      musicVideos: [{ musicvideoid: 13, title: 'Second Video', artist: ['Artist'] }]
+    };
+
+    expect(
+      optionSourceForRoute(
+        { kind: 'musicVideos' },
+        musicSnapshot as never,
+        firstVideoSnapshot as never
+      ).map((item) => (item as { title?: string }).title)
+    ).toEqual(['First Video']);
+    expect(
+      optionSourceForRoute(
+        { kind: 'musicVideos' },
+        musicSnapshot as never,
+        secondVideoSnapshot as never
+      ).map((item) => (item as { title?: string }).title)
+    ).toEqual(['Second Video']);
   });
 });

@@ -1,9 +1,13 @@
 import { flushSync, mount, unmount } from 'svelte';
-import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import LibraryPage from './LibraryPage.svelte';
 import { libraryFilterStore } from '$lib/stores/libraryFilter';
+import { readCachedSource } from '$lib/testing/readCachedSource';
+import {
+  loadMetadataEditDialog,
+  loadMusicDetailRoute
+} from '$lib/app-pages/appPageSurfaceLazyRoutes';
 
 const fakeClient = {
   calls: [] as Array<{ method: string; params?: unknown }>,
@@ -158,6 +162,10 @@ const fakeClient = {
     throw new Error(`Unexpected Kodi call: ${method}`);
   }
 };
+
+beforeAll(async () => {
+  await Promise.all([loadMetadataEditDialog(), loadMusicDetailRoute()]);
+});
 
 vi.mock('$lib/stores/kodiClient', () => ({
   createActiveKodiJsonRpcHttpClient: () => fakeClient
@@ -497,7 +505,7 @@ describe('LibraryPage', () => {
   });
 
   it('keeps classic poster artwork contained in 2:3 frames instead of cropping it', () => {
-    const css = readFileSync('src/lib/app-pages/libraryPageClassic.css', 'utf8');
+    const css = readCachedSource('src/lib/app-pages/libraryPageClassic.css');
 
     expect(css).toMatch(
       /\.classic-library-page \.classic-movie-poster img\s*\{[^}]*object-fit:\s*contain;/s
@@ -547,8 +555,8 @@ describe('LibraryPage', () => {
         method: 'AudioLibrary.GetSongs',
         params: {
           filter: { songid: 55 },
-          properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
-          limits: { start: 0, end: 1000 }
+          properties: ['title', 'artist', 'duration', 'thumbnail', 'file'],
+          limits: { start: 0, end: 500 }
         }
       }
     ]);
@@ -630,16 +638,16 @@ describe('LibraryPage', () => {
           method: 'AudioLibrary.GetSongs',
           params: {
             filter: { songid: 55 },
-            properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
-            limits: { start: 0, end: 1000 }
+            properties: ['title', 'artist', 'duration', 'thumbnail', 'file'],
+            limits: { start: 0, end: 500 }
           }
         },
         {
           method: 'AudioLibrary.GetSongs',
           params: {
             filter: { songid: 56 },
-            properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
-            limits: { start: 0, end: 1000 }
+            properties: ['title', 'artist', 'duration', 'thumbnail', 'file'],
+            limits: { start: 0, end: 500 }
           }
         }
       ])
@@ -893,7 +901,7 @@ describe('LibraryPage', () => {
             'lastplayed',
             'dateadded'
           ],
-          limits: { start: 0, end: 1000 },
+          limits: { start: 0, end: 500 },
           sort: { method: 'track', order: 'ascending' }
         }
       }
@@ -1414,8 +1422,8 @@ describe('LibraryPage', () => {
         method: 'VideoLibrary.GetEpisodes',
         params: {
           tvshowid: 11,
-          properties: ['title'],
-          limits: { start: 0, end: 1000 },
+          properties: [],
+          limits: { start: 0, end: 500 },
           sort: { method: 'episode', order: 'ascending' }
         }
       },
@@ -1435,8 +1443,8 @@ describe('LibraryPage', () => {
         method: 'VideoLibrary.GetEpisodes',
         params: {
           tvshowid: 11,
-          properties: ['title'],
-          limits: { start: 0, end: 1000 },
+          properties: [],
+          limits: { start: 0, end: 500 },
           sort: { method: 'episode', order: 'ascending' }
         }
       },

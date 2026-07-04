@@ -4,7 +4,15 @@ export function stringOrNull(value: unknown): string | null {
 
 export function safeStableKey(prefix: string, id: unknown, index: number): string {
   const value = stringOrNull(id);
-  return value ? `${prefix}:${value}` : `${prefix}:missing:${index}`;
+  if (value) {
+    return `${prefix}:${value}`;
+  }
+
+  if (typeof id === 'number' && Number.isFinite(id)) {
+    return `${prefix}:${id}`;
+  }
+
+  return `${prefix}:missing:${index}`;
 }
 
 export function safeIndexedKey(prefix: string, id: unknown, index: number): string {

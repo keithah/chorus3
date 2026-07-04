@@ -190,9 +190,10 @@ describe('VideoTvShowDetailShell', () => {
     renderShell(populatedSnapshot(), { kind: 'videoTvShowDetail', tvshowid: 11 }, metadataSave);
 
     getTextButton('Edit').click();
-    await tick();
 
-    expect(screenText()).toContain('Edit TV Show: Severance');
+    await vi.waitFor(() => {
+      expect(screenText()).toContain('Edit TV Show: Severance');
+    });
     expect(screenText()).toContain('General');
     expect(screenText()).toContain('Poster');
     expect(screenText()).toContain('Background');

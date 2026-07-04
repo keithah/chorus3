@@ -88,8 +88,10 @@ describe('NowPlayingPanel', () => {
 
     expect(screenText()).toContain('Running set volume');
     for (const control of document.querySelectorAll('button, input, select')) {
+      const input = control instanceof HTMLInputElement ? control : null;
+      const isRange = input?.type === 'range';
       expect((control as HTMLButtonElement | HTMLInputElement | HTMLSelectElement).disabled).toBe(
-        true
+        !isRange
       );
     }
   });

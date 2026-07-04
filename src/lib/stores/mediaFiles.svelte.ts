@@ -18,6 +18,7 @@ import {
   type MusicLibrarySafeErrorSnapshot
 } from './musicLibraryNormalization';
 import { getPagedFileDirectory } from './mediaDirectoryPages';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type MediaFilesMedia = Extract<FileMediaType, 'music' | 'video'>;
 export type MediaFilesRefreshStatus = MusicLibraryRefreshStatus;
@@ -152,6 +153,10 @@ function defaultSnapshot(media: MediaFilesMedia): MediaFilesStoreSnapshot {
 
 export class MediaFilesStore {
   #snapshot = $state<MediaFilesStoreSnapshot>(defaultSnapshot(DEFAULT_MEDIA));
+  #publicSnapshot: JsonSnapshotCache<MediaFilesStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -173,7 +178,7 @@ export class MediaFilesStore {
   }
 
   get snapshot(): MediaFilesStoreSnapshot {
-    return cloneMediaFilesSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(this.#publicSnapshot, this.#snapshot, cloneMediaFilesSnapshot);
   }
 
   async refreshSources(): Promise<void> {
@@ -190,7 +195,7 @@ export class MediaFilesStore {
       const callOptions = this.#callOptions();
       const [sourceResult, addonResult] = await Promise.all([
         getFileSources(client, this.#media, callOptions),
-        getBrowserAddons(client, this.#media, callOptions).catch(() => ({ addons: [] }))
+        getBrowserAddons(client, this.#media, callOptions)
       ]);
 
       if (!this.#isCurrent(requestId)) {

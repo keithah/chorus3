@@ -10,6 +10,8 @@ import {
   removePlaylistItem,
   swapPlaylistItems,
   type KodiJsonRpcHttpClient,
+  type PlaylistGetItemsParams,
+  type PlaylistItemsResult,
   type PlaylistItemPropertyName
 } from '$lib/kodi';
 import { isQueueRefreshNotification } from '$lib/kodi/notifications';
@@ -67,6 +69,7 @@ import type {
   QueueStorePlayerStore,
   QueueStoreSnapshot
 } from './queueTypes';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export type {
   EpisodeQueueItem,
@@ -141,6 +144,8 @@ export class QueueStore {
   readonly #now: () => string;
 
   #requestId = 0;
+  #notificationRefresh: Promise<void> | null = null;
+  #queuedNotificationReason: QueueRefreshReason | null = null;
   #unsubscribeNotifications: (() => void) | null = null;
 
   constructor(options: QueueStoreOptions = {}) {
@@ -195,11 +200,21 @@ export class QueueStore {
 
     try {
       const client = this.#resolveClient();
-      const result = await getPlaylistItems(client, {
-        playlistid: activeQueue.playlistid,
-        limits: { start: 0, end: 1000 },
-        properties: DEFAULT_PLAYLIST_PROPERTIES
-      });
+      const result = await readPagedKodiLibraryList<
+        PlaylistGetItemsParams,
+        'items',
+        NonNullable<PlaylistItemsResult['items']>[number],
+        PlaylistItemsResult
+      >(
+        (params) => getPlaylistItems(client, params),
+        {
+          playlistid: activeQueue.playlistid,
+          properties: DEFAULT_PLAYLIST_PROPERTIES
+        },
+        'items',
+        undefined,
+        DEFAULT_FULL_LIBRARY_PAGE_SIZE
+      );
 
       if (!this.#isCurrent(requestId)) {
         return;
@@ -244,11 +259,33 @@ export class QueueStore {
           return;
         }
 
-        void this.refresh(`notification:${notification.method}`);
+        void this.#refreshFromNotification(`notification:${notification.method}`);
       }
     );
 
     return true;
+  }
+
+  async #refreshFromNotification(reason: QueueRefreshReason): Promise<void> {
+    this.#queuedNotificationReason = reason;
+    if (this.#notificationRefresh) {
+      return this.#notificationRefresh;
+    }
+
+    this.#notificationRefresh = this.#drainNotificationRefreshes();
+    try {
+      await this.#notificationRefresh;
+    } finally {
+      this.#notificationRefresh = null;
+    }
+  }
+
+  async #drainNotificationRefreshes(): Promise<void> {
+    while (this.#queuedNotificationReason) {
+      const reason = this.#queuedNotificationReason;
+      this.#queuedNotificationReason = null;
+      await this.refresh(reason);
+    }
   }
 
   stopNotificationRefresh(): void {

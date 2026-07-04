@@ -84,6 +84,7 @@
 
     return Array.from(new Set(messages));
   });
+  const alertMessagesValue = $derived(alertMessages());
 
   function handleCreate(event: SubmitEvent): void {
     event.preventDefault();
@@ -237,9 +238,9 @@
     </p>
   </header>
 
-  {#if alertMessages().length > 0}
+  {#if alertMessagesValue.length > 0}
     <div role="alert" class="local-playlists-alert">
-      {#each alertMessages() as message}
+      {#each alertMessagesValue as message (message)}
         <p>{message}</p>
       {/each}
     </div>

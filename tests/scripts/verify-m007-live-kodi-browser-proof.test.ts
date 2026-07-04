@@ -10,6 +10,7 @@ import {
   normalizeLocalKodiOrigin,
   redactForLiveKodiProof,
   runLiveKodiProof,
+  runLiveKodiProofCli,
   sanitizeBrowserDiagnostic
 } from '../../scripts/verify-m007-live-kodi-browser-proof.mjs';
 
@@ -129,6 +130,21 @@ describe('M007 live Kodi proof runner helpers', () => {
     expect(createLiveKodiProofSummary(result)).not.toMatch(
       /R069 validated|Authorization|jsonrpc|\/home\//iu
     );
+  });
+
+  it('returns a non-zero CLI exit code when the proof does not pass', async () => {
+    const originalLog = console.log;
+    console.log = () => undefined;
+    try {
+      await expect(
+        runLiveKodiProofCli(['--origin', 'http://127.0.0.1:9', '--dry-run', '--timeout-ms', '100'])
+      ).resolves.toMatchObject({
+        exitCode: 1,
+        result: { statusClass: 'unavailable' }
+      });
+    } finally {
+      console.log = originalLog;
+    }
   });
 
   it('reports wrong-webinterface, failed assets, console errors, and malformed JSON-RPC with sanitized evidence', async () => {

@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs';
-
 import { flushSync, mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import App from './App.svelte';
 import { preloadAppPageSurfaceRoutesForTest } from './lib/testing/appPageSurfacePreload';
+import { readCachedSource } from './lib/testing/readCachedSource';
 import {
   createM007VisualProofAppProps,
   M007_VISUAL_PROOF_FORBIDDEN_TEXT
@@ -1168,6 +1167,11 @@ function changeInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function changeRangeValue(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function changeSelectValue(select: HTMLSelectElement, value: string): void {
   select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1803,7 +1807,7 @@ describe('App shell', () => {
       'src/lib/app-shell/PlaylistDrawer.svelte',
       'src/lib/app-shell/appNavigation.ts'
     ]) {
-      const source = readFileSync(file, 'utf8');
+      const source = readCachedSource(file);
       expect(source, `${file} must not import stores`).not.toMatch(
         /['"]\$lib\/stores|['"]\.\.\/stores|['"]\.\/stores/u
       );
@@ -1812,13 +1816,14 @@ describe('App shell', () => {
       );
     }
 
-    const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
+    const surfaceSource = readCachedSource('src/lib/app-pages/AppPageSurface.svelte');
     expect(surfaceSource).toContain('data-app-page-surface');
     expect(surfaceSource).not.toMatch(/import\s+(?!type)[^;]+from ['"]\$lib\/stores/u);
+    expect(surfaceSource).not.toMatch(/import\s+RemoteInputPanel\s+from/u);
   });
 
   it('keeps Chorus2 primary video detail routes on the classic library surface', () => {
-    const surfaceSource = readFileSync('src/lib/app-pages/AppPageSurface.svelte', 'utf8');
+    const surfaceSource = readCachedSource('src/lib/app-pages/AppPageSurface.svelte');
     const libraryBranch = surfaceSource.indexOf('{#if currentLibraryRoute}');
 
     expect(libraryBranch).toBeGreaterThanOrEqual(0);
@@ -2550,8 +2555,8 @@ describe('App shell', () => {
   });
 
   it('keeps package shell rail vertically reachable on short landscape viewports', () => {
-    const componentSource = readFileSync('src/lib/app-shell/AppShell.svelte', 'utf8');
-    const styleSource = readFileSync('src/lib/app-shell/appShellClassic.css', 'utf8');
+    const componentSource = readCachedSource('src/lib/app-shell/AppShell.svelte');
+    const styleSource = readCachedSource('src/lib/app-shell/appShellClassic.css');
     const mediaStart = styleSource.indexOf('@media (max-height: 420px)');
     const nextMediaStart = styleSource.indexOf('@media', mediaStart + 1);
     const shortHeightRule =
@@ -2607,7 +2612,7 @@ describe('App shell', () => {
   });
 
   it('keeps local-player as the only intentional runtime shell bypass', async () => {
-    const runtimeSource = readFileSync('src/lib/app-pages/AppRuntimeSurface.svelte', 'utf8');
+    const runtimeSource = readCachedSource('src/lib/app-pages/AppRuntimeSurface.svelte');
     const firstBranchStart = runtimeSource.indexOf('{#if');
     const shellBranchStart = runtimeSource.indexOf('{:else if isPrimaryShellRoute}');
     const preShellBranch = runtimeSource.slice(firstBranchStart, shellBranchStart);
@@ -2616,6 +2621,7 @@ describe('App shell', () => {
     expect(preShellBranch).toContain('loadLocalBrowserPlayerRoute');
     expect(preShellBranch).not.toContain('isNowPlayingRoute');
     expect(preShellBranch).not.toContain('loadNowPlayingPanel');
+    expect(runtimeSource).not.toMatch(/import\s+RemoteInputPanel\s+from/u);
 
     const localPlayerTarget = renderApp({
       route: { kind: 'localPlayer', media: 'movie', id: 88 },
@@ -4067,8 +4073,8 @@ describe('App shell', () => {
 
     getButton(target, 'Play or pause').click();
     getButton(target, 'Next').click();
-    changeInputValue(getInput(target, '#now-playing-seek'), '64');
-    changeInputValue(getInput(target, '#now-playing-volume'), '71');
+    changeRangeValue(getInput(target, '#now-playing-seek'), '64');
+    changeRangeValue(getInput(target, '#now-playing-volume'), '71');
     getButton(target, 'Toggle mute').click();
     changeSelectValue(getSelect(target, '#now-playing-shuffle'), 'true');
     changeSelectValue(getSelect(target, '#now-playing-repeat'), 'all');
@@ -4087,7 +4093,7 @@ describe('App shell', () => {
     expect(dispatch.setAudioStream).toHaveBeenCalledWith(0);
   });
 
-  it('renders running controls disabled to constrain rapid command bursts', () => {
+  it('renders running command controls while range commits stay available', () => {
     const target = renderApp(
       nowPlayingRouteProps({
         playerSnapshot: activeVideoSnapshot(),
@@ -4099,10 +4105,10 @@ describe('App shell', () => {
 
     expect(target.textContent).toContain('Running seek percentage.');
     expect(target.textContent).toContain(
-      'A Kodi command is running. Controls are disabled until it finishes.'
+      'Another player command is running. Some controls are paused until it finishes.'
     );
     expect(getButton(target, 'Play or pause').disabled).toBe(true);
-    expect(getInput(target, '#now-playing-volume').disabled).toBe(true);
+    expect(getInput(target, '#now-playing-volume').disabled).toBe(false);
   });
 
   it('renders dispatch and refresh errors without secret-like details or raw endpoints', () => {

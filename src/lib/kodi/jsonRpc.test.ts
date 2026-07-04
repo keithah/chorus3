@@ -143,6 +143,33 @@ describe('Kodi JSON-RPC HTTP client', () => {
     });
   });
 
+  it('returns per-call settled JSON-RPC batch results', async () => {
+    const fetchImpl = createFetchMock(
+      jsonResponse([
+        { jsonrpc: '2.0', id: 1, result: 'OK' },
+        { jsonrpc: '2.0', id: 2, error: { code: -32602, message: 'Invalid params' } }
+      ])
+    );
+    const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });
+
+    await expect(
+      client.callBatchSettled?.([
+        { method: 'VideoLibrary.SetEpisodeDetails', params: { episodeid: 1, playcount: 1 } },
+        { method: 'VideoLibrary.SetEpisodeDetails', params: { episodeid: 2, playcount: 1 } }
+      ])
+    ).resolves.toMatchObject([
+      { ok: true, result: 'OK' },
+      {
+        ok: false,
+        error: {
+          code: 'json-rpc-error',
+          method: 'VideoLibrary.SetEpisodeDetails',
+          jsonRpcError: { code: -32602, message: 'Invalid params' }
+        }
+      }
+    ]);
+  });
+
   it('does not send an HTTP request for empty batches', async () => {
     const fetchImpl = createFetchMock(jsonResponse([]));
     const client = createKodiJsonRpcHttpClient({ host: 'kodi.local' }, { fetchImpl });

@@ -489,7 +489,10 @@ describe('media playlists store', () => {
     });
     expectSecretSafe(firstSnapshot);
 
-    firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    expect(Object.isFrozen(firstSnapshot.lastError!.endpoint)).toBe(true);
+    expect(() => {
+      firstSnapshot.lastError!.endpoint!.host = 'mutated.example';
+    }).toThrow(TypeError);
     expect(store.snapshot.lastError!.endpoint!.host).toBe('kodi.local');
   });
 
@@ -550,7 +553,7 @@ describe('media playlists store', () => {
     expectSecretSafe(store.snapshot);
   });
 
-  it('returns cloned snapshots so callers cannot mutate media playlist internals', async () => {
+  it('returns cached frozen snapshots so callers cannot mutate media playlist internals', async () => {
     const { client, store } = createHarness();
     client.enqueue('Files.GetDirectory', {
       files: [
@@ -564,11 +567,16 @@ describe('media playlists store', () => {
     await store.openPlaylist(playlistId(store.snapshot, 'Favorites'));
 
     const snapshot = store.snapshot;
-    snapshot.playlists[0].label = 'Mutated playlist';
-    snapshot.playlists[0].capabilities.canPlay = false;
-    snapshot.entries[0].label = 'Mutated entry';
-    snapshot.entries[0].capabilities.canQueue = false;
-    snapshot.breadcrumbs[0].label = 'Mutated crumb';
+    expect(store.snapshot).toBe(snapshot);
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot.playlists[0].capabilities)).toBe(true);
+    expect(Object.isFrozen(snapshot.entries[0].capabilities)).toBe(true);
+    expect(() => {
+      snapshot.playlists[0].label = 'Mutated playlist';
+    }).toThrow(TypeError);
+    expect(() => {
+      snapshot.entries[0].capabilities.canQueue = false;
+    }).toThrow(TypeError);
 
     expect(store.snapshot).toMatchObject({
       playlists: [

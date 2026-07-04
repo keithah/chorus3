@@ -13,7 +13,7 @@ import type {
   VideoLibraryStoreSnapshot,
   VideoMusicVideoSnapshot
 } from '$lib/stores/videoLibrary.svelte';
-import { optionItemsForRoute, type LibraryRoute } from './libraryRouteFilters';
+import { optionSourceForRoute, type LibraryRoute } from './libraryRouteFilters';
 
 export type LibraryPageFilters = ReturnType<typeof createLibraryPageFilters>;
 
@@ -61,7 +61,12 @@ export function createLibraryPageFilters({
       music: MusicLibraryStoreSnapshot,
       video: VideoLibraryStoreSnapshot
     ): LibraryFilterOption[] =>
-      store.getFilterOptions(filterPath, key, optionItemsForRoute(route, music, video))
+      store.getFilterOptionsFrom(
+        filterPath,
+        key,
+        optionSourceForRoute(route, music, video),
+        libraryFilterRecordFrom
+      )
   };
 }
 

@@ -390,6 +390,30 @@ describe('MediaFilesPanel', () => {
     expect(labels.some((label) => label === 'Queue file missing-id.flac')).toBe(false);
   });
 
+  it('renders available actions when a file is playable but not queueable or downloadable', () => {
+    renderPanel({
+      snapshot: createSnapshot({
+        entries: [
+          {
+            id: 'entry:play-only',
+            kind: 'file',
+            label: 'Play Only.flac',
+            mediaKind: 'audio',
+            capabilities: { canBrowse: false, canPlay: true, canQueue: false, canDownload: false }
+          }
+        ]
+      })
+    });
+
+    expect(button('Play file Play Only.flac').disabled).toBe(false);
+    const labels = Array.from(document.querySelectorAll('button')).map(
+      (node) => node.getAttribute('aria-label') ?? node.textContent ?? ''
+    );
+    expect(labels.some((label) => label === 'Queue file Play Only.flac')).toBe(false);
+    expect(labels.some((label) => label === 'Download file Play Only.flac')).toBe(false);
+    expect(labels.some((label) => label === 'Unsupported file Play Only.flac')).toBe(false);
+  });
+
   it('disables same-target duplicate actions while pending and reports sanitized action rejection copy', async () => {
     let resolveAction: (() => void) | undefined;
     const actionDispatch = createActionDispatch({

@@ -104,6 +104,52 @@ describe('PlayerControls', () => {
     expect(dispatch.setSubtitle).toHaveBeenCalledWith('off');
     expect(dispatch.setAudioStream).toHaveBeenCalledWith(2);
   });
+
+  it('commits range controls on change instead of every drag tick', () => {
+    const dispatch = createDispatch();
+
+    mounted = mount(PlayerControls, {
+      target: document.body,
+      props: {
+        snapshot: createActiveSnapshot(),
+        dispatch,
+        i18n: createTranslationContext('en')
+      }
+    });
+
+    const seek = slider('Seek position');
+    seek.value = '55';
+    seek.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(dispatch.seekPercentage).not.toHaveBeenCalled();
+    seek.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(dispatch.seekPercentage).toHaveBeenCalledWith(55);
+
+    const volume = slider('Volume');
+    volume.value = '12';
+    volume.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(dispatch.setVolume).not.toHaveBeenCalled();
+    volume.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(dispatch.setVolume).toHaveBeenCalledWith(12);
+  });
+
+  it('keeps range controls enabled while another command is running', () => {
+    const dispatch = createDispatch({ commandStatus: 'running' });
+
+    mounted = mount(PlayerControls, {
+      target: document.body,
+      props: {
+        snapshot: createActiveSnapshot(),
+        dispatch,
+        i18n: createTranslationContext('en')
+      }
+    });
+
+    expect(slider('Seek position').disabled).toBe(false);
+    expect(slider('Volume').disabled).toBe(false);
+    expect(button('Play or pause').disabled).toBe(true);
+    expect(screenText()).toContain('Another player command is running.');
+    expect(screenText()).not.toContain('Controls are disabled');
+  });
 });
 
 function createDispatch(overrides: Partial<PlayerDispatchSnapshot> = {}): FakeDispatch {

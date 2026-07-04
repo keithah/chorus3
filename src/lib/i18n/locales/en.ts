@@ -512,7 +512,7 @@ export const EN_DICTIONARY = {
   'player.controls.transportAria': 'Transport controls',
   'player.controls.relativeSeekAria': 'Relative seek controls',
   'player.controls.disabled.running':
-    'A Kodi command is running. Controls are disabled until it finishes.',
+    'Another player command is running. Some controls are paused until it finishes.',
   'player.controls.disabled.multiple':
     'Multiple Kodi players are active. Controls are disabled until there is one active player.',
   'player.controls.disabled.noActive':

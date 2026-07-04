@@ -35,7 +35,6 @@
   import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import QueuePanel from '$components/QueuePanel.svelte';
-  import RemoteInputPanel from '$components/RemoteInputPanel.svelte';
   import PageFrame from '$lib/app-shell/PageFrame.svelte';
   import type { PrimaryRoute } from '$lib/app/primaryRoutes';
   import {
@@ -94,6 +93,7 @@
     loadMusicLibraryPanel,
     loadPlaylistsPage,
     loadPvrPage,
+    loadRemoteInputPanel,
     loadSettingsPage,
     loadThumbsUpPage,
     loadVideoEpisodeDetailShell,
@@ -654,12 +654,14 @@
               panel.
             </p>
           </div>
-          <RemoteInputPanel
-            {remoteSnapshot}
-            {remoteInputDispatch}
-            {playerSnapshot}
-            {playerDispatch}
-            {i18n}
+          <LazyRouteComponent
+            route={bindLazyRoute(loadRemoteInputPanel, {
+              remoteSnapshot,
+              remoteInputDispatch,
+              playerSnapshot,
+              playerDispatch,
+              i18n
+            })}
           />
         </section>
       {:else if isSearchRoute(route)}

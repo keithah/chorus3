@@ -566,9 +566,10 @@
       </div>
     {/if}
 
-    {#if detailFields(movie).length > 0}
+    {@const fields = detailFields(movie)}
+    {#if fields.length > 0}
       <dl class="detail-list rich-fields">
-        {#each detailFields(movie) as field}
+        {#each fields as field}
           <div>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>

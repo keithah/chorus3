@@ -60,7 +60,7 @@
   let pendingAction = $state<PendingPlaylistAction | null>(null);
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
-  const entryVisibility = createIncrementalVisibility(250);
+  const entryVisibility = createIncrementalVisibility(96);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const snapshotErrorText = $derived(

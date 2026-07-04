@@ -111,7 +111,7 @@ function resolveLocalFilePlaylistIndex(
   return 0;
 }
 
-export function nextLocalSequentialIndex(
+function nextLocalSequentialIndex(
   length: number,
   currentIndex: number,
   command: 'previous' | 'next'
@@ -120,7 +120,7 @@ export function nextLocalSequentialIndex(
   return (currentIndex + offset + length) % length;
 }
 
-export function nextLocalShuffleIndex(length: number, currentIndex: number): number {
+function nextLocalShuffleIndex(length: number, currentIndex: number): number {
   if (length <= 1) {
     return 0;
   }

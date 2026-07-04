@@ -480,6 +480,41 @@ describe('AddonsStore', () => {
     expectNoForbiddenText(store.snapshot);
   });
 
+  it('refreshes a toggled list add-on without replacing a different selected detail', async () => {
+    let betaEnabled = false;
+    const { store } = makeStore({
+      async getAddonDetails(_client, params) {
+        if (params.addonid === 'service.beta') {
+          return {
+            addondetails: {
+              addonid: 'service.beta',
+              name: 'Beta Service',
+              enabled: betaEnabled,
+              installed: true,
+              type: 'xbmc.service'
+            }
+          };
+        }
+
+        return ALPHA_DETAIL;
+      },
+      async setAddonEnabled(_client, params) {
+        betaEnabled = params.enabled === true;
+        return 'OK';
+      }
+    });
+
+    await store.loadAddons();
+    await store.loadAddonDetail('plugin.video.alpha');
+    await store.setAddonEnabled('service.beta', true);
+
+    expect(store.snapshot.selectedAddonId).toBe('plugin.video.alpha');
+    expect(store.snapshot.detail?.addonid).toBe('plugin.video.alpha');
+    expect(store.snapshot.addons.find((addon) => addon.addonid === 'service.beta')?.enabled).toBe(
+      true
+    );
+  });
+
   it('executes safe add-ons through Kodi and records write diagnostics', async () => {
     const { calls, store } = makeStore();
 

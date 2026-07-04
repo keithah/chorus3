@@ -733,6 +733,7 @@
     } catch (error) {
       metadataEditError = safeLibraryActionErrorMessage(error);
       actionStatus = `Could not save ${currentTitle}. ${safeLibraryActionErrorMessage(error)}`;
+      throw error;
     } finally {
       pendingEditKey = null;
       pendingMovieMoreActionKey = null;

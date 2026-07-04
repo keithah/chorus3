@@ -62,7 +62,12 @@ export const loadMusicLibraryPanel = lazyRoute(
   () => import('$components/MusicLibraryPanel.svelte')
 );
 export const loadMusicBrowsePanel = lazyRoute(() => import('$components/MusicBrowsePanel.svelte'));
+export const loadMusicDetailRoute = lazyRoute(() => import('$components/MusicDetailRoute.svelte'));
+export const loadMetadataEditDialog = lazyRoute(
+  () => import('$components/MetadataEditDialog.svelte')
+);
 export const loadNowPlayingPanel = lazyRoute(() => import('$components/NowPlayingPanel.svelte'));
+export const loadRemoteInputPanel = lazyRoute(() => import('$components/RemoteInputPanel.svelte'));
 export const loadAppPageStoreSurface = lazyRoute(
   () => import('$lib/app-pages/AppPageStoreSurface.svelte')
 );

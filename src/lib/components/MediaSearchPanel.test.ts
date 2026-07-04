@@ -556,6 +556,22 @@ describe('MediaSearchPanel', () => {
     expect(dispatch.clear).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps in-progress query and scope edits across effect flushes', async () => {
+    renderPanel({ snapshot: createEmptySnapshot({ query: 'nina', scope: 'music' }) });
+    const input = searchInput();
+    const scope = document.querySelector<HTMLSelectElement>('select[name="scope"]');
+    expect(scope).not.toBeNull();
+
+    input.value = 'pastel blues';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    scope!.value = 'movie';
+    scope!.dispatchEvent(new Event('change', { bubbles: true }));
+    await tick();
+
+    expect(input.value).toBe('pastel blues');
+    expect(scope!.value).toBe('movie');
+  });
+
   it('renders idle, loading, empty, and error lifecycle status copy', () => {
     renderPanel({ snapshot: createEmptySnapshot() });
     expect(statusText()).toContain('Search music across Kodi.');

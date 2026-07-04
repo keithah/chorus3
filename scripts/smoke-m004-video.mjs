@@ -432,13 +432,15 @@ export async function runM004VideoSmoke(config, { fetchImpl = fetch } = {}) {
     `JSONRPC.Ping: ok (${String(ping.result)}).`
   ].filter(Boolean);
 
-  const movieResult = await runProbe(config, MOVIE_PROBE, requestId, fetchImpl);
+  const [movieResult, tvShowResult] = await Promise.all([
+    runProbe(config, MOVIE_PROBE, requestId, fetchImpl),
+    runProbe(config, TV_SHOW_PROBE, requestId, fetchImpl)
+  ]);
   if (!movieResult.ok) {
     return movieResult;
   }
   lines.push(...movieResult.lines);
 
-  const tvShowResult = await runProbe(config, TV_SHOW_PROBE, requestId, fetchImpl);
   if (!tvShowResult.ok) {
     return tvShowResult;
   }
@@ -460,13 +462,18 @@ export async function runM004VideoSmoke(config, { fetchImpl = fetch } = {}) {
     lines.push(...seasonResult.lines);
   }
 
-  for (const probe of REMAINING_VIDEO_PROBES) {
-    const result = await runProbe(config, probe, requestId, fetchImpl);
+  const remainingProbeResults = await Promise.all(
+    REMAINING_VIDEO_PROBES.map((probe) => runProbe(config, probe, requestId, fetchImpl))
+  );
+
+  for (let index = 0; index < remainingProbeResults.length; index += 1) {
+    const result = remainingProbeResults[index];
     if (!result.ok) {
       return result;
     }
 
     lines.push(...result.lines);
+    const probe = REMAINING_VIDEO_PROBES[index];
     if (probe.successLine) {
       lines.push(probe.successLine);
     }

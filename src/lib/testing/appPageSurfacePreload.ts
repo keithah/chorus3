@@ -15,11 +15,14 @@ import {
   loadMediaFilesPanel,
   loadMediaPlaylistsPanel,
   loadMediaSearchPanel,
+  loadMetadataEditDialog,
   loadMusicBrowsePanel,
+  loadMusicDetailRoute,
   loadMusicLibraryPanel,
   loadNowPlayingPanel,
   loadPlaylistsPage,
   loadPvrPage,
+  loadRemoteInputPanel,
   loadSettingsPage,
   loadSettingsPanel,
   loadThumbsUpPage,
@@ -68,7 +71,10 @@ const allRouteLoaders = [
   loadMediaFilesPanel,
   loadMusicLibraryPanel,
   loadMusicBrowsePanel,
+  loadMusicDetailRoute,
+  loadMetadataEditDialog,
   loadNowPlayingPanel,
+  loadRemoteInputPanel,
   loadAppPageStoreSurface
 ] as const;
 

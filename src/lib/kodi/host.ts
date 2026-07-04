@@ -65,6 +65,21 @@ function parseHostUrl(host: string): URL | null {
   }
 }
 
+function splitBareHostPort(host: string): { host: string; port?: string } {
+  const trimmed = host.replace(/^\/+|\/+$/g, '');
+  const bracketedIpv6 = trimmed.match(/^(\[[^\]]+\]):(\d+)$/);
+  if (bracketedIpv6) {
+    return { host: bracketedIpv6[1] ?? trimmed, port: bracketedIpv6[2] };
+  }
+
+  const hostPort = trimmed.match(/^([^:/?#]+):(\d+)$/);
+  if (hostPort) {
+    return { host: hostPort[1] ?? trimmed, port: hostPort[2] };
+  }
+
+  return { host: trimmed };
+}
+
 function normalizeHttpPath(path: string | undefined): string {
   const rawPath = path?.trim() || DEFAULT_KODI_HTTP_PATH;
   const [pathname = '', query] = rawPath.split('?', 2);
@@ -87,7 +102,7 @@ function normalizeWebSocketPath(path: string | undefined): string {
 
 function normalizeHttpPort(port: number | string | undefined, useTls: boolean): number {
   if (port === undefined || port === '') {
-    return DEFAULT_KODI_HTTP_PORT;
+    return useTls ? 443 : DEFAULT_KODI_HTTP_PORT;
   }
 
   const normalizedPort = typeof port === 'number' ? port : Number(port);
@@ -135,14 +150,15 @@ export function normalizeKodiHttpHost(hostConfig: KodiHttpHost): NormalizedKodiH
   const parsedUrl = parseHostUrl(trimmedHost);
   const hasUrlProtocol = parsedUrl?.protocol === 'http:' || parsedUrl?.protocol === 'https:';
   const useTls = hostConfig.useTls ?? (hasUrlProtocol ? parsedUrl.protocol === 'https:' : false);
-  const host = hasUrlProtocol ? parsedUrl.hostname : trimmedHost.replace(/^\/+|\/+$/g, '');
+  const bareHost = splitBareHostPort(trimmedHost);
+  const host = hasUrlProtocol ? parsedUrl.hostname : bareHost.host;
 
   if (!host) {
     throw new Error('Kodi HTTP host is required.');
   }
 
   const port = normalizeHttpPort(
-    hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : undefined),
+    hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : bareHost.port),
     useTls
   );
   const path = normalizeHttpPath(
@@ -182,8 +198,9 @@ export function normalizeKodiWebSocketHost(
 
   const parsedUrl = parseHostUrl(trimmedHost);
   const hasUrlProtocol = parsedUrl?.protocol === 'ws:' || parsedUrl?.protocol === 'wss:';
+  const bareHost = splitBareHostPort(trimmedHost);
 
-  if (parsedUrl && !hasUrlProtocol) {
+  if (parsedUrl && !hasUrlProtocol && !bareHost.port) {
     throw new Error('Kodi WebSocket host URL must use ws: or wss:.');
   }
 
@@ -192,7 +209,7 @@ export function normalizeKodiWebSocketHost(
   }
 
   const useTls = hostConfig.useTls ?? (hasUrlProtocol ? parsedUrl.protocol === 'wss:' : false);
-  const host = hasUrlProtocol ? parsedUrl.hostname : trimmedHost.replace(/^\/+|\/+$/g, '');
+  const host = hasUrlProtocol ? parsedUrl.hostname : bareHost.host;
 
   if (!host) {
     throw new Error('Kodi WebSocket host is required.');
@@ -200,7 +217,9 @@ export function normalizeKodiWebSocketHost(
 
   return {
     host,
-    port: normalizeWebSocketPort(hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : undefined)),
+    port: normalizeWebSocketPort(
+      hostConfig.port ?? (hasUrlProtocol ? parsedUrl.port : bareHost.port)
+    ),
     useTls,
     path: normalizeWebSocketPath(
       hostConfig.path ?? (hasUrlProtocol ? parsedUrl.pathname : undefined)
@@ -232,10 +251,6 @@ export function buildKodiJsonRpcWebSocketUrl(hostConfig: KodiWebSocketHost): URL
 }
 
 function encodeBase64(value: string): string {
-  if (typeof btoa === 'function') {
-    return btoa(value);
-  }
-
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const bytes = new TextEncoder().encode(value);
   const output: string[] = [];

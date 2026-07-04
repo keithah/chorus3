@@ -162,6 +162,8 @@ export class PlayerStore {
   #requestId = 0;
   #pollIntervalId: unknown = null;
   #pollRefresh: Promise<void> | null = null;
+  #notificationRefresh: Promise<void> | null = null;
+  #queuedNotificationReason: PlayerRefreshReason | null = null;
   #unsubscribeNotifications: (() => void) | null = null;
 
   constructor(options: PlayerStoreOptions = {}) {
@@ -257,11 +259,33 @@ export class PlayerStore {
         if (isQueueRefreshNotification(notification)) {
           this.#snapshot = { ...this.#snapshot, lastQueueRefreshReason: reason };
         }
-        void this.refresh(reason);
+        void this.#refreshFromNotification(reason);
       }
     );
 
     return true;
+  }
+
+  async #refreshFromNotification(reason: PlayerRefreshReason): Promise<void> {
+    this.#queuedNotificationReason = reason;
+    if (this.#notificationRefresh) {
+      return this.#notificationRefresh;
+    }
+
+    this.#notificationRefresh = this.#drainNotificationRefreshes();
+    try {
+      await this.#notificationRefresh;
+    } finally {
+      this.#notificationRefresh = null;
+    }
+  }
+
+  async #drainNotificationRefreshes(): Promise<void> {
+    while (this.#queuedNotificationReason) {
+      const reason = this.#queuedNotificationReason;
+      this.#queuedNotificationReason = null;
+      await this.refresh(reason);
+    }
   }
 
   stopNotificationRefresh(): void {

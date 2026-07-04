@@ -445,7 +445,7 @@ export async function listZipEntries(zipPath, { runUnzip = runSystemUnzip } = {}
   }
 }
 
-export function runSystemUnzip({ args }) {
+function runSystemUnzip({ args }) {
   return runChildProcess({ command: 'unzip', args });
 }
 

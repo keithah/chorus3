@@ -159,7 +159,7 @@ describe('HelpPage', () => {
 
     const content = text();
     expect(content).toContain('Kodi 22.0.0');
-    expect(content).toContain('Chorus 3.0.14');
+    expect(content).toContain('Chorus 3.0.15');
     expect(content).not.toContain('Connected Kodi version is shown on the Home connection card');
     expect(content).toContain('HTML 5');
     expect(content).not.toMatch(/\bVLC\b|DivX/i);

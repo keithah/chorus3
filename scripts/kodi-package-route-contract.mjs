@@ -2,7 +2,7 @@ import { buildThumbsUpLegacyPackageFallbacks } from './thumbs-up-legacy-routes.m
 
 export const KODI_PACKAGE_BASE_PATH = '/addons/webinterface.chorus3';
 
-export const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
+const KODI_PACKAGE_ROUTE_FALLBACKS = Object.freeze([
   { name: 'music', routePath: '/music', stagedIndexPath: 'music/index.html' },
   { name: 'music-home', routePath: '/music/home', stagedIndexPath: 'music/home/index.html' },
   { name: 'music-top', routePath: '/music/top', stagedIndexPath: 'music/top/index.html' },

@@ -109,6 +109,8 @@
   let localStatusText = $state<string | null>(null);
   let localErrorText = $state<string | null>(null);
   let selectedScope = $state<MediaSearchScope>(untrack(() => snapshot.scope));
+  let lastObservedSnapshotQuery = untrack(() => snapshot.query);
+  let lastObservedSnapshotScope = untrack(() => snapshot.scope);
 
   const isSearchLoading = $derived(snapshot.searchStatus === 'loading');
   const providerQuery = $derived(inputValue.trim() || snapshot.query.trim());
@@ -121,15 +123,29 @@
   const hasProviderLinks = $derived(providerQuery.length > 0);
 
   $effect(() => {
-    if (snapshot.query !== inputValue && pendingOperation !== 'search') {
-      inputValue = snapshot.query;
-    }
+    const query = snapshot.query;
+    const pending = pendingOperation;
+    untrack(() => {
+      if (query === lastObservedSnapshotQuery || pending === 'search') {
+        return;
+      }
+
+      lastObservedSnapshotQuery = query;
+      inputValue = query;
+    });
   });
 
   $effect(() => {
-    if (snapshot.scope !== selectedScope && pendingOperation !== 'search') {
-      selectedScope = snapshot.scope;
-    }
+    const scope = snapshot.scope;
+    const pending = pendingOperation;
+    untrack(() => {
+      if (scope === lastObservedSnapshotScope || pending === 'search') {
+        return;
+      }
+
+      lastObservedSnapshotScope = scope;
+      selectedScope = scope;
+    });
   });
 
   async function handleSearch(event: SubmitEvent): Promise<void> {

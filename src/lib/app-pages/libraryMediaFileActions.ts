@@ -3,9 +3,15 @@ import {
   getVideoLibraryEpisodeDetails,
   getVideoLibraryMovieDetails,
   getVideoLibraryMusicVideoDetails,
+  type AudioLibrarySongsParams,
+  type AudioLibrarySongsResult,
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import type { LocalPlaylistItemInput } from '$lib/stores/localPlaylist.svelte';
+import {
+  DEFAULT_FULL_LIBRARY_PAGE_SIZE,
+  readPagedKodiLibraryList
+} from '$lib/stores/pagedKodiLibrary';
 import type {
   DownloadableCardAction,
   LocalPlaylistCardAction
@@ -51,11 +57,21 @@ export async function resolveLibraryLocalPlaylistItems(
   client: KodiJsonRpcHttpClient,
   action: LocalPlaylistCardAction
 ): Promise<LocalPlaylistItemInput[]> {
-  const result = await getAudioLibrarySongs(client, {
-    filter: localPlaylistSongFilter(action),
-    properties: ['title', 'artist', 'album', 'duration', 'thumbnail', 'file'],
-    limits: { start: 0, end: 1000 }
-  });
+  const result = await readPagedKodiLibraryList<
+    AudioLibrarySongsParams,
+    'songs',
+    NonNullable<AudioLibrarySongsResult['songs']>[number],
+    AudioLibrarySongsResult
+  >(
+    (params) => getAudioLibrarySongs(client, params),
+    {
+      filter: localPlaylistSongFilter(action),
+      properties: ['title', 'artist', 'duration', 'thumbnail', 'file']
+    },
+    'songs',
+    undefined,
+    DEFAULT_FULL_LIBRARY_PAGE_SIZE
+  );
 
   return recordsToLocalPlaylistItems(result.songs);
 }

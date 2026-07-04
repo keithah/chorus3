@@ -7,6 +7,7 @@
   import { optionalKodiImageUrl } from '$lib/media/kodiImageUrl';
   import { buildVideoRoute } from '$lib/video/videoRouter';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { safeStableKey } from './listKeyHelpers';
   import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
@@ -23,7 +24,7 @@
 
   let { snapshot: injectedSnapshot }: Props = $props();
   const snapshot = $derived(injectedSnapshot ?? videoLibraryStore.snapshot);
-  const movieVisibility = createIncrementalVisibility(240);
+  const movieVisibility = createIncrementalVisibility(96);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));
@@ -274,7 +275,7 @@
 
   {#if snapshot.movies.length > 0}
     <ul class="movie-grid" aria-label="Video movies">
-      {#each visibleMovies as movie, index (safeMovieId(movie.movieid) ?? index)}
+      {#each visibleMovies as movie, index (safeStableKey('movie', safeMovieId(movie.movieid), index))}
         {@const href = detailHref(movie)}
         {@const label = safeMovieLabel(movie)}
         {@const metadata = movieMetadata(movie)}

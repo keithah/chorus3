@@ -114,6 +114,7 @@ function renderPanel(
     snapshot?: LabApiBrowserStoreSnapshot;
     dispatch?: LabApiBrowserPanelDispatch;
     locale?: Locale;
+    initialMethod?: string;
   } = {}
 ): LabApiBrowserPanelDispatch {
   const dispatch = props.dispatch ?? createDispatch();
@@ -122,7 +123,8 @@ function renderPanel(
     props: {
       snapshot: props.snapshot ?? createSnapshot(),
       dispatch,
-      i18n: createTranslationContext(props.locale ?? 'en')
+      i18n: createTranslationContext(props.locale ?? 'en'),
+      initialMethod: props.initialMethod
     }
   });
   return dispatch;
@@ -226,6 +228,17 @@ describe('LabApiBrowserPanel', () => {
     expect(dispatch.selectMethod).toHaveBeenCalledWith('System.Shutdown');
     expect(dispatch.setParamsText).toHaveBeenCalledWith('{"force":false}');
     expect(dispatch.runSelectedMethod).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies an initial deep-linked method once without overriding later user selection', async () => {
+    const dispatch = renderPanel({ initialMethod: 'Player.Open' });
+    await tick();
+
+    await chooseMethod('System.Shutdown');
+
+    expect(dispatch.selectMethod).toHaveBeenCalledTimes(2);
+    expect(dispatch.selectMethod).toHaveBeenNthCalledWith(1, 'Player.Open');
+    expect(dispatch.selectMethod).toHaveBeenNthCalledWith(2, 'System.Shutdown');
   });
 
   it('renders empty method snapshots with guidance and disabled run controls', () => {

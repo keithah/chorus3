@@ -9,9 +9,7 @@
   import ParityPlaceholder from '$components/ParityPlaceholder.svelte';
   import type { PlayerControlsDispatch } from '$components/PlayerControls.svelte';
   import type { QueuePanelDispatch } from '$components/QueuePanel.svelte';
-  import RemoteInputPanel, {
-    type RemoteInputPanelRemoteDispatch
-  } from '$components/RemoteInputPanel.svelte';
+  import type { RemoteInputPanelRemoteDispatch } from '$components/RemoteInputPanel.svelte';
   import type { SettingsPanelDispatch } from '$components/SettingsPanel.svelte';
   import type { VideoEpisodeActionDispatch } from '$components/VideoEpisodeDetailShell.svelte';
   import type { VideoMovieActionDispatch } from '$components/VideoMovieDetailShell.svelte';
@@ -42,6 +40,7 @@
     loadLocalBrowserPlayerRoute,
     loadMediaPlaylistsPanel,
     loadNowPlayingPanel,
+    loadRemoteInputPanel,
     loadSettingsPanel,
     loadVideoEpisodeDetailShell,
     loadVideoMovieDetailShell,
@@ -375,12 +374,14 @@
       </main>
     {:else if isRemoteRoute}
       <main class="remote-route" aria-label="Kodi Remote">
-        <RemoteInputPanel
-          remoteSnapshot={currentRemoteSnapshot}
-          {remoteInputDispatch}
-          playerSnapshot={currentPlayerSnapshot}
-          {playerDispatch}
-          i18n={currentI18n}
+        <LazyRouteComponent
+          route={bindLazyRoute(loadRemoteInputPanel, {
+            remoteSnapshot: currentRemoteSnapshot,
+            remoteInputDispatch,
+            playerSnapshot: currentPlayerSnapshot,
+            playerDispatch,
+            i18n: currentI18n
+          })}
         />
       </main>
     {:else if isAddonsRoute}

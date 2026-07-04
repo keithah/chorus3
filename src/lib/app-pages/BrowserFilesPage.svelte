@@ -49,6 +49,13 @@
 
   type BrowserSortMode = 'none' | 'label' | 'dateadded' | 'year' | 'random';
   type BrowserSortOrder = 'ascending' | 'descending';
+  const BROWSER_SORT_OPTIONS = [
+    ['none', 'default'],
+    ['label', 'title'],
+    ['dateadded', 'date added'],
+    ['year', 'year'],
+    ['random', 'random']
+  ] as const satisfies readonly [BrowserSortMode, string][];
 
   let {
     route = { kind: 'browser' },
@@ -65,8 +72,8 @@
   let sortMode = $state<BrowserSortMode>(storedBrowserSort().method);
   let sortOrder = $state<BrowserSortOrder>(storedBrowserSort().order);
   let lastRouteItemKey = $state('');
-  const fileVisibility = createIncrementalVisibility(250);
-  const folderVisibility = createIncrementalVisibility(250);
+  const fileVisibility = createIncrementalVisibility(96);
+  const folderVisibility = createIncrementalVisibility(96);
   const randomHashByEntry = new WeakMap<MediaDirectoryEntrySnapshot, number>();
 
   const activeMedia = $derived(
@@ -497,7 +504,7 @@
         <details class="sort-wrapper">
           <summary aria-label="Sort">Sort</summary>
           <ul class="sorts">
-            {#each [['none', 'default'], ['label', 'title'], ['dateadded', 'date added'], ['year', 'year'], ['random', 'random']] as [method, label]}
+            {#each BROWSER_SORT_OPTIONS as [method, label]}
               <li>
                 <button
                   type="button"
@@ -518,7 +525,7 @@
     <div class="classic-browser-columns">
       <div class="classic-browser-list classic-browser-files" aria-label="Files">
         {#if sortedFileItems.length}
-          {#each visibleFileItems as entry}
+          {#each visibleFileItems as entry (entry.id)}
             {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="file-row">
               <button
@@ -568,7 +575,7 @@
             </button>
           {/if}
         {:else if !contentItems.length && snapshot.sources.length}
-          {#each snapshot.sources as source}
+          {#each snapshot.sources as source (source.id)}
             <article>
               <span class="classic-browser-thumb" aria-hidden="true"></span>
               <a
@@ -602,7 +609,7 @@
           </article>
         {/if}
         {#if sortedFolderItems.length}
-          {#each visibleFolderItems as entry}
+          {#each visibleFolderItems as entry (entry.id)}
             {@const entryThumb = optionalKodiImageUrl(entry.thumbnail)}
             <article class="folder-row">
               <button

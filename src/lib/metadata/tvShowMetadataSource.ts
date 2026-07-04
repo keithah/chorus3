@@ -103,7 +103,6 @@ async function fetchTvShowDetail(
       }
       return detail;
     })
-    .catch(() => null)
     .finally(() => {
       pendingDetails.delete(tvshowid);
     });

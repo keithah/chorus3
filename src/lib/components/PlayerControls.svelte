@@ -70,10 +70,14 @@
   const canControlLocal = $derived(currentLocalSnapshot.status !== 'idle');
   const isRunning = $derived(dispatch.snapshot.commandStatus === 'running');
 
-  const kodiDisabled = $derived(!canControlKodi || isRunning || dispatch.snapshot.mode === 'local');
-  const localDisabled = $derived(
+  const kodiCommandDisabled = $derived(
+    !canControlKodi || isRunning || dispatch.snapshot.mode === 'local'
+  );
+  const localCommandDisabled = $derived(
     !canControlLocal || isRunning || dispatch.snapshot.mode !== 'local'
   );
+  const kodiRangeCommitDisabled = $derived(!canControlKodi || dispatch.snapshot.mode === 'local');
+  const localRangeCommitDisabled = $derived(!canControlLocal || dispatch.snapshot.mode !== 'local');
 
   const disabledReason = $derived(getDisabledReason(snapshot, isRunning, dispatch.snapshot.mode));
 
@@ -234,26 +238,26 @@
   <div class="control-group transport" aria-label={i18n.t('player.controls.transportAria')}>
     <button
       type="button"
-      disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+      disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
       onclick={() => dispatch.previous()}>{i18n.t('player.controls.previous')}</button
     >
     <button
       type="button"
-      disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+      disabled={dispatch.snapshot.mode === 'local' ? localCommandDisabled : kodiCommandDisabled}
       onclick={() => dispatch.playPause()}
     >
       {i18n.t('player.controls.playPause')}
     </button>
     <button
       type="button"
-      disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+      disabled={dispatch.snapshot.mode === 'local' ? localCommandDisabled : kodiCommandDisabled}
       onclick={() => dispatch.stop()}
     >
       {i18n.t('player.controls.stop')}
     </button>
     <button
       type="button"
-      disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+      disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
       onclick={() => dispatch.next()}>{i18n.t('player.controls.next')}</button
     >
   </div>
@@ -268,20 +272,22 @@
         max="100"
         step="1"
         value={seekPercentage}
-        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
-        oninput={handleSeek}
+        disabled={dispatch.snapshot.mode === 'local'
+          ? localRangeCommitDisabled
+          : kodiRangeCommitDisabled}
+        onchange={handleSeek}
       />
       <div class="relative-seek cluster" aria-label={i18n.t('player.controls.relativeSeekAria')}>
         <button
           type="button"
-          disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+          disabled={dispatch.snapshot.mode === 'local' ? localCommandDisabled : kodiCommandDisabled}
           onclick={() => dispatch.seekRelativeSeconds(-30)}
         >
           {i18n.t('player.controls.seekBack30')}
         </button>
         <button
           type="button"
-          disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+          disabled={dispatch.snapshot.mode === 'local' ? localCommandDisabled : kodiCommandDisabled}
           onclick={() => dispatch.seekRelativeSeconds(30)}
         >
           {i18n.t('player.controls.seekForward30')}
@@ -298,12 +304,14 @@
         max="100"
         step="1"
         value={volume}
-        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
-        oninput={handleVolume}
+        disabled={dispatch.snapshot.mode === 'local'
+          ? localRangeCommitDisabled
+          : kodiRangeCommitDisabled}
+        onchange={handleVolume}
       />
       <button
         type="button"
-        disabled={dispatch.snapshot.mode === 'local' ? localDisabled : kodiDisabled}
+        disabled={dispatch.snapshot.mode === 'local' ? localCommandDisabled : kodiCommandDisabled}
         onclick={() => dispatch.toggleMute()}
       >
         {i18n.t('player.controls.toggleMute')}
@@ -314,7 +322,7 @@
       <label for="now-playing-shuffle">{i18n.t('player.controls.shuffle')}</label>
       <select
         id="now-playing-shuffle"
-        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
         value={shuffleValue}
         onchange={handleShuffle}
       >
@@ -327,7 +335,7 @@
       <label for="now-playing-repeat">{i18n.t('player.controls.repeat')}</label>
       <select
         id="now-playing-repeat"
-        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
         value={repeatValue}
         onchange={handleRepeat}
       >
@@ -342,7 +350,7 @@
       <label for="now-playing-subtitle">{i18n.t('player.controls.subtitle')}</label>
       <select
         id="now-playing-subtitle"
-        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
         value={subtitleValue}
         onchange={handleSubtitle}
       >
@@ -363,7 +371,7 @@
       <label for="now-playing-audio">{i18n.t('player.controls.audio')}</label>
       <select
         id="now-playing-audio"
-        disabled={dispatch.snapshot.mode === 'local' ? true : kodiDisabled}
+        disabled={dispatch.snapshot.mode === 'local' ? true : kodiCommandDisabled}
         value={audioValue}
         onchange={handleAudioStream}
       >

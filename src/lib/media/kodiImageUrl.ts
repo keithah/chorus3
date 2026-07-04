@@ -4,7 +4,14 @@ export function optionalKodiImageUrl(value: unknown): string | undefined {
     return undefined;
   }
 
-  return `/image/${encodeURIComponent(value.trim())}`;
+  return `/image/${encodeKodiImagePath(value.trim())}`;
+}
+
+function encodeKodiImagePath(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[()']/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  );
 }
 
 /** Accepts raw Kodi art paths or already-proxied `/image/...` URLs. */

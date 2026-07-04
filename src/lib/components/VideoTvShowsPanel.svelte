@@ -6,6 +6,7 @@
   import { videoLibraryStore } from '$lib/stores/videoLibrary.svelte';
   import { buildVideoRoute } from '$lib/video/videoRouter';
   import { createIncrementalVisibility } from './incrementalVisibility.svelte';
+  import { safeStableKey } from './listKeyHelpers';
   import { sanitizeUiText, textOrNull } from './textFormatting';
 
   interface Props {
@@ -20,7 +21,7 @@
 
   let { snapshot: injectedSnapshot }: Props = $props();
   const snapshot = $derived(injectedSnapshot ?? videoLibraryStore.snapshot);
-  const tvShowVisibility = createIncrementalVisibility(240);
+  const tvShowVisibility = createIncrementalVisibility(96);
 
   const isLoading = $derived(snapshot.refreshStatus === 'loading');
   const statusText = $derived(formatStatus(snapshot));
@@ -224,7 +225,7 @@
 
   {#if snapshot.tvShows.length > 0}
     <ul class="tv-show-grid" aria-label="TV shows">
-      {#each visibleTvShows as tvShow, index (safeTvShowId(tvShow.tvshowid) ?? index)}
+      {#each visibleTvShows as tvShow, index (safeStableKey('tv-show', safeTvShowId(tvShow.tvshowid), index))}
         {@const href = detailHref(tvShow)}
         {@const label = safeTvShowLabel(tvShow)}
         {@const metadata = tvShowMetadata(tvShow)}

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import MetadataEditDialog from '$components/MetadataEditDialog.svelte';
+  import LazyRouteComponent from '$lib/app-pages/LazyRouteComponent.svelte';
+  import { bindLazyRoute, loadMetadataEditDialog } from '$lib/app-pages/appPageSurfaceLazyRoutes';
   import type { TranslationContext } from '$lib/i18n';
   import { buildKodiPackageSafeVideoAppRoute, type BuildAppRouteOptions } from '$lib/app/appRouter';
   import {
@@ -211,6 +212,7 @@
     } catch (error) {
       editError = sanitizeUiText(errorMessage(error));
       editStatus = `Could not save ${currentTitle}. ${sanitizeUiText(errorMessage(error))}`;
+      throw error;
     } finally {
       editPending = false;
     }
@@ -372,9 +374,10 @@
       </div>
     </dl>
 
-    {#if detailFields(tvShow).length > 0}
+    {@const fields = detailFields(tvShow)}
+    {#if fields.length > 0}
       <dl class="detail-list rich-fields">
-        {#each detailFields(tvShow) as field}
+        {#each fields as field}
           <div>
             <dt>{field.label}</dt>
             <dd>{field.value}</dd>
@@ -410,16 +413,18 @@
       </ul>
     {/if}
     {#if editOpen}
-      <MetadataEditDialog
-        definition={METADATA_EDITOR_DEFINITIONS.tvshow}
-        source={tvShowEditSource(tvShow)}
-        pending={editPending}
-        error={editError}
-        onSave={saveMetadata}
-        onCancel={() => {
-          editOpen = false;
-          editError = null;
-        }}
+      <LazyRouteComponent
+        route={bindLazyRoute(loadMetadataEditDialog, {
+          definition: METADATA_EDITOR_DEFINITIONS.tvshow,
+          source: tvShowEditSource(tvShow),
+          pending: editPending,
+          error: editError,
+          onSave: saveMetadata,
+          onCancel: () => {
+            editOpen = false;
+            editError = null;
+          }
+        })}
       />
     {/if}
   {:else}

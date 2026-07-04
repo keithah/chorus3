@@ -2,6 +2,8 @@ import {
   getAudioLibraryAlbums,
   getAudioLibraryArtists,
   getAudioLibrarySongs,
+  type AudioLibrarySongsParams,
+  type AudioLibrarySongsResult,
   type KodiJsonRpcHttpClient
 } from '$lib/kodi';
 import {
@@ -12,6 +14,7 @@ import {
   type MusicLibraryArtistSnapshot,
   type MusicLibrarySongSnapshot
 } from '$lib/stores/musicLibraryNormalization';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export async function loadKodiAlbumDetail(
   client: KodiJsonRpcHttpClient,
@@ -71,21 +74,31 @@ export async function loadKodiAlbumSongs(
   client: KodiJsonRpcHttpClient,
   albumid: number
 ): Promise<MusicLibrarySongSnapshot[]> {
-  const result = await getAudioLibrarySongs(client, {
-    filter: { albumid },
-    properties: [
-      'title',
-      'artist',
-      'album',
-      'duration',
-      'track',
-      'thumbnail',
-      'playcount',
-      'lastplayed',
-      'dateadded'
-    ],
-    limits: { start: 0, end: 1000 },
-    sort: { method: 'track', order: 'ascending' }
-  });
+  const result = await readPagedKodiLibraryList<
+    AudioLibrarySongsParams,
+    'songs',
+    NonNullable<AudioLibrarySongsResult['songs']>[number],
+    AudioLibrarySongsResult
+  >(
+    (params) => getAudioLibrarySongs(client, params),
+    {
+      filter: { albumid },
+      properties: [
+        'title',
+        'artist',
+        'album',
+        'duration',
+        'track',
+        'thumbnail',
+        'playcount',
+        'lastplayed',
+        'dateadded'
+      ],
+      sort: { method: 'track', order: 'ascending' }
+    },
+    'songs',
+    undefined,
+    DEFAULT_FULL_LIBRARY_PAGE_SIZE
+  );
   return normalizeMusicSongs(result.songs);
 }

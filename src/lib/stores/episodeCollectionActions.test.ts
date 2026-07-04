@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { KodiJsonRpcBatchCall, KodiJsonRpcHttpClient } from '$lib/kodi';
+import type { KodiJsonRpcHttpClient } from '$lib/kodi';
 import { createEpisodeCollectionActionDispatch } from './episodeCollectionActions';
 
 class FakeKodiClient implements KodiJsonRpcHttpClient {
   readonly calls: Array<{ method: string; params?: unknown }> = [];
-  readonly batches: Array<readonly KodiJsonRpcBatchCall[]> = [];
 
   constructor(private readonly episodes: { episodeid?: unknown }[]) {}
 
@@ -16,15 +15,10 @@ class FakeKodiClient implements KodiJsonRpcHttpClient {
     }
     return 'OK' as TResult;
   }
-
-  async callBatch<TResult>(calls: readonly KodiJsonRpcBatchCall[]): Promise<TResult[]> {
-    this.batches.push(calls);
-    return calls.map(() => 'OK' as TResult);
-  }
 }
 
 describe('episode collection actions', () => {
-  it('queues fetched episodes with one ordered JSON-RPC batch when available', async () => {
+  it('queues fetched episodes with ordered Playlist.Add calls', async () => {
     const client = new FakeKodiClient([{ episodeid: 10 }, { episodeid: 11 }, { episodeid: null }]);
     const dispatch = createEpisodeCollectionActionDispatch({ createClient: () => client });
 
@@ -37,18 +31,14 @@ describe('episode collection actions', () => {
         method: 'VideoLibrary.GetEpisodes',
         params: {
           tvshowid: 1,
-          properties: ['title'],
-          limits: { start: 0, end: 1000 },
+          properties: [],
+          limits: { start: 0, end: 500 },
           sort: { method: 'episode', order: 'ascending' },
           season: 2
         }
-      }
-    ]);
-    expect(client.batches).toEqual([
-      [
-        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 10 } } },
-        { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 11 } } }
-      ]
+      },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 10 } } },
+      { method: 'Playlist.Add', params: { playlistid: 1, item: { episodeid: 11 } } }
     ]);
   });
 

@@ -12,6 +12,7 @@ import {
   type MusicLibraryRefreshStatus,
   type MusicLibrarySafeErrorSnapshot
 } from './musicLibraryNormalization';
+import { cachedFrozenJsonSnapshot, type JsonSnapshotCache } from './snapshotCache';
 
 export type MediaPlaylistsMedia = Extract<FileMediaType, 'music' | 'video'>;
 export type MediaPlaylistsRefreshStatus = MusicLibraryRefreshStatus;
@@ -148,6 +149,10 @@ function defaultSnapshot(media: MediaPlaylistsMedia): MediaPlaylistsStoreSnapsho
 
 export class MediaPlaylistsStore {
   #snapshot = $state<MediaPlaylistsStoreSnapshot>(defaultSnapshot(DEFAULT_MEDIA));
+  #publicSnapshot: JsonSnapshotCache<MediaPlaylistsStoreSnapshot> = {
+    source: null,
+    snapshot: null
+  };
 
   readonly #client: KodiJsonRpcHttpClient | null;
   readonly #createClient: (() => KodiJsonRpcHttpClient | null) | null;
@@ -168,7 +173,11 @@ export class MediaPlaylistsStore {
   }
 
   get snapshot(): MediaPlaylistsStoreSnapshot {
-    return cloneMediaPlaylistsSnapshot(this.#snapshot);
+    return cachedFrozenJsonSnapshot(
+      this.#publicSnapshot,
+      this.#snapshot,
+      cloneMediaPlaylistsSnapshot
+    );
   }
 
   async refreshPlaylists(): Promise<void> {

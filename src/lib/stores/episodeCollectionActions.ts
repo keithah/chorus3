@@ -1,6 +1,12 @@
-import type { KodiJsonRpcHttpClient } from '$lib/kodi';
+import {
+  getVideoLibraryEpisodes,
+  type KodiJsonRpcHttpClient,
+  type VideoLibraryEpisodesParams,
+  type VideoLibraryEpisodesResult
+} from '$lib/kodi';
 import { createActiveKodiJsonRpcHttpClient } from './kodiClient';
-import { callOrderedBatch } from './kodiBatch';
+import { callKodiCallsSequentially } from './kodiBatch';
+import { DEFAULT_FULL_LIBRARY_PAGE_SIZE, readPagedKodiLibraryList } from './pagedKodiLibrary';
 
 export interface EpisodeCollectionActionRequest {
   tvshowid: number;
@@ -75,15 +81,22 @@ async function fetchEpisodeIds(
   client: KodiJsonRpcHttpClient,
   request: EpisodeCollectionActionRequest
 ): Promise<number[]> {
-  const result = await client.call<{ episodes?: { episodeid?: unknown }[] }>(
-    'VideoLibrary.GetEpisodes',
+  const result = await readPagedKodiLibraryList<
+    VideoLibraryEpisodesParams,
+    'episodes',
+    NonNullable<VideoLibraryEpisodesResult['episodes']>[number],
+    VideoLibraryEpisodesResult
+  >(
+    (params) => getVideoLibraryEpisodes(client, params),
     {
       tvshowid: request.tvshowid,
-      properties: ['title'],
-      limits: { start: 0, end: 1000 },
+      properties: [],
       sort: { method: 'episode', order: 'ascending' },
       ...(typeof request.season === 'number' ? { season: request.season } : {})
-    }
+    },
+    'episodes',
+    undefined,
+    DEFAULT_FULL_LIBRARY_PAGE_SIZE
   );
 
   return (Array.isArray(result.episodes) ? result.episodes : []).flatMap((episode) =>
@@ -103,7 +116,7 @@ async function addEpisodesToPlaylist(
     return;
   }
 
-  await callOrderedBatch(
+  await callKodiCallsSequentially(
     client,
     episodeIds.map((episodeid) => ({
       method: 'Playlist.Add',

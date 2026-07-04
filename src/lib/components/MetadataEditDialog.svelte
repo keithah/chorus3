@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     createMetadataEditorInitialValues,
     createMetadataEditorSavePayload,
     displayTitleForMetadataEditor,
+    metadataEditorSourceKey,
+    reconcileMetadataEditorValues,
     type MetadataEditorDefinition,
     type MetadataEditorPayload,
     type MetadataEditorValues
@@ -21,6 +24,7 @@
   let values = $state<MetadataEditorValues>({});
   let dirtyKeys = $state<Set<string>>(new Set());
   let activeSectionIndex = $state(0);
+  let lastResetKey = '';
   const activeSection = $derived(definition.sections[activeSectionIndex] ?? definition.sections[0]);
   const heading = $derived(
     `Edit ${definition.title}: ${displayTitleForMetadataEditor(definition, source, definition.title)}`
@@ -33,9 +37,14 @@
     dirtyKeys = new Set([...dirtyKeys, key]);
   }
 
-  function submit(event: SubmitEvent): void {
+  async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    void onSave(createMetadataEditorSavePayload(definition, values, dirtyKeys));
+    try {
+      await onSave(createMetadataEditorSavePayload(definition, values, dirtyKeys));
+      dirtyKeys = new Set();
+    } catch {
+      // The parent owns user-facing error copy; keep dirty values available for retry.
+    }
   }
 
   function inputType(input: string): string {
@@ -43,9 +52,20 @@
   }
 
   $effect(() => {
-    values = createMetadataEditorInitialValues(definition, source);
-    dirtyKeys = new Set();
-    activeSectionIndex = 0;
+    const resetKey = metadataEditorSourceKey(definition, source);
+    const nextValues = createMetadataEditorInitialValues(definition, source);
+
+    untrack(() => {
+      if (resetKey !== lastResetKey) {
+        values = nextValues;
+        dirtyKeys = new Set();
+        activeSectionIndex = 0;
+        lastResetKey = resetKey;
+        return;
+      }
+
+      values = reconcileMetadataEditorValues(values, nextValues, dirtyKeys);
+    });
   });
 </script>
 

@@ -19,7 +19,8 @@ export type MusicDetailRouteSnapshot = {
 export type ResourceEntry<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T }
-  | { status: 'missing' };
+  | { status: 'missing' }
+  | { status: 'error' };
 
 export type KeyedResourceSnapshot<T> = Record<number, ResourceEntry<T>>;
 
@@ -96,7 +97,7 @@ export class MusicDetailRouteStore {
     ) => Promise<ResourceData<MusicDetailRouteSnapshot[TKey]> | null>
   ): Promise<void> {
     const bucket = this.#snapshot[bucketKey];
-    if (bucket[id]) return;
+    if (bucket[id] && bucket[id].status !== 'error') return;
 
     const client = this.#createClient();
     if (!client) return;
@@ -112,7 +113,7 @@ export class MusicDetailRouteStore {
         data === null ? { status: 'missing' } : { status: 'ready', data }
       );
     } catch {
-      this.#snapshot = setResourceEntry(this.#snapshot, bucketKey, id, { status: 'missing' });
+      this.#snapshot = setResourceEntry(this.#snapshot, bucketKey, id, { status: 'error' });
     }
   }
 }

@@ -6,7 +6,7 @@ import {
   evaluateLocalPlaybackProgress,
   evaluateLocalScrobblePolicy,
   extractLocalLibraryItemId,
-  type LocalScrobbleWriteMethods
+  type LocalScrobbleLibraryMethods
 } from './localScrobble.svelte';
 import type { LocalPlayerStoreSnapshot } from './localPlayer.svelte';
 
@@ -247,8 +247,9 @@ describe('local scrobble store', () => {
     }
   }
 
-  function createWriteMethods(): LocalScrobbleWriteMethods {
+  function createLibraryMethods(): LocalScrobbleLibraryMethods {
     return {
+      getSongDetails: vi.fn().mockResolvedValue({ songdetails: { songid: 9, playcount: 0 } }),
       setSongDetails: vi.fn().mockResolvedValue('OK'),
       setMovieDetails: vi.fn().mockResolvedValue('OK'),
       setEpisodeDetails: vi.fn().mockResolvedValue('OK')
@@ -259,16 +260,16 @@ describe('local scrobble store', () => {
     snapshot: LocalPlayerStoreSnapshot,
     client: KodiJsonRpcHttpClient | null = new FakeKodiClient()
   ) {
-    const writeMethods = createWriteMethods();
+    const libraryMethods = createLibraryMethods();
     const localPlayerStore = { snapshot };
     const store = createLocalScrobbleStore({
       localPlayerStore,
       createClient: () => client,
       now: () => '2026-04-29T20:30:15.000Z',
-      writeMethods
+      libraryMethods
     });
 
-    return { store, writeMethods, localPlayerStore };
+    return { store, libraryMethods, localPlayerStore };
   }
 
   it('starts idle with clone-safe snapshot defaults', () => {
@@ -286,7 +287,7 @@ describe('local scrobble store', () => {
   });
 
   it('writes an audio scrobble after threshold success', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -298,7 +299,11 @@ describe('local scrobble store', () => {
 
     await store.evaluateAndWrite('local:timeupdate');
 
-    expect(writeMethods.setSongDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+    expect(libraryMethods.getSongDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+      songid: 9,
+      properties: ['playcount']
+    });
+    expect(libraryMethods.setSongDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
       songid: 9,
       playcount: 1,
       lastplayed: '2026-04-29 20:30:15'
@@ -312,8 +317,31 @@ describe('local scrobble store', () => {
     });
   });
 
+  it('increments existing audio playcount when scrobbling', async () => {
+    const { store, libraryMethods } = createHarness(
+      createLocalSnapshot({
+        status: 'playing',
+        mediaKind: 'audio',
+        item: { type: 'song', songid: 9, label: 'Track' },
+        currentSeconds: 300,
+        durationSeconds: 500
+      })
+    );
+    vi.mocked(libraryMethods.getSongDetails).mockResolvedValue({
+      songdetails: { songid: 9, label: 'Track', playcount: 4 }
+    });
+
+    await store.evaluateAndWrite('local:timeupdate');
+
+    expect(libraryMethods.setSongDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+      songid: 9,
+      playcount: 5,
+      lastplayed: '2026-04-29 20:30:15'
+    });
+  });
+
   it('writes movie resume progress', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'video',
@@ -325,7 +353,7 @@ describe('local scrobble store', () => {
 
     await store.evaluateAndWrite();
 
-    expect(writeMethods.setMovieDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+    expect(libraryMethods.setMovieDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
       movieid: 7,
       resume: { position: 120, total: 600 }
     });
@@ -337,7 +365,7 @@ describe('local scrobble store', () => {
   });
 
   it('writes episode watched progress', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'ended',
         mediaKind: 'video',
@@ -349,7 +377,7 @@ describe('local scrobble store', () => {
 
     await store.evaluateAndWrite();
 
-    expect(writeMethods.setEpisodeDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
+    expect(libraryMethods.setEpisodeDetails).toHaveBeenCalledWith(expect.any(FakeKodiClient), {
       episodeid: 3,
       playcount: 1,
       lastplayed: '2026-04-29 20:30:15'
@@ -362,7 +390,7 @@ describe('local scrobble store', () => {
   });
 
   it('suppresses duplicate writes for the same action and item', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -375,7 +403,7 @@ describe('local scrobble store', () => {
     await store.evaluateAndWrite();
     await store.evaluateAndWrite();
 
-    expect(writeMethods.setSongDetails).toHaveBeenCalledTimes(1);
+    expect(libraryMethods.setSongDetails).toHaveBeenCalledTimes(1);
     expect(store.snapshot).toMatchObject({
       status: 'skipped',
       lastPolicyReason: 'write/duplicate',
@@ -383,8 +411,71 @@ describe('local scrobble store', () => {
     });
   });
 
+  it('suppresses duplicate writes while the first matching write is still in flight', async () => {
+    let resolveWrite: (value: 'OK') => void = () => {};
+    const pendingWrite = new Promise<'OK'>((resolve) => {
+      resolveWrite = resolve;
+    });
+    const { store, libraryMethods } = createHarness(
+      createLocalSnapshot({
+        status: 'playing',
+        mediaKind: 'audio',
+        item: { type: 'song', songid: 9, label: 'Track' },
+        currentSeconds: 300,
+        durationSeconds: 500
+      })
+    );
+    vi.mocked(libraryMethods.setSongDetails).mockReturnValue(pendingWrite);
+
+    const first = store.evaluateAndWrite('local:timeupdate');
+    const second = store.evaluateAndWrite('local:timeupdate');
+    await vi.waitFor(() => expect(libraryMethods.setSongDetails).toHaveBeenCalledTimes(1));
+
+    expect(libraryMethods.setSongDetails).toHaveBeenCalledTimes(1);
+
+    resolveWrite('OK');
+    await Promise.all([first, second]);
+    expect(store.snapshot.writeCounts.audioScrobbles).toBe(1);
+  });
+
+  it('writes updated resume positions for the same video item', async () => {
+    const localPlayerStore = {
+      snapshot: createLocalSnapshot({
+        status: 'playing',
+        mediaKind: 'video',
+        item: { type: 'movie', movieid: 7, label: 'Movie' },
+        currentSeconds: 30,
+        durationSeconds: 600
+      })
+    };
+    const libraryMethods = createLibraryMethods();
+    const store = createLocalScrobbleStore({
+      localPlayerStore,
+      createClient: () => new FakeKodiClient(),
+      now: () => '2026-04-29T20:30:15.000Z',
+      libraryMethods
+    });
+
+    await store.evaluateAndWrite();
+    localPlayerStore.snapshot = {
+      ...localPlayerStore.snapshot,
+      currentSeconds: 120
+    };
+    await store.evaluateAndWrite();
+
+    expect(libraryMethods.setMovieDetails).toHaveBeenCalledTimes(2);
+    expect(libraryMethods.setMovieDetails).toHaveBeenNthCalledWith(1, expect.any(FakeKodiClient), {
+      movieid: 7,
+      resume: { position: 30, total: 600 }
+    });
+    expect(libraryMethods.setMovieDetails).toHaveBeenNthCalledWith(2, expect.any(FakeKodiClient), {
+      movieid: 7,
+      resume: { position: 120, total: 600 }
+    });
+  });
+
   it('reports missing active host safely when a write is needed', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -397,7 +488,7 @@ describe('local scrobble store', () => {
 
     await store.evaluateAndWrite();
 
-    expect(writeMethods.setSongDetails).not.toHaveBeenCalled();
+    expect(libraryMethods.setSongDetails).not.toHaveBeenCalled();
     expect(store.snapshot).toMatchObject({
       status: 'error',
       lastError: { source: 'config', code: 'config/no-active-host' }
@@ -405,7 +496,7 @@ describe('local scrobble store', () => {
   });
 
   it('records unsupported id policy as skipped without calling Kodi', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -417,7 +508,7 @@ describe('local scrobble store', () => {
 
     await store.evaluateAndWrite();
 
-    expect(writeMethods.setSongDetails).not.toHaveBeenCalled();
+    expect(libraryMethods.setSongDetails).not.toHaveBeenCalled();
     expect(store.snapshot).toMatchObject({
       status: 'skipped',
       lastPolicyReason: 'item/missing-songid'
@@ -425,7 +516,7 @@ describe('local scrobble store', () => {
   });
 
   it('sanitizes wrapper failures without leaking secrets or file paths', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -434,7 +525,7 @@ describe('local scrobble store', () => {
         durationSeconds: 500
       })
     );
-    vi.mocked(writeMethods.setSongDetails).mockRejectedValue(
+    vi.mocked(libraryMethods.setSongDetails).mockRejectedValue(
       new Error(
         'failed for Authorization: Basic token at http://admin:p@ssword@kodi.local/jsonrpc and smb://nas/private/song.flac from localStorage'
       )
@@ -456,7 +547,7 @@ describe('local scrobble store', () => {
   });
 
   it('preserves Kodi HTTP endpoint diagnostics while sanitizing the message', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -465,7 +556,7 @@ describe('local scrobble store', () => {
         durationSeconds: 500
       })
     );
-    vi.mocked(writeMethods.setSongDetails).mockRejectedValue(
+    vi.mocked(libraryMethods.setSongDetails).mockRejectedValue(
       new KodiHttpClientError({
         code: 'auth',
         method: 'AudioLibrary.SetSongDetails',
@@ -496,7 +587,7 @@ describe('local scrobble store', () => {
   });
 
   it('evaluateLocalPlaybackProgress triggers the store with a lifecycle reason', async () => {
-    const { store, writeMethods } = createHarness(
+    const { store, libraryMethods } = createHarness(
       createLocalSnapshot({
         status: 'playing',
         mediaKind: 'audio',
@@ -511,7 +602,7 @@ describe('local scrobble store', () => {
       reason: 'local:timeupdate'
     });
 
-    expect(writeMethods.setSongDetails).toHaveBeenCalledTimes(1);
+    expect(libraryMethods.setSongDetails).toHaveBeenCalledTimes(1);
     expect(store.snapshot).toMatchObject({
       status: 'success',
       lastEvaluationReason: 'local:timeupdate',
