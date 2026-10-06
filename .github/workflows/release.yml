@@ -12,7 +12,7 @@ permissions:
 jobs:
   package:
     name: Verify and publish Kodi package
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
 
     steps:
       - name: Check out repository
